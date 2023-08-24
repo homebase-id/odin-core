@@ -163,7 +163,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _insertParam1.Value = item.identity;
                 _insertParam2.Value = item.driveId.ToByteArray();
-                _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.created = UnixTimeUtcUnique.Now();
+                _insertParam3.Value = item.created.uniqueTime;
+                item.modified = null;
                 _insertParam4.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
@@ -199,8 +201,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _upsertParam1.Value = item.identity;
                 _upsertParam2.Value = item.driveId.ToByteArray();
-                _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
+                _upsertParam3.Value = item.created.uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _upsertParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
@@ -235,7 +239,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.identity;
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _updateParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);

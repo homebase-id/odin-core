@@ -82,6 +82,12 @@ namespace Odin.Core
         }
 
 
+        /// <summary>
+        /// Combines first and second byte array into one long byte array
+        /// </summary>
+        /// <param name="first"></param>
+        /// <param name="second"></param>
+        /// <returns></returns>
         public static byte[] Combine(byte[] first, byte[] second)
         {
             byte[] ret = new byte[first.Length + second.Length];

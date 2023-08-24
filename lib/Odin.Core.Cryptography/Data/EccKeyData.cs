@@ -1,12 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Asn1.Sec;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Math.EC;
+using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
@@ -20,8 +29,63 @@ namespace Odin.Core.Cryptography.Data
         public UInt32 crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
-        public static EccPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1)
+
+        //
+        // Perhaps move to other lib/ class
+        // 
+
+        public static string Base64UrlEncode(byte[] input)
         {
+            return Convert.ToBase64String(input).Split('=')[0].Replace('+', '-').Replace('/', '_');
+        }
+ 
+        public static string Base64UrlEncode(string input)
+        {
+            return Base64UrlEncode(input.ToUtf8ByteArray());
+        }
+
+        public static byte[] Base64UrlDecode(string input)
+        {
+            string base64 = input.Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
+            return Convert.FromBase64String(base64);
+        }
+
+        public static string Base64UrlDecodeString(string input)
+        {
+            return Base64UrlDecode(input).ToStringFromUtf8Bytes();
+        }
+
+
+        //
+        // End of stuff to be put in another class
+        //
+        public static EccPublicKeyData FromJwkPublicKey(string jwk, int hours = 1)
+        {
+            var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
+
+            if (jwkObject["kty"] != "EC")
+                throw new InvalidOperationException("Invalid key type, kty must be EC");
+
+            if (jwkObject["crv"] != "P-384")
+                throw new InvalidOperationException("Invalid curve, crv must be P-384");
+
+            byte[] x = Base64UrlDecode(jwkObject["x"]);
+            byte[] y = Base64UrlDecode(jwkObject["y"]);
+
+            X9ECParameters x9ECParameters = NistNamedCurves.GetByName("P-384");
+            ECCurve curve = x9ECParameters.Curve;
+            ECPoint ecPoint = curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y));
+
+            ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(ecPoint, new ECDomainParameters(curve, x9ECParameters.G, x9ECParameters.N, x9ECParameters.H));
+
+            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKeyParameters);
+            byte[] derEncodedPublicKey = publicKeyInfo.GetDerEncoded();
+
             var publicKey = new EccPublicKeyData()
             {
                 publicKey = derEncodedPublicKey,
@@ -32,25 +96,45 @@ namespace Odin.Core.Cryptography.Data
             return publicKey;
         }
 
-        public string publicPem()
+        public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
         {
-            return "-----BEGIN PUBLIC KEY-----\n" + publicDerBase64() + "\n-----END PUBLIC KEY-----";
+            return FromJwkPublicKey(Base64UrlDecodeString(jwkbase64Url) , hours);
         }
 
-        public string publicDerBase64()
+        public string PublicKeyJwk()
         {
-            return Convert.ToBase64String(publicKey);
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+
+            // Extract the key parameters
+            BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
+            BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
+
+            // Create a JSON object to represent the JWK
+            var jwk = new
+            {
+                kty = "EC",
+                crv = "P-384", // Corresponds to "secp384r1"
+                x = Base64UrlEncode(x.ToByteArrayUnsigned()),
+                y = Base64UrlEncode(y.ToByteArrayUnsigned())
+            };
+
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = false
+            };
+
+            string jwkJson = JsonSerializer.Serialize(jwk, options);
+
+            return jwkJson;
         }
 
-        public static byte[] decodePublicPem(string pem)
+        public string PublicKeyJwkBase64Url()
         {
-            string publicKeyPEM = pem.Replace("-----BEGIN PUBLIC KEY-----", "")
-                                      .Replace("\n", "")
-                                      .Replace("\r", "")
-                                      .Replace("-----END PUBLIC KEY-----", "");
-
-            return Convert.FromBase64String(publicKeyPEM);
+            return Base64UrlEncode(PublicKeyJwk());
         }
+
 
         public static UInt32 KeyCRC(byte[] keyDerEncoded)
         {
@@ -66,7 +150,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
 
-            ISigner signer = SignerUtilities.GetSigner("SHA384withECDSA");
+            ISigner signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm);
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
             signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);

@@ -144,20 +144,20 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         public Task<EccPublicKeyData> GetSigningPublicKey()
         {
-            var k = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
-            return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+            var keyPair = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
+            return Task.FromResult((EccPublicKeyData) keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
         public Task<EccPublicKeyData> GetOnlineEccPublicKey()
         {
-            var k = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
-            return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
+            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
-            var k = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
-            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+            var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
+            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(keyPair.publicKey));
         }
 
         /// <summary>

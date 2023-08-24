@@ -22,7 +22,7 @@ namespace Odin.Core.Cryptography.Signatures
         public OdinId Identity { get; set; }
 
         [JsonPropertyOrder(5)]
-        public byte[] PublicKeyDer { get; set; }
+        public string PublicKeyJwkBase64Url { get; set; }
 
         [JsonPropertyOrder(6)]
         public UnixTimeUtc TimeStamp { get; set; }
@@ -61,10 +61,10 @@ namespace Odin.Core.Cryptography.Signatures
             s.DataHash = ByteArrayUtil.CalculateSHA256Hash(data);
             s.DataHashAlgorithm = HashUtil.SHA256Algorithm;
             s.Identity = identity;
-            s.PublicKeyDer = eccKey.publicKey;
+            s.PublicKeyJwkBase64Url = eccKey.PublicKeyJwkBase64Url();
             s.TimeStamp = UnixTimeUtc.Now();
             s.SignatureAlgorithm = EccFullKeyData.eccSignatureAlgorithm;
-            var bytesToSign = ByteArrayUtil.Combine(s.DataHash, s.DataHashAlgorithm.ToUtf8ByteArray(), s.Identity.ToByteArray(), s.PublicKeyDer, ByteArrayUtil.Int64ToBytes(s.TimeStamp.milliseconds), s.SignatureAlgorithm.ToUtf8ByteArray());
+            var bytesToSign = ByteArrayUtil.Combine(s.DataHash, s.DataHashAlgorithm.ToUtf8ByteArray(), s.Identity.ToByteArray(), s.PublicKeyJwkBase64Url.ToUtf8ByteArray(), ByteArrayUtil.Int64ToBytes(s.TimeStamp.milliseconds), s.SignatureAlgorithm.ToUtf8ByteArray());
 
             s.Signature = eccKey.Sign(keyPwd, bytesToSign);
 
@@ -83,12 +83,12 @@ namespace Odin.Core.Cryptography.Signatures
                 return false;
 
             // It's the same hash, validate the signature
-            var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(signatureData.PublicKeyDer);
+            var publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(signatureData.PublicKeyJwkBase64Url);
             var bytesToSign = ByteArrayUtil.Combine(
                                     signatureData.DataHash,
                                     signatureData.DataHashAlgorithm.ToUtf8ByteArray(),
                                     signatureData.Identity.ToByteArray(),
-                                    signatureData.PublicKeyDer,
+                                    signatureData.PublicKeyJwkBase64Url.ToUtf8ByteArray(),
                                     ByteArrayUtil.Int64ToBytes(signatureData.TimeStamp.milliseconds),
                                     signatureData.SignatureAlgorithm.ToUtf8ByteArray());
 

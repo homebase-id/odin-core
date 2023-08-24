@@ -13,27 +13,27 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 */
 
-namespace Odin.Core.Storage.SQLite.BlockChainDatabase
+namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class BlockChainDatabase : DatabaseBase
+    public class KeyChainDatabase : DatabaseBase
     {
-        public readonly TableBlockChain tblBlockChain = null;
+        public readonly TableKeyChain tblKeyChain = null;
 
         public readonly string CN;
 
         private readonly CacheHelper _cache = new CacheHelper("blockchain");
         private readonly string _file;
         private readonly int _line;
-        public BlockChainDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public KeyChainDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
-            tblBlockChain = new TableBlockChain(this, _cache);
+            tblKeyChain = new TableKeyChain(this, _cache);
             CN = connectionString;
             _file = file;
             _line = line;
         }
 
 
-        ~BlockChainDatabase()
+        ~KeyChainDatabase()
         {
 #if DEBUG
             if (!_wasDisposed)
@@ -49,7 +49,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         {
             Commit();
 
-            tblBlockChain.Dispose();
+            tblKeyChain.Dispose();
 
             base.Dispose();
         }
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         /// </summary>
         public override void CreateDatabase(bool dropExistingTables = true)
         {
-            tblBlockChain.EnsureTableExists(dropExistingTables);
+            tblKeyChain.EnsureTableExists(dropExistingTables);
             if (dropExistingTables)
                 Vacuum();
         }

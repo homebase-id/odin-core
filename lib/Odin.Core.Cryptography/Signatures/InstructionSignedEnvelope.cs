@@ -38,7 +38,11 @@ namespace Odin.Core.Cryptography.Signatures
             if (signedEnvelope.VerifyEnvelopeSignatures() == false)
                 throw new ArgumentException($"Unable to verify signatures.");
 
-            AsciiDomainName id;
+            // Verify the contentNonce
+            if ((signedEnvelope.Envelope.ContentNonce.Length < 16) || (signedEnvelope.Envelope.ContentNonce.Length > 32))
+                throw new ArgumentException($"Envelope.ContentNonce unexpected");
+
+            PunyDomainName id;
             try
             {
                 id = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);
