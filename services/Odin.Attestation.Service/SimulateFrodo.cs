@@ -172,7 +172,7 @@ namespace OdinsAttestation
         {
             // We create an empty envelope with a contentType of "request"
             //
-            var signedEnvelope = InstructionSignedEnvelope.CreateInstructionAttestation(_ecc, _pwd, new PunyDomainName(Identity), dataToAtttest);
+            var signedEnvelope = InstructionSignedEnvelope.CreateInstructionAttestation(_ecc, _pwd, new AsciiDomainName(Identity), dataToAtttest);
 
             return signedEnvelope;
         }

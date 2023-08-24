@@ -114,7 +114,7 @@ namespace OdinsAttestation.Controllers
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="Exception"></exception>
-        private List<SignedEnvelope> GenerateAttestationsFromRequest(PunyDomainName identity, SignedEnvelope requestEnvelope)
+        private List<SignedEnvelope> GenerateAttestationsFromRequest(AsciiDomainName identity, SignedEnvelope requestEnvelope)
         {
             if (identity.DomainName != requestEnvelope.Signatures[0].Identity.DomainName)
                 throw new ArgumentException("identity and envelope mismatch, impossible");
@@ -286,7 +286,7 @@ namespace OdinsAttestation.Controllers
 
             try
             {
-                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.PunyDomain, requestEnvelope);
+                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.AsciiDomain, requestEnvelope);
             }
             catch (Exception ex)
             {

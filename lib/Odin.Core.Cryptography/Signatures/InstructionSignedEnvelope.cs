@@ -42,10 +42,10 @@ namespace Odin.Core.Cryptography.Signatures
             if ((signedEnvelope.Envelope.ContentNonce.Length < 16) || (signedEnvelope.Envelope.ContentNonce.Length > 32))
                 throw new ArgumentException($"Envelope.ContentNonce unexpected");
 
-            PunyDomainName id;
+            AsciiDomainName id;
             try
             {
-                id = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
+                id = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);
             }
             catch (Exception ex)
             {
@@ -62,7 +62,7 @@ namespace Odin.Core.Cryptography.Signatures
             return signedEnvelope;
         }
 
-        private static SignedEnvelope CreateInstructionEnvelope(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, string envelopeSubType, SortedDictionary<string, object> instructionData)
+        private static SignedEnvelope CreateInstructionEnvelope(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, string envelopeSubType, SortedDictionary<string, object> instructionData)
         {
             // There's something to sort out here
             string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/request-usage-policy";
@@ -103,13 +103,13 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // Create an instruction to attest the supplied data
-        public static SignedEnvelope CreateInstructionAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAtttest)
+        public static SignedEnvelope CreateInstructionAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, SortedDictionary<string, object> dataToAtttest)
         {
             return CreateInstructionEnvelope(eccKey, pwd, identity, ENVELOPE_SUB_TYPE_ATTESTATION, dataToAtttest);
         }
 
         // Create an instruction to attest the supplied data
-        public static SignedEnvelope CreateInstructionKeyRegistration(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> data)
+        public static SignedEnvelope CreateInstructionKeyRegistration(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, SortedDictionary<string, object> data)
         {
             return CreateInstructionEnvelope(eccKey, pwd, identity, ENVELOPE_SUB_TYPE_KEY_REGISTRATION, data);
         }

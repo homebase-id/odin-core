@@ -32,7 +32,7 @@ namespace OdinsAttestation.Controllers
         }
 
 
-        private static string GetIdentityPublicKey(PunyDomainName identity)
+        private static string GetIdentityPublicKey(AsciiDomainName identity)
         {
             // @Todd - Here make an HTTP call instead of the simulation
             var jwkBase64Url = SimulateFrodo.GetPublicKey();
@@ -116,7 +116,7 @@ namespace OdinsAttestation.Controllers
             }
 
             // This will work because it was already validated in the Verify... above
-            var requestorId = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
+            var requestorId = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);
 
             // Let's fetch the identity's public key and make sure it's the same
             // This would be a web service call to Frodo

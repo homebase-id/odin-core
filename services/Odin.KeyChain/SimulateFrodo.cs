@@ -12,27 +12,27 @@ namespace Odin.KeyChain
     {
         private static SensitiveByteArray _pwd;
         private static EccFullKeyData _ecc;
-        private static PunyDomainName _identity;
+        private static AsciiDomainName _identity;
 
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
-            _identity = new PunyDomainName("frodobaggins.me");
+            _identity = new AsciiDomainName("frodobaggins.me");
         }
 
         public static void NewKey(string identity = "frodobaggins.me")
         {
-            _identity = new PunyDomainName(identity);
+            _identity = new AsciiDomainName(identity);
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
         }
 
-        public static (SensitiveByteArray, EccFullKeyData, PunyDomainName) GetKey()
+        public static (SensitiveByteArray, EccFullKeyData, AsciiDomainName) GetKey()
         {
             return (_pwd, _ecc, _identity);
         }
-        public static void SetKey(SensitiveByteArray pwd, EccFullKeyData ecc, PunyDomainName identity)
+        public static void SetKey(SensitiveByteArray pwd, EccFullKeyData ecc, AsciiDomainName identity)
         {
             _pwd = pwd;
             _ecc = ecc;

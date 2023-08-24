@@ -10,46 +10,46 @@ namespace Odin.Core.Util
 {
     // Guaranteed to hold a valid, lowercased puny domain name
     //
-    public readonly struct PunyDomainName
+    public readonly struct AsciiDomainName
     {
-        private readonly string _punyDomainName;
+        private readonly string _domainName;
 
         // Provide a public property to read the puny domain
-        public string DomainName => _punyDomainName;
+        public string DomainName => _domainName;
 
-        public PunyDomainName(string punyDomainName)
+        public AsciiDomainName(string punyDomainName)
         {
-            PunyDomainNameValidator.AssertValidDomain(punyDomainName);
-            _punyDomainName = punyDomainName.ToLower();
+            AsciiDomainNameValidator.AssertValidDomain(punyDomainName);
+            _domainName = punyDomainName.ToLower();
         }
 
         // Get the IDN representation of the puny domain
         public string ToIDN()
         {
             var idnMapping = new IdnMapping();
-            string unicode = idnMapping.GetUnicode(_punyDomainName);
+            string unicode = idnMapping.GetUnicode(_domainName);
             return unicode;
         }
 
-        // Static function to create a PunyDomainName from an IDN
-        public static PunyDomainName FromIDN(string idnDomainName)
+        // Static function to create a AsciiDomainName from an IDN
+        public static AsciiDomainName FromIDN(string idnDomainName)
         {
             var idnMapping = new IdnMapping();
             string punyCode = idnMapping.GetAscii(idnDomainName);
-            return new PunyDomainName(punyCode);
+            return new AsciiDomainName(punyCode);
         }
     }
 
 
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //
-    public class PunyDomainNameValidator
+    public class AsciiDomainNameValidator
     {
         public const int MAX_DNS_LABEL_COUNT = 127;  // as per DNS RFC
         public const int MAX_DNS_LABEL_LENGTH = 63;  // as per DNS RFC
         public const int MAX_DNS_DOMAIN_LENGTH = 255;  // as per DNS RFC
 
-        public static readonly byte[] punyCodeAsciiMap =
+        public static readonly byte[] CodeAsciiMap =
         {
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 000-009
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 010-019
@@ -80,26 +80,26 @@ namespace Odin.Core.Util
         };
 
         // Not yet tested
-        public static bool TryValidateDomain(string punyDomainName)
+        public static bool TryValidateDomain(string domainName)
         {
-            if (punyDomainName is null)
+            if (domainName is null)
                 return false;
 
-            if (punyDomainName.Length < 3 || punyDomainName.Length > MAX_DNS_DOMAIN_LENGTH)
+            if (domainName.Length < 3 || domainName.Length > MAX_DNS_DOMAIN_LENGTH)
                 return false;
 
             int labelCount = 0;
             int labelLength = 0;
 
-            for (int i=0; i < punyDomainName.Length; i++)
+            for (int i=0; i < domainName.Length; i++)
             {
-                if (punyDomainName[i] > 255) // Illegal non-ASCII character
+                if (domainName[i] > 255) // Illegal non-ASCII character
                     return false;
 
-                if (punyCodeAsciiMap[punyDomainName[i]] == 128) // 128 is illegal punyCode character
+                if (CodeAsciiMap[domainName[i]] == 128) // 128 is illegal punyCode character
                     return false;
                 
-                if (punyDomainName[i] == '.')
+                if (domainName[i] == '.')
                 {
                     if (labelLength == 0) // Label cannot be empty
                         return false;
@@ -109,7 +109,7 @@ namespace Odin.Core.Util
                     if (labelLength > MAX_DNS_LABEL_LENGTH) // Too many labels per RFC
                         return false;
 
-                    if (punyDomainName[i-1] == '-') // Last label char cannot be hyphen
+                    if (domainName[i-1] == '-') // Last label char cannot be hyphen
                         return false;
 
                     labelLength = 0;
@@ -117,7 +117,7 @@ namespace Odin.Core.Util
                 else
                 {
                     if (labelLength ==0)
-                        if (punyDomainName[i] == '-') // First label char cannot be hyphen
+                        if (domainName[i] == '-') // First label char cannot be hyphen
                             return false;
 
                     labelLength++;
@@ -127,7 +127,7 @@ namespace Odin.Core.Util
             labelCount++; // The last label
 
             // Check for last label's length and it should not end with hyphen
-            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || punyDomainName[punyDomainName.Length - 1] == '-')
+            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || domainName[domainName.Length - 1] == '-')
                 return false;
 
             return labelCount >= 2 && labelCount < MAX_DNS_LABEL_COUNT;
