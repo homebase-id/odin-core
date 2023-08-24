@@ -434,7 +434,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
                 _upsertParam14.Value = item.created.uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _upsertParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
             } // Lock
@@ -512,7 +512,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _updateParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _updateParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 return count;
             } // Lock

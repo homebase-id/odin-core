@@ -204,7 +204,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
                 _upsertParam3.Value = item.created.uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _upsertParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
@@ -240,7 +240,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _updateParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _updateParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);

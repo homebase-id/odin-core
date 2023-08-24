@@ -102,10 +102,10 @@ namespace Odin.Keychain
         /// This service takes an identity and it's public key as parameter and checks if it exists.
         /// </summary>
         /// <param name="identity"></param>
-        /// <param name="publicKeyDerBase64"></param>
+        /// <param name="PublicKeyJwkBase64Url"></param>
         /// <returns>200 OK and key age in seconds since Unix Epoch, or Bad Request or Not Found</returns>
         [HttpGet("VerifyKey")]
-        public ActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
+        public ActionResult GetVerifyKey(string identity, string PublicKeyJwkBase64Url)
         {
             PunyDomainName id;
             try
@@ -121,8 +121,7 @@ namespace Odin.Keychain
 
             try
             {
-                var publicKeyDerBytes = Convert.FromBase64String(publicKeyDerBase64);
-                publicKey = EccPublicKeyData.FromDerEncodedPublicKey(publicKeyDerBytes);
+                publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(PublicKeyJwkBase64Url);
             }
             catch (Exception)
             {
@@ -135,7 +134,7 @@ namespace Odin.Keychain
 
             for (int i=0; i < list.Count; i++)
             {
-                if (list[i].publicKey.ToBase64() == publicKeyDerBase64)
+                if (list[i].publicKeyJwkBase64Url == PublicKeyJwkBase64Url)
                 {
                     var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.ToUnixTimeUtc().seconds };
                     if (i + 1 < list.Count)
@@ -240,19 +239,19 @@ namespace Odin.Keychain
             {
                 // Get the public ECC key for signing
                 // /api/v1/PublicKey/SignatureValidation
-                string publicKeyBase64;
+                string publicKeyJwkBase64Url;
 
                 if (_simulate)
                 {
-                    publicKeyBase64 = SimulateFrodo.GetPublicKey();
+                    publicKeyJwkBase64Url = SimulateFrodo.GetPublicKey();
                 }
                 else
                 {
                     var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignatureValidation");
-                    publicKeyBase64 = await response.Content.ReadAsStringAsync();
+                    publicKeyJwkBase64Url = await response.Content.ReadAsStringAsync();
                 }
-                var publicKeyBytes = Convert.FromBase64String(publicKeyBase64);
-                publicKey = EccPublicKeyData.FromDerEncodedPublicKey(publicKeyBytes);
+
+                publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKeyJwkBase64Url);
             }
             catch (Exception e)
             {
@@ -260,7 +259,7 @@ namespace Odin.Keychain
             }
 
             // Validate that the public key is the same as in the request
-            if (ByteArrayUtil.EquiByteArrayCompare(signedEnvelope.Signatures[0].PublicKeyDer, publicKey.publicKey) == false)
+            if (signedEnvelope.Signatures[0].PublicKeyJwkBase64Url != publicKey.PublicKeyJwkBase64Url())
                 return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
 
             //
@@ -338,7 +337,7 @@ namespace Odin.Keychain
 
             var newRecordToInsert = new KeyChainRecord()
             {
-                publicKey = preregisteredEntry.envelope.Signatures[0].PublicKeyDer,
+                publicKeyJwkBase64Url = preregisteredEntry.envelope.Signatures[0].PublicKeyJwkBase64Url,
                 identity = preregisteredEntry.envelope.Signatures[0].Identity,
                 previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64),
                 timestamp = UnixTimeUtcUnique.Now()
@@ -378,7 +377,7 @@ namespace Odin.Keychain
 
 
                 // 0120 Verify the signed previousHash
-                var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(preregisteredEntry.envelope.Signatures[0].PublicKeyDer);
+                var publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(preregisteredEntry.envelope.Signatures[0].PublicKeyJwkBase64Url);
                 if ( publicKey.VerifySignature(ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), newRecordToInsert.previousHash), newRecordToInsert.signedPreviousHash) == false)
                     return BadRequest("Signature invalid.");
 

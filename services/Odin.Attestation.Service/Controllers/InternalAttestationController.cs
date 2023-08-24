@@ -356,10 +356,10 @@ namespace OdinsAttestation.Controllers
         [HttpGet("ListPendingRequests")]
         public async Task<ActionResult> GetListPendingRequests()
         {
-            var r = _db.tblAttestationRequest.PagingByNonce(100, null, out var nextCursor);
+            var r = _db.tblAttestationRequest.PagingByAttestationId(100, null, out var nextCursor);
 
             // Using LINQ to convert the list of requests to a list of identities
-            var identities = r.Select(request => request.nonce).ToList();
+            var identities = r.Select(request => request.attestationId).ToList();
 
             await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
 

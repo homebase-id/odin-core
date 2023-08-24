@@ -70,9 +70,7 @@ namespace OdinsAttestation
         // For example https://frodo.baggins.me/api/v1/signature/publickey
         public static string GetPublicKey()
         {
-            if (ByteArrayUtil.EquiByteArrayCompare(_ecc.publicKey, Convert.FromBase64String(_ecc.publicDerBase64())) == false)
-                throw new Exception("kaboom");
-            return _ecc.publicDerBase64();
+            return _ecc.PublicKeyJwkBase64Url();
         }
         
         public async static Task<ActionResult> InitiateRequestForAttestation(AttestationRequestController webApi)

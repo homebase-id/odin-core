@@ -314,7 +314,7 @@ public class RegisterKeyControllerTest
         var (previousHashBase64, signedEnvelope) = await BeginRegistration();
         var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        EccPublicKeyData eccPublicKeyData1 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+        EccPublicKeyData eccPublicKeyData1 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
         //
         // Entry two
@@ -328,7 +328,7 @@ public class RegisterKeyControllerTest
         (previousHashBase64, signedEnvelope) = await BeginRegistration();
         r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        EccPublicKeyData eccPublicKeyData2 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+        EccPublicKeyData eccPublicKeyData2 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
 
         //
@@ -343,12 +343,12 @@ public class RegisterKeyControllerTest
         (previousHashBase64, signedEnvelope) = await BeginRegistration();
         r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        EccPublicKeyData eccPublicKeyData3 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+        EccPublicKeyData eccPublicKeyData3 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
         //
         // Now we're ready to test VerifyKey on the three entries
         //
-        var response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData1.publicDerBase64())}");
+        var response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData1.PublicKeyJwkBase64Url()}");
         var content = await response.Content.ReadAsStringAsync();
         var verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -360,7 +360,7 @@ public class RegisterKeyControllerTest
 
 
         // Test the second public key
-        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData2.publicDerBase64())}");
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData2.PublicKeyJwkBase64Url()}");
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -371,7 +371,7 @@ public class RegisterKeyControllerTest
         Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
 
         // Test the last public key
-        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData3.publicDerBase64())}");
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData3.PublicKeyJwkBase64Url()}");
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -398,7 +398,7 @@ public class RegisterKeyControllerTest
             identity = identity,
             signedPreviousHash = key,
             algorithm = "ublah",
-            publicKey = ecc.publicKey,
+            publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
             recordHash = hash
         };
         db.tblKeyChain.Insert(r);

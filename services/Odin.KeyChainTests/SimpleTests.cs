@@ -29,7 +29,7 @@ namespace Odin.KeyChainTests
                 identity = "frodo.baggins.me",
                 signedPreviousHash = key,
                 algorithm = "ublah",
-                publicKey = ecc.publicKey,
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                 recordHash = hash
             };
             db.tblKeyChain.Insert(r);
@@ -56,7 +56,7 @@ namespace Odin.KeyChainTests
                 identity = "frodo.baggins.me",
                 signedPreviousHash = key,
                 algorithm = "ublah",
-                publicKey = ecc.publicKey,
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                 recordHash = hash
             };
             db.tblKeyChain.Insert(r);
@@ -89,7 +89,7 @@ namespace Odin.KeyChainTests
                 identity = "frodo.baggins.me",
                 signedPreviousHash = key,
                 algorithm = "ublah",
-                publicKey = ecc.publicKey,
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                 recordHash = hash
             };
 

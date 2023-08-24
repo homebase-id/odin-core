@@ -277,7 +277,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
                 _upsertParam6.Value = item.created.uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _upsertParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
@@ -325,7 +325,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _updateParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _updateParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);

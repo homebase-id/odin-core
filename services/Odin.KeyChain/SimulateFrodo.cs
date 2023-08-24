@@ -113,7 +113,7 @@ namespace Odin.KeyChain
         // For example https://frodo.baggins.me/api/v1/signature/publickey
         public static string GetPublicKey()
         {
-            return _ecc.publicDerBase64();
+            return _ecc.PublicKeyJwkBase64Url();
         }
 
 

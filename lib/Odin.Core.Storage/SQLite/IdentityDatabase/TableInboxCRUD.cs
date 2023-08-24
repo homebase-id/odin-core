@@ -282,7 +282,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
                 _upsertParam7.Value = item.created.uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam8.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _upsertParam8.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
             } // Lock
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 item.modified = UnixTimeUtcUnique.Now();
-                _updateParam8.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;;
+                _updateParam8.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 return count;
             } // Lock

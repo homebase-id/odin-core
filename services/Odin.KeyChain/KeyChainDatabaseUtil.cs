@@ -34,7 +34,7 @@ namespace Odin.KeyChain
                 var genesis = NewBlockChainRecord();
 
                 genesis.identity = "id.odin.earth"; // or e.g. id.dot.one
-                genesis.publicKey = eccGenesis.publicKey; // Would be nice with a real public key here from the actual identity
+                genesis.publicKeyJwkBase64Url = eccGenesis.PublicKeyJwkBase64Url(); // Would be nice with a real public key here from the actual identity
                 genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
                 var signature = eccGenesis.Sign(password, ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), genesis.previousHash));
                 genesis.signedPreviousHash = signature;
@@ -63,7 +63,7 @@ namespace Odin.KeyChain
                                          ByteArrayUtil.Int64ToBytes(record.timestamp.uniqueTime),
                                          record.signedPreviousHash,
                                          record.algorithm.ToUtf8ByteArray(),
-                                         record.publicKey);
+                                         record.publicKeyJwkBase64Url.ToUtf8ByteArray());
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Odin.KeyChain
         /// <returns></returns>
         public static bool VerifyBlockChainRecord(KeyChainRecord record, KeyChainRecord? previousRecord, bool checkTimeStamps)
         {
-            var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
+            var publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(record.publicKeyJwkBase64Url);
             if (publicKey.VerifySignature(ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), record.previousHash), record.signedPreviousHash) == false)
                 return false;
 
@@ -117,7 +117,7 @@ namespace Odin.KeyChain
         public static bool VerifyEntireBlockChain(KeyChainDatabase _db)
         {
             var _sqlcmd = _db.CreateCommand();
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKey,recordHash FROM keyChain ORDER BY rowid ASC;";
+            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
 
             using (SqliteDataReader rdr = _db.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
             {

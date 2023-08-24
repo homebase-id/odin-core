@@ -32,12 +32,12 @@ namespace OdinsAttestation.Controllers
         }
 
 
-        private static byte[] GetIdentityPublicKey(PunyDomainName identity)
+        private static string GetIdentityPublicKey(PunyDomainName identity)
         {
             // @Todd - Here make an HTTP call instead of the simulation
-            var pk64 = SimulateFrodo.GetPublicKey();
+            var jwkBase64Url = SimulateFrodo.GetPublicKey();
 
-            return Convert.FromBase64String(pk64);
+            return jwkBase64Url;
         }
 
 #if DEBUG
@@ -121,9 +121,9 @@ namespace OdinsAttestation.Controllers
             // Let's fetch the identity's public key and make sure it's the same
             // This would be a web service call to Frodo
             //
-            var publicKey = GetIdentityPublicKey(requestorId);
+            var publicKeyBase64Url = GetIdentityPublicKey(requestorId);
 
-            if (ByteArrayUtil.EquiByteArrayCompare(publicKey, signedEnvelope.Signatures[0].PublicKeyDer) == false)
+            if (publicKeyBase64Url != signedEnvelope.Signatures[0].PublicKeyJwkBase64Url)
                 return BadRequest($"Identity public key does not match the request");
 
             // Ok, now we know for certain that the request came from the same identity
@@ -133,7 +133,7 @@ namespace OdinsAttestation.Controllers
 
             // Save request in database for later administrative staff review
             //
-            var r = new AttestationRequestRecord() { nonce = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
+            var r = new AttestationRequestRecord() { attestationId = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 
             try
             {
