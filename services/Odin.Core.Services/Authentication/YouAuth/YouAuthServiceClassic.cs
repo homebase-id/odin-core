@@ -10,9 +10,9 @@ using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {
-    public sealed class YouAuthService : IYouAuthService
+    public sealed class YouAuthServiceClassic : IYouAuthService
     {
-        private readonly ILogger<YouAuthService> _logger;
+        private readonly ILogger<YouAuthServiceClassic> _logger;
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IYouAuthRegistrationServiceClassic _registrationServiceClassic;
@@ -20,8 +20,8 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         //
 
-        public YouAuthService(
-            ILogger<YouAuthService> logger,
+        public YouAuthServiceClassic(
+            ILogger<YouAuthServiceClassic> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IOdinHttpClientFactory odinHttpClientFactory,
             CircleNetworkService circleNetwork, IYouAuthRegistrationServiceClassic registrationServiceClassic)
@@ -44,20 +44,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         public async ValueTask<(bool, ClientAuthenticationToken?)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
         {
-            // var queryString = QueryString.Create(new Dictionary<string, string>()
-            // {
-            //     {YouAuthDefaults.Initiator, initiator},
-            //     {YouAuthDefaults.AuthorizationCode, authorizationCode},
-            // });
-            //
-            // var url = $"https://{subject}".UrlAppend(
-            //     Constants.Urls.AuthenticationBasePath,
-            //     YouAuthDefaults.CompleteCodeFlowPath,
-            //     queryString.ToUriComponent());
-
-            // var request = new HttpRequestMessage(HttpMethod.Get, url);
-            // var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-
             var odinId = new OdinId(subject);
             var response = await _odinHttpClientFactory
                 .CreateClient<IYouAuthPerimeterHttpClient>(odinId)
@@ -93,6 +79,9 @@ namespace Odin.Core.Services.Authentication.YouAuth
         {
             var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode, out var tempIcrKey);
 
+            //
+            // If the code is good, and the caller is connected, return the auth token
+            //
             byte[] clientAuthTokenBytes = Array.Empty<byte>();
             if (isValid)
             {

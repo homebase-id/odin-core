@@ -228,6 +228,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         // Token (POST)
         //
 
+        // [100] Request exchange auth code for access token
         [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
@@ -241,6 +242,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             if (!_sharedSecrets.TryGetSecret(tokenRequest.SecretDigest, out SensitiveByteArray exchangeSecret))
             {
+                // [106] Return 400 if lookup failed
                 throw new BadRequestException($"Invalid digest {tokenRequest.SecretDigest}");
             }
 
@@ -259,7 +261,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             //
-            // [140] Return client access token to client
+            // [135] Encrypt token using ECC shared key
             //
 
             var sharedSecretPlain = accessToken.SharedSecret.GetKey();
@@ -286,6 +288,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     accessToken.ToAuthenticationToken());
             }
 
+            //
+            // [140] Return client access token to client
+            //
             return await Task.FromResult(result);
         }
 
@@ -303,6 +308,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}", inner: e);
             }
+
             if (appParams == null)
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");

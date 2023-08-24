@@ -411,7 +411,7 @@ namespace Odin.Core.Services.Membership.Connections
                 throw new OdinSecurityException("invalid connection state");
             }
 
-            //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
+            //TODO: need to scan the YouAuthServiceClassic to see if this user has a YouAuthRegistration
 
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
@@ -739,33 +739,6 @@ namespace Odin.Core.Services.Membership.Connections
             AccessRegistration accessReg,
             bool applyAppCircleGrants)
         {
-            //TODO: this code needs to be refactored to avoid all the mapping
-
-            //Map CircleGrants and AppCircleGrants to Exchange grants
-            // Note: remember that all connected users are added to a system
-            // circle; this circle has grants to all drives marked allowAnonymous == true
-            // var grants = new Dictionary<Guid, ExchangeGrant>();
-            // var enabledCircles = new List<GuidId>();
-            // foreach (var kvp in icr.AccessGrant.CircleGrants)
-            // {
-            //     var cg = kvp.Value;
-            //     if (_circleMembershipService.IsEnabled(cg.CircleId))
-            //     {
-            //         enabledCircles.Add(cg.CircleId);
-            //         grants.Add(kvp.Key, new ExchangeGrant()
-            //         {
-            //             Created = 0,
-            //             Modified = 0,
-            //             IsRevoked = false, //TODO
-            //
-            //             KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-            //             KeyStoreKeyEncryptedIcrKey = null, // not allowed to use the icr CAT because you're not sending over
-            //             MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
-            //             PermissionSet = cg.PermissionSet
-            //         });
-            //     }
-            // }
-
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
 
             if (applyAppCircleGrants)

@@ -8,9 +8,11 @@ using Certes;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Exceptions;
 using Odin.Core.Exceptions.Client;
+using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
 
@@ -25,14 +27,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly Dictionary<string, bool> _tempConsent;
+    private readonly CircleNetworkService _circleNetwork;
 
     public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
         OdinContextAccessor contextAccessor,
-        YouAuthDomainRegistrationService domainRegistrationService)
+        YouAuthDomainRegistrationService domainRegistrationService, CircleNetworkService circleNetwork)
     {
         _appRegistrationService = appRegistrationService;
         _contextAccessor = contextAccessor;
         _domainRegistrationService = domainRegistrationService;
+        _circleNetwork = circleNetwork;
 
         _tempConsent = new Dictionary<string, bool>(StringComparer.InvariantCultureIgnoreCase);
     }
@@ -47,12 +51,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             return false;
         }
-        
+
         if (clientType == ClientType.domain)
         {
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
-        
+
         //apps always require consent
         return true;
     }
@@ -135,6 +139,24 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         }
 
         _codesAndTokens.Remove(code);
+
+        //
+        // [136] Detect if caller is an identity via transit
+        //
+        if (_contextAccessor.GetCurrent().Caller.IsInOdinNetwork)
+        {
+            // if caller is connected
+
+            byte[] clientAuthTokenBytes = Array.Empty<byte>();
+            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var info = _circleNetwork.GetIdentityConnectionRegistration(odinId, true).GetAwaiter().GetResult();
+            if (info.IsConnected())
+            {
+                //TODO: RSA Encrypt or used shared secret?
+                // clientAuthTokenBytes = info.CreateClientAuthToken(tempIcrKey).ToString().ToUtf8ByteArray();
+                // tempIcrKey?.Wipe();
+            }
+        }
 
         var accessToken = ac.PreCreatedClientAccessToken;
 

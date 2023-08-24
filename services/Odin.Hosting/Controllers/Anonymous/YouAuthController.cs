@@ -68,7 +68,9 @@ namespace Odin.Hosting.Controllers.Anonymous
             // SEB:NOTE before brigde-hack:
             //var handlerUrl = $"/youauth/finalize?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
 
-            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}" +
+                             $"?ss64={HttpUtility.UrlEncode(sharedSecret64)}" +
+                             $"&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
         }
 

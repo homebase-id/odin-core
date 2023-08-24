@@ -80,7 +80,7 @@ namespace Odin.Hosting
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
-            cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
+            cb.RegisterType<YouAuthServiceClassic>().As<IYouAuthService>().SingleInstance();
             cb.RegisterType<YouAuthRegistrationServiceClassic>()
                 .As<IYouAuthRegistrationServiceClassic>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
