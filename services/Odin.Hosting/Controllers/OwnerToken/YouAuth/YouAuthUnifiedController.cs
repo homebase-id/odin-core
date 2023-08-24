@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Extensions;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 {
@@ -229,11 +231,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
+        [EnableCors(CorsPolicies.AllowAllOriginsWithCredentialsPolicy)]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
-            this.Response.Headers.Add("Access-Control-Allow-Origin", (string)this.Request.Headers["Origin"]);
-            this.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-
             tokenRequest.Validate();
 
             //

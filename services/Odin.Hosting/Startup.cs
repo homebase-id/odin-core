@@ -36,6 +36,7 @@ using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Perimeter;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
@@ -157,6 +158,8 @@ namespace Odin.Hosting
                     Version = "v1"
                 });
             });
+
+            services.AddCorsPolicies();
 
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
