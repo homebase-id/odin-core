@@ -187,7 +187,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             string returnUrl)
         {
             // SEB:TODO CSRF ValidateAntiForgeryToken
-            
+
             //
             // [055] Give consent and redirect back
             //
@@ -210,9 +210,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             var authorize = YouAuthAuthorizeRequest.FromQueryString(returnUri.Query);
-            
+
             authorize.Validate();
-            
+
             await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest);
 
             // Redirect back to authorize
@@ -230,6 +230,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [Produces("application/json")]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
+            this.Response.Headers.Add("Access-Control-Allow-Origin", (string)this.Request.Headers["Origin"]);
+            this.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+
             tokenRequest.Validate();
 
             //
