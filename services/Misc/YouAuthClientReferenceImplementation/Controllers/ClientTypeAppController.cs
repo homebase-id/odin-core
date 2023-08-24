@@ -133,8 +133,8 @@ public class ClientTypeAppController : BaseController
         var remotePublicKey = publicKey;
         var remoteSalt = Convert.FromBase64String(salt);
 
-        var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
-        var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+        var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
+        var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
         var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
         var uri = new UriBuilder($"https://{state.Identity}{OwnerApiPathConstants.YouAuthV1Token}");

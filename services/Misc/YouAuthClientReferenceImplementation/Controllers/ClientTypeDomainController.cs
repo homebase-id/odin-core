@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.YouAuth;
@@ -17,7 +18,12 @@ namespace YouAuthClientReferenceImplementation.Controllers;
 public class ClientTypeDomainController : BaseController
 {
     private const string IdentityCookieName = "OdinDomainIdentity";
+    private const string CatCookieName = "OdinDomainCat";
+    private const string SharedSecretCookieName = "OdinDomainSharedSecret";
+    
     private string LoggedInIdentity => Request.Cookies[IdentityCookieName] ?? "";
+    private string Cat => Request.Cookies[CatCookieName] ?? "";
+    private string SharedSecret => Request.Cookies[SharedSecretCookieName] ?? "";
 
     private readonly ILogger<ClientTypeDomainController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -36,9 +42,9 @@ public class ClientTypeDomainController : BaseController
     //
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
-        if (LoggedInIdentity == "")
+        if (LoggedInIdentity == "" || Cat == "" || SharedSecret == "")
         {
             return View(new ClientTypeDomainIndexViewModel
             {
@@ -47,19 +53,21 @@ public class ClientTypeDomainController : BaseController
             });
         }
 
-        // SEB:TODO fix this when youauth token has been fixed
-        // var uri = $"https://{LoggedInIdentity}/api/youauth/v1/auth/ping";
-        // var request = new HttpRequestMessage(HttpMethod.Get, uri)
-        // {
-        //     Headers = { { "Cookie", new Cookie("XT32", OdinCat).ToString() } }
-        // };
-        // var client = _httpClientFactory.CreateClient("default");
-        // var response = await client.SendAsync(request);
+        var uri = UriWithEncryptedQueryString($"https://{LoggedInIdentity}/api/youauth/v1/auth/ping?text=helloworld", SharedSecret);
+        var request = new HttpRequestMessage(HttpMethod.Get, uri)
+        {
+            Headers = { { "Cookie", new Cookie("XT32", Cat).ToString() } }
+        };
+        var client = _httpClientFactory.CreateClient("default");
+        var response = await client.SendAsync(request);
+        var text = await DecryptContent<string>(response, SharedSecret);
 
         return View(new ClientTypeDomainIndexViewModel
         {
+            LoggedInIdentity = LoggedInIdentity,
             LoggedInMessage = $"Logged in as {LoggedInIdentity}",
             ButtonCaption = "Log out",
+            PingMessage = text
         });
     }
 
@@ -114,6 +122,8 @@ public class ClientTypeDomainController : BaseController
     private IActionResult LogOut()
     {
         Response.Cookies.Delete(IdentityCookieName);
+        Response.Cookies.Delete(CatCookieName);
+        Response.Cookies.Delete(SharedSecretCookieName);
         return RedirectToAction("Index");
     }
 
@@ -140,8 +150,8 @@ public class ClientTypeDomainController : BaseController
         var remotePublicKey = publicKey;
         var remoteSalt = Convert.FromBase64String(salt);
 
-        var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
-        var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+        var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
+        var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
         var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
         var uri = new UriBuilder($"https://{state.Identity}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -168,7 +178,11 @@ public class ClientTypeDomainController : BaseController
         }
 
         var json = await response.Content.ReadAsStringAsync();
-        var _ = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(json);
+        var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(json);
+
+        var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+        var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+        var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
 
         //
         // Store thirdparty cookies
@@ -182,7 +196,10 @@ public class ClientTypeDomainController : BaseController
         {
             Expires = DateTime.Now.AddDays(30)
         };
+        
         Response.Cookies.Append(IdentityCookieName, state.Identity, cookieOption);
+        Response.Cookies.Append(CatCookieName, cat, cookieOption);
+        Response.Cookies.Append(SharedSecretCookieName, Convert.ToBase64String(sharedSecret), cookieOption);
 
         return RedirectToAction("Index");
     }

@@ -552,8 +552,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [140] Return client access token to client
             //
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -799,8 +799,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -935,8 +935,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -1070,8 +1070,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             byte[] sharedSecret, clientAuthToken;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -1262,8 +1262,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
@@ -1454,8 +1454,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             byte[] sharedSecret, clientAuthToken;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
-                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");

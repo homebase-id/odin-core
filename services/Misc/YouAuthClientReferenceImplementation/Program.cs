@@ -26,6 +26,11 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 
 builder.Services.AddSingleton<ConcurrentDictionary<string, State>>();
 builder.Services.AddHttpClient("default")
+    .ConfigureHttpClient(c =>
+    {
+        // this is called everytime you request a httpclient
+        c.Timeout = TimeSpan.FromSeconds(5);
+    })
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = false,
