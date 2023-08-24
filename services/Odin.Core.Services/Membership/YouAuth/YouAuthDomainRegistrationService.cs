@@ -38,17 +38,14 @@ namespace Odin.Core.Services.Membership.YouAuth
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
-        private readonly IMediator _mediator;
-
         public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator,
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext,
             CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
-            _mediator = mediator;
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
@@ -96,7 +93,6 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             return reg.Redacted();
         }
-
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(
             AsciiDomainName domain,
@@ -164,59 +160,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             return true;
         }
-
-        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
-        {
-            async Task<OdinContext> Creator()
-            {
-                var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token);
-
-                if (!isValid || null == domainRegistration || accessReg == null)
-                {
-                    throw new OdinSecurityException("Invalid token");
-                }
-
-                //
-                // If the domain is from an odin identity that is connected, upgrade their permissions
-                //
-                var odinId = (OdinId)domainRegistration.Domain.DomainName;
-                var odinContext = await _circleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg);
-                if (null != odinContext)
-                {
-                    return odinContext;
-                }
-
-                return await CreateContextForYouAuthDomain(token, domainRegistration, accessReg);
-            }
-
-            var result = await _cache.GetOrAddContext(token, Creator);
-            return result;
-        }
-
-        public async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
-            ClientAuthenticationToken authToken)
-        {
-            var domainClient = _clientStorage.Get<YouAuthDomainClient>(authToken.Id);
-            if (null == domainClient)
-            {
-                return (false, null, null);
-            }
-
-            var reg = await this.GetDomainRegistrationInternal(domainClient.Domain);
-
-            if (null == reg)
-            {
-                return (false, null, null);
-            }
-
-            if (domainClient.AccessRegistration.IsRevoked || reg.IsRevoked)
-            {
-                return (false, null, null);
-            }
-
-            return (true, domainClient.AccessRegistration, reg);
-        }
-
+        
         public async Task RevokeDomain(AsciiDomainName domain)
         {
             var domainReg = await this.GetDomainRegistrationInternal(domain);
@@ -399,6 +343,62 @@ namespace Odin.Core.Services.Membership.YouAuth
             ResetPermissionContextCache();
         }
 
+        // 
+        
+        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
+        {
+            async Task<OdinContext> Creator()
+            {
+                var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token);
+
+                if (!isValid || null == domainRegistration || accessReg == null)
+                {
+                    throw new OdinSecurityException("Invalid token");
+                }
+
+                //
+                // If the domain is from an odin identity that is connected, upgrade their permissions
+                //
+                var odinId = (OdinId)domainRegistration.Domain.DomainName;
+                var odinContext = await _circleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg);
+                if (null != odinContext)
+                {
+                    return odinContext;
+                }
+
+                return await CreateContextForYouAuthDomain(token, domainRegistration, accessReg);
+            }
+
+            var result = await _cache.GetOrAddContext(token, Creator);
+            return result;
+        }
+        
+        public async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
+            ClientAuthenticationToken authToken)
+        {
+            var domainClient = _clientStorage.Get<YouAuthDomainClient>(authToken.Id);
+            if (null == domainClient)
+            {
+                return (false, null, null);
+            }
+
+            var reg = await this.GetDomainRegistrationInternal(domainClient.Domain);
+
+            if (null == reg)
+            {
+                return (false, null, null);
+            }
+
+            if (domainClient.AccessRegistration.IsRevoked || reg.IsRevoked)
+            {
+                return (false, null, null);
+            }
+
+            return (true, domainClient.AccessRegistration, reg);
+        }
+        
+        // 
+        
         private void SaveClient(YouAuthDomainClient youAuthDomainClient)
         {
             _clientStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
@@ -410,6 +410,14 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             var key = GuidId.FromString(domain.DomainName);
             var reg = _domainStorage.Get<YouAuthDomainRegistration>(key);
+
+            if(null != reg)
+            {
+                //get the circle grants for this domain
+                var circles = _circleMembershipService.GetCirclesByDomain(reg.Domain);
+                reg.CircleGrants = circles.ToDictionary(cg => cg.CircleId.Value, cg => cg);
+            }
+            
             return await Task.FromResult(reg);
         }
 
@@ -432,24 +440,26 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
-                //Reconcile circle grants in the table
+                //Store the circles for this registration
                 _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
-                    var circleMembers = _circleMembershipService.GetCircleMembers(circleId);
-                    var isMember = circleMembers.Any(domainName => OdinId.ToHashId(domainName) == OdinId.ToHashId(registration.Domain));
+                    var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.YouAuth);
+                    var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
 
                     if (!isMember)
                     {
-                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant);
+                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth);
                     }
                 }
+
+                //clear them here so we don't hve two locations
+                registration.CircleGrants.Clear();
 
                 _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
             }
         }
-
-
+        
         private async Task<OdinContext> CreateContextForYouAuthDomain(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,

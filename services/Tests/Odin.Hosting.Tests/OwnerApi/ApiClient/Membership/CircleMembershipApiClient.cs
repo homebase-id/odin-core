@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -86,6 +88,21 @@ public class CircleMembershipApiClient
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);
             return createCircleResponse;
+        }
+    }
+
+    public async Task<ApiResponse<List<CircleDomainResult>>> GetDomainsInCircle(Guid circleId)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ICircleMembershipHttpClient>(client, ownerSharedSecret);
+
+            var response = await svc.GetDomainsInCircle(new GetCircleMembersRequest()
+            {
+                CircleId = circleId
+            });
+            
+            return response;
         }
     }
 }

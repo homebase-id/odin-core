@@ -7,7 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Anonymous;
 using Refit;
 
-namespace Odin.Hosting.Tests.YouAuthApi.Drive
+namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
 {
     /// <summary>
     /// The interface for storing files

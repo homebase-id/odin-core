@@ -1,4 +1,5 @@
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using Dawn;
@@ -13,7 +14,7 @@ namespace Odin.Core.Services.Authorization.Permissions
         {
             Keys = new List<int>();
         }
-
+        
         public PermissionSet(IEnumerable<int> permissionKeys)
         {
             var pk = permissionKeys as int[] ?? permissionKeys.ToArray();

@@ -156,7 +156,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
                 var systemCircle = circleDefs.Single();
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-                Assert.IsTrue(systemCircle.Name == "System Circle");
+                Assert.IsTrue(systemCircle.Name == "Connected Identities System Circle");
+
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(systemCircle.DriveGrants.Count() == 3,
                     "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
@@ -271,7 +272,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsNotNull(systemCircle, "system circle should exist");
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-                Assert.IsTrue(systemCircle.Name == "System Circle");
+                Assert.IsTrue(systemCircle.Name == "Connected Identities System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 

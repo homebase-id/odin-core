@@ -356,7 +356,7 @@ namespace Odin.Core.Services.Membership.Connections
         public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-            var result = _circleMembershipService.GetCircleMembers(circleId).Select(m => new OdinId(m));
+            var result = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.Identity).Select(m => new OdinId(m.Domain));
             return await Task.FromResult(result);
         }
 
