@@ -29,7 +29,7 @@ namespace Odin.Core.Cryptography.Signatures
             return attestation.VerifyEnvelopeSignatures();
         }
 
-        private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAttest, byte[] attestationId)
+        private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, SortedDictionary<string, object> dataToAttest, byte[] attestationId)
         {
             // There's something to sort out here
             const string VERIFYURL = "https://heimdallr.odin.earth/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
@@ -87,7 +87,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests that the OdinId is associated with a human.
-        public static SignedEnvelope AttestHuman(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId)
+        public static SignedEnvelope AttestHuman(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -98,7 +98,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the legal name of the owner of the OdinId.
-        public static SignedEnvelope AttestLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, string legalName)
+        public static SignedEnvelope AttestLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, string legalName)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -121,7 +121,7 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="identity"></param>
         /// <param name="subsetLegalName"></param>
         /// <returns></returns>
-        public static SignedEnvelope AttestSubsetLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, string subsetLegalName)
+        public static SignedEnvelope AttestSubsetLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, string subsetLegalName)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -132,7 +132,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the residential address of the owner of the OdinId.
-        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, SortedDictionary<string, object> address)
+        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, SortedDictionary<string, object> address)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -143,7 +143,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the email address of the owner of the OdinId.
-        public static SignedEnvelope AttestEmailAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, string emailAddress)
+        public static SignedEnvelope AttestEmailAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, string emailAddress)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -154,7 +154,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the phone number of the owner of the OdinId.
-        public static SignedEnvelope AttestPhoneNumber(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, string phoneNumber)
+        public static SignedEnvelope AttestPhoneNumber(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, string phoneNumber)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -165,7 +165,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the birthdate of the owner of the OdinId.
-        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, DateOnly birthdate)
+        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, DateOnly birthdate)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -176,7 +176,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the nationality of the owner of the OdinId.
-        public static SignedEnvelope AttestNationality(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, byte[] attestationId, string nationality)
+        public static SignedEnvelope AttestNationality(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, byte[] attestationId, string nationality)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {

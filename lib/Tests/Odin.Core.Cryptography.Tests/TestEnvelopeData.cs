@@ -73,7 +73,7 @@ namespace Odin.Tests
         {
             var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var eccKey = new EccFullKeyData(pwd, 1);
-            var frodoPuny = new PunyDomainName("frodo.baggins.me");
+            var frodoPuny = new AsciiDomainName("frodo.baggins.me");
             var attestationId = Guid.NewGuid().ToByteArray();
 
             var attestation = AttestationManagement.AttestHuman(eccKey, pwd, frodoPuny, attestationId);

@@ -32,7 +32,7 @@ namespace OdinsAttestation.Controllers
         }
 
 
-        private static string GetIdentityPublicKey(PunyDomainName identity)
+        private static string GetIdentityPublicKey(AsciiDomainName identity)
         {
             // @Todd - Here make an HTTP call instead of the simulation
             var jwkBase64Url = SimulateFrodo.GetPublicKey();

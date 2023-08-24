@@ -42,7 +42,7 @@ namespace Odin.Core.Cryptography.Signatures
             if ((signedEnvelope.Envelope.ContentNonce.Length < 16) || (signedEnvelope.Envelope.ContentNonce.Length > 32))
                 throw new ArgumentException($"Envelope.ContentNonce unexpected");
 
-            PunyDomainName id;
+            AsciiDomainName id;
             try
             {
                 id = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);

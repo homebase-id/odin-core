@@ -107,10 +107,10 @@ namespace Odin.Keychain
         [HttpGet("VerifyKey")]
         public ActionResult GetVerifyKey(string identity, string PublicKeyJwkBase64Url)
         {
-            PunyDomainName id;
+            AsciiDomainName id;
             try
             {
-                id = new PunyDomainName(identity);
+                id = new AsciiDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -226,7 +226,7 @@ namespace Odin.Keychain
             if (signedEnvelope.VerifyEnvelopeSignatures() == false)
                 return BadRequest($"Unable to verify the signature");
 
-            var domain = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
+            var domain = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);
 
             // 040. Fetch the requestor's public key to validate authenticity of the request and domain name.
             //

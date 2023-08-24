@@ -286,7 +286,7 @@ namespace OdinsAttestation.Controllers
 
             try
             {
-                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.PunyDomain, requestEnvelope);
+                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.AsciiDomain, requestEnvelope);
             }
             catch (Exception ex)
             {
