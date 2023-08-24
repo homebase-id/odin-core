@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json.Serialization;
 using DnsClient;
 using DnsClient.Protocol;
 
@@ -9,36 +8,31 @@ using DnsClient.Protocol;
 
 namespace Odin.Core.Util
 {
-    // Guaranteed to hold a valid, lowercased simple domain name
+    // Guaranteed to hold a valid, lowercased puny domain name
     //
-    [JsonConverter(typeof(AsciiDomainConverter))]
     public readonly struct AsciiDomainName
     {
-        private readonly string _simpleDomainName;
+        private readonly string _domainName;
 
-        // Provide a public property to read the simple domain
-        public string DomainName => _simpleDomainName;
+        // Provide a public property to read the puny domain
+        public string DomainName => _domainName;
 
-        public AsciiDomainName(string simpleDomainName)
+        public AsciiDomainName(string punyDomainName)
         {
-            AsciiDomainNameValidator.AssertValidDomain(simpleDomainName);
-            _simpleDomainName = simpleDomainName.ToLower();
+            AsciiDomainNameValidator.AssertValidDomain(punyDomainName);
+            _domainName = punyDomainName.ToLower();
         }
 
-        /// <summary>
-        /// Get the IDN representation of the simple domain
-        /// </summary>
-        public string ToIdn()
+        // Get the IDN representation of the puny domain
+        public string ToIDN()
         {
             var idnMapping = new IdnMapping();
-            string unicode = idnMapping.GetUnicode(_simpleDomainName);
+            string unicode = idnMapping.GetUnicode(_domainName);
             return unicode;
         }
 
-        /// <summary>
-        /// Static function to create a SimpleDomainName from an IDN
-        /// </summary>
-        public static AsciiDomainName FromIdn(string idnDomainName)
+        // Static function to create a AsciiDomainName from an IDN
+        public static AsciiDomainName FromIDN(string idnDomainName)
         {
             var idnMapping = new IdnMapping();
             string punyCode = idnMapping.GetAscii(idnDomainName);
@@ -51,9 +45,9 @@ namespace Odin.Core.Util
     //
     public class AsciiDomainNameValidator
     {
-        public const int MAX_DNS_LABEL_COUNT = 127; // as per DNS RFC
-        public const int MAX_DNS_LABEL_LENGTH = 63; // as per DNS RFC
-        public const int MAX_DNS_DOMAIN_LENGTH = 255; // as per DNS RFC
+        public const int MAX_DNS_LABEL_COUNT = 127;  // as per DNS RFC
+        public const int MAX_DNS_LABEL_LENGTH = 63;  // as per DNS RFC
+        public const int MAX_DNS_DOMAIN_LENGTH = 255;  // as per DNS RFC
 
         public static readonly byte[] CodeAsciiMap =
         {
@@ -61,15 +55,15 @@ namespace Odin.Core.Util
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 010-019
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 020-029
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 030-039
-            128, 128, 128, 128, 128, 26, 27, 128, 28, 29, // 040-049 '-' 45, '.' 46, '0' 48, '1' 49
-            30, 31, 32, 33, 34, 35, 36, 37, 128, 128, // 050-059 ..'9' is 57
-            128, 128, 128, 128, 128, 0, 1, 2, 3, 4, // 060-069 'A' is 65
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, // 070-079
-            15, 16, 17, 18, 19, 20, 21, 22, 23, 24, // 080-089
-            25, 128, 128, 128, 128, 128, 128, 0, 1, 2, // 090-099 'a' is 97
-            3, 4, 5, 6, 7, 8, 9, 10, 11, 12, // 100-109
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 22, // 110-119
-            23, 24, 25, 128, 128, 128, 128, 128, 128, 128, // 120-129 
+            128, 128, 128, 128, 128,  26,  27, 128,  28,  29, // 040-049 '-' 45, '.' 46, '0' 48, '1' 49
+             30,  31,  32,  33,  34,  35,  36,  37, 128, 128, // 050-059 ..'9' is 57
+            128, 128, 128, 128, 128,   0,   1,   2,   3,   4, // 060-069 'A' is 65
+              5,   6,   7,   8,   9,  10,  11,  12,  13,  14, // 070-079
+             15,  16,  17,  18,  19,  20,  21,  22,  23,  24, // 080-089
+             25, 128, 128, 128, 128, 128, 128,   0,   1,   2, // 090-099 'a' is 97
+              3,   4,   5,   6,   7,   8,   9,  10,  11,  12, // 100-109
+             13,  14,  15,  16,  17,  18,  19,  20,  21,  22, // 110-119
+             23,  24,  25, 128, 128, 128, 128, 128, 128, 128, // 120-129 
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 130-139
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 140-149
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 150-159
@@ -82,30 +76,30 @@ namespace Odin.Core.Util
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 220-229
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 230-239
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 240-249
-            128, 128, 128, 128, 128, 128 // 250-255
+            128, 128, 128, 128, 128, 128                      // 250-255
         };
 
         // Not yet tested
-        public static bool TryValidateDomain(string simpleDomainName)
+        public static bool TryValidateDomain(string domainName)
         {
-            if (simpleDomainName is null)
+            if (domainName is null)
                 return false;
 
-            if (simpleDomainName.Length < 3 || simpleDomainName.Length > MAX_DNS_DOMAIN_LENGTH)
+            if (domainName.Length < 3 || domainName.Length > MAX_DNS_DOMAIN_LENGTH)
                 return false;
 
             int labelCount = 0;
             int labelLength = 0;
 
-            for (int i = 0; i < simpleDomainName.Length; i++)
+            for (int i=0; i < domainName.Length; i++)
             {
-                if (simpleDomainName[i] > 255) // Illegal non-ASCII character
+                if (domainName[i] > 255) // Illegal non-ASCII character
                     return false;
 
-                if (CodeAsciiMap[simpleDomainName[i]] == 128) // 128 is illegal punyCode character
+                if (CodeAsciiMap[domainName[i]] == 128) // 128 is illegal punyCode character
                     return false;
-
-                if (simpleDomainName[i] == '.')
+                
+                if (domainName[i] == '.')
                 {
                     if (labelLength == 0) // Label cannot be empty
                         return false;
@@ -115,15 +109,15 @@ namespace Odin.Core.Util
                     if (labelLength > MAX_DNS_LABEL_LENGTH) // Too many labels per RFC
                         return false;
 
-                    if (simpleDomainName[i - 1] == '-') // Last label char cannot be hyphen
+                    if (domainName[i-1] == '-') // Last label char cannot be hyphen
                         return false;
 
                     labelLength = 0;
                 }
                 else
                 {
-                    if (labelLength == 0)
-                        if (simpleDomainName[i] == '-') // First label char cannot be hyphen
+                    if (labelLength ==0)
+                        if (domainName[i] == '-') // First label char cannot be hyphen
                             return false;
 
                     labelLength++;
@@ -133,7 +127,7 @@ namespace Odin.Core.Util
             labelCount++; // The last label
 
             // Check for last label's length and it should not end with hyphen
-            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || simpleDomainName[simpleDomainName.Length - 1] == '-')
+            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || domainName[domainName.Length - 1] == '-')
                 return false;
 
             return labelCount >= 2 && labelCount < MAX_DNS_LABEL_COUNT;
@@ -142,10 +136,10 @@ namespace Odin.Core.Util
 
         // Check the whole domain name. Throw an exception if it is invalid.
 
-        public static void AssertValidDomain(string simpleCodeDomain)
+        public static void AssertValidDomain(string punyCodeDomain)
         {
-            if (TryValidateDomain(simpleCodeDomain) == false)
-                throw new Exception("Illegal simple code domain name."); // Thrown an exception
+            if (TryValidateDomain(punyCodeDomain) == false)
+                throw new Exception("Illegal puny code domain name."); // Thrown an exception
         }
 
 
@@ -181,7 +175,7 @@ namespace Odin.Core.Util
             const string serverHostFQDN = "odin.earth."; // Pick a config value
 
             if (CNameLookup2(identityName) != serverHostFQDN)
-                throw new Exception("You do not have a CNAME record for " + identityName + " pointing to " + serverHostFQDN);
+                throw new Exception("You do not have a CNAME record for "+identityName+" pointing to "+serverHostFQDN);
 
             // We are probably going to change the server CDN host... ?
             if (CNameLookup2("cdn." + identityName) != serverHostFQDN)
