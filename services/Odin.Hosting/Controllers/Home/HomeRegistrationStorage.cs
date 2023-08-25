@@ -6,11 +6,11 @@ using Odin.Core.Services.Base;
 
 namespace Odin.Hosting.Controllers.Home
 {
-    public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
+    public class HomeRegistrationStorage
     {
         private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public YouAuthRegistrationStorage(TenantSystemStorage tenantSystemStorage)
+        public HomeRegistrationStorage(TenantSystemStorage tenantSystemStorage)
         {
             _tenantSystemStorage = tenantSystemStorage;
         }

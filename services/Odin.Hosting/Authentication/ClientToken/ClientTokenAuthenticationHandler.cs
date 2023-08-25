@@ -108,7 +108,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             //TODO: need to decide which locatio nwe're looking up the youauth domain
             // if it's the home app, it needs to come from 
             
-            // var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationServiceClassic>();
+            // var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthRegistrationServiceClassic>();
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
 

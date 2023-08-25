@@ -13,15 +13,13 @@ namespace Odin.Hosting.Controllers.Anonymous
     [ApiController]
     public class StaticFileController : Controller
     {
-        private readonly HomeAuthenticatorService _homeAuthenticatorService;
         private readonly string _currentTenant;
         private readonly StaticFileContentService _staticFileContentService;
 
 
-        public StaticFileController(ITenantProvider tenantProvider, HomeAuthenticatorService homeAuthenticatorService, StaticFileContentService staticFileContentService)
+        public StaticFileController(ITenantProvider tenantProvider, StaticFileContentService staticFileContentService)
         {
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
-            _homeAuthenticatorService = homeAuthenticatorService;
             _staticFileContentService = staticFileContentService;
         }
 

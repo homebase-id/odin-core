@@ -603,34 +603,29 @@ namespace Odin.Core.Services.Membership.Connections
             return Task.FromResult(client);
         }
 
-        /// <summary>
-        /// Creates a client for the IdentityConnectionRegistration
-        /// </summary>
-        /// <returns></returns>
-        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken clientAuthToken,
-            out ClientAccessToken clientAccessToken)
+        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteClientAuthToken, out ClientAccessToken browserClientAccessToken)
         {
-            if (null == clientAuthToken)
+            if (null == remoteClientAuthToken)
             {
-                clientAccessToken = null;
+                browserClientAccessToken = null;
                 return Task.FromResult(false);
             }
 
-            var icr = this.GetIdentityConnectionRegistration(new OdinId(odinId), clientAuthToken).GetAwaiter().GetResult();
+            var icr = this.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken).GetAwaiter().GetResult();
 
             if (!icr.IsConnected())
             {
-                clientAccessToken = null;
+                browserClientAccessToken = null;
                 return Task.FromResult(false);
             }
 
-            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(clientAuthToken);
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.IdentityConnectionRegistration)
-                .GetAwaiter().GetResult();
+            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey,
+                    ClientTokenType.IdentityConnectionRegistration).GetAwaiter().GetResult();
             grantKeyStoreKey.Wipe();
             ss.Wipe();
 
-            clientAccessToken = cat;
+            browserClientAccessToken = cat;
 
             var icrClient = new IdentityConnectionRegistrationClient()
             {

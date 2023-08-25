@@ -70,6 +70,7 @@ namespace Odin.Hosting.Controllers.Anonymous.Home
                 // var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
 
                 //set the cookie from the identity being logged into 
+                
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 

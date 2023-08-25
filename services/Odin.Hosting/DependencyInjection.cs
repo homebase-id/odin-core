@@ -83,11 +83,10 @@ namespace Odin.Hosting
 
             cb.RegisterType<HomeAuthenticatorService>().AsSelf().SingleInstance();
             cb.RegisterType<HomeRegistrationService>()
-                .As<IHomeRegistrationService>()
+                .AsSelf()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
-            cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
-            cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
+            cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
             
             cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
             cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
