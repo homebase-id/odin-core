@@ -112,7 +112,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                 var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
                 if (info.IsConnected())
                 {
-                    clientAuthTokenBytes = info.CreateClientAuthToken(_contextAccessor.GetCurrent().Caller.).ToString().ToUtf8ByteArray();
+                    var caller = new SensitiveByteArray(_contextAccessor.GetCurrent().Caller.ToString().ToUtf8ByteArray());
+                    clientAuthTokenBytes = info.CreateClientAuthToken(caller).ToPortableBytes();
                     // tempIcrKey?.Wipe();
                 }
             }

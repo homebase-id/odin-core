@@ -180,7 +180,7 @@ public class ClientTypeDomainController : BaseController
         var json = await response.Content.ReadAsStringAsync();
         var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(json);
 
-        var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+        var sharedSecretCipher = Convert.FromBase64String(token!.Base64SharedSecretCipher!);
         var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
         var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
 
