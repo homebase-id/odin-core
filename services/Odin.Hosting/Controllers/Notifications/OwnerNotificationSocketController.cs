@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Controllers.Notifications

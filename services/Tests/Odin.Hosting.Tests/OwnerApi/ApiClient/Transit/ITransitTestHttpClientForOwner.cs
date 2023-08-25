@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Transit;

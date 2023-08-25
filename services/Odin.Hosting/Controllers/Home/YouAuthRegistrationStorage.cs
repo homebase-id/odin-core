@@ -1,9 +1,10 @@
 #nullable enable
 
 using System;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Base;
 
-namespace Odin.Core.Services.Authentication.YouAuth
+namespace Odin.Hosting.Controllers.Home
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {

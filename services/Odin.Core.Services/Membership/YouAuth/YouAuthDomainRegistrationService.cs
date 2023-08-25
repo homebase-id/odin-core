@@ -118,7 +118,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.TempUnknown);
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.YouAuth);
 
             var youAuthDomainClient = new YouAuthDomainClient(domain, friendlyName, accessRegistration);
             this.SaveClient(youAuthDomainClient);

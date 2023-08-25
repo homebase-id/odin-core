@@ -1,4 +1,4 @@
-﻿namespace Odin.Hosting.Controllers.OwnerToken
+﻿namespace Odin.Core.Services.Authentication.Owner
 {
     /// <summary />
     public static class OwnerApiPathConstants

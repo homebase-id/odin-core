@@ -155,7 +155,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.IdentityConnectionRegistration);
 
             var tempIcrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var outgoingRequest = new ConnectionRequest
@@ -299,7 +299,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             // Note: We want to use the same shared secret for the identities so let use the shared secret created by the identity who sent the request
             var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey,
-                ClientTokenType.Other,
+                ClientTokenType.IdentityConnectionRegistration,
                 sharedSecret: remoteClientAccessToken.SharedSecret);
 
             ConnectionRequestReply acceptedReq = new()

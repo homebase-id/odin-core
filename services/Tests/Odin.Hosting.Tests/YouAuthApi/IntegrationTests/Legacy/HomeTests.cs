@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.Anonymous.Home;
 
 namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy
 {
@@ -80,7 +81,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy
                 var response = await apiClient.SendAsync(request);
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
                 validateAuthorizationCodeUri = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
-                Assert.That(validateAuthorizationCodeUri, Does.StartWith($"https://{visitedHobbit}{YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath}"));
+                Assert.That(validateAuthorizationCodeUri, Does.StartWith($"https://{visitedHobbit}{HomeApiPathConstants.ValidateAuthorizationCodeRequestPath}"));
             }
             
             //
@@ -110,7 +111,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy
                 var response = await apiClient.GetAsync(validateAuthorizationCodeUri);
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
                 finalizeBridgeUri = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
-                Assert.That(finalizeBridgeUri, Does.StartWith($"https://{visitedHobbit}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}"));
+                Assert.That(finalizeBridgeUri, Does.StartWith($"https://{visitedHobbit}{HomeApiPathConstants.FinalizeBridgeRequestRequestPath}"));
                 var cookies = response.GetCookies();
                 homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
                 Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);

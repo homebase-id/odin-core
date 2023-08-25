@@ -2,10 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Base;
 
-namespace Odin.Core.Services.Authentication.YouAuth
+namespace Odin.Hosting.Controllers.Home
 {
     public interface IYouAuthAuthorizationCodeManager
     {

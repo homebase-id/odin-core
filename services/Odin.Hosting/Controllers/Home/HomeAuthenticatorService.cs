@@ -1,76 +1,76 @@
 ﻿#nullable enable
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Cryptography.Data;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
-namespace Odin.Core.Services.Authentication.YouAuth
+namespace Odin.Hosting.Controllers.Home
 {
-    public sealed class YouAuthServiceClassic : IYouAuthService
+    public sealed class HomeAuthenticatorService
     {
-        private readonly ILogger<YouAuthServiceClassic> _logger;
+        private readonly ILogger<HomeAuthenticatorService> _logger;
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly IYouAuthRegistrationServiceClassic _registrationServiceClassic;
+        private readonly IHomeRegistrationService _registrationService;
         private readonly CircleNetworkService _circleNetwork;
 
         //
 
-        public YouAuthServiceClassic(
-            ILogger<YouAuthServiceClassic> logger,
+        public HomeAuthenticatorService(
+            ILogger<HomeAuthenticatorService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IOdinHttpClientFactory odinHttpClientFactory,
-            CircleNetworkService circleNetwork, IYouAuthRegistrationServiceClassic registrationServiceClassic)
+            CircleNetworkService circleNetwork, IHomeRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _registrationServiceClassic = registrationServiceClassic;
+            _registrationService = registrationService;
         }
 
         //
 
-        public ValueTask<string> CreateAuthorizationCode(string initiator, string subject)
+        public async ValueTask<YouAuthTokenResponse?> ExchangeCodeForToken(OdinId odinId, string authorizationCode, string digest)
         {
-            return _youAuthAuthorizationCodeManager.CreateAuthorizationCode(initiator, subject);
-        }
-
-        //
-
-        public async ValueTask<(bool, ClientAuthenticationToken?)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
-        {
-            var odinId = new OdinId(subject);
-            var response = await _odinHttpClientFactory
-                .CreateClient<IYouAuthPerimeterHttpClient>(odinId)
-                .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
-
-            //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken
-
-            if (response.IsSuccessStatusCode)
+            var tokenRequest = new YouAuthTokenRequest
             {
-                if (null != response.Content && response.Content.Length > 0)
-                {
-                    var clientAuthTokenBytes = response.Content;
+                Code = authorizationCode,
+                SecretDigest = digest
+            };
 
-                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUtf8Bytes(), out var remoteIcrClientAuthToken))
-                    {
-                        return (true, remoteIcrClientAuthToken);
-                    }
+            var response = await _odinHttpClientFactory
+                .CreateClient<IHomePerimeterHttpClient>(odinId)
+                .ExchangeCodeForToken(tokenRequest);
 
-                    //TODO: log a warning here that a bad payload was returned.
-                    return (true, null);
-                }
-
-                return (true, null)!;
+            if (response.IsSuccessStatusCode && response.Content != null)
+            {
+                return response.Content;
             }
 
-            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int)response.StatusCode);
-            return (false, null)!;
+            return null;
+            
+            //TODO: need to determine how to handle these scenarios
+            
+            // if (response.StatusCode == HttpStatusCode.BadRequest)
+            // {
+            // }
+            //
+            // if (response.StatusCode == HttpStatusCode.NotFound)
+            // {
+            //     throw new OdinClientException("");
+            // }
+
+            // throw new OdinSystemException("unhandled scenario");
         }
 
         //
@@ -102,7 +102,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string odinId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var browserClientAccessToken = await _registrationServiceClassic.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken!);
+            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken!);
             return browserClientAccessToken;
         }
 

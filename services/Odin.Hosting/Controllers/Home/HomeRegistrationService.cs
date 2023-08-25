@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
@@ -15,11 +17,11 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 
-namespace Odin.Core.Services.Authentication.YouAuth
+namespace Odin.Hosting.Controllers.Home
 {
-    public sealed class YouAuthRegistrationServiceClassic : IYouAuthRegistrationServiceClassic
+    public sealed class HomeRegistrationService : IHomeRegistrationService
     {
-        private readonly ILogger<YouAuthRegistrationServiceClassic> _logger;
+        private readonly ILogger<HomeRegistrationService> _logger;
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
@@ -28,7 +30,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         private readonly OdinContextCache _cache;
 
-        public YouAuthRegistrationServiceClassic(ILogger<YouAuthRegistrationServiceClassic> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
+        public HomeRegistrationService(ILogger<HomeRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
             CircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
         {
             _logger = logger;
@@ -43,16 +45,19 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<ClientAccessToken> RegisterYouAuthAccess(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken)
+        public ValueTask<ClientAccessToken> RegisterYouAuthAccess(string odinId, ClientAuthenticationToken clientAuthToken)
         {
             if (string.IsNullOrWhiteSpace(odinId))
             {
                 throw new YouAuthClientException("Invalid subject");
             }
 
-            if (_circleNetworkService.TryCreateIdentityConnectionClient(odinId, remoteIcrClientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())
+            if (clientAuthToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
-                return new ValueTask<ClientAccessToken>(icrClientAccessToken);
+                if (_circleNetworkService.TryCreateIdentityConnectionClient(odinId, clientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())
+                {
+                    return new ValueTask<ClientAccessToken>(icrClientAccessToken);
+                }
             }
 
             if (TryCreateAuthenticatedYouAuthClient(odinId, out ClientAccessToken youAuthClientAccessToken))
@@ -142,7 +147,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
                 if (client == null)
                 {
-                    throw new OdinSecurityException("Client not assigned");        
+                    throw new OdinSecurityException("Client not assigned");
                 }
 
                 var cc = new CallerContext(
@@ -229,7 +234,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
             {
                 return false;
             }
-            
+
             registration = _youAuthRegistrationStorage.LoadFromSubject(client.OdinId);
             if (null == registration)
             {

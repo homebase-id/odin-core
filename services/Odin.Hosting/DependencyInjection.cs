@@ -44,6 +44,7 @@ using Odin.Core.Services.Transit.ReceivingHost.Reactions;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Home;
 
 namespace Odin.Hosting
 {
@@ -80,9 +81,9 @@ namespace Odin.Hosting
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
-            cb.RegisterType<YouAuthServiceClassic>().As<IYouAuthService>().SingleInstance();
-            cb.RegisterType<YouAuthRegistrationServiceClassic>()
-                .As<IYouAuthRegistrationServiceClassic>()
+            cb.RegisterType<HomeAuthenticatorService>().AsSelf().SingleInstance();
+            cb.RegisterType<HomeRegistrationService>()
+                .As<IHomeRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();

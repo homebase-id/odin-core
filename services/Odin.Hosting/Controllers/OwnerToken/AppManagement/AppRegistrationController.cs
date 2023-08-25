@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
 
 namespace Odin.Hosting.Controllers.OwnerToken.AppManagement

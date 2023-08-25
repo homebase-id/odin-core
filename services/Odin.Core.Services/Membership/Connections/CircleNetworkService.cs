@@ -607,16 +607,16 @@ namespace Odin.Core.Services.Membership.Connections
         /// Creates a client for the IdentityConnectionRegistration
         /// </summary>
         /// <returns></returns>
-        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken,
+        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken clientAuthToken,
             out ClientAccessToken clientAccessToken)
         {
-            if (null == remoteIcrClientAuthToken)
+            if (null == clientAuthToken)
             {
                 clientAccessToken = null;
                 return Task.FromResult(false);
             }
 
-            var icr = this.GetIdentityConnectionRegistration(new OdinId(odinId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
+            var icr = this.GetIdentityConnectionRegistration(new OdinId(odinId), clientAuthToken).GetAwaiter().GetResult();
 
             if (!icr.IsConnected())
             {
@@ -624,7 +624,7 @@ namespace Odin.Core.Services.Membership.Connections
                 return Task.FromResult(false);
             }
 
-            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteIcrClientAuthToken);
+            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(clientAuthToken);
             var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.IdentityConnectionRegistration)
                 .GetAwaiter().GetResult();
             grantKeyStoreKey.Wipe();

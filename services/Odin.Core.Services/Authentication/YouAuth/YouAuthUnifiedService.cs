@@ -50,12 +50,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             return false;
         }
-        
+
         if (clientType == ClientType.domain)
         {
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
-        
+
         //apps always require consent
         return true;
     }
@@ -86,7 +86,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        ClientAccessToken token;
+        ClientAccessToken token = null;
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
@@ -98,37 +98,33 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
-            
-            
+
             //
             // [136] Detect if caller is an identity via transit
             //
+            //TODO: need to detect if it's another identity
             if (_contextAccessor.GetCurrent().Caller.IsInOdinNetwork)
             {
-                // if caller is connected
-
-                byte[] clientAuthTokenBytes = Array.Empty<byte>();
                 var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
                 var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
                 if (info.IsConnected())
                 {
-                    var caller = new SensitiveByteArray(_contextAccessor.GetCurrent().Caller.ToString().ToUtf8ByteArray());
-                    clientAuthTokenBytes = info.CreateClientAuthToken(caller).ToPortableBytes();
-                    // tempIcrKey?.Wipe();
+                    var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
+                    token = info.CreateClientAccessToken(icrKey);
                 }
             }
-            
-            
-            
-            var request = new YouAuthDomainRegistrationRequest()
+            else
             {
-                Domain = domain.DomainName,
-                Name = domain.DomainName,
-                CorsHostName = clientId,
-                CircleIds = default //TODO: should we set a circle here?
-            };
+                var request = new YouAuthDomainRegistrationRequest()
+                {
+                    Domain = domain.DomainName,
+                    Name = domain.DomainName,
+                    CorsHostName = clientId,
+                    CircleIds = default //TODO: should we set a circle here?
+                };
 
-            (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);
+                (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);
+            }
         }
         else
         {

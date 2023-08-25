@@ -20,6 +20,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Authentication.ClientToken;
@@ -252,6 +253,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             var accessToken = await _youAuthService.ExchangeCodeForToken(tokenRequest.Code);
 
+            
             //
             // [120] Return 404 if code lookup failed
             //
@@ -272,21 +274,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 Base64SharedSecretIv = Convert.ToBase64String(sharedSecretIv),
             };
 
-            if (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.json)
-            {
-                var (clientAuthTokenIv, clientAuthTokenCipher) =
-                    AesCbc.Encrypt(accessToken.ToAuthenticationToken().ToPortableBytes(), ref exchangeSecret);
+            var (clientAuthTokenIv, clientAuthTokenCipher) =
+                AesCbc.Encrypt(accessToken.ToAuthenticationToken().ToPortableBytes(), ref exchangeSecret);
 
-                result.Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher);
-                result.Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv);
-            }
-            else // (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.cookie)
-            {
-                AuthenticationCookieUtil.SetCookie(
-                    Response,
-                    YouAuthDefaults.XTokenCookieName,
-                    accessToken.ToAuthenticationToken());
-            }
+            result.Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher);
+            result.Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv);
 
             //
             // [140] Return client access token to client

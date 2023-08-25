@@ -12,11 +12,6 @@ public enum ClientTokenType
     /// </summary>
     IdentityConnectionRegistration = 2,
 
-    /// <summary>
-    /// temp unknown as I intend on removing this
-    /// </summary>
-    TempUnknown = 222,
-
     Other = 3,
 
     /// <summary>

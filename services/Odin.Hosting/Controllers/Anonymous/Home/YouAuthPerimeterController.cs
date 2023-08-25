@@ -4,30 +4,31 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Home;
 
-namespace Odin.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous.Home
 {
     [ApiController]
     [Route("/api/perimeter/youauth")]
     [Obsolete("SEB:TODO delete me")]
     public class YouAuthPerimeterController : Controller
     {
-        private readonly IYouAuthService _youAuthService;
+        private readonly HomeAuthenticatorService _homeAuthenticatorService;
 
-        public YouAuthPerimeterController(IYouAuthService youAuthService)
+        public YouAuthPerimeterController(HomeAuthenticatorService homeAuthenticatorService)
         {
-            _youAuthService = youAuthService;
+            _homeAuthenticatorService = homeAuthenticatorService;
         }
         
         [HttpGet("validate-ac-res")]
         [Produces("application/json")]
         public async Task<ActionResult> ValidateAuthorizationCodeResponse(
-            [FromQuery(Name = YouAuthDefaults.Initiator)]
+            [FromQuery(Name = HomeApiPathConstants.Initiator)]
             string initiator,
-            [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]
+            [FromQuery(Name = HomeApiPathConstants.AuthorizationCode)]
             string authorizationCode)
         {
-            var (success, clientAuthTokenBytes) = await _youAuthService.ValidateAuthorizationCode(initiator, authorizationCode);
+            var (success, clientAuthTokenBytes) = await _homeAuthenticatorService.ValidateAuthorizationCode(initiator, authorizationCode);
 
             if (success)
             {
