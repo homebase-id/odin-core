@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
 using Odin.Hosting.Controllers.Anonymous;
-using Odin.Hosting.Controllers.Anonymous.Home;
+using Odin.Hosting.Controllers.Home.Auth;
 
 namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy
 {

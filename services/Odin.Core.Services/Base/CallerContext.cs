@@ -53,7 +53,6 @@ namespace Odin.Core.Services.Base
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
         // public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
-        public bool IsInOdinNetwork => throw new NotImplementedException("need to determine what in network actually means now that we have third party domains");
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;

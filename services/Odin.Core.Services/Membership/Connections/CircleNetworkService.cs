@@ -35,8 +35,6 @@ namespace Odin.Core.Services.Membership.Connections
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
-        private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
-        private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
         public CircleNetworkService(OdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
@@ -50,7 +48,6 @@ namespace Odin.Core.Services.Membership.Connections
 
             _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
 
-            _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
 
         /// <summary>
@@ -120,75 +117,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             return null;
         }
-
-        /// <summary>
-        /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
-        /// </summary>
-        public async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContextClassic(
-            ClientAuthenticationToken authToken)
-        {
-            var client = await this.GetIdentityConnectionClient(authToken);
-            if (null == client)
-            {
-                throw new OdinSecurityException("Invalid token");
-            }
-
-            client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
-
-            var icr = await GetIdentityConnectionRegistrationInternal(client.OdinId);
-            bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
-            bool isConnected = icr.IsConnected();
-
-            // Only return the permissions if the identity is connected.
-            if (isAuthenticated && isConnected)
-            {
-                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
-                    icr: icr,
-                    accessReg: client.AccessRegistration,
-                    authToken: authToken,
-                    applyAppCircleGrants: false);
-
-                var cc = new CallerContext(
-                    odinId: client.OdinId,
-                    masterKey: null,
-                    securityLevel: SecurityGroupType.Connected,
-                    circleIds: enabledCircles);
-
-                return (cc, permissionContext);
-            }
-
-            // Otherwise, fall back to anonymous drives
-            if (isAuthenticated)
-            {
-                var cc = new CallerContext(
-                    odinId: client.OdinId,
-                    masterKey: null,
-                    securityLevel: SecurityGroupType.Authenticated);
-
-                List<int> permissionKeys = new List<int>();
-                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
-                {
-                    permissionKeys.Add(PermissionKeys.ReadConnections);
-                }
-
-                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
-                {
-                    permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-                }
-
-                //create permission context with anonymous drives only
-                var anonPermissionContext = await _exchangeGrantService.CreatePermissionContext(
-                    authToken: authToken,
-                    grants: null!,
-                    accessReg: icr.AccessGrant.AccessRegistration,
-                    additionalPermissionKeys: permissionKeys);
-
-                return (cc, anonPermissionContext);
-            }
-
-            throw new OdinSecurityException("Invalid auth token");
-        }
-
+        
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
@@ -411,7 +340,7 @@ namespace Odin.Core.Services.Membership.Connections
                 throw new OdinSecurityException("invalid connection state");
             }
 
-            //TODO: need to scan the YouAuthServiceClassic to see if this user has a YouAuthRegistration
+            //TODO: need to scan the YouAuthServiceClassic to see if this user has a HomeAppIdentityRegistration
 
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
@@ -592,53 +521,7 @@ namespace Odin.Core.Services.Membership.Connections
             await _circleMembershipService.Delete(circleId);
         }
 
-        /// <summary>
-        /// Returns the <see cref="IdentityConnectionRegistrationClient"/> 
-        /// </summary>
-        /// <param name="authToken"></param>
-        /// <returns></returns>
-        public Task<IdentityConnectionRegistrationClient> GetIdentityConnectionClient(ClientAuthenticationToken authToken)
-        {
-            var client = _icrClientValueStorage.Get<IdentityConnectionRegistrationClient>(authToken.Id);
-            return Task.FromResult(client);
-        }
-
-        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteClientAuthToken, out ClientAccessToken browserClientAccessToken)
-        {
-            if (null == remoteClientAuthToken)
-            {
-                browserClientAccessToken = null;
-                return Task.FromResult(false);
-            }
-
-            var icr = this.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken).GetAwaiter().GetResult();
-
-            if (!icr.IsConnected())
-            {
-                browserClientAccessToken = null;
-                return Task.FromResult(false);
-            }
-
-            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey,
-                    ClientTokenType.IdentityConnectionRegistration).GetAwaiter().GetResult();
-            grantKeyStoreKey.Wipe();
-            ss.Wipe();
-
-            browserClientAccessToken = cat;
-
-            var icrClient = new IdentityConnectionRegistrationClient()
-            {
-                Id = accessRegistration.Id,
-                AccessRegistration = accessRegistration,
-                OdinId = (OdinId)odinId
-            };
-
-            _icrClientValueStorage.Upsert(accessRegistration.Id, Array.Empty<byte>(), _icrClientDataType, icrClient);
-
-            return Task.FromResult(true);
-        }
-
+        
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)

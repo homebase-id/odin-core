@@ -173,7 +173,7 @@ namespace Odin.Core.Services.Authorization.Apps
             return result?.Redacted();
         }
 
-        public async Task<OdinContext> GetAppPermissionContext(ClientAuthenticationToken token)
+        public async Task<OdinContext?> GetAppPermissionContext(ClientAuthenticationToken token)
         {
             async Task<OdinContext> Creator()
             {

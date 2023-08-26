@@ -16,7 +16,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId);
 
-        Task<OdinContext> GetAppPermissionContext(ClientAuthenticationToken token);
+        Task<OdinContext?> GetAppPermissionContext(ClientAuthenticationToken token);
 
         /// <summary>
         /// Updates the permissions granted to the app

@@ -25,6 +25,8 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.Home;
+using Odin.Hosting.Controllers.Home.Service;
 using Quartz.Util;
 
 namespace Odin.Hosting.Authentication.ClientToken
@@ -60,7 +62,26 @@ namespace Odin.Hosting.Authentication.ClientToken
 
             return AuthenticateResult.Fail("Invalid Path");
         }
+        
+        //
 
+        protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+        {
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Not authenticated",
+                Instance = Context.Request.Path
+            };
+            var json = JsonSerializer.Serialize(problemDetails);
+
+            Context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            Context.Response.ContentType = "application/problem+json";
+            return Context.Response.WriteAsync(json);
+        }
+
+        //
+        
         private async Task<AuthenticateResult> HandleAppAuth(OdinContext odinContext)
         {
             if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken, true))
@@ -77,22 +98,24 @@ namespace Odin.Hosting.Authentication.ClientToken
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
-            
+
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, odinContext.Caller.OdinId)); //caller is this owner
-            claims.Add(new Claim(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
+            var claims = new List<Claim>
+            {
+                new (ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
+                new (OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new (OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new (OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
+            };
 
-            // Steal this path from the httpcontroller because here we have the client auth token
+            // Steal this path from the http controller because here we have the client auth token
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstants.NotificationsV1}/preauth"))
             {
                 AuthenticationCookieUtil.SetCookie(Response, ClientTokenConstants.ClientAuthTokenCookieName, authToken);
             }
-            
+
             return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
         }
 
@@ -105,27 +128,48 @@ namespace Odin.Hosting.Authentication.ClientToken
 
             odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
 
-            //TODO: need to decide which locatio nwe're looking up the youauth domain
-            // if it's the home app, it needs to come from 
-            
-            // var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthRegistrationServiceClassic>();
-            var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
-            var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
-
-            if (ctx == null)
+            if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
+                return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext);
+            }
+
+            if (clientAuthToken.ClientTokenType == ClientTokenType.YouAuth)
+            {
+                return await HandleYouAuthToken(clientAuthToken, odinContext);
+            }
+
+            throw new OdinClientException("Unhandled youauth token type");
+        }
+
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
+        {
+            var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
+            var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken);
+            if (null == ctx)
+            {
+                //if still no context, fall back to anonymous
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
-            
+
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
+            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), ClientTokenConstants.YouAuthScheme);
+        }
+
+        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
+        {
+            var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
+            var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
+            if (null == ctx)
+            {
+                //if still no context, fall back to anonymous
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+            }
+
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
-            claims.Add(new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
-
-            return CreateAuthenticationResult(claims, ClientTokenConstants.YouAuthScheme);
+            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), ClientTokenConstants.YouAuthScheme);
         }
 
         private AuthenticateResult CreateAuthenticationResult(IEnumerable<Claim> claims, string scheme)
@@ -203,25 +247,17 @@ namespace Odin.Hosting.Authentication.ClientToken
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
 
-        //
-
-        protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+        private List<Claim> GetYouAuthClaims(OdinContext odinContext)
         {
-            var problemDetails = new ProblemDetails
+            var claims = new List<Claim>
             {
-                Status = StatusCodes.Status401Unauthorized,
-                Title = "Not authenticated",
-                Instance = Context.Request.Path
+                new (ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
+                new (OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new (OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
-            var json = JsonSerializer.Serialize(problemDetails);
-
-            Context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            Context.Response.ContentType = "application/problem+json";
-            return Context.Response.WriteAsync(json);
+            return claims;
         }
-
-        //
-
+        
         private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken, bool fallbackToHeader = false)
         {
             var clientAccessTokenValue64 = Context.Request.Cookies[cookieName];

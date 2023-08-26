@@ -3,7 +3,7 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Refit;
 
-namespace Odin.Hosting.Controllers.Home
+namespace Odin.Hosting.Controllers.Home.Auth
 {
     public interface IHomePerimeterHttpClient
     {

@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.Acl
                     return Task.FromResult(true);
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(caller!.IsInOdinNetwork);
+                    return Task.FromResult(caller!.SecurityLevel == SecurityGroupType.Authenticated);
 
                 case SecurityGroupType.Connected:
                     return CallerIsConnected();
@@ -74,11 +74,7 @@ namespace Odin.Core.Services.Authorization.Acl
             //TODO: cache result - 
             return await Task.FromResult(_contextAccessor.GetCurrent().Caller.IsConnected);
         }
-
-        public Task<bool> CallerIsInOdinNetwork()
-        {
-            return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInOdinNetwork);
-        }
+        
 
         public Task<bool> CallerIsInList(List<string> odinIdList)
         {

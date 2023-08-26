@@ -1,15 +1,13 @@
-﻿using System;
-
-namespace Odin.Hosting.Controllers.Anonymous.Home
+﻿namespace Odin.Hosting.Controllers.Home.Auth
 {
     public static class HomeApiPathConstants
     {
-        public const string BasePathV1 = "/api/youauth/v1";
+        private const string BasePathV1 = "/api/youauth/v1";
 
         public const string AuthV1 = BasePathV1 + "/auth";
-        public const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
+        private const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
         public const string ValidateAuthorizationCodeRequestPath = AuthV1 + "/" + ValidateAuthorizationCodeRequestMethodName;
-        public const string FinalizeBridgeRequestMethodName = "finalize-bridge";
+        private const string FinalizeBridgeRequestMethodName = "finalize-bridge";
         public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
 
         public const string HandleAuthorizationCodeCallbackMethodName = "auth-code-callback";

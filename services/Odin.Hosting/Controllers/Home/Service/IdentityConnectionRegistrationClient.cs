@@ -2,7 +2,7 @@ using System;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Odin.Core.Services.Membership.Connections;
+namespace Odin.Hosting.Controllers.Home.Service;
 
 public class IdentityConnectionRegistrationClient
 {

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -345,7 +344,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         // 
         
-        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token)
         {
             async Task<OdinContext> Creator()
             {
@@ -373,7 +372,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             return result;
         }
         
-        public async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
+        private async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
             ClientAuthenticationToken authToken)
         {
             var domainClient = _clientStorage.Get<YouAuthDomainClient>(authToken.Id);

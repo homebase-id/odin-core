@@ -1,6 +1,4 @@
-﻿using System;
-using System.Security.Claims;
-
+﻿
 namespace Odin.Core.Services.Authentication.YouAuth
 {
     public static class YouAuthDefaults

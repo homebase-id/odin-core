@@ -1,13 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
-using Certes;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Exceptions;
-using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
@@ -86,7 +81,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        ClientAccessToken token = null;
+        ClientAccessToken? token = null;
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
@@ -99,19 +94,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientId);
 
-            //
-            // [136] Detect if caller is an identity via transit
-            //
-            //TODO: need to detect if it's another identity
-            if (_contextAccessor.GetCurrent().Caller.IsInOdinNetwork)
+            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
+            if (info.IsConnected())
             {
-                var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
-                if (info.IsConnected())
-                {
-                    var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
-                    token = info.CreateClientAccessToken(icrKey);
-                }
+                var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
+                token = info.CreateClientAccessToken(icrKey);
             }
             else
             {
@@ -245,12 +233,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         public ClientType ClientType { get; }
         public string PermissionRequest { get; }
 
-        public ClientAccessToken PreCreatedClientAccessToken { get; }
+        public ClientAccessToken? PreCreatedClientAccessToken { get; }
 
         public AuthorizationCodeAndToken(string code,
             ClientType clientType,
             string permissionRequest,
-            ClientAccessToken clientAccessToken)
+            ClientAccessToken? clientAccessToken)
         {
             Code = code;
             ClientType = clientType;
