@@ -2,6 +2,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
@@ -43,9 +44,17 @@ namespace Odin.Hosting.Controllers.Home.Auth
         // [080] Return authorization code, public key and salt to frontend.
         //
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
-        public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] HomeAuthenticationState state,
+        public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] string state,
             string salt)
         {
+            
+            var authState = OdinSystemSerializer.Deserialize<HomeAuthenticationState>(HttpUtility.UrlDecode(state));
+
+            if (null == authState)
+            {
+                throw new OdinClientException("Invalid state");
+            }
+            
             try
             {
                 var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey();
@@ -88,18 +97,18 @@ namespace Odin.Hosting.Controllers.Home.Auth
                     ss64 = sharedSecret64
                 });
 
-                var tempFinalUrl = "/authorization-code-callback";
-                string url = $"{tempFinalUrl}?r={result}";
+                // var tempFinalUrl = "/authorization-code-callback";
+                string url = $"{authState.FinalUrl}?r={result}";
                 return Redirect(url);
             }
             catch (OdinClientException)
             {
-                string url = $"{state.FinalUrl}?error=remoteValidationCallFailed";
+                string url = $"{authState.FinalUrl}?error=remoteValidationCallFailed";
                 Redirect(url);
             }
             catch
             {
-                string url = $"{state.FinalUrl}?error=unknown";
+                string url = $"{authState.FinalUrl}?error=unknown";
                 Redirect(url);
             }
 
