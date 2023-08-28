@@ -268,17 +268,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             var sharedSecretPlain = accessToken.SharedSecret.GetKey();
             var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, ref exchangeSecret);
+
+            var clientAuthTokenPlain = accessToken.ToAuthenticationToken().ToPortableBytes();
+            var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, ref exchangeSecret);
+
             var result = new YouAuthTokenResponse
             {
                 Base64SharedSecretCipher = Convert.ToBase64String(sharedSecretCipher),
                 Base64SharedSecretIv = Convert.ToBase64String(sharedSecretIv),
+                Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher),
+                Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv),
             };
-
-            var (clientAuthTokenIv, clientAuthTokenCipher) =
-                AesCbc.Encrypt(accessToken.ToAuthenticationToken().ToPortableBytes(), ref exchangeSecret);
-
-            result.Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher);
-            result.Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv);
 
             //
             // [140] Return client access token to client

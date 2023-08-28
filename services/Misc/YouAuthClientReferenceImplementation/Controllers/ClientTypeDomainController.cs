@@ -159,7 +159,6 @@ public class ClientTypeDomainController : BaseController
         var tokenRequest = new YouAuthTokenRequest
         {
             Code = code,
-            TokenDeliveryOption = TokenDeliveryOption.cookie,
             SecretDigest = exchangeSecretDigest
         };
         var body = OdinSystemSerializer.Serialize(tokenRequest);
@@ -185,21 +184,22 @@ public class ClientTypeDomainController : BaseController
         var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
         var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
 
+        var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+        var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+        var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+
         //
         // Store thirdparty cookies
         //
 
         // Save "sam was here" in cookie and then Sam is logged in with his ODIN identity! Hoorah!
-        var cookies = response.GetCookies();
-        var cat = cookies["XT32"];
-
         var cookieOption = new CookieOptions
         {
             Expires = DateTime.Now.AddDays(30)
         };
         
         Response.Cookies.Append(IdentityCookieName, state.Identity, cookieOption);
-        Response.Cookies.Append(CatCookieName, cat, cookieOption);
+        Response.Cookies.Append(CatCookieName, Convert.ToBase64String(clientAuthToken), cookieOption);
         Response.Cookies.Append(SharedSecretCookieName, Convert.ToBase64String(sharedSecret), cookieOption);
 
         return RedirectToAction("Index");

@@ -142,7 +142,6 @@ public class ClientTypeAppController : BaseController
         var tokenRequest = new YouAuthTokenRequest
         {
             Code = code,
-            TokenDeliveryOption = TokenDeliveryOption.json,
             SecretDigest = exchangeSecretDigest
         };
         var body = OdinSystemSerializer.Serialize(tokenRequest);

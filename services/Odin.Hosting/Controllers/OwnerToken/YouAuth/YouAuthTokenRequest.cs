@@ -14,26 +14,23 @@ public class YouAuthTokenRequest
 {
     public const string CodeName = "code";
     [JsonPropertyName(CodeName)]
-    [Required(ErrorMessage = $"{CodeName} is required")]
     public string Code { get; set; } = "";
-
-    public const string TokenDeliveryOptionName = "token_delivery_option";
-    [JsonPropertyName(TokenDeliveryOptionName)]
-    [Required(ErrorMessage = $"{TokenDeliveryOptionName} is required")]
-    public TokenDeliveryOption TokenDeliveryOption { get; set; } = TokenDeliveryOption.unknown;
 
     public const string SecretDigestName = "secret_digest";
     [JsonPropertyName(SecretDigestName)]
-    [Required(ErrorMessage = $"{SecretDigestName} is required")]
     public string SecretDigest { get; set; } = "";
 
     //
 
     public void Validate()
     {
-        if (TokenDeliveryOption != TokenDeliveryOption.json && TokenDeliveryOption != TokenDeliveryOption.cookie)
+        if (string.IsNullOrWhiteSpace(Code))
         {
-            throw new BadRequestException($"{TokenDeliveryOptionName} is invalid {TokenDeliveryOption}");
+            throw new BadRequestException($"{CodeName} is required");
+        }
+        if (string.IsNullOrWhiteSpace(SecretDigest))
+        {
+            throw new BadRequestException($"{SecretDigestName} is required");
         }
     }
 }
