@@ -241,7 +241,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // [105] Look up ECC keypair from secret digest
             //
-            if (!_sharedSecrets.TryGetSecret(tokenRequest.SecretDigest, out SensitiveByteArray exchangeSecret))
+            if (!_sharedSecrets.TryExtractSecret(tokenRequest.SecretDigest, out SensitiveByteArray exchangeSecret))
             {
                 // [106] Return 400 if lookup failed
                 throw new BadRequestException($"Invalid digest {tokenRequest.SecretDigest}");

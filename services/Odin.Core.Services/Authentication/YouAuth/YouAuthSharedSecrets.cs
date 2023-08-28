@@ -12,6 +12,17 @@ public class YouAuthSharedSecrets
         return _sharedSecrets.TryGetValue(key, out secret);
     }
 
+    public bool TryExtractSecret(string key, out SensitiveByteArray secret)
+    {
+        if (TryGetSecret(key, out secret))
+        {
+            _sharedSecrets.Remove(key);
+            return true;
+        }
+
+        return false;
+    }
+
     public void SetSecret(string key, SensitiveByteArray secret)
     {
         _sharedSecrets.Set(key, secret, TimeSpan.FromMinutes(5));
