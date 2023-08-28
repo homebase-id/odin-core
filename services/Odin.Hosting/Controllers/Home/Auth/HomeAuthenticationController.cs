@@ -49,8 +49,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
         {
             
             var authState = OdinSystemSerializer.Deserialize<HomeAuthenticationState>(HttpUtility.UrlDecode(state));
-
-            if (null == authState)
+            
+            if (string.IsNullOrEmpty(authState?.FinalUrl))
             {
                 throw new OdinClientException("Invalid state");
             }
