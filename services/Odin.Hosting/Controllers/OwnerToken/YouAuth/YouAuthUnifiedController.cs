@@ -136,19 +136,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
 
             //
-            // [070] Create authorization code
-            //
-            var code = await _youAuthService.CreateAuthorizationCode(
-                authorize.ClientType,
-                authorize.ClientId,
-                authorize.ClientInfo,
-                authorize.PermissionRequest);
-
-            //
-            // [075] Create ECC key pair, random salt and shared secret.
+            // [070] Create ECC key pair, random salt and shared secret.
             // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
             //
-
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var keyPair = new EccFullKeyData(privateKey, 1);
             var salt = ByteArrayUtil.GetRndByteArray(16);
@@ -158,6 +148,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             var sharedSecretDigest = SHA256.Create().ComputeHash(sharedSecret.GetKey()).ToBase64();
 
             _sharedSecrets.SetSecret(sharedSecretDigest, sharedSecret);
+
+            //
+            // [074] Create authorization code
+            // [078] Ceate client access token
+            // SEB:TODO encrypt client access token with key from [070]
+            //
+            var code = await _youAuthService.CreateAuthorizationCode(
+                authorize.ClientType,
+                authorize.ClientId,
+                authorize.ClientInfo,
+                authorize.PermissionRequest);
 
             //
             // [080] Return authorization code, public key and salt to client
