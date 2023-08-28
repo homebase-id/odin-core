@@ -7,7 +7,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 {
     public interface IHomePerimeterHttpClient
     {
-        [Get(OwnerApiPathConstants.YouAuthV1Token)]
+        [Post(OwnerApiPathConstants.YouAuthV1Token)]
         Task<ApiResponse<YouAuthTokenResponse>> ExchangeCodeForToken(YouAuthTokenRequest tokenRequest);
     }
 }

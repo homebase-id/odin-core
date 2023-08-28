@@ -43,7 +43,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         // [080] Return authorization code, public key and salt to frontend.
         //
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
-        public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, HomeAuthenticationState state,
+        public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] HomeAuthenticationState state,
             string salt)
         {
             try
@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 // var sharedSecretIv = Convert.FromBase64String(tokenResponse.Base64SharedSecretIv!);
                 // var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
 
-                //set the cookie from the identity being logged into 
+                //set the cookie from the identity being logged into
 
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
@@ -88,7 +88,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
                     ss64 = sharedSecret64
                 });
 
-                string url = $"{state.FinalUrl}?r={result}";
+                var tempFinalUrl = "/authorization-code-callback";
+                string url = $"{tempFinalUrl}?r={result}";
                 return Redirect(url);
             }
             catch (OdinClientException)
