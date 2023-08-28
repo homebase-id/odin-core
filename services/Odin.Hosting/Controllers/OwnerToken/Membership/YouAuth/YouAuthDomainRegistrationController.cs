@@ -96,9 +96,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         /// </summary>
         /// <returns></returns>
         [HttpGet("clients")]
-        public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients()
+        public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients(string domain)
         {
-            var result = await _registrationService.GetRegisteredClients();
+            var result = await _registrationService.GetRegisteredClients(new AsciiDomainName(domain));
             return result;
         }
         
