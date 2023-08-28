@@ -1,9 +1,9 @@
 using System;
 using Microsoft.AspNetCore.Authentication;
 
-namespace Odin.Hosting.Authentication.ClientToken
+namespace Odin.Hosting.Authentication.YouAuth
 {
-    public static class ClientTokenAuthenticationExtensions
+    public static class YouAuthAuthenticationExtensions
     {
         public static AuthenticationBuilder AddClientTokenAuthentication(this AuthenticationBuilder builder)
         {
@@ -12,8 +12,8 @@ namespace Odin.Hosting.Authentication.ClientToken
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            return builder.AddScheme<ClientTokenAuthenticationSchemeOptions, ClientTokenAuthenticationHandler>(
-                ClientTokenConstants.YouAuthScheme, op => { });
+            return builder.AddScheme<YouAuthAuthenticationSchemeOptions, YouAuthAuthenticationHandler>(
+                YouAuthConstants.YouAuthScheme, op => { });
         }
     }
 }

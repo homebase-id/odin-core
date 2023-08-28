@@ -1,6 +1,6 @@
 namespace Odin.Core.Services.Base;
 
-public class OdinYouAuthContext
+public class OdinYouAuthClientContext
 {
     /// <summary>
     /// 

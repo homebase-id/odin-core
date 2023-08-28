@@ -10,7 +10,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.SendingHost;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.Base
 {
@@ -249,7 +249,7 @@ namespace Odin.Hosting.Controllers.Base
 
         private void AddCacheHeader()
         {
-            if (OdinContext.AuthContext == ClientTokenConstants.YouAuthScheme)
+            if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
             {
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
             }

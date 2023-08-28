@@ -23,7 +23,6 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
-using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Extensions;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth

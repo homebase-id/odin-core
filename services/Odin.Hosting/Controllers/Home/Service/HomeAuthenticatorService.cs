@@ -113,10 +113,18 @@ namespace Odin.Hosting.Controllers.Home.Service
             return await _cache.GetOrAddContext(token, creator);
         }
 
-        public ValueTask DeleteSession()
+        public ValueTask<bool> DeleteSession()
         {
-            _storage.DeleteClient(_contextAccessor.GetCurrent().Caller.YouAuthContext.AccessRegistrationId);
-            return ValueTask.CompletedTask;
+            try
+            {
+                _storage.DeleteClient(_contextAccessor.GetCurrent().Caller.YouAuthClientContext.AccessRegistrationId);
+            }
+            catch
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            return new ValueTask<bool>(true);
         }
 
         //
@@ -171,8 +179,9 @@ namespace Odin.Hosting.Controllers.Home.Service
                 }
                 catch (OdinSecurityException)
                 {
-                    //TODO: swallow the security exception and return null, otherwise the cache will keep trying to load data from the token 
-                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((null, null));
+                    //if you're no longer connected, we can mark you as authenticated because you still have a client.
+                    var (cc, permissionCtx) = CreateAuthenticatedPermissionContext(authToken, client).GetAwaiter().GetResult();
+                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionCtx));
                 }
             }
 
@@ -188,6 +197,11 @@ namespace Odin.Hosting.Controllers.Home.Service
         private Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
             ClientAuthenticationToken authToken, HomeAppClient client)
         {
+            if (null == client)
+            {
+                throw new OdinSecurityException("Invalid Client");
+            }
+
             List<int> permissionKeys = new List<int>() { };
             if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
             {
@@ -211,12 +225,17 @@ namespace Odin.Hosting.Controllers.Home.Service
                     { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
                 },
                 sharedSecretKey: ss);
-            
+
             var cc = new CallerContext(
                 odinId: client.OdinId,
                 securityLevel: SecurityGroupType.Authenticated,
                 masterKey: null,
-                circleIds: null
+                circleIds: null,
+                youAuthClientContext: new OdinYouAuthClientContext()
+                {
+                    CorsHostName = "",
+                    AccessRegistrationId = client.AccessRegistration!.Id
+                }
             );
 
             return Task.FromResult((cc, permissionCtx));
@@ -256,7 +275,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             out ClientAccessToken browserClientAccessToken)
         {
             var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            browserClientAccessToken = StoreClient((OdinId)odinId, emptyKey);
+            browserClientAccessToken = StoreClient((OdinId)odinId, emptyKey, HomeAppClientType.UnconnectedIdentity);
             return true;
         }
 
@@ -274,19 +293,19 @@ namespace Odin.Hosting.Controllers.Home.Service
             var (grantKeyStoreKey, sharedSecret) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
             sharedSecret.Wipe();
 
-            browserClientAccessToken = StoreClient(icr.OdinId, grantKeyStoreKey);
+            browserClientAccessToken = StoreClient(icr.OdinId, grantKeyStoreKey, HomeAppClientType.ConnectedIdentity);
 
             return Task.FromResult(true);
         }
 
-        private ClientAccessToken StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey)
+        private ClientAccessToken StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType)
         {
             var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(
                 grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp).GetAwaiter().GetResult();
 
             grantKeyStoreKey.Wipe();
 
-            var homeAppClient = new HomeAppClient(odinId, accessRegistration, HomeAppClientType.ConnectedIdentity);
+            var homeAppClient = new HomeAppClient(odinId, accessRegistration, clientType);
             _storage.SaveClient(homeAppClient);
 
             return cat;
@@ -307,7 +326,8 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(client.OdinId);
+            //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(client.OdinId, true);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
@@ -323,38 +343,14 @@ namespace Odin.Hosting.Controllers.Home.Service
                     odinId: client.OdinId,
                     masterKey: null,
                     securityLevel: SecurityGroupType.Connected,
-                    circleIds: enabledCircles);
+                    circleIds: enabledCircles,
+                    youAuthClientContext: new OdinYouAuthClientContext()
+                    {
+                        CorsHostName = "",
+                        AccessRegistrationId = client.AccessRegistration.Id
+                    });
 
                 return (cc, permissionContext);
-            }
-
-            // Otherwise, fall back to anonymous drives
-            if (isAuthenticated)
-            {
-                var cc = new CallerContext(
-                    odinId: client.OdinId,
-                    masterKey: null,
-                    securityLevel: SecurityGroupType.Authenticated);
-
-                List<int> permissionKeys = new List<int>();
-                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
-                {
-                    permissionKeys.Add(PermissionKeys.ReadConnections);
-                }
-
-                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
-                {
-                    permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-                }
-
-                //create permission context with anonymous drives only
-                var anonPermissionContext = await _exchangeGrantService.CreatePermissionContext(
-                    authToken: authToken,
-                    grants: null!,
-                    accessReg: icr.AccessGrant!.AccessRegistration,
-                    additionalPermissionKeys: permissionKeys);
-
-                return (cc, anonPermissionContext);
             }
 
             throw new OdinSecurityException("Invalid auth token");

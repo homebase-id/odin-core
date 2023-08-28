@@ -2,7 +2,7 @@ using System;
 using Microsoft.AspNetCore.Http;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Odin.Hosting.Authentication.ClientToken;
+namespace Odin.Hosting.Authentication.YouAuth;
 
 internal static class AuthenticationCookieUtil
 {

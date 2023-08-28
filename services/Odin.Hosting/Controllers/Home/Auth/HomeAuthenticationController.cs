@@ -16,7 +16,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Tenant;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
@@ -46,6 +46,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
         public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] string state,
             string salt)
+        
         {
             
             var authState = OdinSystemSerializer.Deserialize<HomeAuthenticationState>(HttpUtility.UrlDecode(state));
@@ -119,7 +120,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         [HttpGet(HomeApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme, Policy = ClientTokenPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsIdentified)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -129,19 +130,23 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         [HttpGet(HomeApiPathConstants.DeleteTokenMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme)]
         public async Task<ActionResult> DeleteToken()
         {
-            await _homeAuthenticatorService.DeleteSession();
-            Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
-            return Ok();
+            if(await _homeAuthenticatorService.DeleteSession())
+            {
+                Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
+                return Ok();
+            }
+
+            return NotFound();
         }
 
         //
 
         [HttpGet(HomeApiPathConstants.PingMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme, Policy = ClientTokenPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme, Policy = YouAuthPolicies.IsIdentified)]
         public string GetPing([FromQuery] string text)
         {
             return $"ping from {_currentTenant}: {text}";

@@ -29,6 +29,6 @@ public sealed class HomeAppClient
 
 public enum HomeAppClientType
 {
-    ConnectedIdentity,
-    UnconnectedIdentity
+    ConnectedIdentity = 1,
+    UnconnectedIdentity = 5
 }

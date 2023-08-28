@@ -210,7 +210,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         public async Task DeleteCurrentYouAuthDomainClient()
         {
             var context = _contextAccessor.GetCurrent();
-            var accessRegistrationId = context.Caller.YouAuthContext?.AccessRegistrationId;
+            var accessRegistrationId = context.Caller.YouAuthClientContext?.AccessRegistrationId;
 
             var validAccess = accessRegistrationId != null &&
                               context.Caller.SecurityLevel == SecurityGroupType.Owner;
@@ -499,7 +499,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     masterKey: null,
                     securityLevel: SecurityGroupType.Authenticated,
                     circleIds: enabledCircles,
-                    youAuthContext: new OdinYouAuthContext()
+                    youAuthClientContext: new OdinYouAuthClientContext()
                     {
                         CorsHostName = domainRegistration.CorsHostName,
                         AccessRegistrationId = accessReg.Id

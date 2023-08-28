@@ -14,7 +14,7 @@ namespace Odin.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, OdinYouAuthContext youAuthContext = null,
+        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, OdinYouAuthClientContext youAuthClientContext = null,
             List<GuidId> circleIds = null,
             ClientTokenType tokenType = ClientTokenType.Other)
         {
@@ -23,7 +23,7 @@ namespace Odin.Core.Services.Base
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
             this.ClientTokenType = tokenType;
-            this.YouAuthContext = youAuthContext;
+            this.YouAuthClientContext = youAuthClientContext;
         }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public OdinId? OdinId { get; }
 
-        public OdinYouAuthContext YouAuthContext { get; init; }
+        public OdinYouAuthClientContext YouAuthClientContext { get; init; }
 
         public bool HasMasterKey
         {

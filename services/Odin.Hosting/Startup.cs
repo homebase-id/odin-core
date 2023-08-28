@@ -32,10 +32,10 @@ using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting._dev;
-using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Perimeter;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
@@ -173,7 +173,7 @@ namespace Odin.Hosting
             {
                 OwnerPolicies.AddPolicies(policy);
                 SystemPolicies.AddPolicies(policy);
-                ClientTokenPolicies.AddPolicies(policy);
+                YouAuthPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });

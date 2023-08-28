@@ -25,16 +25,15 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken;
-using Odin.Hosting.Controllers.Home;
 using Odin.Hosting.Controllers.Home.Service;
 using Quartz.Util;
 
-namespace Odin.Hosting.Authentication.ClientToken
+namespace Odin.Hosting.Authentication.YouAuth
 {
-    public class ClientTokenAuthenticationHandler : AuthenticationHandler<ClientTokenAuthenticationSchemeOptions>
+    public class YouAuthAuthenticationHandler : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>
     {
-        public ClientTokenAuthenticationHandler(
-            IOptionsMonitor<ClientTokenAuthenticationSchemeOptions> options,
+        public YouAuthAuthenticationHandler(
+            IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ISystemClock clock)
@@ -84,13 +83,13 @@ namespace Odin.Hosting.Authentication.ClientToken
         
         private async Task<AuthenticateResult> HandleAppAuth(OdinContext odinContext)
         {
-            if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken, true))
+            if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            odinContext.SetAuthContext(ClientTokenConstants.AppSchemeName);
+            odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
             var ctx = await appRegService.GetAppPermissionContext(authToken);
 
@@ -113,10 +112,10 @@ namespace Odin.Hosting.Authentication.ClientToken
             // Steal this path from the http controller because here we have the client auth token
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstants.NotificationsV1}/preauth"))
             {
-                AuthenticationCookieUtil.SetCookie(Response, ClientTokenConstants.ClientAuthTokenCookieName, authToken);
+                AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken);
             }
 
-            return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
+            return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
         }
 
         private async Task<AuthenticateResult> HandleYouAuth(OdinContext odinContext)
@@ -126,7 +125,7 @@ namespace Odin.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
-            odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
+            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
@@ -153,7 +152,7 @@ namespace Odin.Hosting.Authentication.ClientToken
 
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
-            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), ClientTokenConstants.YouAuthScheme);
+            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
         }
 
         private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
@@ -169,7 +168,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), ClientTokenConstants.YouAuthScheme);
+            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
         }
 
         private AuthenticateResult CreateAuthenticationResult(IEnumerable<Claim> claims, string scheme)
@@ -242,8 +241,8 @@ namespace Odin.Hosting.Authentication.ClientToken
                 new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
 
-            odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
-            var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.YouAuthScheme);
+            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
+            var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
 

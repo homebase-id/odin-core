@@ -8,7 +8,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Tests.AppAPI.Authentication
 {
@@ -98,7 +98,7 @@ namespace Odin.Hosting.Tests.AppAPI.Authentication
             var response = await appApiClient.PreAuth();
             
             Assert.IsTrue(response.Headers.TryGetValues("Set-Cookie", out var values));
-            Assert.IsTrue(values.Any(v=>v.StartsWith(ClientTokenConstants.ClientAuthTokenCookieName)));
+            Assert.IsTrue(values.Any(v=>v.StartsWith(YouAuthConstants.AppCookieName)));
         }
     }
 }

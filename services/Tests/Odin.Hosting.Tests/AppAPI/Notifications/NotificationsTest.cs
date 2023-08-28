@@ -11,7 +11,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken;
 
 namespace Odin.Hosting.Tests.AppAPI.Notifications;
@@ -61,7 +61,7 @@ public class NotificationsTest
         ClientWebSocket socket = new ClientWebSocket();
         socket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, deviceClientAuthToken.ToString());
+        var cookie = new Cookie(YouAuthConstants.AppCookieName, deviceClientAuthToken.ToString());
         cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -140,7 +140,7 @@ public class NotificationsTest
         ClientWebSocket socket = new ClientWebSocket();
         socket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, deviceClientAuthToken.ToString());
+        var cookie = new Cookie(YouAuthConstants.AppCookieName, deviceClientAuthToken.ToString());
         cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
