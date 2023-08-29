@@ -32,12 +32,7 @@ public class YouAuthAppParameters
     [JsonPropertyName(DrivesParamName)]
     [Required(ErrorMessage = $"{DrivesParamName} is required")]
     public string DrivesParam { get; set; } = "";
-
-    public const string PkName = "pk";
-    [JsonPropertyName(PkName)]
-    [Required(ErrorMessage = $"{PkName} is required")]
-    public string Pk { get; set; } = "";
-
+    
     public const string ReturnName = "return";
     [JsonPropertyName(ReturnName)]
     public string Return { get; set; } = "";
@@ -57,7 +52,6 @@ public class YouAuthAppParameters
         string appId,
         string clientFriendly,
         string drivesParam,
-        string pk,
         string @return)
     {
         AppId = appId;
@@ -65,7 +59,6 @@ public class YouAuthAppParameters
         AppOrigin = appOrigin;
         ClientFriendly = clientFriendly;
         DrivesParam = drivesParam;
-        Pk = pk;
         Return = @return;
     }
 
@@ -79,7 +72,6 @@ public class YouAuthAppParameters
         qs[AppOriginName] = AppOrigin;
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
-        qs[PkName] = Pk;
         qs[ReturnName] = Return;
 
         return qs.ToString() ?? string.Empty;
@@ -97,7 +89,6 @@ public class YouAuthAppParameters
             appOrigin: qs[AppOriginName] ?? string.Empty,
             clientFriendly: qs[ClientFriendlyName] ?? string.Empty,
             drivesParam: qs[DrivesParamName] ?? string.Empty,
-            pk: qs[PkName] ?? string.Empty,
             @return: qs[ReturnName] ?? string.Empty);
     }
 
@@ -124,10 +115,6 @@ public class YouAuthAppParameters
         if (string.IsNullOrWhiteSpace(DrivesParam))
         {
             throw new BadRequestException($"{DrivesParamName} is required");
-        }
-        if (string.IsNullOrWhiteSpace(Pk))
-        {
-            throw new BadRequestException($"{PkName} is required");
         }
     }
 

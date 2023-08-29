@@ -88,7 +88,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             var deviceFriendlyName = clientInfo;
 
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await _appRegistrationService.RegisterClientRaw(appId, deviceFriendlyName);
+            (token, _) = await _appRegistrationService.RegisterClient(appId, deviceFriendlyName);
         }
         else if (clientType == ClientType.domain)
         {

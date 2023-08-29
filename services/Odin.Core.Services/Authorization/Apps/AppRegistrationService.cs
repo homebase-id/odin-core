@@ -141,30 +141,25 @@ namespace Odin.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(
-            GuidId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName)
         {
-            var (cat, corsHostName) = await this.RegisterClientInternal(appId, friendlyName);
+            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
+            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
 
-            var data = cat.ToPortableBytes();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            var encryptedData = publicKey.Encrypt(data);
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            data.WriteZeros();
-
-            var response = new AppClientRegistrationResponse()
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (appReg == null)
             {
-                EncryptionVersion = 1,
-                Token = cat.Id,
-                Data = encryptedData
-            };
+                throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
+            }
 
-            return (response, corsHostName);
-        }
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
-        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientRaw(GuidId appId, string friendlyName)
-        {
-            return await this.RegisterClientInternal(appId, friendlyName);
+            var appClient = new AppClient(appId, friendlyName, accessRegistration);
+            this.SaveClient(appClient);
+            return (cat, appReg.CorsHostName);
         }
 
         public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId)
@@ -269,10 +264,10 @@ namespace Odin.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId)
         {
             var list = _appClientValueStorage.GetByKey3<AppClient>(_appClientDataType);
-            var resp = list.Select(appClient => new RegisteredAppClientResponse()
+            var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
                 AccessRegistrationId = appClient.AccessRegistration.Id,
@@ -368,11 +363,11 @@ namespace Odin.Core.Services.Authorization.Apps
             {
                 throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
-            
+
             _appRegistrationValueStorage.Delete(appId);
 
             //TODO: reenable this after youauth domain work
-            
+
             //
             // var clientsByApp = _appClientValueStorage.GetByKey2<AppClient>(appId);
             // using (_tenantSystemStorage.CreateCommitUnitOfWork())
@@ -384,7 +379,7 @@ namespace Odin.Core.Services.Authorization.Apps
             //
             //     _appRegistrationValueStorage.Delete(appId);
             // }
-            
+
             await Task.CompletedTask;
         }
 
@@ -423,27 +418,6 @@ namespace Odin.Core.Services.Authorization.Apps
         private void ResetAppPermissionContextCache()
         {
             _cache.Reset();
-        }
-
-        private async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientInternal(GuidId appId, string friendlyName)
-        {
-            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
-            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
-
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-            var appReg = await this.GetAppRegistrationInternal(appId);
-            if (appReg == null)
-            {
-                throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
-            }
-
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
-
-            var appClient = new AppClient(appId, friendlyName, accessRegistration);
-            this.SaveClient(appClient);
-            return (cat, appReg.CorsHostName);
         }
     }
 }

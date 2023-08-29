@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
@@ -46,16 +47,14 @@ namespace Odin.Hosting.Controllers.Home.Auth
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
         public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] string state,
             string salt)
-        
         {
-            
             var authState = OdinSystemSerializer.Deserialize<HomeAuthenticationState>(HttpUtility.UrlDecode(state));
-            
+
             if (string.IsNullOrEmpty(authState?.FinalUrl))
             {
                 throw new OdinClientException("Invalid state");
             }
-            
+
             try
             {
                 var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey();
@@ -88,18 +87,32 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 
-                //TODO: Encrypt identity and shared secret using state.EccPk64
+                //TODO: clean this up
+                var stefsPk = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
+                var stefsSalt = ByteArrayUtil.GetRndByteArray(16);
+                var homePwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+                EccFullKeyData homeKeyPair = new EccFullKeyData(homePwd, 2);
+                var stefSharedSecret = homeKeyPair.GetEcdhSharedSecret(homePwd, stefsPk, stefsSalt);
+
                 var sharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
                 clientAccessToken?.Wipe();
-
+                
                 var result = OdinSystemSerializer.Serialize(new
                 {
                     identity = identity,
-                    ss64 = sharedSecret64
+                    ss64 = sharedSecret64,
                 });
 
-                // var tempFinalUrl = "/authorization-code-callback";
-                string url = $"{authState.FinalUrl}?r={result}";
+                var (randomIv, cipher) = AesCbc.Encrypt(result.ToUtf8ByteArray(), ref stefSharedSecret);
+                
+                var eccInfo = OdinSystemSerializer.Serialize(new
+                {
+                    pk = homeKeyPair.PublicKeyJwkBase64Url(),
+                    salt = stefsSalt,
+                    iv = randomIv
+                });
+
+                string url = $"{authState.FinalUrl}?r={cipher.ToBase64()}&ecc={eccInfo}";
                 return Redirect(url);
             }
             catch (OdinClientException)
@@ -133,7 +146,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme)]
         public async Task<ActionResult> DeleteToken()
         {
-            if(await _homeAuthenticatorService.DeleteSession())
+            if (await _homeAuthenticatorService.DeleteSession())
             {
                 Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
                 return Ok();
