@@ -43,8 +43,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         [Post(RootPath + "/allowClient")]
         Task<ApiResponse<HttpContent>> AllowClient([Body] GetAppClientRequest accessRegistrationId);
 
-        [Get(RootPath + "/clients")]
-        Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients();
+        [Post(RootPath + "/clients")]
+        Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients([Body] GetAppRequest request);
 
         [Post(RootPath + "/register/client")]
         Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);

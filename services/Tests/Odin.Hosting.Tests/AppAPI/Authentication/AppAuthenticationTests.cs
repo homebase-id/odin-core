@@ -58,13 +58,13 @@ namespace Odin.Hosting.Tests.AppAPI.Authentication
             var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
             var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
 
-            var clients = await ownerClient.Apps.GetRegisteredClients();
+            var clients = await ownerClient.Apps.GetRegisteredClients(appId);
             Assert.IsNotNull(clients.SingleOrDefault(c => c.AppId == appId && c.AccessRegistrationId == appApiClient.AccessRegistrationId));
 
             await appApiClient.Logout();
 
             //log out the app
-            var updatedClients = await ownerClient.Apps.GetRegisteredClients();
+            var updatedClients = await ownerClient.Apps.GetRegisteredClients(appId);
             Assert.IsTrue(!updatedClients.Any());
         }
 

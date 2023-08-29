@@ -50,7 +50,7 @@ public class PublicPrivateKeyApiClient
         }
     }
     
-    public async Task<GetPublicKeyResponse> GetEccOfflinePublicKey()
+    public async Task<string> GetEccOfflinePublicKey()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {

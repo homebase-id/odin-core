@@ -141,6 +141,26 @@ namespace Odin.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
+        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        {
+            var (cat, corsHostName) = await this.RegisterClient(appId, friendlyName);
+
+            var data = cat.ToPortableBytes();
+            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+            var encryptedData = publicKey.Encrypt(data);
+
+            data.WriteZeros();
+
+            var response = new AppClientRegistrationResponse()
+            {
+                EncryptionVersion = 1,
+                Token = cat.Id,
+                Data = encryptedData
+            };
+
+            return (response, corsHostName);
+        }
+
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);

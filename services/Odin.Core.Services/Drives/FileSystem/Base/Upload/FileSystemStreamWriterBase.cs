@@ -162,7 +162,7 @@ public abstract class FileSystemStreamWriterBase
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId);
-                if (null != existingFile)
+                if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
                     throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
                         OdinClientErrorCode.ExistingFileWithUniqueId);
@@ -335,6 +335,13 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
+        if (metadata.AppData.UniqueId.HasValue)
+        {
+            if (metadata.AppData.UniqueId.Value == Guid.Empty)
+            {
+                throw new OdinClientException("UniqueId cannot be an empty Guid (all zeros)", OdinClientErrorCode.MalformedMetadata);
+            }
+        }
         
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {

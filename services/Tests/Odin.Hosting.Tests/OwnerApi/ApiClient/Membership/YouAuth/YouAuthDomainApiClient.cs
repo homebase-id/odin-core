@@ -128,12 +128,12 @@ public class YouAuthDomainApiClient
         }
     }
 
-    public async Task<ApiResponse<List<RedactedYouAuthDomainClient>>> GetRegisteredClients()
+    public async Task<ApiResponse<List<RedactedYouAuthDomainClient>>> GetRegisteredClients(AsciiDomainName domain)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IYouAuthDomainRegistrationClient>(client, ownerSharedSecret);
-            return await svc.GetRegisteredClients();
+            return await svc.GetRegisteredClients(domain.DomainName);
         }
     }
 

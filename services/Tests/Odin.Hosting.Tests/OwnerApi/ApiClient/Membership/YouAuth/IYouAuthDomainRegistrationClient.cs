@@ -40,7 +40,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth
         Task<ApiResponse<HttpContent>> RemoveDomainRevocation([Body] GetYouAuthDomainRequest request);
 
         [Get(RootPath + "/clients")]
-        Task<ApiResponse<List<RedactedYouAuthDomainClient>>> GetRegisteredClients();
+        Task<ApiResponse<List<RedactedYouAuthDomainClient>>> GetRegisteredClients(string domain);
     
         [Post(RootPath + "/register/client")]
         Task<ApiResponse<YouAuthDomainClientRegistrationResponse>> RegisterClient([Body] YouAuthDomainClientRegistrationRequest clientRegistrationRequest);

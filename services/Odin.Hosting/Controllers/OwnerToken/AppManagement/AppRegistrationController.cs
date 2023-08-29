@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
@@ -164,15 +165,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         /// as it contains sensitive data.
         /// </remarks>
         [HttpPost("register/client")]
-        public Task<AppClientRegistrationResponse> RegisterClient([FromBody] AppClientRegistrationRequest request)
+        public async Task<AppClientRegistrationResponse> RegisterClient([FromBody] AppClientRegistrationRequest request)
         {
             // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
-            // var clientPublicKey = Convert.FromBase64String(b64);
-            // var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
-            // var (reg, corsHostName) = await _appRegistrationService.RegisterClient(request.AppId, clientPublicKey, request.ClientFriendlyName);
-            // return reg;
-
-            throw new NotImplementedException("replaced by youauth process");
+            var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
+            var (reg, corsHostName) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName);
+            return reg;
         }
         
     }

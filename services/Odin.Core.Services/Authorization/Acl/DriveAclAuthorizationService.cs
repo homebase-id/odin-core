@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.Acl
                     return Task.FromResult(true);
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(caller!.SecurityLevel == SecurityGroupType.Authenticated);
+                    return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
                 case SecurityGroupType.Connected:
                     return CallerIsConnected();
@@ -74,11 +74,12 @@ namespace Odin.Core.Services.Authorization.Acl
             //TODO: cache result - 
             return await Task.FromResult(_contextAccessor.GetCurrent().Caller.IsConnected);
         }
-        
+
 
         public Task<bool> CallerIsInList(List<string> odinIdList)
         {
-            var inList = odinIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().DomainName, StringComparison.InvariantCultureIgnoreCase));
+            var inList = odinIdList.Any(s =>
+                s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().DomainName, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

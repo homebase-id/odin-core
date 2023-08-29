@@ -71,38 +71,39 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var signingKey = await ownerClient.PublicPrivateKey.GetSigningPublicKey();
             Assert.IsTrue(signingKey.PublicKey.Length > 0);
             Assert.IsTrue(signingKey.Crc32 > 0);
-            
+
             //
             // Online key should exist
             //
             var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
             Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(onlinePublicKey.Crc32 > 0);
-            
+
             //
             // Online Ecc key should exist
             var onlineEccPk = await ownerClient.PublicPrivateKey.GetEccOnlinePublicKey();
             Assert.IsTrue(onlineEccPk.PublicKey.Length > 0);
             Assert.IsTrue(onlineEccPk.Crc32 > 0);
-            
-            
+
+
             //
             // Online Ecc key should exist
             var offlineEccPk = await ownerClient.PublicPrivateKey.GetEccOfflinePublicKey();
-            Assert.IsTrue(offlineEccPk.PublicKey.Length > 0);
-            Assert.IsTrue(offlineEccPk.Crc32 > 0);
-            
+            Assert.IsTrue(offlineEccPk.Length > 0);
+            // Assert.IsTrue(offlineEccPk.PublicKey.Length > 0);
+            // Assert.IsTrue(offlineEccPk.Crc32 > 0);
+
             //
             // offline key should exist
             //
             var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
             Assert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(offlinePublicKey.Crc32 > 0);
-            
+
             CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
             CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
         }
-        
+
 
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()

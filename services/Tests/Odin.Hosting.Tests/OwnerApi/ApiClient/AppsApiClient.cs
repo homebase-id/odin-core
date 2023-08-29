@@ -156,12 +156,12 @@ public class AppsApiClient
         }
     }
     
-    public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
+    public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
-            var appResponse = await svc.GetRegisteredClients();
+            var appResponse = await svc.GetRegisteredClients(new GetAppRequest(){AppId = appId});
             Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app clients");
             return appResponse.Content;
         }

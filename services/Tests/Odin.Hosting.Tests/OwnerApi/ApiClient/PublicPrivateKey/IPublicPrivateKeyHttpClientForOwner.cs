@@ -22,7 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey
         Task<ApiResponse<GetPublicKeyResponse>> GetEccOnlinePublicKey();
                 
         [Get(RootEndpoint + "/offline_ecc")]
-        Task<ApiResponse<GetPublicKeyResponse>> GetEccOfflinePublicKey();
+        Task<ApiResponse<string>> GetEccOfflinePublicKey();
         
         [Get(RootEndpoint + "/offline")]
         Task<ApiResponse<GetPublicKeyResponse>> GetOfflinePublicKey();

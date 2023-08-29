@@ -11,7 +11,9 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive
@@ -135,7 +137,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File =new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }});
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
+                    { File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId } });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -224,6 +227,95 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
         }
-        
+
+
+        [Test(Description = "")]
+        public async Task CanReuseUniqueIdAfterSoftDelete()
+        {
+            var identity = TestIdentities.Frodo;
+            var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
+            var ownerClient = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
+
+            var firstUniqueId = Guid.NewGuid();
+            var firstFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
+                    ContentIsComplete = true,
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "some data" }),
+                    UniqueId = firstUniqueId
+                }
+            };
+
+            var firstFile = await ownerClient.Drive.UploadFile(FileSystemType.Standard, testContext.TargetDrive, firstFileMetadata);
+
+            //
+            // Validate File was uploaded
+            //
+            var getFirstFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, firstFile.File);
+            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.JsonContent == firstFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
+
+            //
+            // Can get first file by uniqueId
+            //
+            var getFirstFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
+            Assert.IsNotNull(getFirstFileByUniqueId);
+            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.JsonContent == firstFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
+
+            //
+            // Delete the first file
+            //
+
+            await ownerClient.Drive.DeleteFile(FileSystemType.Standard, firstFile.File);
+
+            //
+            // Validate first file is gone
+            //
+
+            var getFirstFileDeleted = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
+            Assert.IsNull(getFirstFileDeleted);
+
+            //
+            // Reuse the unique Id
+            //
+
+            var secondFileMeta = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
+                    ContentIsComplete = true,
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "this is content in a second file that reuses a uniqueId" }),
+                    UniqueId = firstUniqueId
+                }
+            };
+
+
+            var secondFile = await ownerClient.Drive.UploadFile(FileSystemType.Standard, testContext.TargetDrive, secondFileMeta);
+
+            //
+            // Validate File was uploaded
+            //
+            var getSecondFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, secondFile.File);
+            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.JsonContent == secondFileMeta.AppData.JsonContent);
+            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
+
+            //
+            // Can get first file by uniqueId
+            //
+            var getSecondFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
+            Assert.IsNotNull(getSecondFileByUniqueId);
+            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.JsonContent == secondFileMeta.AppData.JsonContent);
+            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
+        }
     }
 }

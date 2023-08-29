@@ -187,13 +187,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
             //check that clients are gone
 
-            var allClientsResponse = await client.YouAuth.GetRegisteredClients();
+            var allClientsResponse = await client.YouAuth.GetRegisteredClients(domainToBeDeleted);
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(allClientsResponse.Content);
 
-            Assert.IsTrue(allClientsResponse.Content.Count() == 1, "there should be one client for domain1ClientRegistrationResponse");
-            var noMatchingClients = allClientsResponse.Content.TrueForAll(c => c.Domain.DomainName != domainToBeDeleted.DomainName);
-            Assert.IsTrue(noMatchingClients, "there should be no clients for domainToBeDeleted");
+            Assert.IsTrue(allClientsResponse.Content.Count() == 0, "there should be one client for domain1ClientRegistrationResponse");
         }
 
         [Test]
@@ -449,7 +447,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.IsTrue(domain1ClientRegistrationResponse.IsSuccessStatusCode);
 
 
-            var allClientsResponse = await client.YouAuth.GetRegisteredClients();
+            var allClientsResponse = await client.YouAuth.GetRegisteredClients(domain1);
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             var allClients = allClientsResponse.Content;
             Assert.IsNotNull(allClients);
@@ -488,13 +486,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.IsTrue(domainToBeDeletedClientRegistrationResponse.IsSuccessStatusCode);
 
 
-            var allClientsResponse = await client.YouAuth.GetRegisteredClients();
-            Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
-            var allClients = allClientsResponse.Content;
-            Assert.IsNotNull(allClients);
+            var domain1ClientsResponse = await client.YouAuth.GetRegisteredClients(domain1);
+            Assert.IsTrue(domain1ClientsResponse.IsSuccessStatusCode);
+            var domain1Clients = domain1ClientsResponse.Content;
+            Assert.IsTrue(domain1Clients.Count == 1);
 
-            Assert.IsNotNull(allClients.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName));
-            Assert.IsNotNull(allClients.SingleOrDefault(c => c.Domain.DomainName == domain2.DomainName));
+            
+            var domain2ClientsResponse = await client.YouAuth.GetRegisteredClients(domain2);
+            Assert.IsTrue(domain2ClientsResponse.IsSuccessStatusCode);
+            var domain2Clients = domain2ClientsResponse.Content;
+            Assert.IsTrue(domain2Clients.Count == 1);
         }
 
         [Test]
@@ -511,7 +512,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var domain1ClientRegistrationResponse = await client.YouAuth.RegisterClient(domain1, "some friendly name");
             Assert.IsTrue(domain1ClientRegistrationResponse.IsSuccessStatusCode);
 
-            var allClientsResponse = await client.YouAuth.GetRegisteredClients();
+            var allClientsResponse = await client.YouAuth.GetRegisteredClients(domain1);
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(allClientsResponse.Content);
             Assert.IsNotNull(allClientsResponse.Content.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName));
@@ -520,11 +521,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var deleteClientResponse = await client.YouAuth.DeleteClient(domain1ClientRegistrationResponse.Content.AccessRegistrationId);
             Assert.IsTrue(deleteClientResponse.IsSuccessStatusCode);
 
-            var emptyClientsResponse = await client.YouAuth.GetRegisteredClients();
+            var emptyClientsResponse = await client.YouAuth.GetRegisteredClients(domain1);
             Assert.IsTrue(emptyClientsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(emptyClientsResponse.Content);
-            Assert.IsNull(emptyClientsResponse.Content.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName),
-                "a client for domain1 should not exist");
+            Assert.IsTrue(emptyClientsResponse.Content.Count == 0);
         }
     }
 }

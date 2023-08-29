@@ -51,6 +51,9 @@ namespace Odin.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task RemoveAppRevocation(GuidId appId);
 
+        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey, string friendlyName);
+
+        
         /// <summary>
         /// Registers an application to be used on a given device
         /// </summary>
