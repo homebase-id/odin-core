@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
 public class ConflictException : ClientException
 {
@@ -9,11 +10,12 @@ public class ConflictException : ClientException
 
     public ConflictException(
         string message = DefaultErrorMessage,
-        HttpStatusCode httpStatusCode = HttpStatusCode.Conflict,
-        Exception inner = null
-        ) : base(
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.Conflict) : base(
             message,
             httpStatusCode,
+            odinClientErrorCode,
             inner
         )
     {

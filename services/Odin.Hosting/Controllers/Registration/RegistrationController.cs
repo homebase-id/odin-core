@@ -3,8 +3,8 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Registration
 {

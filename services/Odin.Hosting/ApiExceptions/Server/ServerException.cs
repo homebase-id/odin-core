@@ -1,9 +1,10 @@
 using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Server;
+namespace Odin.Hosting.ApiExceptions.Server;
 
-public abstract class ServerException : OdinApiException
+public abstract class ServerException : ApiException
 {
     public ServerException(
         string message,
