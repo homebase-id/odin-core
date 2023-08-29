@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -16,7 +19,7 @@ namespace Odin.Core.Services.Authentication.YouAuth;
 
 public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
-    private readonly IMemoryCache _codesAndTokens = new MemoryCache(new MemoryCacheOptions());
+    private readonly IMemoryCache _encryptedTokens = new MemoryCache(new MemoryCacheOptions());
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
@@ -37,7 +40,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain,
+        string permissionRequest)
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
@@ -74,10 +78,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<string> CreateAuthorizationCode(ClientType clientType,
-        string clientId,
-        string clientInfo,
-        string permissionRequest)
+    public async Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
+            ClientType clientType,
+            string clientId,
+            string clientInfo,
+            string permissionRequest,
+            string publicKey)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -119,40 +125,52 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             throw new OdinSystemException($"Invalid clientType '{clientType}'");
         }
 
-        var code = Guid.NewGuid().ToString();
+        // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
+        var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+        var keyPair = new EccFullKeyData(privateKey, 1);
+        var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);
 
-        var ac = new AuthorizationCodeAndToken(
-            code,
-            clientType,
-            permissionRequest,
-            token);
+        var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKey);
+        var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
+        var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 
-        _codesAndTokens.Set(code, ac, TimeSpan.FromMinutes(5));
+        var sharedSecretPlain = token.SharedSecret.GetKey();
+        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, ref exchangeSharedSecret);
 
-        return code;
+        var clientAuthTokenPlain = token.ToAuthenticationToken().ToPortableBytes();
+        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, ref exchangeSharedSecret);
+
+        var encryptedTokenExchange = new EncryptedTokenExchange(
+            sharedSecretCipher,
+            sharedSecretIv,
+            clientAuthTokenCipher,
+            clientAuthTokenIv);
+
+        _encryptedTokens.Set(exchangeSharedSecretDigest, encryptedTokenExchange, TimeSpan.FromMinutes(5));
+
+        return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
 
     //
 
-    public Task<ClientAccessToken?> ExchangeCodeForToken(string code)
+    public Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ac = _codesAndTokens.Get<AuthorizationCodeAndToken>(code);
+        var ec = _encryptedTokens.Get<EncryptedTokenExchange>(exchangeSharedSecretDigest);
 
-        if (ac == null)
+        if (ec == null)
         {
-            return Task.FromResult<ClientAccessToken?>(null);
+            return Task.FromResult<EncryptedTokenExchange?>(null);
         }
 
-        _codesAndTokens.Remove(code);
+        _encryptedTokens.Remove(exchangeSharedSecretDigest);
 
-        var accessToken = ac.PreCreatedClientAccessToken;
-
-        return Task.FromResult(accessToken)!;
+        return Task.FromResult(ec)!;
     }
 
     //
 
-    public async Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    public async Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain,
+        string permissionRequest)
     {
         if (clientType != ClientType.app)
         {
@@ -189,63 +207,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    private void DoRedirectToAppReg()
-    {
-        // https://merry.dotyou.cloud/owner/appreg
-        //     ?n=Odin - Photos
-        //     &o=dev.dotyou.cloud:3005
-        //     &appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e
-        //     &fn=Chrome | macOS
-        //     &return=https://dev.dotyou.cloud:3005/auth/finalize?returnUrl=%2F
-        //     &d=[{"a":"6483b7b1f71bd43eb6896c86148668cc","t":"2af68fe72fb84896f39f97c59d60813a","n":"Photo Library","d":"Place for your memories","p":3}]
-        //     &pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvcBZgKzmDqEnELk/hsOjVKi77tkU8RGWyCHbahcui9ftKQLuKGzU9iP+RaDUbDbo6hheUdq971LgRSFZfn37ooJhTKHs
-
-        //example: https://frodo.digital/owner/appreg?n=Odin%20-%20Photos&o=photos.odin.earth&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fphotos.odin.earth%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3lESpzsGk5PXQysoPZxXJ4Cp2FXycnAGxETP%2FF47EWWqDyKaR3Q1er16h4JNBZbvGQjoCgDUT5Q8vknBrnTJGL2z%2FVVdPsIenZ4IWsvI4hM%2FxQ7bQ3N4v4OJNb5f7dGtHAWrDEhpRYv1dw5s2ZnvxnxipkUc%2FUiazUuCrNV4OGTKsyeRAXdcteXrO13KK2ywl9s2eUBPLjy9OD5Vm4Du3FLDdJ2xkW6klKnINA%2BYPMFTLfeuhgJIloBMbNCyWxz0LLWiztB%2Bx0kqJyXGYPGcHxhPfUJppna6bsoJcQ462zFpkozZ%2BHROAfV324S4nHyL%2B4BvMfdcjLvEjwZAtcYy9QIDAQAB
-
-        //TODO: the following are parameters that come in from the App
-        // Guid appId = Guid.Parse("32f0bdbf-017f-4fc0-8004-2d4631182d1e");
-        // string deviceFriendlyName = "TODO";
-        // string appName = "TODO";
-        // string origin = "photos.odin.earth"; //Note: this might empty if the app is something like chat
-        //
-        // //TODO: Currently the client passes in a base64 public key that we use
-        // //to encrypt the result; that will probably change with YouAuthUnified
-        // string publicKey64 =
-        //     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3lESpzsGk5PXQysoPZxXJ4Cp2FXycnAGxETP%2FF47E" +
-        //     "WWqDyKaR3Q1er16h4JNBZbvGQjoCgDUT5Q8vknBrnTJGL2z%2FVVdPsIenZ4IWsvI4hM%2FxQ7bQ3N4v4OJNb5f" +
-        //     "7dGtHAWrDEhpRYv1dw5s2ZnvxnxipkUc%2FUiazUuCrNV4OGTKsyeRAXdcteXrO13KK2ywl9s2eUBPLjy9OD5Vm4" +
-        //     "Du3FLDdJ2xkW6klKnINA%2BYPMFTLfeuhgJIloBMbNCyWxz0LLWiztB%2Bx0kqJyXGYPGcHxhPfUJppna6bsoJcQ" +
-        //     "462zFpkozZ%2BHROAfV324S4nHyL%2B4BvMfdcjLvEjwZAtcYy9QIDAQAB";
-        //
-        // var appRegistrationPage = $"{Request.Scheme}://{Request.Host}/owner/appreg?" +
-        //                   $"appId={appId}" +
-        //                   $"&o={origin}" +
-        //                   $"&n={appName}" +
-        //                   $"&fn={deviceFriendlyName}" +
-        //                   $"&return={returnUrl}";
-    }
-
-    //
-
-    private sealed class AuthorizationCodeAndToken
-    {
-        public string Code { get; }
-        public ClientType ClientType { get; }
-        public string PermissionRequest { get; }
-
-        public ClientAccessToken? PreCreatedClientAccessToken { get; }
-
-        public AuthorizationCodeAndToken(string code,
-            ClientType clientType,
-            string permissionRequest,
-            ClientAccessToken? clientAccessToken)
-        {
-            Code = code;
-            ClientType = clientType;
-            PermissionRequest = permissionRequest;
-            PreCreatedClientAccessToken = clientAccessToken;
-        }
-    }
-
-    //
 }
+//
+

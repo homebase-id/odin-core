@@ -12,10 +12,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 public class YouAuthTokenRequest
 {
-    public const string CodeName = "code";
-    [JsonPropertyName(CodeName)]
-    public string Code { get; set; } = "";
-
     public const string SecretDigestName = "secret_digest";
     [JsonPropertyName(SecretDigestName)]
     public string SecretDigest { get; set; } = "";
@@ -24,10 +20,6 @@ public class YouAuthTokenRequest
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(Code))
-        {
-            throw new BadRequestException($"{CodeName} is required");
-        }
         if (string.IsNullOrWhiteSpace(SecretDigest))
         {
             throw new BadRequestException($"{SecretDigestName} is required");

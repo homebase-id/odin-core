@@ -223,8 +223,6 @@ namespace Odin.Hosting
                 config.Mailgun.ApiKey,
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
-
-            services.AddSingleton<YouAuthSharedSecrets>();
         }
 
         // ConfigureContainer is where you can register things directly

@@ -115,7 +115,6 @@ public class ClientTypeAppController : BaseController
 
     [HttpGet("[controller]/authorization-code-callback")]
     public async Task<IActionResult> AuthorizationCodeCallback(
-        [FromQuery(Name = YouAuthDefaults.Code)] string code,
         [FromQuery(Name = YouAuthDefaults.State)] string stateKey,
         [FromQuery(Name = YouAuthDefaults.PublicKey)] string publicKey,
         [FromQuery(Name = YouAuthDefaults.Salt)] string salt)
@@ -141,7 +140,6 @@ public class ClientTypeAppController : BaseController
         var uri = new UriBuilder($"https://{state.Identity}{OwnerApiPathConstants.YouAuthV1Token}");
         var tokenRequest = new YouAuthTokenRequest
         {
-            Code = code,
             SecretDigest = exchangeSecretDigest
         };
         var body = OdinSystemSerializer.Serialize(tokenRequest);

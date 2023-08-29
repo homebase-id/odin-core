@@ -509,7 +509,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
             byte[] remotePublicKey, remoteSalt;
             {
                 var uri =
@@ -536,11 +535,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
-                code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
-                Assert.That(code, Is.Not.Null.And.Not.Empty);
                 Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
@@ -560,7 +557,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
-                    Code = code,
                     SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
@@ -663,7 +659,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
             byte[] remotePublicKey, remoteSalt;
             {
                 var payload = new YouAuthAuthorizeRequest
@@ -701,11 +696,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
-                code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
-                Assert.That(code, Is.Not.Null.And.Not.Empty);
                 Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
@@ -726,7 +719,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
-                    Code = code,
                     SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
@@ -873,7 +865,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [070] Create auth code
             //
-            string code;
             byte[] remotePublicKey, remoteSalt;
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
@@ -893,11 +884,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
-                code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
-                Assert.That(code, Is.Not.Null.And.Not.Empty);
                 Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
@@ -918,7 +907,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
-                    Code = code,
                     SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);

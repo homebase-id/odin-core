@@ -2,22 +2,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
-using Odin.Core.Cryptography;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
@@ -35,19 +27,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
-        private readonly YouAuthSharedSecrets _sharedSecrets;
         private readonly string _currentTenant;
 
         public YouAuthUnifiedController(
             ILogger<YouAuthUnifiedController> logger,
             ITenantProvider tenantProvider,
-            IYouAuthUnifiedService youAuthService,
-            YouAuthSharedSecrets sharedSecrets)
+            IYouAuthUnifiedService youAuthService)
         {
             _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
-            _sharedSecrets = sharedSecrets;
         }
 
         //
@@ -135,39 +124,25 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
 
             //
-            // [070] Create ECC key pair, random salt and shared secret.
-            // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
+            // [070]
+            // Create ECC private/public key pair, random salt and shared secret based on public_key from step 30.
+            // Create client access token and store it encrypted with shared secret in cache for later lookup.
             //
-            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, 1);
-            var salt = ByteArrayUtil.GetRndByteArray(16);
-
-            var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authorize.PublicKey);
-            var sharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, salt);
-            var sharedSecretDigest = SHA256.Create().ComputeHash(sharedSecret.GetKey()).ToBase64();
-
-            _sharedSecrets.SetSecret(sharedSecretDigest, sharedSecret);
-
-            //
-            // [074] Create authorization code
-            // [078] Ceate client access token
-            // SEB:TODO encrypt client access token with key from [070]
-            //
-            var code = await _youAuthService.CreateAuthorizationCode(
+            var (exchangePublicKey, exchangeSalt) = await _youAuthService.CreateClientAccessToken(
                 authorize.ClientType,
                 authorize.ClientId,
                 authorize.ClientInfo,
-                authorize.PermissionRequest);
+                authorize.PermissionRequest,
+                authorize.PublicKey);
 
             //
             // [080] Return authorization code, public key and salt to client
             //
             var queryString = QueryString.Create(new Dictionary<string, string?>()
             {
-                { YouAuthDefaults.Code, code },
                 { YouAuthDefaults.Identity, _currentTenant },
-                { YouAuthDefaults.PublicKey, keyPair.PublicKeyJwkBase64Url() },
-                { YouAuthDefaults.Salt, Convert.ToBase64String(salt) },
+                { YouAuthDefaults.PublicKey, exchangePublicKey },
+                { YouAuthDefaults.Salt, exchangeSalt },
                 { YouAuthDefaults.State, authorize.State },
             });
 
@@ -239,21 +214,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             tokenRequest.Validate();
 
             //
-            // [105] Look up ECC keypair from secret digest
+            // [110] Load encrypted client access token from cache based on shared secret
             //
-            if (!_sharedSecrets.TryExtractSecret(tokenRequest.SecretDigest, out SensitiveByteArray exchangeSecret))
-            {
-                // [106] Return 400 if lookup failed
-                throw new BadRequestException($"Invalid digest {tokenRequest.SecretDigest}");
-            }
+            var accessToken = await _youAuthService.ExchangeDigestForEncryptedToken(tokenRequest.SecretDigest);
 
-            //
-            // [110] Exchange auth code for access token
-            // [130] Create token
-            //
-            var accessToken = await _youAuthService.ExchangeCodeForToken(tokenRequest.Code);
-
-            
             //
             // [120] Return 404 if code lookup failed
             //
@@ -262,22 +226,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 return NotFound();
             }
 
-            //
-            // [135] Encrypt token using ECC shared key
-            //
-
-            var sharedSecretPlain = accessToken.SharedSecret.GetKey();
-            var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, ref exchangeSecret);
-
-            var clientAuthTokenPlain = accessToken.ToAuthenticationToken().ToPortableBytes();
-            var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, ref exchangeSecret);
-
             var result = new YouAuthTokenResponse
             {
-                Base64SharedSecretCipher = Convert.ToBase64String(sharedSecretCipher),
-                Base64SharedSecretIv = Convert.ToBase64String(sharedSecretIv),
-                Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher),
-                Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv),
+                Base64SharedSecretCipher = Convert.ToBase64String(accessToken.SharedSecretCipher),
+                Base64SharedSecretIv = Convert.ToBase64String(accessToken.SharedSecretIv),
+                Base64ClientAuthTokenCipher = Convert.ToBase64String(accessToken.ClientAuthTokenCipher),
+                Base64ClientAuthTokenIv = Convert.ToBase64String(accessToken.ClientAuthTokenIv),
             };
 
             //

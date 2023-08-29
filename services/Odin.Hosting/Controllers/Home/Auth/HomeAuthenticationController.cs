@@ -44,7 +44,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         // [080] Return authorization code, public key and salt to frontend.
         //
         [HttpGet(HomeApiPathConstants.HandleAuthorizationCodeCallbackMethodName)]
-        public async Task<IActionResult> HandleAuthorizationCodeCallback(string code, string identity, string public_key, [FromQuery] string state,
+        public async Task<IActionResult> HandleAuthorizationCodeCallback(string identity, string public_key, [FromQuery] string state,
             string salt)
         
         {
@@ -65,7 +65,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 //[100] Request exchange auth code for access token
                 var odinId = new OdinId(identity);
-                var tokenResponse = await this.ExchangeCodeForToken(odinId, code, exchangeSecretDigest);
+                var tokenResponse = await this.ExchangeDigestForToken(odinId, exchangeSecretDigest);
 
                 if (null == tokenResponse)
                 {
@@ -154,11 +154,10 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         //
 
-        private async ValueTask<YouAuthTokenResponse?> ExchangeCodeForToken(OdinId odinId, string authorizationCode, string digest)
+        private async ValueTask<YouAuthTokenResponse?> ExchangeDigestForToken(OdinId odinId, string digest)
         {
             var tokenRequest = new YouAuthTokenRequest
             {
-                Code = authorizationCode,
                 SecretDigest = digest
             };
 
