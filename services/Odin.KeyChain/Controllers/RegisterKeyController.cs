@@ -12,9 +12,6 @@ using Odin.Core.Cryptography.Signatures;
 using System.Text.Json;
 using Odin.Core.Time;
 using System.Collections.Concurrent;
-using Odin.Core.Exceptions.Server;
-using System.Text;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 
