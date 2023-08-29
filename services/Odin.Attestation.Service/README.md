@@ -1,7 +1,7 @@
-# TODO
+# TODO ATTESTATION
 
-It would be really cool to create an identity, e.g. "id.odin.earth"
-The identity registers it's signing keys with Odin's Key Chain
+It would be really cool to create an identity, e.g. "attest.odin.earth"
+The identity registers it's signing keys with Odin's Key Chain.
 
 We get a copy of the full signature key and place it with this service.
 
@@ -10,15 +10,48 @@ For example, they can look up the identity, they can verify the identity's
 current public key, they can call the Key Chain to verify expired public
 keys.
 
+@Seb - dockerize it
+@ms - identity service secrets (there are none AFAIR...)
+@Todd - Create a space for the service on the same server as the Mail API (e.g. "keychain.odin.earth") - @seb reverse proxy?
+@Todd - Give Hetzner DNS alias to @ms
+@Ms   - Setup CNAME or A in Google for "attest.odin.earth"
+@???  - Need to figue out how we store and retrieve the full key (place for secrets)
+
+-- Goal: To do this almost purely in front-end code, with as little, and as generic server code as possible
+         The approach outlined here creates just two very small services on the owner API.
+
+@Stef - design UI that let's the user fill in data to attest. Code template is in here (you shouldn't code the signing, see below)
+        Call the owner API to get an instruction envelope (Todd will make this call, you just pass the dataToAttest):
+           public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
+        Then you have the instruction envelope and send POST it to the keychain.odin.earth API:
+           public async Task<ActionResult> PostPublicKeyRegistrationBegin([FromBody] RegistrationBeginModel model)
+        Then you get a hash code back that you need to sign (Todd will make this call, you just need to pass the hash):
+           public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        and send it to finalize (loop N times and resign as long as you get 429):
+            public async Task<ActionResult> PostPublicKeyRegistrationComplete([FromBody] RegistrationCompleteModel model)
+        Finally, save each signed attribute as a profile attribute.
+
+@Todd - make generic owner only API that essentially exposes this and returns the owner signed instruction envelope
+           public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
+        make generic owner only API that signs the keychain hash. Let's discuss how specialized we want it
+        (e.g. does it prepend "PublicKeyChain-" to the signature hash? Or is it generic and we rely on Stef doing that 
+        (security issue)
+           public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        We should think about if it's possible to make sure that signing stuff can't happen on the wrong stuff. For example,
+        for the keychain I prepend "PublicKeyChain-" to any signature of a hash. This ensures that you can't trick a signature
+        for a generic document. 
+        
+@someone - Someday we should have a job that backs up the blockchain.db
+
+
 
 # Odin Attestation Service
 
 ## Overview
 
-Odin Attestation Service is a blockchain enabled attestation system designed to securely verify and attest to real-world 
-attributes associated with digital identities. Leveraging the power of Elliptic Curve Cryptography (ECC) and blockchain
-technology, it provides a means of affirming the authenticity and validity of key attributes tied to an individual or entity's
-digital presence.
+Odin Attestation Service is an attestation system designed to securely verify and attest to real-world attributes associated
+with digital identities. It provides a means of affirming the authenticity and validity of key attributes tied to an individual
+or entity's digital presence by means of digital signatures.
 
 ## Key Features
 
@@ -26,7 +59,7 @@ digital presence.
 
 - **Secure Attestations**: Serving as a trusted intermediary, Odin Attestation Service provides attestations that verify the accuracy of a digital identity's real-world credentials. These attestations are secured through cryptographic signatures, providing peace of mind and confidence in their authenticity.
 
-- **Immutable Records of Attestation**: Each attestation is permanently recorded using blockchain technology. This results in an unalterable record that can be trusted and verified at any point in the future. However, the attested data itself resides within the identity, eliminating the risk of data exposure from the Attestation Service.
+- **Records of Attestation**: Each attestation is recorded and verified at any point in the future. However, the attested data itself resides within the identity, eliminating the risk of data exposure from the Attestation Service.
 
 - **Interoperability with Odin's Key Chain**: Odin Attestation Service is designed to work seamlessly with Odin's Key Chain, a secure service for the registration and management of digital identities.
 
@@ -79,34 +112,6 @@ was made, the SignatureAlgorithm used, and the Signature itself.
 
 ## Web Services
 
-==== PROJECT 1:
-
-### VerifyAttestation(string signature)
-  - Returns HTTP 200 if the signature exists and is valid (yes this service signed the attestation).
-  - Returns Not Found if the nonce doesn't exist (this service did not sign the attestation). 
-  - Returns ??? and a timestamp of the revokation if the nonce has been revoked (yes this service signed the attestation but it has been revoked as is not valid).
-
-### RequestAttestation(string identity, string requestCode)
-An identity registers an attestation request with this service. The request will linger 
-until processed by a human on the attestation team. Once processed the row
-is deleted.
-
-Note:
-  To verify the public key used in an attestation, you'd check with Odin's Key Chain.
-
-===
-QUESTION... DO I MAKE TWO PROJECTS? IF SO HOW DO I GET 
-
-
-PROJECT 2:
-
-DeleteAttestation(string identity, string requestCode)
-
-!!! Everything below here is a non-public service running on a different server which has no open inbound ports. !!!
-
-### AttestHuman(string identity)
-
-### AttestLegalName(string identity, string )
 
 ## Technical Notes 
 
@@ -117,34 +122,4 @@ The EccKeyStorage class loads and decrypts the full ECC key which is stored encr
 
 ### Database Structure
 
-Table: Requests
 
-- `identity` (STRING): The identity requesting an attestation
-- `requestCode` (STRING): A code for the request
-
-
-Table: Attestation
-
-Each row in this immutable blockchain includes the following fields:
-
-- `previousHash` (BLOB): A unique SHA-256 hash of the previous row.
-- `timestamp` (INT): The timestamp when this record was created.
-- `nonce` (BLOB): The unique nonce value from the envelope of the attested information.
-- `signedNonce` (BLOB): The nonce signed by the registering entity (solely to make the block chain secure).
-- `publicKey` (BLOB): The public key of the identity signing the nonce (used to verify the chain)
-- `algorithm` (STRING): The cryptographic algorithm used for signing.
-- `recordHash` (BLOB): A unique hash value of this record.
-
-Table: AttestationRevokations
-
-Each row in this table includes the nonce of an attestation that has been revoked
-
-- `nonce` (BLOB): The unique nonce value from the envelope of the attested information.
-- `timestamp` (INT): The timestamp when this record was created.
-- `algorithm` (STRING): The cryptographic algorithm used for signing.
-
------TODO
-
-DECIDE IF IT'S A BLOCKCHAIN OR NOT
-IF IT IS, THEN DO WE NEED A (REMOTE) SIGNATURE TO ENSURE IMMUTABILITY OF EACH ROW? (ON DELIVERY OF THE DATA)
-THEN DO WE NEED A SEPARATE REVOKATION TABLE?

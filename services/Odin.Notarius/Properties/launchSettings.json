@@ -9,7 +9,7 @@
     }
   },
   "profiles": {
-    "Odin.KeyChain": {
+    "Odin.Notary": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,

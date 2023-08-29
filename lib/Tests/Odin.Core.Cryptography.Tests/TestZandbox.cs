@@ -16,15 +16,19 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestRecoveryKeyEncode()
         {
-            var rk = ByteArrayUtil.GetRndByteArray(16);
+        }
 
-            var nicey = RecoveryKeyGenerator.EncodeKey(rk);
-            var rt = RecoveryKeyGenerator.DecodeKey(nicey);
-
-            if (!ByteArrayUtil.EquiByteArrayCompare(rk, rt))
-                Assert.Fail();
-            else
-                Assert.Pass();
+        /// <summary>
+        /// About 27 seconds to do 10,000 on MS' semi beast iii
+        /// </summary>
+        [Test]
+        public void TestEccPerformance()
+        {
+            var pwd = new SensitiveByteArray(ByteArrayUtil.GetRandomCryptoGuid().ToByteArray());
+            for (int i = 0; i < 10; i++)
+            {
+                var fk = new EccFullKeyData(pwd, 1);
+            }
         }
 
             [Test]

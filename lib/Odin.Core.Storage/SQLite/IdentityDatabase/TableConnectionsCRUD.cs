@@ -224,13 +224,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam3.Value = item.status;
                 _insertParam4.Value = item.accessIsRevoked;
                 _insertParam5.Value = item.data ?? (object)DBNull.Value;
-                item.created = UnixTimeUtcUnique.Now();
-                _insertParam6.Value = item.created.uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam6.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam7.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
+                     item.created = now;
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -242,10 +245,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                                 "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created) " +
+                                                 "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created)"+
                                                  "ON CONFLICT (identity) DO UPDATE "+
-                                                 "SET displayName = $displayName,status = $status,accessIsRevoked = $accessIsRevoked,data = $data,modified = $modified;";
+                                                 "SET displayName = $displayName,status = $status,accessIsRevoked = $accessIsRevoked,data = $data,modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
@@ -269,20 +273,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam7.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.displayName;
                 _upsertParam3.Value = item.status;
                 _upsertParam4.Value = item.accessIsRevoked;
                 _upsertParam5.Value = item.data ?? (object)DBNull.Value;
-                if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
-                _upsertParam6.Value = item.created.uniqueTime;
-                item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
-                return count;
+                _upsertParam6.Value = now.uniqueTime;
+                _upsertParam7.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(ConnectionsRecord item)
@@ -318,17 +333,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _updateParam7.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.displayName;
                 _updateParam3.Value = item.status;
                 _updateParam4.Value = item.accessIsRevoked;
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
-                _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                item.modified = UnixTimeUtcUnique.Now();
-                _updateParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
+                _updateParam6.Value = now.uniqueTime;
+                _updateParam7.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
+                     item.modified = now;
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                }
                 return count;
             } // Lock
         }
