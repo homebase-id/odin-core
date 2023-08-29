@@ -114,8 +114,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         /// Gets a list of registered clients
         /// </summary>
         /// <returns></returns>
-        [HttpGet("clients")]
-        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GetAppRequest request)
+        [HttpPost("clients")]
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients([FromBody] GetAppRequest request)
         {
             var result = await _appRegistrationService.GetRegisteredClients(request.AppId);
             return result;
