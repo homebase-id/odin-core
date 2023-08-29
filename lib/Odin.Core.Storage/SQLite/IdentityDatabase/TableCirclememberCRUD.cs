@@ -152,7 +152,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.circleId.ToString()+item.memberId.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -167,7 +169,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
                                                  "VALUES ($circleId,$memberId,$data)"+
                                                  "ON CONFLICT (circleId,memberId) DO UPDATE "+
-                                                 "SET data = $data;";
+                                                 "SET data = $data "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$circleId";
@@ -188,7 +191,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(CircleMemberRecord item)
         {
             lock (_updateLock)
@@ -215,7 +217,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.circleId.ToString()+item.memberId.ToString(), item);
+                }
                 return count;
             } // Lock
         }

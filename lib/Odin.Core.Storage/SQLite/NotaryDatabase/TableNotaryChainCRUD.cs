@@ -249,7 +249,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _insertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -264,7 +266,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _upsertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$notarySignature,$recordHash)"+
                                                  "ON CONFLICT (notarySignature) DO UPDATE "+
-                                                 "SET previousHash = $previousHash,identity = $identity,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,publicKeyJwkBase64Url = $publicKeyJwkBase64Url,recordHash = $recordHash;";
+                                                 "SET previousHash = $previousHash,identity = $identity,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,publicKeyJwkBase64Url = $publicKeyJwkBase64Url,recordHash = $recordHash "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$previousHash";
@@ -305,7 +308,6 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(NotaryChainRecord item)
         {
             lock (_updateLock)
@@ -352,7 +354,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _updateParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToString(), item);
+                }
                 return count;
             } // Lock
         }

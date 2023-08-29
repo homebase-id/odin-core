@@ -230,7 +230,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _insertParam7.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKeyJwkBase64Url.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -245,7 +247,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$recordHash)"+
                                                  "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
-                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,recordHash = $recordHash;";
+                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,recordHash = $recordHash "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$previousHash";
@@ -282,7 +285,6 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(KeyChainRecord item)
         {
             lock (_updateLock)
@@ -325,7 +327,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _updateParam7.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKeyJwkBase64Url.ToString(), item);
+                }
                 return count;
             } // Lock
         }

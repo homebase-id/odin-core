@@ -148,6 +148,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam2.Value = item.postId.ToByteArray();
                 _insertParam3.Value = item.singleReaction;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                 }
                 return count;
             } // Lock
         }
@@ -162,7 +165,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertCommand.CommandText = "INSERT INTO reactions (identity,postId,singleReaction) " +
                                                  "VALUES ($identity,$postId,$singleReaction)"+
                                                  "ON CONFLICT (identity,postId,singleReaction) DO UPDATE "+
-                                                 "SET ;";
+                                                 "SET  "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
@@ -181,7 +185,6 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(ReactionsRecord item)
         {
             lock (_updateLock)
@@ -207,6 +210,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam2.Value = item.postId.ToByteArray();
                 _updateParam3.Value = item.singleReaction;
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                }
                 return count;
             } // Lock
         }
