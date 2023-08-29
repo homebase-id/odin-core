@@ -87,32 +87,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 
-                //TODO: clean this up
-                var stefsPk = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
-                var stefsSalt = ByteArrayUtil.GetRndByteArray(16);
-                var homePwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                EccFullKeyData homeKeyPair = new EccFullKeyData(homePwd, 2);
-                var stefSharedSecret = homeKeyPair.GetEcdhSharedSecret(homePwd, stefsPk, stefsSalt);
-
-                var sharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
-                clientAccessToken?.Wipe();
-                
-                var result = OdinSystemSerializer.Serialize(new
-                {
-                    identity = identity,
-                    ss64 = sharedSecret64,
-                });
-
-                var (randomIv, cipher) = AesCbc.Encrypt(result.ToUtf8ByteArray(), ref stefSharedSecret);
-                
-                var eccInfo = OdinSystemSerializer.Serialize(new
-                {
-                    pk = homeKeyPair.PublicKeyJwkBase64Url(),
-                    salt = stefsSalt,
-                    iv = randomIv
-                });
-
-                string url = $"{authState.FinalUrl}?r={cipher.ToBase64()}&ecc={eccInfo}";
+                var url = GetFinalUrl(odinId, clientAccessToken, authState);
                 return Redirect(url);
             }
             catch (OdinClientException)
@@ -127,6 +102,39 @@ namespace Odin.Hosting.Controllers.Home.Auth
             }
 
             throw new OdinSystemException("Unhandled scenario");
+        }
+
+        /// <summary>
+        /// Encrypts the final results using ECC for the home-app
+        /// </summary>
+        private string GetFinalUrl(OdinId odinId, ClientAccessToken clientAccessToken, HomeAuthenticationState authState)
+        {
+            var homeClientPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+            var keyPairPassword = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            EccFullKeyData transferKeyPair = new EccFullKeyData(keyPairPassword, 2);
+            var clientTransferSharedSecret = transferKeyPair.GetEcdhSharedSecret(keyPairPassword, homeClientPublicKey, salt);
+
+            var catSharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
+            clientAccessToken?.Wipe();
+
+            var sensitivePayload = OdinSystemSerializer.Serialize(new
+            {
+                identity = odinId,
+                ss64 = catSharedSecret64,
+            }).ToUtf8ByteArray();
+
+            var (randomIv, cipher) = AesCbc.Encrypt(sensitivePayload, ref clientTransferSharedSecret);
+
+            var eccInfo = OdinSystemSerializer.Serialize(new
+            {
+                pk = transferKeyPair.PublicKeyJwkBase64Url(),
+                salt = salt,
+                iv = randomIv
+            });
+
+            string url = $"{authState.FinalUrl}?r={cipher.ToBase64()}&ecc={eccInfo}";
+            return url;
         }
 
         //
