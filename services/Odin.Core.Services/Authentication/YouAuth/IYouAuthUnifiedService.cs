@@ -13,15 +13,7 @@ public enum ClientType
     app, 
     domain
 }
-
-public enum TokenDeliveryOption
-{
-    unknown,
-    cookie,
-    json
-}
 // ReSharper restore InconsistentNaming
-
 
 public interface IYouAuthUnifiedService
 {
@@ -35,10 +27,33 @@ public interface IYouAuthUnifiedService
     
     Task StoreConsent(string clientIdOrDomain, string permissionRequest);
     
-    Task<string> CreateAuthorizationCode(ClientType clientType,
+    Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
+        ClientType clientType,
         string clientId,
         string clientInfo,
-        string permissionRequest);
+        string permissionRequest,
+        string publicKey);
 
-    Task<ClientAccessToken?> ExchangeCodeForToken(string code);
+    Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
 }
+
+public sealed class EncryptedTokenExchange
+{
+    public byte[] SharedSecretCipher { get; set; }
+    public byte[] SharedSecretIv { get; set; }
+    public byte[] ClientAuthTokenCipher { get; set; }
+    public byte[] ClientAuthTokenIv { get; set; }
+
+    public EncryptedTokenExchange(
+        byte[] sharedSecretCipher,
+        byte[] sharedSecretIv,
+        byte[] clientAuthTokenCipher,
+        byte[] clientAuthTokenIv)
+    {
+        SharedSecretCipher = sharedSecretCipher;
+        SharedSecretIv = sharedSecretIv;
+        ClientAuthTokenCipher = clientAuthTokenCipher;
+        ClientAuthTokenIv = clientAuthTokenIv;
+    }
+}
+
