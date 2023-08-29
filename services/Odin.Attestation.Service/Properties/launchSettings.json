@@ -9,7 +9,7 @@
     }
   },
   "profiles": {
-    "OdinsAttestation": {
+    "Odin.Attestation": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,

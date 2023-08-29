@@ -40,6 +40,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.KeyChainTests", "Odin.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Attestation.Service", "Odin.Attestation.Service\Odin.Attestation.Service.csproj", "{D81FEA2B-4137-446A-8346-28CD9CE7251A}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Notarius", "Odin.Notarius\Odin.Notarius.csproj", "{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -106,6 +108,10 @@ Global
 		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
