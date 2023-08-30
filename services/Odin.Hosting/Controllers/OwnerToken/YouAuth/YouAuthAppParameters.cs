@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Web;
-using Odin.Core.Exceptions.Client;
-using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 

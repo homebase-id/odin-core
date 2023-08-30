@@ -1,13 +1,14 @@
 using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions;
+namespace Odin.Hosting.ApiExceptions;
 
-public abstract class OdinApiException : OdinException
+public abstract class ApiException : OdinException
 {
     public HttpStatusCode HttpStatusCode { get; set; }
 
-    public OdinApiException(
+    public ApiException(
         HttpStatusCode httpStatusCode,
         string message
     ) : base(message)
@@ -15,7 +16,7 @@ public abstract class OdinApiException : OdinException
         HttpStatusCode = httpStatusCode;
     }
 
-    public OdinApiException(
+    public ApiException(
         HttpStatusCode httpStatusCode,
         string message, 
         Exception inner

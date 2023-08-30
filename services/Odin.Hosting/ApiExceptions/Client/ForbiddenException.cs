@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
 public class ForbiddenException : ClientException
 {
@@ -9,11 +10,12 @@ public class ForbiddenException : ClientException
 
     public ForbiddenException(
         string message = DefaultErrorMessage,
-        HttpStatusCode httpStatusCode = HttpStatusCode.Forbidden,
-        Exception inner = null
-        ) : base(
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.Forbidden) : base(
             message,
             httpStatusCode,
+            odinClientErrorCode,
             inner
         )
     {

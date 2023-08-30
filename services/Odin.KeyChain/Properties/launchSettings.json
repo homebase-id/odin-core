@@ -9,7 +9,7 @@
     }
   },
   "profiles": {
-    "OdinsChains": {
+    "Odin.KeyChain": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,

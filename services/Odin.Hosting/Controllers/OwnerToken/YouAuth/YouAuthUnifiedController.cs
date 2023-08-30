@@ -10,11 +10,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions.Client;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
+using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.Extensions;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth

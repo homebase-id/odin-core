@@ -150,7 +150,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _insertParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -165,7 +167,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _upsertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
                                                  "VALUES ($attestationId,$requestEnvelope,$timestamp)"+
                                                  "ON CONFLICT (attestationId) DO UPDATE "+
-                                                 "SET requestEnvelope = $requestEnvelope,timestamp = $timestamp;";
+                                                 "SET requestEnvelope = $requestEnvelope,timestamp = $timestamp "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$attestationId";
@@ -186,7 +189,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(AttestationRequestRecord item)
         {
             lock (_updateLock)
@@ -213,7 +215,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _updateParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId.ToString(), item);
+                }
                 return count;
             } // Lock
         }

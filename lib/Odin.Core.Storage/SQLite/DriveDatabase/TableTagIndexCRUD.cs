@@ -130,6 +130,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.tagId.ToByteArray();
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                 }
                 return count;
             } // Lock
         }
@@ -144,7 +147,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertCommand.CommandText = "INSERT INTO tagIndex (fileId,tagId) " +
                                                  "VALUES ($fileId,$tagId)"+
                                                  "ON CONFLICT (fileId,tagId) DO UPDATE "+
-                                                 "SET ;";
+                                                 "SET  "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -159,7 +163,6 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(TagIndexRecord item)
         {
             lock (_updateLock)
@@ -181,6 +184,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.tagId.ToByteArray();
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                }
                 return count;
             } // Lock
         }

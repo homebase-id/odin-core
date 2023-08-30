@@ -55,6 +55,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
         {
             var serverFileHeader = await this.GetServerFileHeader(file);
+            if (serverFileHeader == null)
+            {
+                return null;
+            }
             var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             return result;
         }
@@ -287,6 +291,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             this.AssertCanReadDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
+
+            if (header == null)
+            {
+                return null;
+            }
+
             AssertValidFileSystemType(header.ServerMetadata);
             return header;
         }
@@ -324,6 +334,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //Note: calling to get the file header so we can ensure the caller can read this file
 
             var header = await this.GetServerFileHeader(file);
+            if (header == null)
+            {
+                return Stream.Null;
+            }
+
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, chunk);

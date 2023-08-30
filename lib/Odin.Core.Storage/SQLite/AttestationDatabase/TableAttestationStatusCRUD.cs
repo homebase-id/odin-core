@@ -155,13 +155,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 }
                 _insertParam1.Value = item.attestationId;
                 _insertParam2.Value = item.status;
-                item.created = UnixTimeUtcUnique.Now();
-                _insertParam3.Value = item.created.uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam3.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam4.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
+                     item.created = now;
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -173,10 +176,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
-                                                 "VALUES ($attestationId,$status,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created) " +
+                                                 "VALUES ($attestationId,$status,$created)"+
                                                  "ON CONFLICT (attestationId) DO UPDATE "+
-                                                 "SET status = $status,modified = $modified;";
+                                                 "SET status = $status,modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$attestationId";
@@ -191,17 +195,28 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _upsertParam4.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.attestationId;
                 _upsertParam2.Value = item.status;
-                if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
-                _upsertParam3.Value = item.created.uniqueTime;
-                item.modified = UnixTimeUtcUnique.Now();
-                _upsertParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToString(), item);
-                return count;
+                _upsertParam3.Value = now.uniqueTime;
+                _upsertParam4.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToString(), item);
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(AttestationStatusRecord item)
@@ -228,14 +243,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _updateParam4.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.attestationId;
                 _updateParam2.Value = item.status;
-                _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                item.modified = UnixTimeUtcUnique.Now();
-                _updateParam4.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
+                _updateParam3.Value = now.uniqueTime;
+                _updateParam4.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
+                     item.modified = now;
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToString(), item);
+                }
                 return count;
             } // Lock
         }

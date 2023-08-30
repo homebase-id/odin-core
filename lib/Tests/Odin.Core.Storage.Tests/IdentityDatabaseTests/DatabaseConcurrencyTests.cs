@@ -34,7 +34,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
 
-
         /// <summary>
         /// This test passes because the Database class locks on it's _transactionLock() object
         /// </summary>

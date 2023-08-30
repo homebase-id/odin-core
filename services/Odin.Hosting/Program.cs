@@ -129,13 +129,13 @@ namespace Odin.Hosting
             var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
+                throw new OdinSystemException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
             }
 
             var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Host.TenantDataRootPath}]");
+                throw new OdinSystemException($"Could not create logging folder at [{odinConfig.Host.TenantDataRootPath}]");
             }
 
             Log.Information($"Root path:{odinConfig.Host.TenantDataRootPath}");

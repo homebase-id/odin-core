@@ -117,6 +117,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.timeStamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                 }
                 return count;
             } // Lock
         }
@@ -131,7 +134,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertCommand.CommandText = "INSERT INTO commandMessageQueue (fileId,timeStamp) " +
                                                  "VALUES ($fileId,$timeStamp)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET timeStamp = $timeStamp;";
+                                                 "SET timeStamp = $timeStamp "+
+                                                 ";";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -146,7 +150,6 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 return count;
             } // Lock
         }
-
         public virtual int Update(CommandMessageQueueRecord item)
         {
             lock (_updateLock)
@@ -168,6 +171,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.timeStamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                }
                 return count;
             } // Lock
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -24,10 +25,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveStorageController : DriveStorageControllerBase
     {
         private readonly ILogger<OwnerDriveStorageController> _logger;
-        
+
         public OwnerDriveStorageController(
             ILogger<OwnerDriveStorageController> logger,
-            FileSystemResolver fileSystemResolver, 
+            FileSystemResolver fileSystemResolver,
             ITransitService transitService) :
             base(logger, fileSystemResolver, transitService)
         {
@@ -78,16 +79,36 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
-            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            var chunk = chunkStart.HasValue
-                ? new FileChunk()
+            FileChunk chunk = null;
+            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
+                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
+            {
+                var firstRange = range.Ranges.First();
+                if (firstRange.From != null && firstRange.To != null)
+                {
+                    HttpContext.Response.StatusCode = 206;
+
+                    int start = Convert.ToInt32(firstRange.From ?? 0);
+                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
+
+                    chunk = new FileChunk()
+                    {
+                        Start = start,
+                        Length = end - start + 1
+                    };
+                }
+            }
+            else if (chunkStart.HasValue)
+            {
+
+                chunk = new FileChunk()
                 {
                     Start = chunkStart.GetValueOrDefault(),
                     Length = chunkLength.GetValueOrDefault(int.MaxValue)
-                }
-                : null;
+                };
+            }
 
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
@@ -148,7 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             });
         }
 
-       
+
         /// <summary>
         /// Deletes a file
         /// </summary>
@@ -158,7 +179,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("attachments/deletethumbnail")]
         public async Task<DeleteThumbnailResult> DeleteThumbnailC(DeleteThumbnailRequest request)
@@ -172,7 +193,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeletePayload(request);
         }
-        
+
         /// <summary>
         /// Hard deletes a file
         /// </summary>
