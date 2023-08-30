@@ -7,6 +7,11 @@ public class HomeAuthenticationState
     /// Final url in which to redirect
     /// </summary>
     public string? FinalUrl { get; set; }
+    
+    /// <summary>
+    /// Return url to redirect to after auth is finalized
+    /// </summary>
+    public string? ReturnUrl { get; set; }
 
     /// <summary>
     /// Base-64 encoded public key used to encrypt the shared secret

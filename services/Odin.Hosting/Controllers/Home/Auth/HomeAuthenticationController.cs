@@ -122,6 +122,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             {
                 identity = odinId,
                 ss64 = catSharedSecret64,
+                returnUrl = authState.ReturnUrl
             }).ToUtf8ByteArray();
 
             var (randomIv, cipher) = AesCbc.Encrypt(sensitivePayload, ref clientTransferSharedSecret);
