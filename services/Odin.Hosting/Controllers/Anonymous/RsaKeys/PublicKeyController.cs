@@ -50,6 +50,19 @@ namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
                 Crc32 = key.crc32c
             };
         }
+        
+        [HttpGet("offline_ecc")]
+        public async Task<string> GetOfflineEccPublicKey()
+        {
+            var key = await _publicKeyService.GetOfflineEccPublicKey();
+            return key.PublicKeyJwkBase64Url();
+
+            // return new GetPublicKeyResponse()
+            // {
+            //     PublicKey = key.publicKey,
+            //     Crc32 = key.crc32c
+            // };
+        }
 
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()

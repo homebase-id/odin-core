@@ -91,6 +91,21 @@ public class DriveApiClient
         return batch.SearchResults.SingleOrDefault();
     }
 
+    public async Task<SharedSecretEncryptedFileHeader> QueryByUniqueId(FileSystemType fileSystemType, TargetDrive targetDrive, Guid uniqueId)
+    {
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
+        {
+            TargetDrive = targetDrive,
+            ClientUniqueIdAtLeastOne = new List<Guid>() { uniqueId }
+        }, new QueryBatchResultOptionsRequest()
+        {
+            MaxRecords = 1,
+            IncludeMetadataHeader = true
+        });
+
+        return batch.SearchResults.SingleOrDefault();
+    }
+
     public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);

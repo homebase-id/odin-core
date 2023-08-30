@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.ClientToken
 {
@@ -10,8 +10,8 @@ namespace Odin.Hosting.Controllers.ClientToken
     {
         public AuthorizeValidAppExchangeGrant()
         {
-            AuthenticationSchemes = ClientTokenConstants.YouAuthScheme;
-            Policy = ClientTokenPolicies.IsAuthorizedApp;
+            AuthenticationSchemes = YouAuthConstants.YouAuthScheme;
+            Policy = YouAuthPolicies.IsAuthorizedApp;
         }
     }
 }

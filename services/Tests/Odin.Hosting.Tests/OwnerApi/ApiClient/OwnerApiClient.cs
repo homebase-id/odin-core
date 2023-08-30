@@ -2,6 +2,9 @@
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
@@ -17,12 +20,15 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 
         private readonly AppsApiClient _appsApiClient;
         private readonly CircleNetworkApiClient _circleNetworkApiClient;
+
+        private readonly CircleMembershipApiClient _circleMembershipApiClient;
         private readonly TransitApiClient _transitApiClient;
         private readonly DriveApiClient _driveApiClient;
         private readonly FollowerApiClient _followerApiClient;
         private readonly CronApiClient _cronApiClient;
         private readonly SecurityApiClient _securityApiClient;
         private readonly PublicPrivateKeyApiClient _publicPrivateKey;
+        private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
 
         public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
         {
@@ -37,6 +43,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
             _publicPrivateKey = new PublicPrivateKeyApiClient(ownerApi, identity);
+            _circleMembershipApiClient = new CircleMembershipApiClient(ownerApi, identity);
+            _youAuthDomainApiClient = new YouAuthDomainApiClient(ownerApi, identity);
+            
         }
 
         public TestIdentity Identity => _identity;
@@ -50,8 +59,11 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public FollowerApiClient Follower => _followerApiClient;
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
+        public CircleMembershipApiClient Membership => _circleMembershipApiClient;
+
         public TransitApiClient Transit => _transitApiClient;
 
+        public YouAuthDomainApiClient YouAuth => _youAuthDomainApiClient;
 
         public PublicPrivateKeyApiClient PublicPrivateKey => _publicPrivateKey;
 

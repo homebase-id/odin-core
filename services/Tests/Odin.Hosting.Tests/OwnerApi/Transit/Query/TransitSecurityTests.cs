@@ -49,7 +49,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
             };
 
-            var senderChatCircle = await senderOwnerClient.Network.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
+            var senderChatCircle = await senderOwnerClient.Membership.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -96,7 +96,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
             };
 
-            var senderChatCircle = await senderOwnerClient.Network.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
+            var senderChatCircle = await senderOwnerClient.Membership.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {

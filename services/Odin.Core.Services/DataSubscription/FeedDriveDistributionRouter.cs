@@ -8,14 +8,14 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.DataSubscription.SendingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Storage;
@@ -220,7 +220,7 @@ namespace Odin.Core.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.SystemCircleId);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
             var connectedRecipients = recipients.Intersect(connectedIdentities).ToList();
 
             if (connectedRecipients.Any())

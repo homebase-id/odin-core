@@ -17,9 +17,6 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle.Membership;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
-using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
@@ -33,6 +30,11 @@ using Odin.Core.Services.Drives.Statistics;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
+using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
@@ -42,6 +44,8 @@ using Odin.Core.Services.Transit.ReceivingHost.Reactions;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Home;
+using Odin.Hosting.Controllers.Home.Service;
 
 namespace Odin.Hosting
 {
@@ -78,14 +82,15 @@ namespace Odin.Hosting
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
-            cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
-            cb.RegisterType<YouAuthRegistrationService>()
-                .As<IYouAuthRegistrationService>()
+            cb.RegisterType<HomeAuthenticatorService>()
+                .AsSelf()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
-            cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
-            cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
-
+            cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
+            
+            cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
+            cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>()
@@ -133,6 +138,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 
+            cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()

@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests.AppAPI.Utils;

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests
 {

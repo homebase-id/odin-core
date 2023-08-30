@@ -6,9 +6,9 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Transit.SendingHost

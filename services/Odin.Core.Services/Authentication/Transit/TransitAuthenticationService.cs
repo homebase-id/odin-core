@@ -8,7 +8,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.Transit;
 
