@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\Odin.Core.Services\Odin.Core.Services.csproj" />
     <ProjectReference Include="..\..\Odin.Hosting\Odin.Hosting.csproj" />
 
+
   </ItemGroup>
 
 

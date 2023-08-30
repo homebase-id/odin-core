@@ -4,9 +4,9 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 
-namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified;
+namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests;
 
-public class UnifiedCryptoTest
+public class YouAuthCryptoTest
 {
     [Test]
     public void CryptoFlowTest()

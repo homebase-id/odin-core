@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -10,7 +9,6 @@ using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
@@ -19,14 +17,14 @@ using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
-namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
+namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 {
     //
     // Flow being tested:
     // https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/YouAuth/unified-authorization.md
     //
 
-    public class UnifiedTests : YouAuthIntegrationTestBase
+    public class YouAuthIntegrationTests : YouAuthIntegrationTestBase
     {
         [Test]
         public async Task a_AuthorizeEndpointMustRedirectToLogonIfUserNotAuthenticated()
@@ -591,6 +589,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         //
 
         [Test]
+        [Ignore("Needs implementation")]
         public void todo_app_AlwaysGetConsentWhenClientTypeIsApp()
         {
             // An app always requires consent from the user.
@@ -598,6 +597,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         }
 
         [Test]
+        [Ignore("Needs implementation")]
         public void todo_domain_GetConsentWhenConsentNotAlreadyGiven()
         {
             // Consent will be necessitated for any domain unless Sam has previously granted approval for automatic
@@ -610,6 +610,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         //
 
         [Test]
+        [Ignore("Needs implementation")]
         public void todo_domain_IgnoreConsentWhenClientTypeIsDomainAndConsentIsAlreadyGiven()
         {
             // Consent will be necessitated for any domain unless Sam has previously granted approval for automatic
@@ -622,6 +623,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         //
 
         [Test]
+        [Ignore("Needs implementation")]
         public void todo_domain_GetConsentWhenClientTypeIsDomainAndConsentWasPreviouslyGivenButPermissionRequestHasChanged()
         {
             // Consent will be necessitated for any domain unless Sam has previously granted approval for automatic
