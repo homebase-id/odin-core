@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Specialized;
+using System.Data;
 using System.Runtime.Caching;
+using System.Xml.Linq;
 
 namespace Odin.Core.Storage.SQLite
 {
@@ -10,18 +12,41 @@ namespace Odin.Core.Storage.SQLite
      */
     public class CacheHelper
     {
-        private readonly MemoryCache _cache;
+        private readonly string _name;
+        private MemoryCache _cache;
         private readonly CacheItemPolicy _defaultPolicy = new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(10) };
         private static Object _cacheNull = new Object();
+        private int _cacheGets = 0;
+        private int _cacheHits = 0;
+        private int _cacheSets = 0;
+        private int _cacheRemove = 0;
 
-        public CacheHelper(string name)
+        public int GetCacheGets() { return _cacheGets; }
+        public int GetCacheHits() { return _cacheHits; }
+        public int GetCacheSets() { return _cacheSets; }
+        public int GetCacheRemove() { return _cacheRemove; }
+
+        public void ClearCache() { Initialize(); }
+
+
+        private void Initialize()
         {
-            _cache = new MemoryCache(name, new NameValueCollection
+            _cache = new MemoryCache(_name, new NameValueCollection
             {
                 { "cacheMemoryLimitMegabytes", "1" },
                 { "physicalMemoryLimitPercentage", "1" },
                 { "pollingInterval", "00:02:00" }
             });
+            _cacheGets = 0;
+            _cacheHits = 0;
+            _cacheSets = 0;
+            _cacheRemove = 0;
+        }
+
+        public CacheHelper(string name)
+        {
+            _name = name;
+            Initialize();
         }
 
         public void AddOrUpdate(string table, Guid key, object value)
@@ -31,6 +56,7 @@ namespace Odin.Core.Storage.SQLite
 
         public void AddOrUpdate(string table, string key, object value)
         {
+            _cacheSets++;
             if (value == null)
                 _cache.Set(table+key, _cacheNull, _defaultPolicy);
             else
@@ -39,11 +65,13 @@ namespace Odin.Core.Storage.SQLite
 
         public (bool, object) Get(string table, string key)
         {
+            _cacheGets++;
             var r = _cache.Get(table+key);
 
             if (r == null)
                 return (false, null);
 
+            _cacheHits++;
             if (r == _cacheNull)
                 return (true, null);
             else
@@ -57,11 +85,13 @@ namespace Odin.Core.Storage.SQLite
 
         public void Remove(string table, string key)
         {
+            _cacheRemove++;
             _cache.Remove(table + key);
         }
 
         public void Remove(string table, Guid key)
         {
+            _cacheRemove++;
             _cache.Remove(table + key.ToString());
         }
     }

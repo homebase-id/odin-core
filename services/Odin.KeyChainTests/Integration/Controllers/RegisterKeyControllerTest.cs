@@ -1,10 +1,7 @@
 using System.Diagnostics;
 using System.Net;
-using System.Runtime;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NUnit.Framework;
@@ -13,6 +10,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Keychain;
 using Odin.KeyChain;
 using static Odin.Keychain.RegisterKeyController;
@@ -46,8 +44,9 @@ public class RegisterKeyControllerTest
     // And added an extra little test that we cannot send the same registration twice.
     public async Task BeginRegistrationTest()
     {
-        SimulateFrodo.NewKey();
-        var (previousHashBase64, signedInstruction) = await BeginRegistration();
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var frodo = HobbitSimulator.GetSimulatedHobbit(frodoDomain);
+        var (previousHashBase64, signedInstruction) = await BeginRegistration(frodoDomain);
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
         //
@@ -65,9 +64,9 @@ public class RegisterKeyControllerTest
     // Test that we cannot begin if the public key doesn't match the signature public key
     public async Task BeginRegistrationWrongPublicKey()
     {
-        SimulateFrodo.NewKey();
+        var frodo = HobbitSimulator.GetSimulatedHobbit(new Core.Util.AsciiDomainName("frodobaggins.me"));
         // Arrange
-        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var signedInstruction = frodo.InstructionEnvelope();
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
         // Wrap the string inside a JSON object
@@ -79,7 +78,9 @@ public class RegisterKeyControllerTest
         // Convert the object to a StringContent with the appropriate content type
         var postContent = new StringContent(JsonSerializer.Serialize(postBody), Encoding.UTF8, "application/json");
 
-        SimulateFrodo.NewKey(); // Discard the old public key and override the public key with a new one
+        var randomHobbit = HobbitSimulator.GetSimulatedHobbit(new Core.Util.AsciiDomainName("samwisegamgee.me"));
+        var (p,e) = randomHobbit.GetKey();
+        frodo.OverwriteKey(p, e);
 
         // Act
         var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
@@ -98,10 +99,11 @@ public class RegisterKeyControllerTest
     /// returns 
     /// </summary>
     /// <returns></returns>
-    private async Task<(string, SignedEnvelope)> BeginRegistration()
+    private async Task<(string, SignedEnvelope)> BeginRegistration(AsciiDomainName domain)
     {
         // Arrange
-        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var hobbit = HobbitSimulator.GetSimulatedHobbit(domain);
+        var signedInstruction = hobbit.InstructionEnvelope();
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
         // Wrap the string inside a JSON object
@@ -129,12 +131,13 @@ public class RegisterKeyControllerTest
 
 
     // Test that we can successfully begin and then finalize a key registration
-    public async Task<HttpResponseMessage> FinalizeRegistration(string previousHashBase64, string envelopeIdBase64)
+    public async Task<HttpResponseMessage> FinalizeRegistration(AsciiDomainName domain, string previousHashBase64, string envelopeIdBase64)
     {
         //
         // Finalize
         //
-        var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+        var hobbit = HobbitSimulator.GetSimulatedHobbit(domain);
+        var signedPreviousHash = hobbit.SignPreviousHashForPublicKeyChain(previousHashBase64);
         var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
@@ -146,11 +149,12 @@ public class RegisterKeyControllerTest
     // TEST that we cannot begin a registration if we already have a recent public key record
     public async Task BeginFinalizeRegistrationTooManyRequests()
     {
-        SimulateFrodo.NewKey();
-        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var frodo = HobbitSimulator.GetSimulatedHobbit(frodoDomain);
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
 
         // Finalize it
-        var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+        var signedPreviousHash = frodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
         var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = signedEnvelope.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
@@ -169,7 +173,7 @@ public class RegisterKeyControllerTest
         // at least 30 days between registering a key in the database.
 
         // Arrange
-        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var signedInstruction = frodo.InstructionEnvelope();
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
         // Wrap the string inside a JSON object
@@ -195,58 +199,56 @@ public class RegisterKeyControllerTest
     // Do it with three so we're sure it'll work in "multiple rounds"
     public async Task RegistrationRaceKeySign()
     {
-        SimulateFrodo.NewKey();
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var samwiseDomain = new AsciiDomainName("samwisegamgee.me");
+        var gandalfDomain = new AsciiDomainName("gandalf.me");
 
-        var (onePreviousHashBase64, oneSignedEnvelope) = await BeginRegistration();
-        var (p1, e1, i1) = SimulateFrodo.GetKey();
-        SimulateFrodo.NewKey("samwisegamgee.me");
-        var (twoPreviousHashBase64, twoSignedEnvelope) = await BeginRegistration();
-        var (p2, e2, i2) = SimulateFrodo.GetKey();
-        SimulateFrodo.NewKey("gandalf.me");
-        var (threePreviousHashBase64, threeSignedEnvelope) = await BeginRegistration();
-        var (p3, e3, i3) = SimulateFrodo.GetKey();
-        Assert.IsTrue(onePreviousHashBase64 == twoPreviousHashBase64);
-        Assert.IsTrue(onePreviousHashBase64 == threePreviousHashBase64);
-        Assert.IsTrue(oneSignedEnvelope.Envelope.ContentNonce.ToBase64() != twoSignedEnvelope.Envelope.ContentNonce.ToBase64());
-        Assert.IsTrue(oneSignedEnvelope.Envelope.ContentNonce.ToBase64() != threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        var frodo = HobbitSimulator.GetSimulatedHobbit(frodoDomain);
+        var samwise = HobbitSimulator.GetSimulatedHobbit(samwiseDomain);
+        var gandalf = HobbitSimulator.GetSimulatedHobbit(gandalfDomain);
+
+        var (frodoPreviousHashBase64, frodoSignedEnvelope) = await BeginRegistration(frodoDomain);
+        var (samPreviousHashBase64, samSignedEnvelope) = await BeginRegistration(samwiseDomain);
+        var (gandalfPreviousHashBase64, gandalfSignedEnvelope) = await BeginRegistration(gandalfDomain);
+
+        Assert.IsTrue(frodoPreviousHashBase64 == samPreviousHashBase64);
+        Assert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
+        Assert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != samSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
 
         // We now have three simultaneous Begin requests all with the same previousHash
 
         // Let's finalize #2 first
-        SimulateFrodo.SetKey(p2, e2, i2);
-        var r2 = await FinalizeRegistration(twoPreviousHashBase64, twoSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        var r2 = await FinalizeRegistration(samwiseDomain, samPreviousHashBase64, samSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Let's finalize #1 but fail
-        SimulateFrodo.SetKey(p1, e1, i1);
-        var r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        var r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
-        onePreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(onePreviousHashBase64 != twoPreviousHashBase64);
+        frodoPreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
         // Let's leave it non-finalized
 
         // Let's finailize #3 but fail
-        SimulateFrodo.SetKey(p3, e3, i3);
-        var r3 = await FinalizeRegistration(threePreviousHashBase64, threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        var r3 = await FinalizeRegistration(gandalfDomain, gandalfPreviousHashBase64, gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r3.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
-        threePreviousHashBase64 = await r3.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(twoPreviousHashBase64 != threePreviousHashBase64);
-        Assert.IsTrue(onePreviousHashBase64 == threePreviousHashBase64);
+        gandalfPreviousHashBase64 = await r3.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(samPreviousHashBase64 != gandalfPreviousHashBase64);
+        Assert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
 
         // Let's do it again for #3 to get it done
-        r3 = await FinalizeRegistration(threePreviousHashBase64, threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        r3 = await FinalizeRegistration(gandalfDomain, gandalfPreviousHashBase64, gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r3.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Now let's finally complete #1
-        SimulateFrodo.SetKey(p1, e1, i1);
-        r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
-        onePreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(onePreviousHashBase64 != twoPreviousHashBase64);
-        Assert.IsTrue(onePreviousHashBase64 != threePreviousHashBase64);
+        frodoPreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
+        Assert.IsTrue(frodoPreviousHashBase64 != gandalfPreviousHashBase64);
 
         // So do it again
-        r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
@@ -257,15 +259,14 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnIdentityAge()
     {
-        SimulateFrodo.NewKey();
         // Create an entry
-        const string identity = "frodobaggins.me";
-        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
-        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
+        var r = await FinalizeRegistration(frodoDomain, previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // Act
-        var response = await _client.GetAsync($"/RegisterKey/Verify?identity={identity}");
+        // Try to call verify
+        var response = await _client.GetAsync($"/RegisterKey/Verify?identity={frodoDomain.DomainName}");
         var content = await response.Content.ReadAsStringAsync();
         var verifyResult = JsonSerializer.Deserialize<VerifyResult>(content);
         var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime;
@@ -281,15 +282,15 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnNotFoundForUnknownIdentities()
     {
-        SimulateFrodo.NewKey();
         // Create an entry for frodobaggins.me
-        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
-        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
+        var r = await FinalizeRegistration(frodoDomain, previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Act
-        string identity2 = "gandalf.me";
-        var response = await _client.GetAsync($"/RegisterKey/Verify?identity={identity2}");
+        var gandalfDomain = new AsciiDomainName("gandalf.me");
+        var response = await _client.GetAsync($"/RegisterKey/Verify?identity={gandalfDomain.DomainName}");
         var content = await response.Content.ReadAsStringAsync();
 
         // Assert
@@ -299,9 +300,14 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyKeyShouldReturnRange()
     {
-        SimulateFrodo.NewKey();
         // Create an entry
-        const string identity = "frodobaggins.me";
+        var frodoDomain = new AsciiDomainName("frodobaggins.me");
+        var future1Domain = new AsciiDomainName("future1.me");
+        var future2Domain = new AsciiDomainName("future2.me");
+
+        var frodo = HobbitSimulator.GetSimulatedHobbit(frodoDomain);
+        var future1 = HobbitSimulator.GetSimulatedHobbit(future1Domain);
+        var future2 = HobbitSimulator.GetSimulatedHobbit(future2Domain);
 
         //
         // Entry one
@@ -311,8 +317,8 @@ public class RegisterKeyControllerTest
         Instant instant1 = zonedDateTime.ToInstant();
         RegisterKeyController.simulateTime = new UnixTimeUtc(instant1);
 
-        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
-        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
+        var r = await FinalizeRegistration(frodoDomain, previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         EccPublicKeyData eccPublicKeyData1 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
@@ -323,10 +329,13 @@ public class RegisterKeyControllerTest
         zonedDateTime = localDateTime.InZoneStrictly(DateTimeZone.Utc);
         var instant2 = zonedDateTime.ToInstant();
         RegisterKeyController.simulateTime = new UnixTimeUtc(instant2);
-        SimulateFrodo.NewKey(identity);
 
-        (previousHashBase64, signedEnvelope) = await BeginRegistration();
-        r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        // Replace Frodo's keys with new ones
+        var (p, e) = future1.GetKey();
+        frodo.OverwriteKey(p, e);
+
+        (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
+        r = await FinalizeRegistration(frodoDomain, previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         EccPublicKeyData eccPublicKeyData2 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
@@ -338,17 +347,19 @@ public class RegisterKeyControllerTest
         zonedDateTime = localDateTime.InZoneStrictly(DateTimeZone.Utc);
         var instant3 = zonedDateTime.ToInstant();
         RegisterKeyController.simulateTime = new UnixTimeUtc(instant3);
-        SimulateFrodo.NewKey(identity);
 
-        (previousHashBase64, signedEnvelope) = await BeginRegistration();
-        r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        (p, e) = future2.GetKey();
+        frodo.OverwriteKey(p, e);
+
+        (previousHashBase64, signedEnvelope) = await BeginRegistration(frodoDomain);
+        r = await FinalizeRegistration(frodoDomain, previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         EccPublicKeyData eccPublicKeyData3 = EccPublicKeyData.FromJwkBase64UrlPublicKey(signedEnvelope.Signatures[0].PublicKeyJwkBase64Url);
 
         //
         // Now we're ready to test VerifyKey on the three entries
         //
-        var response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData1.PublicKeyJwkBase64Url()}");
+        var response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={frodoDomain.DomainName}&PublicKeyJwkBase64Url={eccPublicKeyData1.PublicKeyJwkBase64Url()}");
         var content = await response.Content.ReadAsStringAsync();
         var verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -360,7 +371,7 @@ public class RegisterKeyControllerTest
 
 
         // Test the second public key
-        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData2.PublicKeyJwkBase64Url()}");
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={frodoDomain.DomainName}&PublicKeyJwkBase64Url={eccPublicKeyData2.PublicKeyJwkBase64Url()}");
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -371,7 +382,7 @@ public class RegisterKeyControllerTest
         Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
 
         // Test the last public key
-        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&PublicKeyJwkBase64Url={eccPublicKeyData3.PublicKeyJwkBase64Url()}");
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={frodoDomain.DomainName}&PublicKeyJwkBase64Url={eccPublicKeyData3.PublicKeyJwkBase64Url()}");
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
