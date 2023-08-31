@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Anonymous;
 using Refit;
 

@@ -29,6 +29,75 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        public void TestJwkPublicKey()
+        {
+            SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, 2);
+
+            var jwk = fullKeyFrodo.PublicKeyJwk();
+
+            var pk = EccPublicKeyData.FromJwkPublicKey(jwk);
+
+            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+            Assert.IsTrue(pk.PublicKeyJwkBase64Url() == fullKeyFrodo.PublicKeyJwkBase64Url());
+        }
+
+        [Test]
+        public void TestJwkPublicKeyBase64()
+        {
+            SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, 2);
+
+            var jwkBase64Url = fullKeyFrodo.PublicKeyJwkBase64Url();
+            var pk = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64Url);
+
+            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+        }
+
+        [Test]
+        public void TestJwkPublicEcdh()
+        {
+            SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, 2);
+
+            SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, 2);
+
+            var jwkSam = fullKeySam.PublicKeyJwk();
+            var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
+
+            var randomSalt = ByteArrayUtil.GetRndByteArray(16);
+            var sharedSecretFrodo1 = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, (EccPublicKeyData)fullKeySam, randomSalt);
+            var sharedSecretFrodo2 = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, publicKeySam, randomSalt);
+
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo1.GetKey(), sharedSecretFrodo2.GetKey()));
+        }
+
+        [Test]
+        public void TestJwkPublicSignature()
+        {
+            SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, 2);
+
+            var signature = fullKeySam.Sign(pwdSam, testMessage);
+
+            Assert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
+
+            var jwkSam = fullKeySam.PublicKeyJwk();
+            var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
+
+            Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
+        }
+
+        /// <summary>
+        /// This test shows two Hobbits that get a shared secret using ECC keys and a random salt,
+        /// and encrypt a payload with the shared secret. The data transmitted is sent as:
+        ///    { randomSalt, randomIv, cipher } or
+        ///    { randomSalt, randomIv, cipher, publicKey } in case the recipient doesn't have the public key
+        /// The shared secret is calculated on both sides via the GetEcdhSharedSecret() function.
+        /// </summary>
+        /// <exception cref="Exception"></exception>
+        [Test]
         public void TestEccExample()
         {
             // We have two hobbits, they each have an ECC key
@@ -51,11 +120,11 @@ namespace Odin.Core.Cryptography.Tests
             var sharedSecretFrodo = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, (EccPublicKeyData)fullKeySam, randomSalt);
 
             // Now we AES encrypt the message with the sharedSecret
-            var (iv, cipher) = AesCbc.Encrypt(message, ref sharedSecretFrodo);
+            var (randomIv, cipher) = AesCbc.Encrypt(message, ref sharedSecretFrodo);
 
             //
             // NOW WE SEND THE DATA TO SAM
-            // {randomSalt, iv, cipher}
+            // { randomSalt, randomIv, cipher }
             // we could include Frodo's public key if Sam doesn't already have it
             //
 
@@ -65,7 +134,7 @@ namespace Odin.Core.Cryptography.Tests
             var sharedSecretSam = fullKeySam.GetEcdhSharedSecret(pwdSam, (EccPublicKeyData)fullKeyFrodo, randomSalt);
 
             // Decrypt the message
-            var originalBytes = AesCbc.Decrypt(cipher, ref sharedSecretSam, iv);
+            var originalBytes = AesCbc.Decrypt(cipher, ref sharedSecretSam, randomIv);
 
             if (originalBytes.ToStringFromUtf8Bytes() != message.ToStringFromUtf8Bytes())
                 throw new Exception("It doesn't work");
@@ -74,20 +143,6 @@ namespace Odin.Core.Cryptography.Tests
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo.GetKey(), sharedSecretSam.GetKey()));
         }
 
-        [Test]
-        public void EccPublicKeyDataTest()
-        {
-            // Generate an ECC key pair
-            var generator = new ECKeyPairGenerator("ECDHC");
-            generator.Init(new KeyGenerationParameters(new SecureRandom(), 384));
-            var keyPair = generator.GenerateKeyPair();
-
-            var publicKeyData = EccPublicKeyData.FromDerEncodedPublicKey(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public).GetDerEncoded());
-
-            Assert.IsNotNull(publicKeyData.publicKey);
-            Assert.IsNotNull(publicKeyData.crc32c);
-            Assert.IsNotNull(publicKeyData.expiration);
-        }
 
         [Test]
         public void EccFullKeyDataTest()
@@ -107,7 +162,7 @@ namespace Odin.Core.Cryptography.Tests
             Assert.IsNotNull(signature);
 
             // Verify the signature with the public key
-            var publicKeyData = EccPublicKeyData.FromDerEncodedPublicKey(fullKeyData.publicKey);
+            var publicKeyData = EccPublicKeyData.FromJwkBase64UrlPublicKey(fullKeyData.PublicKeyJwkBase64Url());
             Assert.IsTrue(publicKeyData.VerifySignature(testMessage, signature));
         }
 

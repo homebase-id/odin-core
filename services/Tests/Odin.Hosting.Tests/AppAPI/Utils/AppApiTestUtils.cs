@@ -23,7 +23,7 @@ using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Storage;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
@@ -57,7 +57,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             // DO NOT do this in production code!
             //
             {
-                var cookieValue = $"{ClientTokenConstants.ClientAuthTokenCookieName}={token}";
+                var cookieValue = $"{YouAuthConstants.AppCookieName}={token}";
                 client.DefaultRequestHeaders.Add("Cookie", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret));

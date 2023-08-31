@@ -12,6 +12,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Hosting.Controllers.ClientToken;
@@ -157,6 +158,13 @@ namespace Odin.Hosting.Middleware
 
         private async Task EncryptResponse(HttpContext context, Stream originalBody)
         {
+            if (context.Response.HasStarted)
+            {
+                // Avoids error "Headers are read-only, response has already started."
+                // We can't change or undo an already started response.
+                return;
+            }
+
             //if a controller tells us no content, write nothing to the stream
             if (context.Response.StatusCode == (int)HttpStatusCode.NoContent)
             {

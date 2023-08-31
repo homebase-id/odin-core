@@ -10,7 +10,7 @@ namespace Odin.Core.Identity
     [JsonConverter(typeof(OdinIdConverter))]
     public readonly struct OdinId
     {
-        private readonly PunyDomainName _domainName;
+        private readonly AsciiDomainName _domainName;
         private readonly Guid _hash;
 
         /// <summary>
@@ -24,15 +24,15 @@ namespace Odin.Core.Identity
                 throw new ArgumentNullException(nameof(identifier));
 
 
-            _domainName = new PunyDomainName(identifier);
+            _domainName = new AsciiDomainName(identifier);
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
-        public OdinId(PunyDomainName punyDomain)
+        public OdinId(AsciiDomainName asciiDomain)
         {
-            _domainName = punyDomain;
+            _domainName = asciiDomain;
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
@@ -40,6 +40,7 @@ namespace Odin.Core.Identity
 
 
         [JsonIgnore] public string DomainName => _domainName.DomainName;
+        [JsonIgnore] public AsciiDomainName AsciiDomain => _domainName;
 
         public bool HasValue()
         {
@@ -58,6 +59,16 @@ namespace Odin.Core.Identity
         }
 
         public static explicit operator OdinId(string id)
+        {
+            return new OdinId(id);
+        }
+        
+        public static implicit operator AsciiDomainName(OdinId dy)
+        {
+            return dy._domainName;
+        }
+
+        public static explicit operator OdinId(AsciiDomainName id)
         {
             return new OdinId(id);
         }
@@ -92,6 +103,11 @@ namespace Odin.Core.Identity
             return this._hash;
         }
 
+        public static Guid ToHashId(AsciiDomainName domainName)
+        {
+            return new Guid(ByteArrayUtil.ReduceSHA256Hash(domainName.DomainName.ToUtf8ByteArray()));
+        }
+        
         public byte[] ToByteArray()
         {
             var key = _domainName.DomainName.ToUtf8ByteArray();
@@ -106,7 +122,7 @@ namespace Odin.Core.Identity
         public static void Validate(string odinId)
         {
             // Will always return true
-            PunyDomainNameValidator.AssertValidDomain(odinId);
+            AsciiDomainNameValidator.AssertValidDomain(odinId);
         }
     }
 }

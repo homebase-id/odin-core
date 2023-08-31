@@ -163,11 +163,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _insertParam1.Value = item.identity;
                 _insertParam2.Value = item.driveId.ToByteArray();
-                _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam3.Value = now.uniqueTime;
+                item.modified = null;
                 _insertParam4.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
+                 {
+                     item.created = now;
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                 }
                 return count;
             } // Lock
         }
@@ -179,10 +184,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created,modified) " +
-                                                 "VALUES ($identity,$driveId,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created) " +
+                                                 "VALUES ($identity,$driveId,$created)"+
                                                  "ON CONFLICT (identity,driveId) DO UPDATE "+
-                                                 "SET modified = $modified;";
+                                                 "SET modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
@@ -197,15 +203,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam4.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identity;
                 _upsertParam2.Value = item.driveId.ToByteArray();
-                _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
-                return count;
+                _upsertParam3.Value = now.uniqueTime;
+                _upsertParam4.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(FollowsMeRecord item)
@@ -232,13 +251,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _updateParam4.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identity;
                 _updateParam2.Value = item.driveId.ToByteArray();
-                _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam3.Value = now.uniqueTime;
+                _updateParam4.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
+                {
+                     item.modified = now;
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                }
                 return count;
             } // Lock
         }

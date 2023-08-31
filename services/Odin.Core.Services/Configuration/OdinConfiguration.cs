@@ -1,5 +1,4 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -15,19 +14,24 @@ namespace Odin.Core.Services.Configuration
 {
     public class OdinConfiguration
     {
-        public HostSection Host { get; }
+        public HostSection Host { get; init; }
 
-        public RegistrySection Registry { get; }
-        public DevelopmentSection? Development { get; }
+        public RegistrySection Registry { get; init; }
+        public DevelopmentSection Development { get; init; }
 
-        public LoggingSection Logging { get; }
-        public QuartzSection Quartz { get; }
-        public CertificateRenewalSection CertificateRenewal { get; set; }
+        public LoggingSection Logging { get; init; }
+        public QuartzSection Quartz { get; init; }
+        public CertificateRenewalSection CertificateRenewal { get; init; }
 
-        public MailgunSection Mailgun { get; }
+        public MailgunSection Mailgun { get; init; }
 
-        public FeedSection Feed { get; }
-        public TransitSection Transit { get; }
+        public FeedSection Feed { get; init; }
+        public TransitSection Transit { get; init; }
+
+        public OdinConfiguration()
+        {
+            // Mockable support
+        }
 
         public OdinConfiguration(IConfiguration config)
         {
@@ -52,6 +56,11 @@ namespace Odin.Core.Services.Configuration
 
         public class TransitSection
         {
+            public TransitSection()
+            {
+                // Mockable support
+            }
+
             public TransitSection(IConfiguration config)
             {
                 OutboxBatchSize = config.Required<int>($"Transit:{nameof(OutboxBatchSize)}");
@@ -62,11 +71,16 @@ namespace Odin.Core.Services.Configuration
                 }
             }
 
-            public int OutboxBatchSize { get; set; }
+            public int OutboxBatchSize { get; init; }
         }
 
         public class FeedSection
         {
+            public FeedSection()
+            {
+                // Mockable support
+            }
+
             public FeedSection(IConfiguration config)
             {
                 InstantDistribution = config.Required<bool>("Feed:InstantDistribution");
@@ -78,13 +92,13 @@ namespace Odin.Core.Services.Configuration
                 }
             }
 
-            public int DistributionBatchSize { get; set; }
+            public int DistributionBatchSize { get; init; }
 
             /// <summary>
             /// If true, the feed files are sent immediately to all
             /// recipients; This should be false in high traffic environments
             /// </summary>
-            public bool InstantDistribution { get; }
+            public bool InstantDistribution { get; init; }
         }
 
         /// <summary>
@@ -92,6 +106,11 @@ namespace Odin.Core.Services.Configuration
         /// </summary>
         public class DevelopmentSection
         {
+            public DevelopmentSection()
+            {
+                // Mockable support
+            }
+
             public DevelopmentSection(IConfiguration config)
             {
                 PreconfiguredDomains = config.Required<List<string>>("Development:PreconfiguredDomains");
@@ -99,21 +118,26 @@ namespace Odin.Core.Services.Configuration
                 RecoveryKeyWaitingPeriodSeconds = config.Required<int>("Development:RecoveryKeyWaitingPeriodSeconds");
             }
 
-            public List<string> PreconfiguredDomains { get; }
-            public string SslSourcePath { get; }
-            public double RecoveryKeyWaitingPeriodSeconds { get; }
+            public List<string> PreconfiguredDomains { get; init; }
+            public string SslSourcePath { get; init; }
+            public double RecoveryKeyWaitingPeriodSeconds { get; init; }
         }
 
         public class RegistrySection
         {
-            public virtual string PowerDnsHostAddress { get; }
-            public virtual string PowerDnsApiKey { get; }
+            public string PowerDnsHostAddress { get; init; }
+            public string PowerDnsApiKey { get; init; }
 
-            public string ProvisioningDomain { get; }
-            public List<ManagedDomainApex> ManagedDomainApexes { get; }
+            public string ProvisioningDomain { get; init; }
+            public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
 
-            public DnsConfigurationSet DnsConfigurationSet { get; }
-            public List<string> DnsResolvers { get; }
+            public DnsConfigurationSet DnsConfigurationSet { get; init; }
+            public List<string> DnsResolvers { get; init; }
+
+            public RegistrySection()
+            {
+                // Mockable support
+            }
 
             public RegistrySection(IConfiguration config)
             {
@@ -131,26 +155,31 @@ namespace Odin.Core.Services.Configuration
 
             public class ManagedDomainApex
             {
-                public string Apex { get; set; } = "";
-                public List<string> PrefixLabels { get; set; } = new();
+                public string Apex { get; init; } = "";
+                public List<string> PrefixLabels { get; init; } = new();
             }
         }
 
         public class HostSection
         {
-            public string TenantDataRootPath { get; }
-            public string SystemDataRootPath { get; }
+            public string TenantDataRootPath { get; init; }
+            public string SystemDataRootPath { get; init; }
 
-            public string TenantPayloadRootPath { get; }
+            public string TenantPayloadRootPath { get; init; }
 
-            public string SystemSslRootPath { get; }
+            public string SystemSslRootPath { get; init; }
 
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
             /// </summary>
-            public List<ListenEntry> IPAddressListenList { get; }
+            public List<ListenEntry> IPAddressListenList { get; init; }
 
-            public int CacheSlidingExpirationSeconds { get; }
+            public int CacheSlidingExpirationSeconds { get; init; }
+
+            public HostSection()
+            {
+                // Mockable support
+            }
 
             public HostSection(IConfiguration config)
             {
@@ -176,9 +205,9 @@ namespace Odin.Core.Services.Configuration
 
         public class ListenEntry
         {
-            public string Ip { get; set; } = "";
-            public int HttpsPort { get; set; } = 0;
-            public int HttpPort { get; set; } = 0;
+            public string Ip { get; init; } = "";
+            public int HttpsPort { get; init; } = 0;
+            public int HttpPort { get; init; } = 0;
 
             public IPAddress GetIp()
             {
@@ -194,23 +223,28 @@ namespace Odin.Core.Services.Configuration
             /// <summary>
             /// Number of seconds to delay starting background jobs when starting the dotyoucore process
             /// </summary>
-            public int BackgroundJobStartDelaySeconds { get; }
+            public int BackgroundJobStartDelaySeconds { get; init; }
 
-            public int CronProcessingInterval { get; }
+            public int CronProcessingInterval { get; init; }
 
-            public int EnsureCertificateProcessorIntervalSeconds { get; }
+            public int EnsureCertificateProcessorIntervalSeconds { get; init; }
 
             /// <summary>
             /// The interval in which we check for the validation of certificate order
             /// </summary>
-            public int ProcessPendingCertificateOrderIntervalInSeconds { get; }
+            public int ProcessPendingCertificateOrderIntervalInSeconds { get; init; }
 
             /// <summary>
             ///  The number of items to query from the cron queue each time the job runs 
             /// </summary>
-            public int CronBatchSize { get; }
+            public int CronBatchSize { get; init; }
 
-            public bool EnableQuartzBackgroundService { get; }
+            public bool EnableQuartzBackgroundService { get; init; }
+
+            public QuartzSection()
+            {
+                // Mockable support
+            }
 
             public QuartzSection(IConfiguration config)
             {
@@ -227,14 +261,16 @@ namespace Odin.Core.Services.Configuration
 
         public class LoggingSection
         {
-            public string LogFilePath { get; }
+            public string LogFilePath { get; init; }
 
-            public LoggingLevel Level { get; }
+            public LoggingSection()
+            {
+                // Mockable support
+            }
 
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.Required<string>("Logging:LogFilePath");
-                Level = Enum.Parse<LoggingLevel>(config.Required<string>("Logging:Level"));
             }
         }
 
@@ -242,6 +278,11 @@ namespace Odin.Core.Services.Configuration
 
         public class CertificateRenewalSection
         {
+            public CertificateRenewalSection()
+            {
+                // Mockable support
+            }
+
             public CertificateRenewalSection(IConfiguration config)
             {
                 UseCertificateAuthorityProductionServers = config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
@@ -251,12 +292,12 @@ namespace Odin.Core.Services.Configuration
             /// <summary>
             /// Specifies if the production servers of the certificate authority should be used.
             /// </summary>
-            public bool UseCertificateAuthorityProductionServers { get; }
+            public bool UseCertificateAuthorityProductionServers { get; init; }
 
             /// <summary>
             /// The email addressed given to Certificate Authorities when users ask us to manage their certificates
             /// </summary>
-            public string CertificateAuthorityAssociatedEmail { get; }
+            public string CertificateAuthorityAssociatedEmail { get; init; }
 
             public CertificateRenewalConfig ToCertificateRenewalConfig()
             {
@@ -272,10 +313,15 @@ namespace Odin.Core.Services.Configuration
 
         public class MailgunSection
         {
-            public string ApiKey { get; }
-            public NameAndEmailAddress DefaultFrom { get; }
-            public string EmailDomain { get; }
-            public bool Enabled { get; }
+            public string ApiKey { get; init; }
+            public NameAndEmailAddress DefaultFrom { get; init;  }
+            public string EmailDomain { get; init; }
+            public bool Enabled { get; init; }
+
+            public MailgunSection()
+            {
+                // Mockable support
+            }
 
             public MailgunSection(IConfiguration config)
             {
@@ -291,11 +337,5 @@ namespace Odin.Core.Services.Configuration
         }
 
         //
-    }
-
-    public enum LoggingLevel
-    {
-        Verbose,
-        ErrorsOnly
     }
 }

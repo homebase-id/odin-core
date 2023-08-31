@@ -5,6 +5,8 @@ using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OdinsAttestation.Controllers
 {
@@ -30,50 +32,68 @@ namespace OdinsAttestation.Controllers
         }
 
 
-        private static byte[] GetIdentityPublicKey(PunyDomainName identity)
+        private static string GetIdentityPublicKey(AsciiDomainName identity)
         {
             // @Todd - Here make an HTTP call instead of the simulation
-            var pk64 = SimulateFrodo.GetPublicKey();
+            var jwkBase64Url = SimulateFrodo.GetPublicKey();
 
-            return Convert.FromBase64String(pk64);
+            return jwkBase64Url;
         }
 
+#if DEBUG
         /// <summary>
         /// This simulates that frodobaggins.me makes a request for an attestation, remove for production
         /// and put this functionality into the identity host when requesting an attestation.
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
-        public async Task<IActionResult> GetSimulator()
+        public async Task<ActionResult> GetSimulator()
         {
-            var address = new SortedDictionary<string, string>
-            {
-                { "street", "Bag End" },
-                { "city", "Hobbiton" },
-                { "region", "The Shire" },
-                { "postalCode", "4242" },
-                { "country", "Middle Earth" }
-            };
-
-            // Here we write all the attributes we want attested
-            var dataToAttest = new SortedDictionary<string, object>()
-                    { { AttestationManagement.JsonKeySubsetLegalName, "F. Baggins" },
-                      { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
-                      { AttestationManagement.JsonKeyNationality, "Middle Earth" },
-                      { AttestationManagement.JsonKeyPhoneNumber, "+45 26 44 70 33"},
-                      { AttestationManagement.JsonKeyBirthdate, "1073-10-29" },
-                      { AttestationManagement.JsonKeyEmailAddress, "f@baggins.me" },
-                      { AttestationManagement.JsonKeyResidentialAddress, address } };
-
-            // Let's build the envelope that Frodo will send
-            var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);
-
-            // Call the attestation server via HttpClient(Factory)
-            var r1 = await GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
-
-            return r1;
+            return await SimulateFrodo.InitiateRequestForAttestation(this);
         }
+#endif
 
+        public class VerifyAttestationResult
+        {
+            public Int64 created { get; set; }
+            public Int64? modified { get; set; }
+            public Int32 status { get; set; }
+        };
+
+        private JsonSerializerOptions options = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        /// <summary>
+        /// This service takes an identity and an attestationId and checks if it exists, returns seconds created (UnixEpoch).
+        /// </summary>
+        /// <param name="attestationIdBase64"></param>
+        /// <returns>200 OK and attesation age in seconds (Unix Epoch), or Bad Request or Not Found</returns>
+        [HttpGet("VerifyAttestation")]
+        public ActionResult GetVerifyAttestaion(string attestationIdBase64)
+        {
+            byte[] attestationId;
+
+            try
+            {
+                attestationId = Convert.FromBase64String(attestationIdBase64);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Invalid attestationIdBase64");
+            }
+
+            var r = _db.tblAttestationStatus.Get(attestationId);
+            if (r == null)
+            {
+                return NotFound("No such attestationId found.");
+            }
+
+            var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
+
+            return Ok(JsonSerializer.Serialize(result, options));
+        }
 
         /// <summary>
         /// This is the endpoint that an identity calls with a signedEnvelope contract of the 
@@ -82,7 +102,7 @@ namespace OdinsAttestation.Controllers
         /// <param name="requestSignedEnvelope"></param>
         /// <returns></returns>
         [HttpGet("RequestAttestation")]
-        public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope)
+        public async Task<ActionResult> GetRequestAttestation(string requestSignedEnvelope) // TODO: Change to POST
         {
             // First verify the validity of the signed envelope
             SignedEnvelope? signedEnvelope;
@@ -96,14 +116,14 @@ namespace OdinsAttestation.Controllers
             }
 
             // This will work because it was already validated in the Verify... above
-            var requestorId = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
+            var requestorId = new AsciiDomainName(signedEnvelope.Signatures[0].Identity);
 
             // Let's fetch the identity's public key and make sure it's the same
             // This would be a web service call to Frodo
             //
-            var publicKey = GetIdentityPublicKey(requestorId);
+            var publicKeyBase64Url = GetIdentityPublicKey(requestorId);
 
-            if (ByteArrayUtil.EquiByteArrayCompare(publicKey, signedEnvelope.Signatures[0].PublicKeyDer) == false)
+            if (publicKeyBase64Url != signedEnvelope.Signatures[0].PublicKeyJwkBase64Url)
                 return BadRequest($"Identity public key does not match the request");
 
             // Ok, now we know for certain that the request came from the same identity
@@ -113,7 +133,7 @@ namespace OdinsAttestation.Controllers
 
             // Save request in database for later administrative staff review
             //
-            var r = new AttestationRequestRecord() { identity = requestorId.DomainName, requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
+            var r = new AttestationRequestRecord() { attestationId = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 
             try
             {
@@ -127,6 +147,7 @@ namespace OdinsAttestation.Controllers
 
             await Task.Delay(0); // Only to not get into async hell.
 
+            // This means the request has been successfully registered
             return Ok("");
         }
     }

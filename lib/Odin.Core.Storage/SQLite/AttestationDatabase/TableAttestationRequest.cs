@@ -1,7 +1,6 @@
 ﻿using System;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {

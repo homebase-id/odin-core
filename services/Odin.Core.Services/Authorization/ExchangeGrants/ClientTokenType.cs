@@ -11,7 +11,6 @@ public enum ClientTokenType
     /// The bearer is using the CircleNetwork Connection via transit
     /// </summary>
     IdentityConnectionRegistration = 2,
-    
 
     Other = 3,
 
@@ -19,9 +18,14 @@ public enum ClientTokenType
     /// The bearer was granted access to send data to this identity 
     /// </summary>
     DataProvider = 7,
-    
+
     /// <summary>
     /// The bearer was granted access to send data to this identity 
     /// </summary>
-    Follower = 14
+    Follower = 14,
+    
+    /// <summary>
+    /// The bearer is granted access to a built-in browser-based app of the identity server(i.e. the home app)
+    /// </summary>
+    BuiltInBrowserApp = 209
 }

@@ -246,9 +246,15 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam5.Value = item.nextRun.milliseconds;
                 _insertParam6.Value = item.lastRun.milliseconds;
                 _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam8.Value = now.uniqueTime;
+                item.modified = null;
                 _insertParam9.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                     item.created = now;
+                 }
                 return count;
             } // Lock
         }
@@ -260,10 +266,11 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
-                                                 "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created) " +
+                                                 "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created)"+
                                                  "ON CONFLICT (identityId,type) DO UPDATE "+
-                                                 "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified;";
+                                                 "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identityId";
@@ -293,6 +300,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                     _upsertParam9.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.identityId.ToByteArray();
                 _upsertParam2.Value = item.type;
                 _upsertParam3.Value = item.data;
@@ -300,11 +308,24 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam5.Value = item.nextRun.milliseconds;
                 _upsertParam6.Value = item.lastRun.milliseconds;
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                return count;
+                _upsertParam8.Value = now.uniqueTime;
+                _upsertParam9.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(CronRecord item)
@@ -346,6 +367,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                     _updateParam9.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.identityId.ToByteArray();
                 _updateParam2.Value = item.type;
                 _updateParam3.Value = item.data;
@@ -353,9 +375,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _updateParam5.Value = item.nextRun.milliseconds;
                 _updateParam6.Value = item.lastRun.milliseconds;
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam8.Value = now.uniqueTime;
+                _updateParam9.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                     item.modified = now;
+                }
                 return count;
             } // Lock
         }

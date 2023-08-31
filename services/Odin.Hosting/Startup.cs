@@ -18,6 +18,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -31,10 +32,11 @@ using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting._dev;
-using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Perimeter;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
@@ -157,6 +159,8 @@ namespace Odin.Hosting
                 });
             });
 
+            services.AddCorsPolicies();
+
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddClientTokenAuthentication()
@@ -169,7 +173,7 @@ namespace Odin.Hosting
             {
                 OwnerPolicies.AddPolicies(policy);
                 SystemPolicies.AddPolicies(policy);
-                ClientTokenPolicies.AddPolicies(policy);
+                YouAuthPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
@@ -282,6 +286,7 @@ namespace Odin.Hosting
 
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseResponseCompression();
+            app.UseCors();
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();

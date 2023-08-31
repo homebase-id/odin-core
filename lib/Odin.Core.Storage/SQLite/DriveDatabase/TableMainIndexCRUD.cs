@@ -351,9 +351,15 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam14.Value = now.uniqueTime;
+                item.modified = null;
                 _insertParam15.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                     item.created = now;
+                 }
                 return count;
             } // Lock
         }
@@ -365,10 +371,11 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created) " +
+                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified;";
+                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -416,6 +423,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertParam15.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.fileState;
@@ -429,11 +437,24 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _upsertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _upsertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                return count;
+                _upsertParam14.Value = now.uniqueTime;
+                _upsertParam15.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(MainIndexRecord item)
@@ -493,6 +514,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _updateParam15.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam3.Value = item.fileState;
@@ -506,9 +528,13 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _updateParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam14.Value = now.uniqueTime;
+                _updateParam15.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                     item.modified = now;
+                }
                 return count;
             } // Lock
         }

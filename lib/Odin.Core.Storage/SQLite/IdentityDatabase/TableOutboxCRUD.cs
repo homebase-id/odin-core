@@ -250,9 +250,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam5.Value = item.timeStamp.milliseconds;
                 _insertParam6.Value = item.value ?? (object)DBNull.Value;
                 _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                var now = UnixTimeUtcUnique.Now();
+                _insertParam8.Value = now.uniqueTime;
+                item.modified = null;
                 _insertParam9.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                 {
+                     item.created = now;
+                 }
                 return count;
             } // Lock
         }
@@ -264,10 +270,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created) " +
+                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created)"+
                                                  "ON CONFLICT (fileId,recipient) DO UPDATE "+
-                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
+                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
+                                                 "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -297,6 +304,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam9.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.recipient;
                 _upsertParam3.Value = item.boxId.ToByteArray();
@@ -304,11 +312,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam5.Value = item.timeStamp.milliseconds;
                 _upsertParam6.Value = item.value ?? (object)DBNull.Value;
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
-                return count;
+                _upsertParam8.Value = now.uniqueTime;
+                _upsertParam9.Value = now.uniqueTime;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                {
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      return 1;
+                   }
+                }
             } // Lock
+            return 0;
         }
 
         public virtual int Update(OutboxRecord item)
@@ -350,6 +371,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _updateParam9.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
+                var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.recipient;
                 _updateParam3.Value = item.boxId.ToByteArray();
@@ -357,9 +379,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam5.Value = item.timeStamp.milliseconds;
                 _updateParam6.Value = item.value ?? (object)DBNull.Value;
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam8.Value = now.uniqueTime;
+                _updateParam9.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                {
+                     item.modified = now;
+                }
                 return count;
             } // Lock
         }
