@@ -17,7 +17,6 @@ COPY services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj
 RUN dotnet restore services/Odin.Hosting/Odin.Hosting.csproj
 
 COPY . ./
-ARG RUNTIME_ARCH
 RUN dotnet publish --warnaserror --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out
 
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine
