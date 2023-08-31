@@ -155,12 +155,9 @@ namespace Odin.Hosting.Controllers.Home.Auth
         public async Task<ActionResult> DeleteToken()
         {
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
-            if (await _homeAuthenticatorService.DeleteSession())
-            {
-                return Ok();
-            }
+            await _homeAuthenticatorService.DeleteSession()
 
-            return NotFound();
+            return Ok();
         }
 
         //
