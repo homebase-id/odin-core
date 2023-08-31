@@ -5,6 +5,8 @@
 #
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0-alpine AS build
+LABEL org.opencontainers.image.source https://github.com/youfoundation/dotyoucore
+
 WORKDIR /app
 
 COPY lib/Odin.Core/Odin.Core.csproj lib/Odin.Core/
