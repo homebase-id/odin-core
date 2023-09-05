@@ -21,23 +21,21 @@ namespace Odin.Hosting.Controllers.Peer
     /// Receives incoming data transfers from other hosts
     /// </summary>
     [ApiController]
-    [Route(PeerApiPathConstants.HostV1)]
+    [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class TransitPerimeterDriveController : OdinControllerBase
+    public class PeerPerimeterDriveController : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly PublicPrivateKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly FileSystemResolver _fileSystemResolver;
 
         /// <summary />
-        public TransitPerimeterDriveController(OdinContextAccessor contextAccessor, PublicPrivateKeyService publicKeyService, DriveManager driveManager,
+        public PeerPerimeterDriveController(OdinContextAccessor contextAccessor, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
-            this._publicKeyService = publicKeyService;
             this._driveManager = driveManager;
             this._tenantSystemStorage = tenantSystemStorage;
             this._mediator = mediator;
@@ -47,7 +45,6 @@ namespace Odin.Hosting.Controllers.Peer
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService();
             var batch = await perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             return QueryBatchResponse.FromResult(batch);
@@ -124,19 +121,13 @@ namespace Odin.Hosting.Controllers.Peer
             var drives = await perimeterService.GetDrives(request.DriveType);
             return drives;
         }
-        
-        [HttpGet("security/context")]
-        public Task<RedactedOdinContext> GetRemoteSecurityContext()
-        {
-            return Task.FromResult(_contextAccessor.GetCurrent().Redacted());
-        }
 
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteRemoteFileTransitRequest transitRequest)
         {
             var perimeterService = GetPerimeterService();
             return await perimeterService.AcceptDeleteLinkedFileRequest(
-                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive, 
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 transitRequest.FileSystemType);
         }

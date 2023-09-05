@@ -13,36 +13,36 @@ namespace Odin.Core.Services.Transit.SendingHost
     /// <summary>
     /// The interface for querying from a host to another host
     /// </summary>
-    public interface ITransitHostHttpClient
+    public interface IPeerHostHttpClient
     {
-        private const string RootPath = PeerApiPathConstants.HostV1;
+        private const string DriveRoot = PeerApiPathConstants.DriveV1;
 
         [Multipart]
-        [Post(RootPath + "/stream")]
+        [Post(DriveRoot + "/upload")]
         Task<ApiResponse<HostTransitResponse>> SendHostToHost(
             StreamPart header,
             StreamPart metaData,
             params StreamPart[] additionalStreamParts);
 
-        [Post(RootPath + "/deletelinkedfile")]
+        [Post(DriveRoot + "/deletelinkedfile")]
         Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteRemoteFileTransitRequest request);
 
-        [Post(RootPath + "/querybatch")]
+        [Post(DriveRoot + "/querybatch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
 
-        [Post(RootPath + "/header")]
+        [Post(DriveRoot + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
 
-        [Post(RootPath + "/thumb")]
+        [Post(DriveRoot + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);
 
-        [Post(RootPath + "/payload")]
+        [Post(DriveRoot + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadStream([Body] GetPayloadRequest request);
 
-        [Post(RootPath + "/metadata/type")]
+        [Post(DriveRoot + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);
 
-        [Get(RootPath + "/security/context")]
+        [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext();
 
     }

@@ -9,6 +9,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using YouAuthClientReferenceImplementation.Models;
@@ -54,7 +55,7 @@ public class ClientTypeDomainController : BaseController
             });
         }
 
-        var uri = UriWithEncryptedQueryString($"https://{LoggedInIdentity}/api/youauth/v1/auth/ping?text=helloworld", SharedSecret);
+        var uri = UriWithEncryptedQueryString($"https://{LoggedInIdentity}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", SharedSecret);
         var request = new HttpRequestMessage(HttpMethod.Get, uri)
         {
             Headers = { { "Cookie", new Cookie("XT32", Cat).ToString() } }

@@ -193,18 +193,18 @@ public class TransitQueryService
     //
     //     return response.Content;
     // }
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
+    private async Task<(IdentityConnectionRegistration, IPeerHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
-            var httpClient = _odinHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
+            var httpClient = _odinHttpClientFactory.CreateClient<IPeerHostHttpClient>(odinId, fileSystemType);
             return (icr, httpClient);
         }
         else
         {
-            var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
+            var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(odinId, authToken, fileSystemType);
             return (icr, httpClient);
         }
     }

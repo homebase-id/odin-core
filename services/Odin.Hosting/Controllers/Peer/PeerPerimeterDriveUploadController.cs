@@ -17,7 +17,6 @@ using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost;
@@ -31,12 +30,11 @@ namespace Odin.Hosting.Controllers.Peer
     /// Receives incoming data transfers from other hosts
     /// </summary>
     [ApiController]
-    [Route(PeerApiPathConstants.HostV1)]
+    [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class TransitPerimeterController : ControllerBase
+    public class PeerPerimeterDriveUploadController : ControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly PublicPrivateKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -46,11 +44,10 @@ namespace Odin.Hosting.Controllers.Peer
         private Guid _stateItemId;
 
         /// <summary />
-        public TransitPerimeterController(OdinContextAccessor contextAccessor, PublicPrivateKeyService publicKeyService, DriveManager driveManager,
+        public PeerPerimeterDriveUploadController(OdinContextAccessor contextAccessor, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
-            _publicKeyService = publicKeyService;
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
@@ -58,7 +55,7 @@ namespace Odin.Hosting.Controllers.Peer
         }
 
         /// <summary />
-        [HttpPost("stream")]
+        [HttpPost("upload")]
         public async Task<HostTransitResponse> AcceptHostToHostTransfer()
         {
             try
@@ -161,7 +158,7 @@ namespace Odin.Hosting.Controllers.Peer
             var json = await new StreamReader(section.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            
+
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", metadataStream);
             if (response.FilterAction == FilterAction.Reject)
@@ -169,8 +166,7 @@ namespace Odin.Hosting.Controllers.Peer
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
                 throw new HostToHostTransferException("Transmission Aborted");
             }
-            
-            
+
 
             return metadata;
         }

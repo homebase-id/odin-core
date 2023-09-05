@@ -154,7 +154,7 @@ namespace Odin.Core.Services.Transit.SendingHost
 
                 var clientAccessToken = await ResolveClientAccessToken(r);
 
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
+                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: sendFileOptions.FileSystemType);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
@@ -319,7 +319,7 @@ namespace Odin.Core.Services.Transit.SendingHost
                     }
                 }
 
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
+                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 
                 if (response.IsSuccessStatusCode)
