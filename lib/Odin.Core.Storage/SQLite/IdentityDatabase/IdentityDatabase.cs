@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public readonly string CN;
 
-        private readonly CacheHelper _cache = new CacheHelper("identity");
+        public readonly CacheHelper _cache = new CacheHelper("identity"); // This is really private, but I need to access it in my test.
         private readonly string _file;
         private readonly int _line;
 

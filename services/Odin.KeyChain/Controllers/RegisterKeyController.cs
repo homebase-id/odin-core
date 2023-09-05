@@ -45,9 +45,11 @@ namespace Odin.Keychain
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
-        public async Task<ActionResult> GetSimulator()
+        public async Task<ActionResult> GetSimulator(string hobbitDomain = "frodobaggins.me")
         {
-            return await SimulateFrodo.InitiateRequestForKeyRegistration(this);
+            var hobbit = HobbitSimulator.GetSimulatedHobbit(new AsciiDomainName(hobbitDomain));
+
+            return await hobbit.InitiateRequestForKeyRegistration(this);
         }
 #endif
 
@@ -240,7 +242,8 @@ namespace Odin.Keychain
 
                 if (_simulate)
                 {
-                    publicKeyJwkBase64Url = SimulateFrodo.GetPublicKey();
+                    var hobbit = HobbitSimulator.GetSimulatedHobbit(domain);
+                    publicKeyJwkBase64Url = hobbit.GetPublicKey();
                 }
                 else
                 {

@@ -8,7 +8,7 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
-    public class CreatedModifiedTests
+    public class DatabaseCreatedModifiedTests
     {
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
         [Test]

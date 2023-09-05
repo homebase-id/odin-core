@@ -8,46 +8,62 @@ using static Odin.Keychain.RegisterKeyController;
 
 namespace Odin.KeyChain
 {
-    public static class SimulateFrodo
+    public static class HobbitSimulator
     {
-        private static SensitiveByteArray _pwd;
-        private static EccFullKeyData _ecc;
-        private static AsciiDomainName _identity;
+        private static object _lock = new object();
+        private static Dictionary<string, SimulatedHobbit> _hobbits = new Dictionary<string, SimulatedHobbit>();
 
-        static SimulateFrodo()
+        public static SimulatedHobbit GetSimulatedHobbit(AsciiDomainName hobbit)
+        {
+            lock (_lock)
+            {
+                _hobbits.TryGetValue(hobbit.DomainName, out var simulatedHobbit);
+
+                if (simulatedHobbit == null)
+                {
+                    simulatedHobbit = new SimulatedHobbit(hobbit);
+                    _hobbits[hobbit.DomainName] = simulatedHobbit;
+                }
+
+                return simulatedHobbit;
+            }
+        }
+    }
+
+    public class SimulatedHobbit
+    {
+        private SensitiveByteArray _pwd;
+        private EccFullKeyData _ecc;
+        private AsciiDomainName _identity;
+
+
+        public SimulatedHobbit(AsciiDomainName hobbit)
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
-            _identity = new AsciiDomainName("frodobaggins.me");
+            _identity = hobbit;
         }
 
-        public static void NewKey(string identity = "frodobaggins.me")
+        public (SensitiveByteArray, EccFullKeyData) GetKey()
         {
-            _identity = new AsciiDomainName(identity);
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            return (_pwd, _ecc);
         }
 
-        public static (SensitiveByteArray, EccFullKeyData, AsciiDomainName) GetKey()
-        {
-            return (_pwd, _ecc, _identity);
-        }
-        public static void SetKey(SensitiveByteArray pwd, EccFullKeyData ecc, AsciiDomainName identity)
+        public void OverwriteKey(SensitiveByteArray pwd, EccFullKeyData ecc)
         {
             _pwd = pwd;
             _ecc = ecc;
-            _identity = identity;
         }
 
         // This creates a "Key Registration" instruction
-        public static SignedEnvelope InstructionEnvelope()
+        public SignedEnvelope InstructionEnvelope()
         {
             return InstructionSignedEnvelope.CreateInstructionKeyRegistration(_ecc, _pwd, _identity, null);
         }
 
         // Todd, This is how Frodo initiates a request for registering his public key
         // with the Odin Key Chain. Ignore the "web api" parameter, that's just a hack.
-        public async static Task<ActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
+        public async Task<ActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
         {
             // First Frodo generates a smart contract request object
             // This is the function Frodo calls internally to generate a request
@@ -69,7 +85,7 @@ namespace Odin.KeyChain
 
             int statusCode = objectResult.StatusCode ?? 0;
             if (statusCode != StatusCodes.Status200OK)
-                throw new Exception("Unable to begin register request");
+                return r1;
 
             if (objectResult.Value == null)
                 throw new Exception("No value result back");
@@ -87,7 +103,8 @@ namespace Odin.KeyChain
 
             for (int i = 0; i < 10 ; i++)
             {
-                var signatureBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+
+                var signatureBase64 = SignPreviousHashForPublicKeyChain(previousHashBase64);
                 var model = new RegistrationCompleteModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
                 r2 = await webApi.PostPublicKeyRegistrationComplete(model);
 
@@ -111,7 +128,7 @@ namespace Odin.KeyChain
 
         // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
         // For example https://frodo.baggins.me/api/v1/signature/publickey
-        public static string GetPublicKey()
+        public string GetPublicKey()
         {
             return _ecc.PublicKeyJwkBase64Url();
         }
@@ -119,7 +136,7 @@ namespace Odin.KeyChain
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
         //  _ecc would be the identity's signature key
-        public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        public string SignPreviousHashForPublicKeyChain(string previousHashBase64)
         {
             // tempCode was OK, we continue
             var nonce = Convert.FromBase64String(previousHashBase64);
