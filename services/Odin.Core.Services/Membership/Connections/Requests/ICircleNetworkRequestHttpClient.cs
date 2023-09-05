@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit;
 using Refit;
 
 namespace Odin.Core.Services.Membership.Connections.Requests
@@ -11,12 +12,12 @@ namespace Odin.Core.Services.Membership.Connections.Requests
     /// </summary>
     public interface ICircleNetworkRequestHttpClient
     {
-        private const string RootPath = "/api/perimeter";
+        private const string RootPath = PeerApiPathConstants.InvitationsV1;
 
-        [Post(RootPath + "/invitations/connect")]
+        [Post(RootPath + "/connect")]
         Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] RsaEncryptedPayload request);
 
-        [Post(RootPath + "/invitations/establishconnection")]
+        [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, string authenticationToken64);
     }
 }

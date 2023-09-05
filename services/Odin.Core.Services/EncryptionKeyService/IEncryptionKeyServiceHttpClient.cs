@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Odin.Core.Services.Transit;
 using Refit;
 
 namespace Odin.Core.Services.EncryptionKeyService
@@ -8,7 +9,7 @@ namespace Odin.Core.Services.EncryptionKeyService
     /// </summary>
     public interface IEncryptionKeyServiceHttpClient
     {
-        private const string Root = "/api/perimeter/transit/encryption";
+        private const string Root = PeerApiPathConstants.EncryptionV1;
         
         [Get(Root + "/publickey")]
         Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(RsaKeyType keyType);

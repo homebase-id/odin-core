@@ -12,7 +12,7 @@ namespace Odin.Core.Services.Transit.SendingHost
     /// </summary>
     public interface ITransitHostReactionHttpClient
     {
-        private const string RootPath = "/api/perimeter/transit/host/reactions";
+        private const string RootPath = PeerApiPathConstants.ReactionsV1;
 
         [Post(RootPath + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);

@@ -5,7 +5,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 {
     public static class YouAuthAuthenticationExtensions
     {
-        public static AuthenticationBuilder AddClientTokenAuthentication(this AuthenticationBuilder builder)
+        public static AuthenticationBuilder AddYouAuthAuthentication(this AuthenticationBuilder builder)
         {
             if (builder == null)
             {

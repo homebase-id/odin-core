@@ -14,6 +14,7 @@ using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost;
 using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.App.Commands;
 using Odin.Hosting.Tests.AppAPI.CommandSender;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;

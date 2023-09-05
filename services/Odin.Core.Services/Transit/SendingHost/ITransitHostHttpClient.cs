@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Transit.SendingHost
     /// </summary>
     public interface ITransitHostHttpClient
     {
-        private const string RootPath = "/api/perimeter/transit/host";
+        private const string RootPath = PeerApiPathConstants.HostV1;
 
         [Multipart]
         [Post(RootPath + "/stream")]

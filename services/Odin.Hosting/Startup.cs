@@ -33,7 +33,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
-using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Extensions;
@@ -163,10 +163,10 @@ namespace Odin.Hosting
 
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
-                .AddClientTokenAuthentication()
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.FeedAuthScheme)
+                .AddYouAuthAuthentication()
+                .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
+                .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
+                .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
                 .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>
@@ -174,8 +174,8 @@ namespace Odin.Hosting
                 OwnerPolicies.AddPolicies(policy);
                 SystemPolicies.AddPolicies(policy);
                 YouAuthPolicies.AddPolicies(policy);
-                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
-                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
+                PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
+                PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
             services.AddSingleton<OdinConfiguration>(config);

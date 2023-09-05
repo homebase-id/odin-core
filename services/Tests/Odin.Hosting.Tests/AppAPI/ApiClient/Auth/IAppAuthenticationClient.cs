@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Auth

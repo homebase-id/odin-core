@@ -15,7 +15,9 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Transit;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Middleware
@@ -53,7 +55,7 @@ namespace Odin.Hosting.Middleware
                 // "/api/owner/v1/notify",
                 "/api/owner/v1/transit/outbox/processor",
                 "/api/apps/v1/transit/app/process", //TODO: why is this here??
-                "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
+                PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
                 "/api/apps/v1/drive/files/upload",
