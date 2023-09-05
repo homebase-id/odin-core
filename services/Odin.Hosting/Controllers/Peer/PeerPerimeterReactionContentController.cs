@@ -17,11 +17,11 @@ namespace Odin.Hosting.Controllers.Peer
     [ApiController]
     [Route(PeerApiPathConstants.ReactionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class TransitPerimeterReactionContentController : OdinControllerBase
+    public class PeerPerimeterReactionContentController : OdinControllerBase
     {
         private readonly TransitReactionPerimeterService _reactionPerimeterService;
 
-        public TransitPerimeterReactionContentController(TransitReactionPerimeterService reactionPerimeterService)
+        public PeerPerimeterReactionContentController(TransitReactionPerimeterService reactionPerimeterService)
         {
             _reactionPerimeterService = reactionPerimeterService;
         }
