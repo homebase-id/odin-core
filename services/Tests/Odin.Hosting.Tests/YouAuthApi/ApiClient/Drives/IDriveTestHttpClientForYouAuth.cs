@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
     /// </summary>
     public interface IDriveTestHttpClientForYouAuth
     {
-        private const string RootEndpoint = GuestApiPathConstants.DrivesV1;
+        private const string RootEndpoint = GuestApiPathConstants.DriveV1;
         
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file);

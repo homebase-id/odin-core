@@ -10,7 +10,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
-    [Route(OwnerApiPathConstants.DrivesV1)]
+    [Route(OwnerApiPathConstants.DriveV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerDriveMetadataController : ControllerBase
     {

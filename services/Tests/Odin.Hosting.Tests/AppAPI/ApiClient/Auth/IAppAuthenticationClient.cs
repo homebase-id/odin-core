@@ -8,8 +8,8 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Auth
 {
     public interface IAppAuthenticationClient
     {
-        private const string RootPath = "/api/apps/v1/auth";
-        
+        private const string RootPath = AppApiPathConstants.AuthV1;
+
         [Post(RootPath + "/logout")]
         public Task<HttpContent> Logout();
 

@@ -20,8 +20,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.DrivesV1)]
-    [Route(GuestApiPathConstants.DrivesV1)]
+    [Route(AppApiPathConstants.DriveV1)]
+    [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidExchangeGrant]
     public class DriveStorageController : DriveStorageControllerBase
     {

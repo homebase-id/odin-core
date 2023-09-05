@@ -47,7 +47,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
             var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext);
             {
                 const string corsHeaderName = "Access-Control-Allow-Origin";
-                var request = new HttpRequestMessage(HttpMethod.Get, "/api/apps/v1/auth/verifytoken");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{AppApiPathConstants.AuthV1}/verifytoken");
                 var response = await client.SendAsync(request);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
@@ -75,7 +75,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
             var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext);
             {
                 const string corsHeaderName = "Access-Control-Allow-Origin";
-                var request = new HttpRequestMessage(HttpMethod.Post, AppApiPathConstants.DrivesV1 + "/system/isconfigured");
+                var request = new HttpRequestMessage(HttpMethod.Post, AppApiPathConstants.DriveV1 + "/system/isconfigured");
                 var response = await client.SendAsync(request);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
