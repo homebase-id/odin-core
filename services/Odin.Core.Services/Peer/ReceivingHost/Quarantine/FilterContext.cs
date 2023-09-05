@@ -1,6 +1,6 @@
 using Odin.Core.Identity;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class FilterContext : IFilterContext
     {

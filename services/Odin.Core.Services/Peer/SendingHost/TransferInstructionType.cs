@@ -1,4 +1,4 @@
-namespace Odin.Core.Services.Transit.SendingHost;
+namespace Odin.Core.Services.Peer.SendingHost;
 
 /// <summary>
 /// Specifies the type of instruction incoming from another identity 

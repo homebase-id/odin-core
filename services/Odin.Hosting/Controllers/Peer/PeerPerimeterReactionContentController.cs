@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.ReceivingHost.Reactions;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.ReceivingHost.Reactions;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 

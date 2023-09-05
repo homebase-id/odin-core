@@ -1,6 +1,5 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Transit;
 using Refit;
 
 namespace Odin.Core.Services.Background.DefaultCron

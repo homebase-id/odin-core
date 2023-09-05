@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.ReceivingHost;
 using Refit;
 
 namespace Odin.Core.Services.DataSubscription.SendingHost

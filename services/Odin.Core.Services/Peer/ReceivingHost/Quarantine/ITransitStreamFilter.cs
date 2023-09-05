@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Defines a filter capable of accepting, quarantining, or rejecting in coming payloads

@@ -11,13 +11,13 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Refit;
 
-namespace Odin.Core.Services.Transit.SendingHost;
+namespace Odin.Core.Services.Peer.SendingHost;
 
 /// <summary>
 /// Executes query functionality on connected identity hosts

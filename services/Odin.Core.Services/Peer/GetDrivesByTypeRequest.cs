@@ -1,6 +1,6 @@
 using System;
 
-namespace Odin.Core.Services.Transit;
+namespace Odin.Core.Services.Peer;
 
 public class GetDrivesByTypeRequest
 {

@@ -11,7 +11,7 @@ using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.App.Commands;
 using Odin.Hosting.Tests.AppAPI.Transit;

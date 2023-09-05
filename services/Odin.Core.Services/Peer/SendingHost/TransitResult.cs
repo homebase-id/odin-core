@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     ///  Specifies how the transfer was handled for each recipient

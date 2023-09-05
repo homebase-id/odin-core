@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class HostToHostTransferException : Exception
     {

@@ -2,7 +2,7 @@ using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Apps

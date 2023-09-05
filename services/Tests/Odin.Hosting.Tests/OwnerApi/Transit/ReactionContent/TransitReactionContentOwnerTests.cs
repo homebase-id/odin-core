@@ -11,7 +11,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 

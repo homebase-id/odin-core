@@ -8,9 +8,9 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Drives.FileSystem.Standard;

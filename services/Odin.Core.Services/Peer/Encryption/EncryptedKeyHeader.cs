@@ -2,7 +2,7 @@ using System;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 
-namespace Odin.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Peer.Encryption
 {
     public class EncryptedKeyHeader
     {

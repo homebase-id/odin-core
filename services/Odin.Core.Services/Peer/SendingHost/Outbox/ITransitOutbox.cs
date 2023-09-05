@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Peer.SendingHost.Outbox
 {
     /// <summary>
     /// Items in the outbox for a given tenant

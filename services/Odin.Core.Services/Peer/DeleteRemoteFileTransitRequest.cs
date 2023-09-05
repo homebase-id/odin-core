@@ -1,7 +1,7 @@
 using Odin.Core.Services.Drives;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit;
+namespace Odin.Core.Services.Peer;
 
 public class DeleteRemoteFileTransitRequest
 {

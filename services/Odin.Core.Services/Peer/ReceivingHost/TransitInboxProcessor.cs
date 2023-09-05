@@ -7,10 +7,10 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Transit.ReceivingHost.Incoming;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.SendingHost;
 
-namespace Odin.Core.Services.Transit.ReceivingHost
+namespace Odin.Core.Services.Peer.ReceivingHost
 {
     public class TransitInboxProcessor : INotificationHandler<RsaKeyRotatedNotification>
     {

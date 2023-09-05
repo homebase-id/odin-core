@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Odin.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Peer.Encryption
 {
     public class EncryptionException : Exception
     {

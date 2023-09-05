@@ -1,7 +1,7 @@
 using System;
 using Odin.Core.Identity;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     /// A transfer item that needs to be encrypted. 

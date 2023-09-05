@@ -1,7 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Refit;
 
 namespace Odin.Core.Services.DataSubscription.Follower

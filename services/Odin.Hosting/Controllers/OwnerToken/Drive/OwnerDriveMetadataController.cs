@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive

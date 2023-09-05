@@ -7,7 +7,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Incoming
+namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
 {
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;

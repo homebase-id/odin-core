@@ -1,6 +1,6 @@
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.ReceivingHost;
+namespace Odin.Core.Services.Peer.ReceivingHost;
 
 public class InboxStatus
 {

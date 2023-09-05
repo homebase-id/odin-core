@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Peer.SendingHost.Outbox
 {
     public class TransitOutboxItem
     {

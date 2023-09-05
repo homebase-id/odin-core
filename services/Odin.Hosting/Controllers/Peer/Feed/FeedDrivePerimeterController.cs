@@ -5,8 +5,8 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.DataSubscription.SendingHost;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 

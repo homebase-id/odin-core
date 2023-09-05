@@ -7,10 +7,10 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Handles incoming payloads at the perimeter of the DI host.  

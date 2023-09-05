@@ -1,6 +1,6 @@
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Transit;
+namespace Odin.Core.Services.Peer;
 
 public class GetThumbnailRequest
 {

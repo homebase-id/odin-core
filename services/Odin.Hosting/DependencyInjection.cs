@@ -35,13 +35,13 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
+using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.ReceivingHost.Reactions;
+using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
-using Odin.Core.Services.Transit.ReceivingHost;
-using Odin.Core.Services.Transit.ReceivingHost.Incoming;
-using Odin.Core.Services.Transit.ReceivingHost.Reactions;
-using Odin.Core.Services.Transit.SendingHost;
-using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Home.Service;
 

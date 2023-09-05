@@ -5,7 +5,7 @@ using Odin.Core.Fluff;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Membership.Connections.Requests;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
 namespace Odin.Hosting.Controllers.Peer

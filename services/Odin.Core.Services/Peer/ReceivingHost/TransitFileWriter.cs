@@ -11,11 +11,11 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost.Incoming;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit.ReceivingHost
+namespace Odin.Core.Services.Peer.ReceivingHost
 {
     //TODO: this should be split into a file writer for comments and a file writer for standard files.
 

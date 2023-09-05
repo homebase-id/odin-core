@@ -5,7 +5,7 @@ using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
 namespace Odin.Hosting.Controllers.Peer

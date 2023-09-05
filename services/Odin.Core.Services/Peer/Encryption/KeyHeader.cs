@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using Odin.Core.Cryptography.Crypto;
 
-namespace Odin.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Peer.Encryption
 {
     public class KeyHeader
     {

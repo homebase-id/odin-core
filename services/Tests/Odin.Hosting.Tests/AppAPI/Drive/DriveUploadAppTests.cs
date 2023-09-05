@@ -10,7 +10,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;

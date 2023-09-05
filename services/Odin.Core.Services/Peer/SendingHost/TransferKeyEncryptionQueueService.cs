@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Base;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     public class TransferKeyEncryptionQueueService
     {

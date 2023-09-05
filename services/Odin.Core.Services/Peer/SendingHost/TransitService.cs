@@ -17,13 +17,13 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.SendingHost.Outbox;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Refit;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     public class TransitService : TransitServiceBase, ITransitService
     {

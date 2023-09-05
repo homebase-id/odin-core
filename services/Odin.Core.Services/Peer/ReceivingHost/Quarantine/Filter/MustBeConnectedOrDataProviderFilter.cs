@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine.Filter
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine.Filter
 {
     public class MustBeConnectedOrDataProviderFilter : ITransitStreamFilter
     {

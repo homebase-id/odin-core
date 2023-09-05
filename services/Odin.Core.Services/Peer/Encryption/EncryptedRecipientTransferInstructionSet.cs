@@ -1,7 +1,7 @@
 using Odin.Core.Services.Drives;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Peer.Encryption
 {
     /// <summary>
     /// The encrypted version of the KeyHeader for a given recipient

@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Refit;
 
 namespace Odin.Core.Services.Membership.Connections.Requests

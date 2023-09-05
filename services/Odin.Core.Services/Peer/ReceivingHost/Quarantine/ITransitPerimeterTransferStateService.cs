@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost.Incoming;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Manages the files and state information of an incoming transfer

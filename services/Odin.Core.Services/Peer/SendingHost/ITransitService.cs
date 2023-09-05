@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core.Services.Drives;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     public interface ITransitService
     {

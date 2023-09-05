@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     /// Specifies what to do with a file when it is uploaded

@@ -16,14 +16,14 @@ using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost.Incoming;
-using Odin.Core.Services.Transit.ReceivingHost.Quarantine.Filter;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.ReceivingHost.Quarantine.Filter;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class TransitPerimeterService : ITransitPerimeterService
     {

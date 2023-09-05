@@ -6,10 +6,10 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Odin.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Peer.SendingHost.Outbox
 {
     public class OutboxItemState
     {

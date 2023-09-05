@@ -11,7 +11,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     /// Base class for the transit subsystem providing various functions specific to Transit

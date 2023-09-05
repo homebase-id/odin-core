@@ -1,6 +1,6 @@
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 
-namespace Odin.Core.Services.Transit
+namespace Odin.Core.Services.Peer
 {
     public enum TransferStatus
     {

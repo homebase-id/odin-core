@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
 namespace Odin.Hosting.Controllers.Peer

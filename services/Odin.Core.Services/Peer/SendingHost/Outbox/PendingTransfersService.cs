@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 
-namespace Odin.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Peer.SendingHost.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {

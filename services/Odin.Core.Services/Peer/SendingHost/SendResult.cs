@@ -1,9 +1,9 @@
 ﻿using System;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit.SendingHost.Outbox;
+using Odin.Core.Services.Peer.SendingHost.Outbox;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     public enum Remote
     {

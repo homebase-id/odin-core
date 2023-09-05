@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     public class TransferAttempt
     {

@@ -6,9 +6,9 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Reactions;
+namespace Odin.Core.Services.Peer.ReceivingHost.Reactions;
 
 /// <summary>
 /// Handles incoming reactions and queries from followers

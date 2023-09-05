@@ -1,6 +1,6 @@
 using Odin.Core.Identity;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Holds contextual information needed by instances of <see cref="ITransitStreamFilter"/>

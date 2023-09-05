@@ -17,10 +17,10 @@ using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost;
-using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 

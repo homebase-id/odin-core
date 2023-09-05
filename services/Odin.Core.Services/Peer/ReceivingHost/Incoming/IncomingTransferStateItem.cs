@@ -1,9 +1,9 @@
 using Dawn;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Incoming
+namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
 {
     public class IncomingTransferStateItem
     {

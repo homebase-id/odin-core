@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Refit;
 
 namespace Odin.Core.Services.EncryptionKeyService

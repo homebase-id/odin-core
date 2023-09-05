@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Reactions;
+namespace Odin.Core.Services.Peer.ReceivingHost.Reactions;
 
 public class GetReactionsPerimeterResponse
 {

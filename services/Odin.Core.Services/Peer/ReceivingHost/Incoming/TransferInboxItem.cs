@@ -1,12 +1,11 @@
 ﻿using System;
 using Odin.Core.Identity;
-using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Incoming
+namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
 {
     public class TransferInboxItem
     {

@@ -4,11 +4,11 @@ using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit.ReceivingHost;
-using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Refit;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     /// The interface for querying from a host to another host

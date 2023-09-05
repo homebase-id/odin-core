@@ -2,7 +2,7 @@ using System;
 using MediatR;
 using Odin.Core.Services.AppNotifications;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Mediator;

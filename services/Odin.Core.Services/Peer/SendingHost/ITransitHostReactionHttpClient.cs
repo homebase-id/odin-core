@@ -2,10 +2,10 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Transit.ReceivingHost.Reactions;
+using Odin.Core.Services.Peer.ReceivingHost.Reactions;
 using Refit;
 
-namespace Odin.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Peer.SendingHost
 {
     /// <summary>
     /// The interface for querying from a host to another host

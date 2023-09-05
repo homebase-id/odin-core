@@ -15,7 +15,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;

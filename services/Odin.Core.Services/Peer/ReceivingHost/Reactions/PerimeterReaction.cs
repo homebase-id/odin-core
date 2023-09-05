@@ -1,7 +1,7 @@
 using Odin.Core.Services.Drives;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Transit.ReceivingHost.Reactions;
+namespace Odin.Core.Services.Peer.ReceivingHost.Reactions;
 
 public class PerimeterReaction
 {

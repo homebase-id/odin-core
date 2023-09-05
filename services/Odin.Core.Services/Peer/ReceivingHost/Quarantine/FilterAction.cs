@@ -1,4 +1,4 @@
-namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     /// <summary>
     /// The action recommended by the filter
