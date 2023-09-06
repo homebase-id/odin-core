@@ -317,10 +317,7 @@ namespace Odin.Hosting
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/"); }); });
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/chat"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080"); }); });
-
+                
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
                     homeApp =>
