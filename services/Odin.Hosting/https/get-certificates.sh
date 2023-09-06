@@ -6,7 +6,7 @@ rsync -v -r \
     --include 'fullchain.pem' \
     --include 'privkey.pem' \
     --exclude '*' \
-    root@d0d9ad6.online-server.cloud:/root/odin-certbot/out/etc/letsencrypt/live/* ./
+    dns.id.pub:/letsencrypt-certificates/* ./
     
 # rename files
 find . -type f -name "fullchain.pem" -exec sh -c 'mv "$0" "${0%/*}/certificate.crt"' {} \;
