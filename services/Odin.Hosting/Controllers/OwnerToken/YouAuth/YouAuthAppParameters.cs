@@ -32,6 +32,14 @@ public class YouAuthAppParameters
     [Required(ErrorMessage = $"{DrivesParamName} is required")]
     public string DrivesParam { get; set; } = "";
     
+    public const string CircleDrivesParamName = "cd";
+    [JsonPropertyName(CircleDrivesParamName)]
+    public string CircleDrivesParam { get; set; } = "";
+        
+    public const string PermissionParamName = "p";
+    [JsonPropertyName(PermissionParamName)]
+    public string PermissionParam { get; set; } = "";
+    
     public const string ReturnName = "return";
     [JsonPropertyName(ReturnName)]
     public string Return { get; set; } = "";
@@ -51,6 +59,8 @@ public class YouAuthAppParameters
         string appId,
         string clientFriendly,
         string drivesParam,
+        string circleDrivesParam,
+        string permissionParam,
         string @return)
     {
         AppId = appId;
@@ -58,6 +68,8 @@ public class YouAuthAppParameters
         AppOrigin = appOrigin;
         ClientFriendly = clientFriendly;
         DrivesParam = drivesParam;
+        CircleDrivesParam = circleDrivesParam;
+        PermissionParam = permissionParam;
         Return = @return;
     }
 
@@ -71,6 +83,8 @@ public class YouAuthAppParameters
         qs[AppOriginName] = AppOrigin;
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
+        qs[CircleDrivesParamName] = CircleDrivesParam;
+        qs[PermissionParamName] = PermissionParam;
         qs[ReturnName] = Return;
 
         return qs.ToString() ?? string.Empty;
@@ -88,6 +102,8 @@ public class YouAuthAppParameters
             appOrigin: qs[AppOriginName] ?? string.Empty,
             clientFriendly: qs[ClientFriendlyName] ?? string.Empty,
             drivesParam: qs[DrivesParamName] ?? string.Empty,
+            circleDrivesParam: qs[CircleDrivesParamName] ?? string.Empty,
+            permissionParam: qs[PermissionParamName] ?? string.Empty,
             @return: qs[ReturnName] ?? string.Empty);
     }
 
