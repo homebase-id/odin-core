@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {

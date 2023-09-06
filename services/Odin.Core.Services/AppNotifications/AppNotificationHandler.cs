@@ -11,7 +11,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer.ReceivingHost;
 
 namespace Odin.Core.Services.AppNotifications
 {

@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey
@@ -10,7 +11,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey
     /// </summary>
     public interface IPublicPrivateKeyHttpClientForOwner
     {
-        private const string RootEndpoint = YouAuthApiPathConstants.PublicKeysV1;
+        private const string RootEndpoint = GuestApiPathConstants.PublicKeysV1;
 
         [Get(RootEndpoint + "/signing")]
         Task<ApiResponse<GetPublicKeyResponse>> GetSigningPublicKey();

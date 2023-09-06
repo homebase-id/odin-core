@@ -1,11 +1,12 @@
 using System.Threading.Tasks;
+using Odin.Core.Services.Authentication.Owner;
 using Refit;
 
 namespace Odin.Core.Services.Background.FeedDistributionApp
 {
     public interface IFeedDistributionCronClient
     {
-        [Post("/api/owner/v1/followers/system/distribute/files")]
+        [Post($"{OwnerApiPathConstants.FollowersV1}/system/distribute/files")]
         Task<ApiResponse<bool>> DistributeFiles();
     }
 }
