@@ -3,7 +3,7 @@ name: Bleeding Edge Docker
 on:
   workflow_dispatch:
   push:
-    branches: [main, ansible]
+    branches: [main]
 
 permissions:
   contents: read
