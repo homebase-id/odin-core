@@ -44,7 +44,7 @@ namespace Odin.Core.Services.Configuration
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
 
-            if (config.GetSection("Development") != null)
+            if (config.SectionExists("Development"))
             {
                 Development = new DevelopmentSection(config);
             }
