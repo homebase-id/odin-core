@@ -10,9 +10,7 @@ namespace Odin.Core.Services.Authorization.Acl
         Task<bool> CallerHasPermission(AccessControlList acl);
 
         Task<bool> CallerIsConnected();
-
-        Task<bool> CallerIsInOdinNetwork();
-
+        
         Task<bool> CallerIsInList(List<string> odinIdList);
 
     }

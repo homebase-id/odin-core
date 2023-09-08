@@ -166,7 +166,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (groupId != null)
                     stm += ", groupid = $groupid ";
 
-                if (uniqueId != null)
+                // Note: Todd removed this null check since we must be able to set the uniqueId to null when a file is deleted
+                // if (uniqueId != null)
                     stm += ", uniqueid = $uniqueid ";
 
                 if (globalTransitId != null)

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dawn;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {

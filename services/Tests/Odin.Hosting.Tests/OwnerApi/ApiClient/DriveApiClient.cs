@@ -14,8 +14,8 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
@@ -85,6 +85,21 @@ public class DriveApiClient
         }, new QueryBatchResultOptionsRequest()
         {
             MaxRecords = 10,
+            IncludeMetadataHeader = true
+        });
+
+        return batch.SearchResults.SingleOrDefault();
+    }
+
+    public async Task<SharedSecretEncryptedFileHeader> QueryByUniqueId(FileSystemType fileSystemType, TargetDrive targetDrive, Guid uniqueId)
+    {
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
+        {
+            TargetDrive = targetDrive,
+            ClientUniqueIdAtLeastOne = new List<Guid>() { uniqueId }
+        }, new QueryBatchResultOptionsRequest()
+        {
+            MaxRecords = 1,
             IncludeMetadataHeader = true
         });
 

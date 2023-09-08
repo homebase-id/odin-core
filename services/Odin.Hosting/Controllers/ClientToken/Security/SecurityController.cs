@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Base;
 using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.Controllers.ClientToken.Shared;
 
 namespace Odin.Hosting.Controllers.ClientToken.Security;
 
@@ -9,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Security;
 /// </summary>
 [ApiController]
 [Route(AppApiPathConstants.SecurityV1)]
-[Route(YouAuthApiPathConstants.SecurityV1)]
+[Route(GuestApiPathConstants.SecurityV1)]
 [AuthorizeValidExchangeGrant]
 public class SecurityController : Controller
 {

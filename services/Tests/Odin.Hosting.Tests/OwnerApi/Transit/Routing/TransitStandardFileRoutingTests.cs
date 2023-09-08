@@ -12,8 +12,8 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -310,7 +310,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 Permission = drivePermissions
             };
 
-            var recipientCircle = await recipientOwnerClient.Network.CreateCircle("Circle with drive access", new PermissionSetGrantRequest()
+            var recipientCircle = await recipientOwnerClient.Membership.CreateCircle("Circle with drive access", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {

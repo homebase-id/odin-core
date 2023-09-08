@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -13,7 +14,7 @@ namespace Odin.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, OdinAppContext appContext = null,
+        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, OdinYouAuthClientContext youAuthClientContext = null,
             List<GuidId> circleIds = null,
             ClientTokenType tokenType = ClientTokenType.Other)
         {
@@ -22,7 +23,7 @@ namespace Odin.Core.Services.Base
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
             this.ClientTokenType = tokenType;
-            this.AppContext = appContext;
+            this.YouAuthClientContext = youAuthClientContext;
         }
 
         /// <summary>
@@ -39,7 +40,7 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public OdinId? OdinId { get; }
 
-        public OdinAppContext AppContext { get; init; }
+        public OdinYouAuthClientContext YouAuthClientContext { get; init; }
 
         public bool HasMasterKey
         {
@@ -51,7 +52,7 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
-        public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
+        // public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;

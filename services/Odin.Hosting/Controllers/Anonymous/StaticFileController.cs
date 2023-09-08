@@ -6,21 +6,20 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Tenant;
+using Odin.Hosting.Controllers.Home;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     public class StaticFileController : Controller
     {
-        private readonly IYouAuthService _youAuthService;
         private readonly string _currentTenant;
         private readonly StaticFileContentService _staticFileContentService;
 
 
-        public StaticFileController(ITenantProvider tenantProvider, IYouAuthService youAuthService, StaticFileContentService staticFileContentService)
+        public StaticFileController(ITenantProvider tenantProvider, StaticFileContentService staticFileContentService)
         {
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
-            _youAuthService = youAuthService;
             _staticFileContentService = staticFileContentService;
         }
 

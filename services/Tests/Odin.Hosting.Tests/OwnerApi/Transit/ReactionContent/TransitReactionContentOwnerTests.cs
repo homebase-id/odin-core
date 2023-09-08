@@ -11,7 +11,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -52,7 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-            var targetCircle = await pippinOwnerClient.Network.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
+            var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -119,7 +119,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-            var targetCircle = await pippinOwnerClient.Network.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
+            var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {

@@ -1,18 +1,17 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Controllers.Anonymous;
-using Odin.Hosting.Controllers.Anonymous.RsaKeys;
-using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey
 {
     /// <summary>
     /// The interface for storing files
     /// </summary>
     public interface IPublicPrivateKeyHttpClientForOwner
     {
-        private const string RootEndpoint = YouAuthApiPathConstants.PublicKeysV1;
+        private const string RootEndpoint = GuestApiPathConstants.PublicKeysV1;
 
         [Get(RootEndpoint + "/signing")]
         Task<ApiResponse<GetPublicKeyResponse>> GetSigningPublicKey();
@@ -22,7 +21,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa
         
         [Get(RootEndpoint + "/online_ecc")]
         Task<ApiResponse<GetPublicKeyResponse>> GetEccOnlinePublicKey();
-
+                
+        [Get(RootEndpoint + "/offline_ecc")]
+        Task<ApiResponse<string>> GetEccOfflinePublicKey();
+        
         [Get(RootEndpoint + "/offline")]
         Task<ApiResponse<GetPublicKeyResponse>> GetOfflinePublicKey();
 

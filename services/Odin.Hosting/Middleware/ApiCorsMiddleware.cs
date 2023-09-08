@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Registry.Registration;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Middleware
 {
@@ -35,14 +35,14 @@ namespace Odin.Hosting.Middleware
 
             List<string> allowHeaders = new List<string>();
 
-            if (odinContext.AuthContext == ClientTokenConstants.AppSchemeName)
+            if (odinContext.AuthContext == YouAuthConstants.AppSchemeName)
             {
-                string appHostName = odinContext.Caller.AppContext.CorsAppName;
+                string appHostName = odinContext.Caller.YouAuthClientContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;
                     context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
-                    allowHeaders.Add(ClientTokenConstants.ClientAuthTokenCookieName);
+                    allowHeaders.Add(YouAuthConstants.AppCookieName);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }
             }

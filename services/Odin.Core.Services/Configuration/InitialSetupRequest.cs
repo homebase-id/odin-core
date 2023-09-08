@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Membership.Circles;
 
 namespace Odin.Core.Services.Configuration;
 

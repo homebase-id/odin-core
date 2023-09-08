@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 
 namespace Odin.Core.Services.Apps.CommandMessaging;
 

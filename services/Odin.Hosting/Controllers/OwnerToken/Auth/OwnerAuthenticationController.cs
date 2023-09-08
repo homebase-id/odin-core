@@ -8,8 +8,8 @@ using Odin.Core.Fluff;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
+using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {

@@ -12,9 +12,14 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Middleware
@@ -45,39 +50,43 @@ namespace Odin.Hosting.Middleware
             _next = next;
             _logger = logger;
 
+            
             _ignoredPathsForRequests = new List<string>
             {
-                "/api/owner/v1/youauth",
-                "/api/owner/v1/authentication",
-                // "/api/owner/v1/notify",
-                "/api/owner/v1/transit/outbox/processor",
-                "/api/apps/v1/transit/app/process", //TODO: why is this here??
-                "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
-                "/api/owner/v1/drive/files/upload",
+                PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
+                $"{HomeApiPathConstants.AuthV1}/is-authenticated",
+
+                OwnerApiPathConstants.YouAuthV1,
+                OwnerApiPathConstants.AuthV1,
+                $"{OwnerApiPathConstants.TransitV1}/outbox/processor",
+                $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
-                "/api/apps/v1/drive/files/upload",
-                "/api/apps/v1/drive/files/attachments/upload",
-                "/api/youauth/v1/drive/files/upload",
-                "/api/youauth/v1/drive/files/attachments/upload",
-                "/api/youauth/v1/auth/is-authenticated",
+                
+                $"{GuestApiPathConstants.DriveV1}/files/upload",
+                $"{GuestApiPathConstants.DriveV1}/files/attachments/upload",
+            
+                $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstants.DriveV1}/files/upload",
+                $"{AppApiPathConstants.DriveV1}/files/attachments/upload",
                 $"{AppApiPathConstants.AuthV1}/logout", 
                 $"{AppApiPathConstants.NotificationsV1}/preauth"
-                //"/api/owner/v1/config/ownerapp/settings/list"
             };
 
             //Paths that should not have their responses encrypted with shared secret
             _ignoredPathsForResponses = new List<string>
             {
-                "/api/owner/v1/drive/files/payload",
-                "/api/owner/v1/transit/query/payload",
-                "/api/apps/v1/drive/files/payload",
-                "/api/youauth/v1/drive/files/payload",
-                "/api/owner/v1/drive/files/thumb",
-                "/api/owner/v1/transit/query/thumb",
-                "/api/apps/v1/drive/files/thumb",
-                "/api/youauth/v1/drive/files/thumb",
+                $"{OwnerApiPathConstants.DriveV1}/files/payload",
+                $"{OwnerApiPathConstants.DriveV1}/files/thumb",
+
+                $"{OwnerApiPathConstants.TransitV1}/query/payload",
+                $"{OwnerApiPathConstants.TransitV1}/query/thumb",
+
+                $"{AppApiPathConstants.DriveV1}/files/payload",
+                $"{AppApiPathConstants.DriveV1}/files/thumb",
+                
+                $"{GuestApiPathConstants.DriveV1}/files/thumb",
+                $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
-                //"/api/owner/v1/notify/ws" //TODO: should
             };
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
@@ -200,7 +209,6 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
-            // if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST" || !CallerMustHaveSharedSecret(context))
             if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
             {
                 return false;

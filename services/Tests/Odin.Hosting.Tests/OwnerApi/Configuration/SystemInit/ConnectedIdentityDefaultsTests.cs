@@ -3,8 +3,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle;
-using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -58,7 +59,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;
@@ -75,7 +76,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;

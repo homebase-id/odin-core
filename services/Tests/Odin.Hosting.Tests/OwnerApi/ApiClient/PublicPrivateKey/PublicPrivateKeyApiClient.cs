@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Hosting.Controllers.Anonymous.RsaKeys;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -49,7 +49,15 @@ public class PublicPrivateKeyApiClient
         }
     }
     
-    
+    public async Task<string> GetEccOfflinePublicKey()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
+            var resp = await svc.GetEccOfflinePublicKey();
+            return resp.Content;
+        }
+    }
     
     public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
     {
