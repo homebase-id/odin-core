@@ -14,6 +14,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
@@ -752,7 +753,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // Access resource using cat and shared secret
             {
                 var catBase64 = Convert.ToBase64String(clientAuthToken);
-                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", sharedSecret);
                 var request = new HttpRequestMessage(HttpMethod.Get, uri)
                 {
                     Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }
@@ -940,7 +941,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // Access resource using cat and shared secret
             {
                 var catBase64 = Convert.ToBase64String(clientAuthToken);
-                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", sharedSecret);
                 var request = new HttpRequestMessage(HttpMethod.Get, uri)
                 {
                     Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }

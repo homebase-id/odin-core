@@ -10,8 +10,8 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
@@ -79,7 +79,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
             FileChunk chunk = null;
             if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
@@ -99,15 +99,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                         Length = end - start + 1
                     };
                 }
-            }
-            else if (chunkStart.HasValue)
-            {
-
-                chunk = new FileChunk()
-                {
-                    Start = chunkStart.GetValueOrDefault(),
-                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
-                };
             }
 
             return await base.GetPayloadStream(

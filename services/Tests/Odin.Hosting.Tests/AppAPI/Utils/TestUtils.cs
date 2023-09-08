@@ -2,7 +2,7 @@
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests.AppAPI.Utils
 {

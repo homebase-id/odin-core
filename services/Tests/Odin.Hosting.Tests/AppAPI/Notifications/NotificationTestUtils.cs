@@ -2,7 +2,7 @@
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests.AppAPI.Notifications;
 

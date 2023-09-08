@@ -14,19 +14,19 @@
         public const string YouAuthV1Authorize = YouAuthV1 + "/authorize";
         public const string YouAuthV1Token = YouAuthV1 + "/token";
 
-        public const string DrivesV1 = BasePathV1 + "/drive";
+        public const string DriveV1 = BasePathV1 + "/drive";
         
-        public const string DriveReactionContentV1 = DrivesV1 + "/files/reactions";
+        public const string DriveReactionContentV1 = DriveV1 + "/files/reactions";
 
-        public const string DriveManagementV1 = DrivesV1 + "/mgmt";
+        public const string DriveManagementV1 = DriveV1 + "/mgmt";
 
-        public const string DriveQueryV1 = DrivesV1 + "/query";
+        public const string DriveQueryV1 = DriveV1 + "/query";
 
         public const string OptimizationV1 = BasePathV1 + "/optimization";
 
         public const string CdnV1 = OptimizationV1 + "/cdn";
 
-        public const string DriveStorageV1 = DrivesV1 + "/files";
+        public const string DriveStorageV1 = DriveV1 + "/files";
 
         public const string TransitV1 = BasePathV1 + "/transit";
         

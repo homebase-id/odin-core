@@ -5,10 +5,11 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive
@@ -18,7 +19,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
     /// </summary>
     public interface IDriveTestHttpClientForApps
     {
-        private const string RootEndpoint = AppApiPathConstants.DrivesV1;
+        private const string RootEndpoint = AppApiPathConstants.DriveV1;
         private const string ReactionRootEndpoint = AppApiPathConstants.DriveReactionsV1;
 
         [Multipart]

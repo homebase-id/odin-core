@@ -1,4 +1,4 @@
-﻿using Odin.Core.Services.Transit.Encryption;
+﻿using Odin.Core.Services.Peer.Encryption;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {

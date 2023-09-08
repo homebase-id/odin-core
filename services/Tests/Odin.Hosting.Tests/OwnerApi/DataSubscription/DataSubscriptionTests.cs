@@ -14,7 +14,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;

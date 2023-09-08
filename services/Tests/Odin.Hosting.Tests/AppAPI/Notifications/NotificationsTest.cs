@@ -13,6 +13,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 
 namespace Odin.Hosting.Tests.AppAPI.Notifications;
 

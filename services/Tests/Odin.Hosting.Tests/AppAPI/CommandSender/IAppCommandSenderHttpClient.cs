@@ -2,6 +2,7 @@
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.App.Commands;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.CommandSender

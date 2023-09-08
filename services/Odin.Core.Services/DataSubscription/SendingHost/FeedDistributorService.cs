@@ -2,8 +2,8 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Storage;
 using Refit;
 

@@ -2,9 +2,10 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
 
 namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
@@ -14,7 +15,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
     /// </summary>
     public interface IDriveTestHttpClientForYouAuth
     {
-        private const string RootEndpoint = YouAuthApiPathConstants.DrivesV1;
+        private const string RootEndpoint = GuestApiPathConstants.DriveV1;
         
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file);

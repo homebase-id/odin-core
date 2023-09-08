@@ -10,8 +10,8 @@ using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.Base

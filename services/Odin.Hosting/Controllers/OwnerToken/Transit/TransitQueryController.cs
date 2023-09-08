@@ -8,9 +8,9 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.Base;
-using Odin.Hosting.Controllers.ClientToken.Drive;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit

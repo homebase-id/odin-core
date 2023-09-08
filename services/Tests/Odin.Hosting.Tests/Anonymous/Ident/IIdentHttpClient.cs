@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
 
 namespace Odin.Hosting.Tests.Anonymous.Ident
@@ -10,7 +11,7 @@ namespace Odin.Hosting.Tests.Anonymous.Ident
     /// </summary>
     public interface IIdentHttpClient
     {
-        [Get(YouAuthApiPathConstants.AuthV1 + "/ident")]
+        [Get(GuestApiPathConstants.AuthV1 + "/ident")]
         Task<ApiResponse<GetIdentResponse>> GetIdent();
     }
 }

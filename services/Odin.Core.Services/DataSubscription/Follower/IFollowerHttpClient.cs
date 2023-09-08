@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Peer;
 using Refit;
 
 namespace Odin.Core.Services.DataSubscription.Follower
@@ -10,7 +11,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
     /// </summary>
     public interface IFollowerHttpClient
     {
-        private const string RootPath = "/api/perimeter/followers";
+        private const string RootPath = PeerApiPathConstants.FollowersV1;
 
         [Post(RootPath + "/follow")]
         Task<ApiResponse<HttpContent>> Follow([Body] RsaEncryptedPayload request);
