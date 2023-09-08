@@ -102,6 +102,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge
 
+      - name: Display tags and labels
+        run: |
+          echo "Generated tags: ${{ steps.meta.outputs.tags }}"
+          echo "Generated labels: ${{ steps.meta.outputs.labels }}"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -110,6 +115,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Dump everything
+        run: |
+          echo "ENV: ${{ env }}"
 
       # - name: Deploy to bleeding edge host using Ansible
       #   uses: appleboy/ssh-action@master
