@@ -120,7 +120,9 @@ jobs:
         run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
 
       - name: Create image deploy name
-        run: echo "DEPLOY_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        run: |
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
 
       - name: Dump everything
         run: |
