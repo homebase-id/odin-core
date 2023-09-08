@@ -102,11 +102,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Display tags and labels
-        run: |
-          echo "Generated tags: ${{ steps.meta.outputs.tags }}"
-          echo "Generated labels: ${{ steps.meta.outputs.labels }}"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
