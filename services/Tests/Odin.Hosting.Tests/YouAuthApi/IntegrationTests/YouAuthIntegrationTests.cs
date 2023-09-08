@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -529,6 +530,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Console.WriteLine("qs = " + string.Join("; ",
+                    qs.AllKeys.Select(key => $"{key}={string.Join(",", qs.GetValues(key) ?? Array.Empty<string>())}")));
+
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
@@ -694,6 +698,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Console.WriteLine("qs = " + string.Join("; ",
+                    qs.AllKeys.Select(key => $"{key}={string.Join(",", qs.GetValues(key) ?? Array.Empty<string>())}")));
+
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
@@ -882,6 +889,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Console.WriteLine("qs = " + string.Join("; ",
+                    qs.AllKeys.Select(key => $"{key}={string.Join(",", qs.GetValues(key) ?? Array.Empty<string>())}")));
+
                 var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
