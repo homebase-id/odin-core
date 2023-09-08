@@ -124,9 +124,9 @@ jobs:
           lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
           echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
 
-      - name: Dump everything
+      - name: Output DEPLOY_IMAGE
         run: |
-          echo "ENV: ${{ env }}"
+          echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
       # - name: Deploy to bleeding edge host using Ansible
       #   uses: appleboy/ssh-action@master
