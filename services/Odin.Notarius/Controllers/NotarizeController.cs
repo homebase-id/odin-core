@@ -15,8 +15,9 @@ using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using Odin.Core.Identity;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 
-namespace Odin.Keychain
+namespace Odin.Notarius
 {
     [ApiController]
     [Route("[controller]")]
@@ -52,9 +53,10 @@ namespace Odin.Keychain
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
-        public async Task<ActionResult> GetSimulator()
+        public async Task<ActionResult> GetSimulator(string hobbitDomain)
         {
-            return await SimulateFrodo.InitiateRequestNotary(this);
+            var hobbit = HobbitSimulator.GetSimulatedHobbit(new AsciiDomainName(hobbitDomain));
+            return await hobbit.InitiateRequestNotary(this);
         }
 
         [HttpGet("SimulatorVerifyBlockChain")]
@@ -91,7 +93,20 @@ namespace Odin.Keychain
         [HttpGet("GetVerifyNotarizedDocument")]
         public ActionResult GetVerifyNotarizedDocument(string notariusPublicusSignatureBase64)
         {
-            var record = _db.tblNotaryChain.Get(Convert.FromBase64String(notariusPublicusSignatureBase64));
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(notariusPublicusSignatureBase64);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            if ((bytes.Length < 10) || (bytes.Length > 128))
+                return BadRequest("Too large or too small");
+
+            var record = _db.tblNotaryChain.Get(bytes);
 
             if (record == null)
                 return NotFound();
@@ -162,7 +177,7 @@ namespace Odin.Keychain
         /// </summary>
         /// <param name="signedRegistrationInstructionEnvelopeJson"></param>
         /// <returns></returns>
-        [HttpPost("PublicKeyRegistrationBegin")]
+        [HttpPost("NotaryRegistrationBegin")]
         public async Task<ActionResult> PostNotaryRegistrationBegin([FromBody] NotarizeBeginModel model)
         {
             SignedEnvelope? signedEnvelope;
@@ -179,6 +194,8 @@ namespace Odin.Keychain
             {
                 return BadRequest($"Invalid requestor identity {ex.Message}");
             }
+
+            var hobbit = HobbitSimulator.GetSimulatedHobbit(requestor);
 
             // 010. Deserialize the JSON
             //
@@ -221,7 +238,7 @@ namespace Odin.Keychain
 
                 if (_simulate)
                 {
-                    publicKeyJwkBase64Url = SimulateFrodo.GetPublicKey();
+                    publicKeyJwkBase64Url = hobbit.GetPublicKey();
                 }
                 else
                 {
@@ -317,7 +334,7 @@ namespace Odin.Keychain
         /// <param name="identity"></param>
         /// <param name="signedInstructionEnvelopeJson"></param>
         /// <returns></returns>
-        [HttpPost("PublicKeyRegistrationComplete")]
+        [HttpPost("NotaryRegistrationComplete")]
         public async Task<ActionResult> PostNotaryRegistrationComplete([FromBody] NotarizeCompleteModel model)
         {
             if ((model.EnvelopeIdBase64 == null) || (model.SignedPreviousHashBase64 == null))
