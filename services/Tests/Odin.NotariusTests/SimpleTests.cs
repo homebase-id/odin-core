@@ -15,7 +15,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test1()
         {
-            var db = new NotaryDatabase("");
+            using var db = new NotaryDatabase("");
             db.CreateDatabase();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
