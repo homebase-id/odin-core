@@ -210,6 +210,12 @@ namespace Odin.Hosting.Controllers.Registration
                 throw new BadRequestException(message: "Invalid email address");
             }
             
+            if (!await _regService.IsValidInvitationCode(identity.InvitationCode))
+            {
+                throw new BadRequestException(message: "Invalid or expired Invitation Code");
+
+            }
+
             //
             // Check that our new domain has propagated to other dns resolvers
             //
