@@ -18,10 +18,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
-		<ProjectReference Include="..\Odin.KeyChain\Odin.KeyChain.csproj" />
+		<ProjectReference Include="..\..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
+		<ProjectReference Include="..\..\Odin.KeyChain\Odin.KeyChain.csproj" />
 	</ItemGroup>
-
-
-
 </Project>

@@ -15,7 +15,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test1()
         {
-            var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("");
             db.CreateDatabase();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -40,7 +40,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test2()
         {
-            var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("");
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, 1);
@@ -75,7 +75,7 @@ namespace Odin.KeyChainTests
         [Test]
         public void Test3()
         {
-            var db = new KeyChainDatabase("");
+            using var db = new KeyChainDatabase("");
             db.CreateDatabase();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
