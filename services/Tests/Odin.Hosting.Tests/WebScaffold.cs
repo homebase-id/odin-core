@@ -84,7 +84,6 @@ namespace Odin.Hosting.Tests
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
