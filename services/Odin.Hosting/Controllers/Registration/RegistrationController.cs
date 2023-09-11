@@ -61,9 +61,9 @@ namespace Odin.Hosting.Controllers.Registration
         /// </summary>
         /// <returns></returns>
         [HttpGet("has-valid-certificate/{domain}")]
-        public async Task<IActionResult> HasValidCertifacte(string domain)
+        public async Task<IActionResult> HasValidCertificate(string domain)
         {
-            var result = await _regService.HasValidCertifacte(domain);
+            var result = await _regService.HasValidCertificate(domain);
             return new JsonResult(result);
         }
         
@@ -210,6 +210,12 @@ namespace Odin.Hosting.Controllers.Registration
                 throw new BadRequestException(message: "Invalid email address");
             }
             
+            if (!await _regService.IsValidInvitationCode(identity.InvitationCode))
+            {
+                throw new BadRequestException(message: "Invalid or expired Invitation Code");
+
+            }
+
             //
             // Check that our new domain has propagated to other dns resolvers
             //
@@ -222,10 +228,26 @@ namespace Odin.Hosting.Controllers.Registration
                 );
             }
             
-            var firstRunToken = await _regService.CreateIdentityOnDomain(domain, identity.Email);
+            var firstRunToken = await _regService.CreateIdentityOnDomain(domain, identity.Email, identity.PlanId);
             return new JsonResult(firstRunToken); 
         }
         
+        /// <summary>
+        /// Determines if the invitation code is valid
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("is-valid-invitation-code/{code}")]
+        public async Task<IActionResult> IsValidInvitationCode(string code)
+        {
+            var valid = await _regService.IsValidInvitationCode(code);
+            if (valid)
+            {
+                return Ok();
+            }
+
+            return NotFound();
+        }
+
         //
         
     }

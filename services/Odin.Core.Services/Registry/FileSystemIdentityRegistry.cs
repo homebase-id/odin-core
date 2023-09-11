@@ -32,14 +32,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tenantDataRootPath;
     private readonly string _tenantDataPayloadPath;
-   
+
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         bool useCertificateAuthorityProductionServers,
-        string tenantDataRootPath, 
+        string tenantDataRootPath,
         string tenantDataPayloadPath)
     {
         if (!Directory.Exists(tenantDataRootPath))
@@ -69,9 +69,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public Guid? ResolveId(string domain)
     {
         var reg = _trie.LookupExactName(domain);
-        return reg?.Id; 
+        return reg?.Id;
     }
-    
+
     public IdentityRegistration ResolveIdentityRegistration(string domain, out string prefix)
     {
         if (string.IsNullOrEmpty(domain))
@@ -79,7 +79,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             prefix = "";
             return null;
         }
-            
+
         var (reg, pre) = _trie.LookupName(domain);
 
         prefix = pre;
@@ -87,15 +87,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             return null;
         }
-        
+
         if (string.IsNullOrEmpty(prefix) || DnsConfigurationSet.WellknownPrefixes.Contains(prefix))
         {
             return reg;
         }
-        
-        return null; 
+
+        return null;
     }
-    
+
     public Task<bool> IsIdentityRegistered(string domain)
     {
         return Task.FromResult(_trie.LookupExactName(domain) != null);
@@ -107,6 +107,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             Id = Guid.NewGuid(),
             Email = request.Email,
+            PlanId = request.PlanId,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             FirstRunToken = Guid.NewGuid()
@@ -123,7 +124,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _tenantDataPayloadPath);
-            
+
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
             await tc.SaveSslCertificate(
                 request.OdinId.DomainName,
@@ -168,7 +169,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         //the other option here is to load the certs via the registry, which i dont like
         var svc = _systemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)registration.PrimaryDomainName);
         try
-        { 
+        {
             var certsValidResponse = await svc.VerifyCertificatesValid();
             if (certsValidResponse.IsSuccessStatusCode)
             {
@@ -270,7 +271,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private void Cache(IdentityRegistration registration)
     {
         RegisterDotYouHttpClient(registration);
-        
+
         if (null != _trie.LookupExactName(registration.PrimaryDomainName))
         {
             _trie.RemoveDomain(registration.PrimaryDomainName);
@@ -282,8 +283,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             _cache.Remove(registration.Id);
         }
-        
-        _cache.Add(registration.Id, registration);        
+
+        _cache.Add(registration.Id, registration);
     }
 
     private IdentityRegistration GetByFirstRunToken(Guid firstRunToken)
@@ -321,7 +322,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-                var handler = new HttpClientHandler 
+                var handler = new HttpClientHandler
                 {
                     AllowAutoRedirect = false,
                     UseCookies = false, // DO NOT CHANGE!
@@ -334,22 +335,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 return handler;
-            }));        
+            }));
     }
 
     private void RegisterDotYouHttpClient(IdentityRegistration idReg)
     {
         var tenantContext = TenantContext.Create(
-            idReg.Id, 
-            idReg.PrimaryDomainName, 
-            _tenantDataRootPath, 
-            _tenantDataPayloadPath, 
+            idReg.Id,
+            idReg.PrimaryDomainName,
+            _tenantDataRootPath,
+            _tenantDataPayloadPath,
             false);
 
         var domain = idReg.PrimaryDomainName;
         var sslRoot = tenantContext.SslRoot;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
-        
+
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
         // baked-in one. We have to be able to create HttpClientHandlers on the fly, this is not possible with
@@ -362,7 +363,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 AllowAutoRedirect = false,
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
-                
+
             var tc = _certificateServiceFactory.Create(sslRoot);
             var x509 = tc.GetSslCertificate(domain);
             if (x509 != null)
@@ -371,7 +372,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
             else
             {
-                _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);    
+                _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);
             }
 
             return handler;
