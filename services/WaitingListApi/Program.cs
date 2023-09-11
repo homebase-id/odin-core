@@ -60,7 +60,7 @@ namespace WaitingListApi
             var configFolder = string.IsNullOrEmpty(cfgPathOverride) ? Environment.CurrentDirectory : cfgPathOverride;
             Log.Information($"Looking for configuration in folder: {configFolder}");
 
-            const string envVar = "DOTYOU_ENVIRONMENT";
+            const string envVar = "ASPNETCORE_ENVIRONMENT";
             var env = Environment.GetEnvironmentVariable(envVar) ?? "";
 
             if (string.IsNullOrEmpty(env))

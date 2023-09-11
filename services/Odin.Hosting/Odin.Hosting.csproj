@@ -74,6 +74,9 @@
         <None Update="appsettings.production.json">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
+        <None Update="appsettings.ansible-templating.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
 
 
 
