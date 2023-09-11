@@ -11,6 +11,12 @@ namespace Odin.Core.Services.Registry
     {
         public OdinId OdinId { get; set; }
         public string Email { get; set; }
+        
+        /// <summary>
+        /// The hosting PlanId as defined by the hosting company.  This is a string of text that
+        /// gets stored with the identity   
+        /// </summary>
+        public string PlanId { get; set; }
         public bool IsCertificateManaged { get; set; }
         
         /// <summary>
@@ -22,22 +28,10 @@ namespace Odin.Core.Services.Registry
     public class IdentityRegistration
     {
         private string _primaryDomainName;
-        private Guid _domainKey;
 
         public Guid Id { get; set; }
         public string Email { get; set; }
 
-        /// <summary>
-        /// A generated Guid based on the domain name
-        /// </summary>
-        public Guid DomainKey
-        {
-            get { return _domainKey; }
-            set
-            {
-                //no-op: this is set by the domain name field
-            }
-        }
 
         public string PrimaryDomainName
         {
@@ -45,7 +39,6 @@ namespace Odin.Core.Services.Registry
             set
             {
                 _primaryDomainName = value.ToLower();
-                _domainKey = new Guid(ByteArrayUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
         
@@ -59,6 +52,8 @@ namespace Odin.Core.Services.Registry
         /// indicating the bearer was the one who registered the token
         /// </summary>
         public Guid? FirstRunToken { get; set; }
+
+        public string PlanId { get; set; }
 
         public override string ToString()
         {

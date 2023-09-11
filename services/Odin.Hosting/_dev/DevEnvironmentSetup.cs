@@ -38,6 +38,7 @@ namespace Odin.Hosting._dev
                 var registrationRequest = new IdentityRegistrationRequest()
                 {
                     OdinId = (OdinId)domain,
+                    PlanId = "dev-domain"
                 };
 
                 try
