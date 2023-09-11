@@ -195,8 +195,6 @@ namespace Odin.Notarius
                 return BadRequest($"Invalid requestor identity {ex.Message}");
             }
 
-            var hobbit = HobbitSimulator.GetSimulatedHobbit(requestor);
-
             // 010. Deserialize the JSON
             //
             try
@@ -230,6 +228,11 @@ namespace Odin.Notarius
 
             EccPublicKeyData publicKey;
 
+            SimulatedHobbit? hobbit = null;
+
+            if (_simulate)
+                hobbit = HobbitSimulator.GetSimulatedHobbit(requestor);
+
             try
             {
                 // Get the requestor's public ECC key for signing
@@ -238,7 +241,7 @@ namespace Odin.Notarius
 
                 if (_simulate)
                 {
-                    publicKeyJwkBase64Url = hobbit.GetPublicKey();
+                    publicKeyJwkBase64Url = hobbit!.GetPublicKey();
                 }
                 else
                 {
