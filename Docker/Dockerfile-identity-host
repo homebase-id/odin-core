@@ -1,0 +1,42 @@
+﻿# here's what to do when we upgrade to dotnet 8:
+# https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
+
+# https://github.com/dotnet/dotnet-docker/issues/4388
+#
+
+FROM mcr.microsoft.com/dotnet/sdk:6.0-alpine AS build
+LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
+
+WORKDIR /app
+
+# Copy project files for restoring
+COPY lib/Odin.Core/Odin.Core.csproj lib/Odin.Core/
+COPY lib/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj lib/Odin.Core.Cryptography/
+COPY lib/Odin.Core.Storage/Odin.Core.Storage.csproj lib/Odin.Core.Storage/
+COPY services/Odin.Core.Services/Odin.Core.Services.csproj services/Odin.Core.Services/
+COPY services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj services/Odin.Core.Services.Background/
+COPY services/Odin.Hosting/Odin.Hosting.csproj services/Odin.Hosting/
+
+# Restore dependencies
+RUN dotnet restore --disable-parallel lib/Odin.Core/Odin.Core.csproj
+RUN dotnet restore --disable-parallel lib/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj
+RUN dotnet restore --disable-parallel lib/Odin.Core.Storage/Odin.Core.Storage.csproj
+RUN dotnet restore --disable-parallel services/Odin.Core.Services/Odin.Core.Services.csproj
+RUN dotnet restore --disable-parallel services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj
+RUN dotnet restore --disable-parallel services/Odin.Hosting/Odin.Hosting.csproj
+
+# Copy the rest for building
+COPY lib/ lib/
+COPY services/Odin.Core.Services/ services/Odin.Core.Services/
+COPY services/Odin.Core.Services.Background/ services/Odin.Core.Services.Background/
+COPY services/Odin.Hosting/ services/Odin.Hosting/
+
+# Build release
+RUN dotnet publish --no-restore --warnaserror --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out
+
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine
+WORKDIR /app
+COPY --from=build /app/out .
+EXPOSE 80
+EXPOSE 443
+ENTRYPOINT ["dotnet", "Odin.Hosting.dll"]

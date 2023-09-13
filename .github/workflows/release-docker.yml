@@ -28,8 +28,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
- # IMAGE_NAME: dotyoucore-stable
-  
+  # IMAGE_NAME: dotyoucore-stable
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,10 +43,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '16.x'
-          registry-url: 'https://npm.pkg.github.com'
+          node-version: "16.x"
+          registry-url: "https://npm.pkg.github.com"
           # Defaults to the user or organization that owns the workflow file
-          scope: '@octocat'
+          scope: "@octocat"
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -80,7 +80,7 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env 
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
-      
+
       - name: Build owner-app
         working-directory: ./client/apps
         run: |
@@ -91,7 +91,7 @@ jobs:
       - name: Build public-app
         working-directory: ./client/apps
         run: |
-          
+
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
@@ -123,7 +123,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/services/Odin.Hosting/Dockerfile
+          file: ./Docker/Dockerfile-identity-host
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

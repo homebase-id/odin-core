@@ -109,7 +109,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/services/Odin.Hosting/Dockerfile
+          file: ./Docker/Dockerfile-identity-host
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
