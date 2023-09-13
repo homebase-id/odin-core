@@ -140,6 +140,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                   _uniqueId = value;
                }
         }
+        private Int64 _byteCount;
+        public Int64 byteCount
+        {
+           get {
+                   return _byteCount;
+               }
+           set {
+                  _byteCount = value;
+               }
+        }
         private UnixTimeUtcUnique _created;
         public UnixTimeUtcUnique created
         {
@@ -182,6 +192,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _insertParam13 = null;
         private SqliteParameter _insertParam14 = null;
         private SqliteParameter _insertParam15 = null;
+        private SqliteParameter _insertParam16 = null;
         private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SqliteParameter _updateParam1 = null;
@@ -199,6 +210,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _updateParam13 = null;
         private SqliteParameter _updateParam14 = null;
         private SqliteParameter _updateParam15 = null;
+        private SqliteParameter _updateParam16 = null;
         private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SqliteParameter _upsertParam1 = null;
@@ -216,6 +228,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _upsertParam13 = null;
         private SqliteParameter _upsertParam14 = null;
         private SqliteParameter _upsertParam15 = null;
+        private SqliteParameter _upsertParam16 = null;
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
@@ -271,6 +284,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                      +"senderId STRING , "
                      +"groupId BLOB , "
                      +"uniqueId BLOB  UNIQUE, "
+                     +"byteCount INT NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT  "
                      +", PRIMARY KEY (fileId)"
@@ -289,8 +303,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified) " +
+                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$byteCount,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$fileId";
@@ -332,10 +346,13 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _insertParam13.ParameterName = "$uniqueId";
                     _insertParam14 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam14);
-                    _insertParam14.ParameterName = "$created";
+                    _insertParam14.ParameterName = "$byteCount";
                     _insertParam15 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam15);
-                    _insertParam15.ParameterName = "$modified";
+                    _insertParam15.ParameterName = "$created";
+                    _insertParam16 = _insertCommand.CreateParameter();
+                    _insertCommand.Parameters.Add(_insertParam16);
+                    _insertParam16.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.fileId.ToByteArray();
@@ -351,10 +368,11 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam14.Value = item.byteCount;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam14.Value = now.uniqueTime;
+                _insertParam15.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam15.Value = DBNull.Value;
+                _insertParam16.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
@@ -371,10 +389,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created) " +
-                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created)"+
+                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created) " +
+                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$byteCount,$created)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified "+
+                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,byteCount = $byteCount,modified = $modified "+
                                                  "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
@@ -417,10 +435,13 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertParam13.ParameterName = "$uniqueId";
                     _upsertParam14 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam14);
-                    _upsertParam14.ParameterName = "$created";
+                    _upsertParam14.ParameterName = "$byteCount";
                     _upsertParam15 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam15);
-                    _upsertParam15.ParameterName = "$modified";
+                    _upsertParam15.ParameterName = "$created";
+                    _upsertParam16 = _upsertCommand.CreateParameter();
+                    _upsertCommand.Parameters.Add(_upsertParam16);
+                    _upsertParam16.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
                 var now = UnixTimeUtcUnique.Now();
@@ -437,8 +458,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _upsertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _upsertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam14.Value = now.uniqueTime;
+                _upsertParam14.Value = item.byteCount;
                 _upsertParam15.Value = now.uniqueTime;
+                _upsertParam16.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
@@ -465,7 +487,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE mainIndex " +
-                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified "+
+                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,byteCount = $byteCount,modified = $modified "+
                                                  "WHERE (fileId = $fileId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -508,10 +530,13 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _updateParam13.ParameterName = "$uniqueId";
                     _updateParam14 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam14);
-                    _updateParam14.ParameterName = "$created";
+                    _updateParam14.ParameterName = "$byteCount";
                     _updateParam15 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam15);
-                    _updateParam15.ParameterName = "$modified";
+                    _updateParam15.ParameterName = "$created";
+                    _updateParam16 = _updateCommand.CreateParameter();
+                    _updateCommand.Parameters.Add(_updateParam16);
+                    _updateParam16.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
                 var now = UnixTimeUtcUnique.Now();
@@ -528,8 +553,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _updateParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam14.Value = now.uniqueTime;
+                _updateParam14.Value = item.byteCount;
                 _updateParam15.Value = now.uniqueTime;
+                _updateParam16.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
@@ -539,7 +565,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        // SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified
+        // SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified
         public MainIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<MainIndexRecord>();
@@ -657,14 +683,21 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(13));
+                        item.byteCount = rdr.GetInt64(13);
             }
 
             if (rdr.IsDBNull(14))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(14));
+            }
+
+            if (rdr.IsDBNull(15))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(14));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(15));
             }
             return item;
        }
@@ -797,14 +830,21 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(12));
+                        item.byteCount = rdr.GetInt64(12);
             }
 
             if (rdr.IsDBNull(13))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(13));
+            }
+
+            if (rdr.IsDBNull(14))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(13));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(14));
             }
             return item;
        }
@@ -816,7 +856,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified FROM mainIndex " +
+                    _get0Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified FROM mainIndex " +
                                                  "WHERE fileId = $fileId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

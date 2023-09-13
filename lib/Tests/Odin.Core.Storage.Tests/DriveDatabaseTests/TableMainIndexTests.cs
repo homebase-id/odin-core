@@ -154,7 +154,8 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 userDate = ud1,
                 archivalStatus = 0,
                 historyStatus = 1,
-                requiredSecurityGroup = 44
+                requiredSecurityGroup = 44,
+                byteCount = 7
             });
             
             var md = db.TblMainIndex.Get(k1);
@@ -205,7 +206,11 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             db.TblMainIndex.UpdateRow(k1, requiredSecurityGroup: 55);
             md = db.TblMainIndex.Get(k1);
             Assert.True(md.requiredSecurityGroup == 55);
-            
+
+            db.TblMainIndex.UpdateRow(k1, byteCount: 42);
+            md = db.TblMainIndex.Get(k1);
+            Assert.True(md.byteCount == 42);
+
             if (md.modified?.uniqueTime == 0)
                 Assert.Fail();
         }

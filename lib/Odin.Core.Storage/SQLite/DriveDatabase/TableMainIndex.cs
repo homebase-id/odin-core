@@ -18,6 +18,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _uparam9 = null;
         private SqliteParameter _uparam10 = null;
         private SqliteParameter _uparam11 = null;
+        private SqliteParameter _uparam12 = null;
         private Object _updateLock = new Object();
 
         private SqliteCommand _touchCommand = null;
@@ -95,7 +96,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Guid? uniqueId = null,
             Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
-            Int32? requiredSecurityGroup = null)
+            Int32? requiredSecurityGroup = null,
+            Int64? byteCount = null)
         {
             lock (_updateLock)
             {
@@ -114,6 +116,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _uparam9 = _updateCommand.CreateParameter();
                     _uparam10 = _updateCommand.CreateParameter();
                     _uparam11 = _updateCommand.CreateParameter();
+                    _uparam12 = _updateCommand.CreateParameter();
 
                     _uparam1.ParameterName = "modified";
                     _updateCommand.Parameters.Add(_uparam1);
@@ -147,6 +150,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 
                     _uparam11.ParameterName = "$fileState";
                     _updateCommand.Parameters.Add(_uparam11);
+
+                    _uparam12.ParameterName = "$byteCount";
+                    _updateCommand.Parameters.Add(_uparam12);
                 }
 
                 string stm;
@@ -185,6 +191,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (fileState != null)
                     stm += ", fileState = $fileState";
 
+                if (byteCount != null)
+                    stm += ", byteCount = $byteCount";
+
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
@@ -199,6 +208,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 _uparam10.Value = archivalStatus ?? (object)DBNull.Value;
                 _uparam11.Value = fileState ?? (object)DBNull.Value;
+                _uparam12.Value = byteCount ?? (object)DBNull.Value;
 
                 _database.ExecuteNonQuery(_updateCommand);
             }
