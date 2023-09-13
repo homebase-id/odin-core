@@ -11,7 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Mediator.Owner;
-using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.EncryptionKeyService
@@ -22,6 +22,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         private readonly Guid _onlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
         private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
         private readonly Guid _onlineEccKeyStorageId = Guid.Parse("0d4cbb31-bd2e-4910-806c-42a516e63174");
+        private readonly Guid _offlineEccKeyStorageId = Guid.Parse("09529956-bf97-43e8-9822-ad3ecf26819d");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
@@ -145,12 +146,18 @@ namespace Odin.Core.Services.EncryptionKeyService
         public Task<EccPublicKeyData> GetSigningPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
-            return Task.FromResult((EccPublicKeyData) keyPair); // TODO: Todd check - dont understand why it was so complex before
+            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
         public Task<EccPublicKeyData> GetOnlineEccPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
+            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
+        }
+
+        public Task<EccPublicKeyData> GetOfflineEccPublicKey()
+        {
+            var keyPair = this.GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId);
             return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
@@ -218,10 +225,10 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// <summary>
         /// Gets the Ecc key from the storage based on the CRC
         /// </summary>
-        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveEccKeyForDecryption(uint crc32)
+        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            
+
             EccFullKeyListData keyList;
             SensitiveByteArray decryptionKey;
 
@@ -230,6 +237,16 @@ namespace Odin.Core.Services.EncryptionKeyService
 
             var pk = EccKeyListManagement.FindKey(keyList, crc32);
             return Task.FromResult((pk, decryptionKey));
+        }
+
+        /// <summary>
+        /// Returns the latest Offline Ecc key
+        /// </summary>
+        public Task<(EccFullKeyData fullKey, SensitiveByteArray privateKey)> GetCurrentOfflineEccKey()
+        {
+            var keyList = this.GetEccKeyListFromStorage(_offlineEccKeyStorageId);
+            var pk = EccKeyListManagement.GetCurrentKey(keyList);
+            return Task.FromResult((pk, OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray()));
         }
 
         /// <summary>
@@ -247,6 +264,8 @@ namespace Odin.Core.Services.EncryptionKeyService
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
                 await this.CreateNewEccKeys(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId);
+                
+                await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
             }
             finally
@@ -360,7 +379,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             var keyList = GetEccKeyListFromStorage(storageKey);
             return EccKeyListManagement.GetCurrentKey(keyList);
         }
-        
+
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
         {
             return _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);

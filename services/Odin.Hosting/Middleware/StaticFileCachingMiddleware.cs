@@ -27,9 +27,9 @@ namespace Odin.Hosting.Middleware
             _next = next;
         }
 
-        public async Task Invoke(HttpContext httpContext)
+        public async Task Invoke(HttpContext httpContext, IHostEnvironment env)
         {
-            var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == Environments.Development;
+            var isDev = env.IsDevelopment();
 
             if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)) && !isDev)
             {

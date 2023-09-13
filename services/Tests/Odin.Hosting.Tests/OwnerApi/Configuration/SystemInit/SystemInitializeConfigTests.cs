@@ -7,14 +7,14 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
-using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Drive.Management;
+using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -71,31 +71,39 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var signingKey = await ownerClient.PublicPrivateKey.GetSigningPublicKey();
             Assert.IsTrue(signingKey.PublicKey.Length > 0);
             Assert.IsTrue(signingKey.Crc32 > 0);
-            
+
             //
             // Online key should exist
             //
             var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
             Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(onlinePublicKey.Crc32 > 0);
-            
+
             //
-            // Online Ecc key should exits
+            // Online Ecc key should exist
             var onlineEccPk = await ownerClient.PublicPrivateKey.GetEccOnlinePublicKey();
             Assert.IsTrue(onlineEccPk.PublicKey.Length > 0);
             Assert.IsTrue(onlineEccPk.Crc32 > 0);
-            
+
+
+            //
+            // Online Ecc key should exist
+            var offlineEccPk = await ownerClient.PublicPrivateKey.GetEccOfflinePublicKey();
+            Assert.IsTrue(offlineEccPk.Length > 0);
+            // Assert.IsTrue(offlineEccPk.PublicKey.Length > 0);
+            // Assert.IsTrue(offlineEccPk.Crc32 > 0);
+
             //
             // offline key should exist
             //
             var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
             Assert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(offlinePublicKey.Crc32 > 0);
-            
+
             CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
             CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
         }
-        
+
 
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
@@ -156,7 +164,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
                 var systemCircle = circleDefs.Single();
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-                Assert.IsTrue(systemCircle.Name == "System Circle");
+                Assert.IsTrue(systemCircle.Name == "Connected Identities System Circle");
+
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(systemCircle.DriveGrants.Count() == 3,
                     "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
@@ -268,10 +277,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 // System circle exists and has correct grants
                 //
 
-                var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.SystemCircleId);
+                var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsNotNull(systemCircle, "system circle should exist");
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-                Assert.IsTrue(systemCircle.Name == "System Circle");
+                Assert.IsTrue(systemCircle.Name == "Connected Identities System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 

@@ -17,11 +17,11 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Time;
 using Org.BouncyCastle.Asn1.Ocsp;
 

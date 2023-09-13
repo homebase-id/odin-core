@@ -18,6 +18,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -27,14 +28,15 @@ using Odin.Core.Services.Dns;
 using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
+using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
-using Odin.Core.Services.Transit.SendingHost.Outbox;
 using Odin.Hosting._dev;
-using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
-using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
@@ -157,21 +159,23 @@ namespace Odin.Hosting
                 });
             });
 
+            services.AddCorsPolicies();
+
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
-                .AddClientTokenAuthentication()
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.FeedAuthScheme)
+                .AddYouAuthAuthentication()
+                .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
+                .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
+                .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
                 .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
                 SystemPolicies.AddPolicies(policy);
-                ClientTokenPolicies.AddPolicies(policy);
-                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
-                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
+                YouAuthPolicies.AddPolicies(policy);
+                PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
+                PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
             services.AddSingleton<OdinConfiguration>(config);
@@ -282,6 +286,7 @@ namespace Odin.Hosting
 
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseResponseCompression();
+            app.UseCors();
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
@@ -312,10 +317,7 @@ namespace Odin.Hosting
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/"); }); });
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/chat"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080"); }); });
-
+                
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
                     homeApp =>

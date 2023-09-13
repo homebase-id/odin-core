@@ -46,13 +46,7 @@ namespace Odin.Core.Cryptography.Data
             CRC = crc;
         }
 
-        public Guid Id
-        {
-            get
-            {
-                return new Guid(Convert.FromBase64String(this.Nonce64));
-            }
-        }
+        public Guid Id => string.IsNullOrEmpty(Nonce64) ? Guid.Empty : new Guid(Convert.FromBase64String(Nonce64));
         public string SaltPassword64 { get; set; }
         public string SaltKek64 { get; set; }
         public string Nonce64 { get; set; }

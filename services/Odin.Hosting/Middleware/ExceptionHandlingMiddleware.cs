@@ -26,7 +26,7 @@ namespace Odin.Hosting.Middleware
         public ExceptionHandlingMiddleware(
             RequestDelegate next,
             ILogger<ExceptionHandlingMiddleware> logger,
-            ICorrelationContext correlationContext, 
+            ICorrelationContext correlationContext,
             IHostEnvironment env)
         {
             _next = next;

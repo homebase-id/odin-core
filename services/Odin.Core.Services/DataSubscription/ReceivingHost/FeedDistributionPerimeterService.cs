@@ -8,9 +8,9 @@ using Odin.Core.Services.DataSubscription.SendingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.ReceivingHost;
 
 namespace Odin.Core.Services.DataSubscription.ReceivingHost
 {

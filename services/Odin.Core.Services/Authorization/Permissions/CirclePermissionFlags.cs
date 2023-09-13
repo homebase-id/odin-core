@@ -13,7 +13,7 @@ namespace Odin.Core.Services.Authorization.Permissions
         public static readonly int ReadCircleMembership = 50;
 
         public static readonly int ReadWhoIFollow = 80;
-        
+
         public static readonly int ReadMyFollowers = 130;
 
         public static readonly int UseTransit = 210;
@@ -57,7 +57,7 @@ namespace Odin.Core.Services.Authorization.Permissions
         {
             return Circles.Any(k => k == key);
         }
-
+        
         public static ReadOnlyCollection<int> Apps { get; }
 
         public static ReadOnlyCollection<int> Circles { get; }

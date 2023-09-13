@@ -15,7 +15,7 @@ using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Tenant;
-using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Authentication.Peer;
 
 namespace Odin.Hosting.Middleware
 {
@@ -47,7 +47,7 @@ namespace Odin.Hosting.Middleware
                 return;
             }
             
-            if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
+            if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, odinContext);
 
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            if (authType == PerimeterAuthConstants.FeedAuthScheme)
+            if (authType == PeerAuthConstants.FeedAuthScheme)
             {
                 await LoadIdentitiesIFollowContext(httpContext, odinContext);
                 await _next(httpContext);
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Middleware
             //     return;
             // }
 
-            if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
+            if (authType == PeerAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContext(httpContext, odinContext);
                 await _next(httpContext);
@@ -107,7 +107,7 @@ namespace Odin.Hosting.Middleware
                 {
                     odinContext.Caller = ctx.Caller;
                     odinContext.SetPermissionContext(ctx.PermissionsContext);
-                    odinContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
+                    odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
                     return;
                 }
             }
@@ -126,7 +126,7 @@ namespace Odin.Hosting.Middleware
             {
                 odinContext.Caller = ctx.Caller;
                 odinContext.SetPermissionContext(ctx.PermissionsContext);
-                odinContext.SetAuthContext(PerimeterAuthConstants.FeedAuthScheme);
+                odinContext.SetAuthContext(PeerAuthConstants.FeedAuthScheme);
 
                 return;
             }
@@ -154,7 +154,7 @@ namespace Odin.Hosting.Middleware
                 {
                     odinContext.Caller = ctx.Caller;
                     odinContext.SetPermissionContext(ctx.PermissionsContext);
-                    odinContext.SetAuthContext(PerimeterAuthConstants.FollowerCertificateAuthScheme);
+                    odinContext.SetAuthContext(PeerAuthConstants.FollowerCertificateAuthScheme);
                     return;
                 }
             }
@@ -203,7 +203,7 @@ namespace Odin.Hosting.Middleware
                     sharedSecretKey: null
                 ));
 
-            odinContext.SetAuthContext(PerimeterAuthConstants.PublicTransitAuthScheme);
+            odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
         }
     }
 }

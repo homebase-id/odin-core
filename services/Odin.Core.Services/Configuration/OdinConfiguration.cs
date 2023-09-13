@@ -44,7 +44,7 @@ namespace Odin.Core.Services.Configuration
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
 
-            if (config.GetSection("Development") != null)
+            if (config.SectionExists("Development"))
             {
                 Development = new DevelopmentSection(config);
             }
@@ -125,6 +125,8 @@ namespace Odin.Core.Services.Configuration
 
         public class RegistrySection
         {
+            public List<string> InvitationCodes { get; init; }
+
             public string PowerDnsHostAddress { get; init; }
             public string PowerDnsApiKey { get; init; }
 
@@ -151,6 +153,8 @@ namespace Odin.Core.Services.Configuration
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
+                
+                InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
             }
 
             public class ManagedDomainApex

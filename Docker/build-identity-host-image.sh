@@ -1,0 +1,1 @@
+docker build -f Docker/Dockerfile-identity-host --tag dotyou:local .

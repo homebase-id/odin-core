@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json.Serialization;
 using DnsClient;
 using DnsClient.Protocol;
 
@@ -10,6 +11,7 @@ namespace Odin.Core.Util
 {
     // Guaranteed to hold a valid, lowercased puny domain name
     //
+    [JsonConverter(typeof(AsciiDomainConverter))]
     public readonly struct AsciiDomainName
     {
         private readonly string _domainName;

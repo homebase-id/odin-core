@@ -53,6 +53,13 @@ namespace Odin.Hosting.Tests
                 {
                     UseCookies = false // DO NOT CHANGE!
                 }));
+            
+            HttpClientFactory.Register("no-cookies-no-redirects", b => 
+                b.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AllowAutoRedirect = false, // DO NOT CHANGE!
+                    UseCookies = false         // DO NOT CHANGE!
+                }));
         }
 
         public WebScaffold(string folder)
@@ -66,13 +73,17 @@ namespace Odin.Hosting.Tests
         {
             return HttpClientFactory.CreateClient<T>();
         }
+        
+        public static HttpClient CreateDefaultHttpClient()
+        {
+            return HttpClientFactory.CreateClient("no-cookies-no-redirects");
+        }
 
         public void RunBeforeAnyTests(bool initializeIdentity = true, bool setupOwnerAccounts = true, Dictionary<string, string> envOverrides = null)
         {
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",

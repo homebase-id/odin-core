@@ -8,9 +8,9 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
-using Odin.Core.Services.Transit;
-using Odin.Core.Services.Transit.Encryption;
-using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 

@@ -1,8 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Circle

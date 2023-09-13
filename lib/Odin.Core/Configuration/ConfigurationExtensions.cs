@@ -32,5 +32,15 @@ public static class ConfigurationExtensions
         var value = section.Get<T>();
         return value;
     }
-    
+
+    //
+
+    public static bool SectionExists(this IConfiguration config, string path)
+    {
+        var section = config.GetSection(path);
+        return section.Exists();
+    }
+
+    //
+
 }

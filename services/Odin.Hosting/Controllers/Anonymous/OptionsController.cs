@@ -1,16 +1,19 @@
 ﻿#nullable enable
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
-using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(AppApiPathConstants.BasePathV1)]
-    [Route(YouAuthApiPathConstants.BasePathV1)]
+    [Route(GuestApiPathConstants.BasePathV1)]
     [Route(OwnerApiPathConstants.BasePathV1)]
     public class OptionsController : OdinControllerBase
     {
@@ -21,7 +24,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             this.Response.Headers.Add("Access-Control-Allow-Headers",
                 new[]
                 {
-                    "Content-Type", "Accept", ClientTokenConstants.ClientAuthTokenCookieName,
+                    "Content-Type", "Accept", YouAuthConstants.AppCookieName,
                     OdinHeaderNames.FileSystemTypeHeader
                 });
             this.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

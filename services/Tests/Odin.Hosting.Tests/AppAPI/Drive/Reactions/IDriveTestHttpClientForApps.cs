@@ -4,6 +4,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive.Reactions

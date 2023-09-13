@@ -33,10 +33,8 @@ public interface IIdentityRegistrationService
     /// <summary>
     /// Create identity on own or managed domain
     /// </summary>
-    /// <param name="domain"></param>
-    /// <param name="email"></param>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomain(string domain, string email);
+    Task<Guid> CreateIdentityOnDomain(string domain, string email, string planId);
     
     //
     // Managed Domain
@@ -64,7 +62,12 @@ public interface IIdentityRegistrationService
     // Helpers
     //
     Task<bool> CanConnectToHostAndPort(string domain, int port);
-    Task<bool> HasValidCertifacte(string domain);
+    Task<bool> HasValidCertificate(string domain);
+
+    /// <summary>
+    /// Determines if the invitation code is valid
+    /// </summary>
+    Task<bool> IsValidInvitationCode(string code);
 }
 
 //
