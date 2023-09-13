@@ -8,6 +8,58 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
     public class TableMainIndexTests
     {
         [Test]
+        public void GetSizeTest()
+        {
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
+
+            db.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            db.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
+            db.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
+            db.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
+            db.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
+
+            var (count, size) = db.TblMainIndex.GetDriveSize();
+            Assert.AreEqual(count, 5);
+            Assert.AreEqual(size, 1+2+3+4+5);
+        }
+
+        [Test]
+        public void CannotInsertZeroSizeTest()
+        {
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
+
+            try
+            {
+                db.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 0);
+            }
+            catch (Exception ex)
+            {
+                if (!(ex is ArgumentException))
+                    Assert.Fail();
+            }
+        }
+
+
+
+        [Test]
         public void InsertRowTest()
         {
             using var db = new DriveDatabase("", DatabaseIndexKind.Random);
@@ -184,10 +236,17 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             if (ByteArrayUtil.muidcmp(tid2, md.groupId) != 0)
                 Assert.Fail();
 
-            var uid2 = Guid.NewGuid();
-            db.TblMainIndex.UpdateRow(k1, uniqueId: uid2);
+            var kludge = new TableMainIndex.NullableGuid();
+            kludge.uniqueId = Guid.NewGuid();
+            db.TblMainIndex.UpdateRow(k1, kludgeUniqueId: kludge);
             md = db.TblMainIndex.Get(k1);
-            if (ByteArrayUtil.muidcmp(uid2, md.uniqueId) != 0)
+            if (ByteArrayUtil.muidcmp(kludge.uniqueId, md.uniqueId) != 0)
+                Assert.Fail();
+
+            kludge.uniqueId = null;
+            db.TblMainIndex.UpdateRow(k1, kludgeUniqueId: kludge);
+            md = db.TblMainIndex.Get(k1);
+            if (md.uniqueId != null)
                 Assert.Fail();
 
             var gtid2 = Guid.NewGuid();

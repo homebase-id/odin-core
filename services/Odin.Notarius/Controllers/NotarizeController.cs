@@ -228,11 +228,6 @@ namespace Odin.Notarius
 
             EccPublicKeyData publicKey;
 
-            SimulatedHobbit? hobbit = null;
-
-            if (_simulate)
-                hobbit = HobbitSimulator.GetSimulatedHobbit(requestor);
-
             try
             {
                 // Get the requestor's public ECC key for signing
@@ -241,6 +236,7 @@ namespace Odin.Notarius
 
                 if (_simulate)
                 {
+                    var hobbit = HobbitSimulator.GetSimulatedHobbit(requestor);
                     publicKeyJwkBase64Url = hobbit!.GetPublicKey();
                 }
                 else

@@ -179,7 +179,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 accessControlList: acl,
                 tagIdList: tags,
                 fileState: (int)metadata.FileState,
-                fileSystemType: (int)header.ServerMetadata.FileSystemType
+                fileSystemType: (int)header.ServerMetadata.FileSystemType,
+                byteCount: 1
             );
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Xml;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 
@@ -26,6 +27,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _tparam2 = null;
         private Object _touchLock = new Object();
 
+        private SqliteCommand _sizeCommand = null;
+        private Object _sizeLock = new Object();
+
         public TableMainIndex(DriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -45,6 +49,34 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _touchCommand = null;
 
             base.Dispose();
+        }
+
+
+        public (Int64, Int64) GetDriveSize()
+        {
+            lock (_sizeLock)
+            {
+                // Make sure we only prep once 
+                if (_sizeCommand == null)
+                {
+                    _sizeCommand = _database.CreateCommand();
+
+                    _sizeCommand.CommandText =
+                        $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM mainindex; PRAGMA read_uncommitted = 0;";
+                }
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
+                {
+                    if (rdr.Read())
+                    {
+                        long count = rdr.GetInt64(0);
+                        long size  = rdr.GetInt64(1);
+                        return (count, size);
+                    }
+                }
+            }
+
+            return (-1, -1);
         }
 
 
@@ -93,7 +125,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Int32? dataType = null,
             byte[] senderId = null,
             Guid? groupId = null,
-            Guid? uniqueId = null,
+            DriveDatabase.NullableGuid nullableUniqueId = null,
             Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
@@ -173,7 +205,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     stm += ", groupid = $groupid ";
 
                 // Note: Todd removed this null check since we must be able to set the uniqueId to null when a file is deleted
-                // if (uniqueId != null)
+                if (nullableUniqueId != null)
                     stm += ", uniqueid = $uniqueid ";
 
                 if (globalTransitId != null)
@@ -192,7 +224,11 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     stm += ", fileState = $fileState";
 
                 if (byteCount != null)
+                {
+                    if (byteCount < 1)
+                        throw new ArgumentException("byteCount must be at least 1");
                     stm += ", byteCount = $byteCount";
+                }
 
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
@@ -202,7 +238,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _uparam3.Value = dataType ?? (object)DBNull.Value;
                 _uparam4.Value = senderId ?? (object)DBNull.Value;
                 _uparam5.Value = groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _uparam6.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                if (nullableUniqueId == null)
+                    _uparam6.Value = (object)DBNull.Value;
+                else
+                    _uparam6.Value = nullableUniqueId.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _uparam7.Value = userDate?.milliseconds ?? (object)DBNull.Value;
                 _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
