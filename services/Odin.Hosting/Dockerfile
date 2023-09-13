@@ -16,7 +16,8 @@ COPY services/Odin.Core.Services/Odin.Core.Services.csproj services/Odin.Core.Se
 COPY services/Odin.Hosting/Odin.Hosting.csproj services/Odin.Hosting/
 COPY services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj services/Odin.Core.Services.Background/
 
-RUN dotnet restore services/Odin.Hosting/Odin.Hosting.csproj
+# --disable-parallel makes cache more predicatble
+RUN dotnet restore services/Odin.Hosting/Odin.Hosting.csproj --disable-parallel
 
 COPY . ./
 RUN dotnet publish --warnaserror --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out
