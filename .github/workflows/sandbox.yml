@@ -36,6 +36,10 @@ jobs:
         with:
           path: dotyoucore
 
+      - name: List current directory recursively
+        run: |
+          ls -R
+
       - name: Checkout dotyoucorejs monorepo
         uses: actions/checkout@v3
         with:
