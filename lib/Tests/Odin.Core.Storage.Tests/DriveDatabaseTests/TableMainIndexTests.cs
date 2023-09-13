@@ -236,15 +236,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             if (ByteArrayUtil.muidcmp(tid2, md.groupId) != 0)
                 Assert.Fail();
 
-            var kludge = new TableMainIndex.NullableGuid();
+            var kludge = new DriveDatabase.NullableGuid();
             kludge.uniqueId = Guid.NewGuid();
-            db.TblMainIndex.UpdateRow(k1, kludgeUniqueId: kludge);
+            db.TblMainIndex.UpdateRow(k1, nullableUniqueId: kludge);
             md = db.TblMainIndex.Get(k1);
             if (ByteArrayUtil.muidcmp(kludge.uniqueId, md.uniqueId) != 0)
                 Assert.Fail();
 
             kludge.uniqueId = null;
-            db.TblMainIndex.UpdateRow(k1, kludgeUniqueId: kludge);
+            db.TblMainIndex.UpdateRow(k1, nullableUniqueId: kludge);
             md = db.TblMainIndex.Get(k1);
             if (md.uniqueId != null)
                 Assert.Fail();
