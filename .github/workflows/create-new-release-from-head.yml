@@ -111,8 +111,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Combine Docker tags
-        # run: echo "IMAGE_TAGS=${{ steps.meta.outputs.tags }},${{ steps.meta.outputs.tags }},${{ env.NEW_VERSION_TAG }}-${{ env.ARCHITECTURE }}" >> $GITHUB_ENV
-        run: echo "IMAGE_TAGS=${{ steps.meta.outputs.tags }},${{ env.NEW_VERSION_TAG }}" >> $GITHUB_ENV
+        run: echo "IMAGE_TAGS=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}-${{ env.ARCHITECTURE }}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
