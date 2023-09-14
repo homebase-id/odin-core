@@ -9,7 +9,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
     /// </summary>
-    public class TempStorageManager 
+    public class TempStorageManager
     {
         private readonly ILogger<TempStorageManager> _logger;
 
@@ -58,7 +58,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 //Process: if there's a file, we write to a temp file then rename.
                 if (File.Exists(filePath))
                 {
-                    
                     bytesWritten = WriteStream(stream, tempFilePath);
                     lock (filePath)
                     {
@@ -95,10 +94,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Deletes the file matching <param name="fileId"></param> and extension.
         /// </summary>
-        public Task Delete(Guid fileId, string extension)
+        public Task EnsureDeleted(Guid fileId, string extension)
         {
             string filePath = GetFilenameAndPath(fileId, extension);
-            File.Delete(filePath);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+
             return Task.CompletedTask;
         }
 
@@ -106,13 +109,16 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// Deletes all files matching <param name="fileId"></param> regardless of extension
         /// </summary>
         /// <param name="fileId"></param>
-        public Task Delete(Guid fileId)
+        public Task EnsureDeleted(Guid fileId)
         {
             var dir = new DirectoryInfo(GetFileDirectory(fileId));
 
-            foreach (var file in dir.EnumerateFiles(GetFilename(fileId, "*")))
+            if (dir.Exists)
             {
-                file.Delete();
+                foreach (var file in dir.EnumerateFiles(GetFilename(fileId, "*")))
+                {
+                    file.Delete();
+                }
             }
 
             return Task.CompletedTask;
