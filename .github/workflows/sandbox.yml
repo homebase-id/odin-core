@@ -14,47 +14,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}-edge
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: 6.0.x
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: "16.x"
-          registry-url: "https://npm.pkg.github.com"
-          # Defaults to the user or organization that owns the workflow file
-          scope: "@octocat"
-
-      - name: Checkout dotyoucore
-        uses: actions/checkout@v3
-        with:
-          path: dotyoucore
-
-      - name: Checkout dotyoucorejs monorepo
-        uses: actions/checkout@v3
-        with:
-          repository: YouFoundation/dotyoucore-js
-          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          path: client/apps
-
-      - name: Checkout provisioning-app
-        uses: actions/checkout@v3
-        with:
-          repository: YouFoundation/provisioning-app
-          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          path: client/provisioning-app
-
-      - name: Authenticate to Github packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
-
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
