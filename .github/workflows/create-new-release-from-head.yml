@@ -9,13 +9,10 @@ on:
         default: "Just because"
 
 jobs:
-  deploy:
+  tag:
     runs-on: ubuntu-latest
 
     steps:
-      #
-      # Deploy
-      #
       - name: Get the branch name
         run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
 
