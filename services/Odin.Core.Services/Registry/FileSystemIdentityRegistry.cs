@@ -114,20 +114,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var regIdFolder = idReg.Id.ToString();
 
         var rootPath = Path.Combine(_registrationRoot, regIdFolder);
-        var headerRoot = Path.Combine(rootPath, "headers");
-        var staticRoot = Path.Combine(rootPath, "static");
-        var sslRoot = Path.Combine(rootPath, "ssl");
-
-        var tempRoot = Path.Combine(_tempFolderRoot, "temp", regIdFolder);
-        
-        var shardedPayloadRoot = Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder);
-
         var storageConfig = new TenantStorageConfig(
-            headerDataStoragePath: Path.Combine(headerRoot, idReg.Id.ToString()),
-            tempStoragePath: Path.Combine(tempRoot, idReg.Id.ToString()),
-            payloadStoragePath: shardedPayloadRoot,
-            staticFileStoragePath: Path.Combine(staticRoot, idReg.Id.ToString())
+            headerDataStoragePath:Path.Combine(rootPath, "headers"),
+            tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
+            payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
+            staticFileStoragePath: Path.Combine(rootPath, "static")
         );
+        
+        var sslRoot = Path.Combine(rootPath, "ssl");
 
         // IO is slow, so make it optional
         if (updateFileSystem)
