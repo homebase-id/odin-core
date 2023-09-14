@@ -105,7 +105,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 filePaths.AddRange(Directory.GetFiles(payloadFilePath!));
             }
 
-            string headerFilePath = GetPayloadFilePath(fileId);
+            string headerFilePath = GetHeaderFilePath(fileId);
             if (Directory.Exists(headerFilePath))
             {
                 filePaths.AddRange(Directory.GetFiles(headerFilePath!));

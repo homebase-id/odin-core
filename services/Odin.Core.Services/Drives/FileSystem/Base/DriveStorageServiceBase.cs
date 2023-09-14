@@ -762,7 +762,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             header.ServerMetadata.DiskUsage = new DiskUsage()
             {
-                ApproxMetadataBytes = stream.Length, //using the stream so we get the total size that WILL be on disk after we write it below
+                ApproxMetadataBytes = stream.Length,
                 TotalThumbnailBytes = du.TotalThumbnailBytes,
                 TotalPayloadBytes = du.TotalPayloadBytes,
                 TotalOtherBytes = du.TotalOtherBytes
