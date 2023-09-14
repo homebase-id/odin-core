@@ -35,7 +35,7 @@ jobs:
 
       - name: Get Latest Tag
         run: |
-          USERNAME=${{ github.actor }}
+          USERNAME=${{ github.repository_owner }}
           REPO=${{ github.repository }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
           latest_tag=$(curl -u "$USERNAME:$TOKEN" -s "https://ghcr.io/v2/$USERNAME/$REPO/tags/list" | jq -r '.tags[]' | sort -V | tail -n1)
