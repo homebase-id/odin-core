@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Odin.Core.Services.Base;
 
 namespace Odin.Core.Services.Registry
 {
@@ -21,7 +22,10 @@ namespace Odin.Core.Services.Registry
         /// /// <param name="prefix">prefix if any</param>
         /// <returns>IdentityRegistration if found, otherwise null</returns>
         IdentityRegistration ResolveIdentityRegistration(string domain, out string prefix);
-        
+
+        public TenantContext CreateTenantContext(string domain, bool updateFileSystem = false);
+        public TenantContext CreateTenantContext(IdentityRegistration domain, bool updateFileSystem = false);
+
         /// <summary>
         /// Checks if a domain is used/registered.
         /// </summary>
@@ -42,7 +46,7 @@ namespace Odin.Core.Services.Registry
         /// <param name="domain"></param>
         /// <returns></returns>
         Task DeleteRegistration(string domain);
-        
+
         /// <summary>
         /// Gets a list of <see cref="IdentityRegistration"/>s based on the paging options sorted by domain name ascending
         /// </summary>

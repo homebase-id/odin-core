@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Odin.Core.Identity;
 using Odin.Core.Services.Configuration;
 
@@ -8,6 +7,22 @@ namespace Odin.Core.Services.Base
     public class TenantContext
     {
         private TenantSettings _tenantSettings;
+
+        public TenantContext()
+        {
+        }
+
+        public TenantContext(Guid dotYouRegistryId, OdinId hostOdinId, string sslRoot, TenantStorageConfig storageConfig, Guid? firstRunToken,
+            bool isPreconfigured)
+        {
+            this.DotYouRegistryId = dotYouRegistryId;
+            this.HostOdinId = hostOdinId;
+            this.SslRoot = sslRoot;
+            this.StorageConfig = storageConfig;
+            this.FirstRunToken = firstRunToken;
+            this.IsPreconfigured = isPreconfigured;
+        }
+
         public Guid DotYouRegistryId { get; private set; }
 
         /// <summary>
@@ -15,22 +30,7 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public OdinId HostOdinId { get; private set; }
 
-        /// <summary>
-        /// The root path for data
-        /// </summary>
-        public string DataRoot { get; private set; }
-
-        /// <summary>
-        /// The root path for temp data
-        /// </summary>
-        public string TempDataRoot { get; private set; }
-
         public string SslRoot { get; private set; }
-
-        /// <summary>
-        /// The root path for static files
-        /// </summary>
-        public string StaticFileDataRoot => Path.Combine(this.TempDataRoot, "static");
 
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostOdinId"/>.
@@ -49,55 +49,20 @@ namespace Odin.Core.Services.Base
 
         // TODO:TODD temporary measure for auto-provisioning of development domains; need a better solution"
         public bool IsPreconfigured { get; private set; }
-        
-        public void Update(
-            Guid registrationId, 
-            string tenantHostName, 
-            string rootPath, 
-            Guid? firstRunToken, 
-            bool isPreconfigured,
-            string tenantDataPayloadPath,
-            bool updateFileSystem = true)
+
+        public void Update(TenantContext source)
         {
-            this.DotYouRegistryId = registrationId;
-            this.HostOdinId = (OdinId)tenantHostName;
-
-            this.DataRoot = Path.Combine(rootPath, DotYouRegistryId.ToString());
-            this.TempDataRoot = Path.Combine(rootPath, "temp", DotYouRegistryId.ToString());
-            this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "headers"), Path.Combine(this.TempDataRoot, "temp"), tenantDataPayloadPath);
-            this.SslRoot = Path.Combine(DataRoot, "ssl");
-            this.FirstRunToken = firstRunToken.GetValueOrDefault();
-
-            this.IsPreconfigured = isPreconfigured;
-
-            // IO is slow, so make it optional
-            if (updateFileSystem)
-            {
-                Directory.CreateDirectory(this.DataRoot);
-                Directory.CreateDirectory(this.SslRoot);
-                Directory.CreateDirectory(this.TempDataRoot);
-            
-                Directory.CreateDirectory(this.StorageConfig.DataStoragePath);
-                Directory.CreateDirectory(this.StorageConfig.TempStoragePath);
-                Directory.CreateDirectory(this.StorageConfig.PayloadStoragePath);
-            }
+            this.DotYouRegistryId = source.DotYouRegistryId;
+            this.HostOdinId = source.HostOdinId;
+            this.SslRoot = source.SslRoot;
+            this.StorageConfig = source.StorageConfig;
+            this.FirstRunToken = source.FirstRunToken;
+            this.IsPreconfigured = source.IsPreconfigured;
         }
-
+        
         public void UpdateSystemConfig(TenantSettings newConfig)
         {
             _tenantSettings = newConfig;
-        }
-
-        public static TenantContext Create(
-            Guid registryId, 
-            string tenantHostName, 
-            string rootPath, 
-            string tenantDataPayloadPath,
-            bool updateFileSystem = true)
-        {
-            var tc = new TenantContext();
-            tc.Update(registryId, tenantHostName, rootPath, null, false, tenantDataPayloadPath, updateFileSystem);
-            return tc;
         }
     }
 }

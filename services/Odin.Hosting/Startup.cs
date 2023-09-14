@@ -184,15 +184,13 @@ namespace Odin.Hosting
 
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
-
+            
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
                 sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
-                config.CertificateRenewal.UseCertificateAuthorityProductionServers,
-                config.Host.TenantDataRootPath,
-                config.Host.TenantPayloadRootPath));
+                config));
 
             services.AddSingleton(new AcmeAccountConfig
             {

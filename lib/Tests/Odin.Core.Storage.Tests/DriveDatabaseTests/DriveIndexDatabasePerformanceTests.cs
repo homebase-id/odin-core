@@ -48,7 +48,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Start();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
+                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // _testDatabase.BeginTransaction();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
+                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
@@ -193,7 +193,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             //
             for (int count = 0; count < iterations; count++)
             {
-                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
+                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
 
             return timers;

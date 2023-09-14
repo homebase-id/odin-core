@@ -73,12 +73,12 @@ namespace Odin.Hosting
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
             var configPath = Path.Combine(configFolder, appSettingsFile);
-            
+
             if (!File.Exists(configPath))
             {
                 throw new OdinSystemException($"Could not find configuration file [{configPath}]");
             }
-            
+
             Log.Information($"Loading configuration at [{configPath}]");
 
             var config = new ConfigurationBuilder()
@@ -142,10 +142,7 @@ namespace Odin.Hosting
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
-                .UseSerilog((context, services, loggerConfiguration) =>
-                {
-                    CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
-                })
+                .UseSerilog((context, services, loggerConfiguration) => { CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration); })
                 .UseSystemd() // SEB:TODO remove this when we're fully containerized
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
                     DependencyInjection.InitializeTenant))
@@ -245,12 +242,7 @@ namespace Odin.Hosting
             var idReg = registry.ResolveIdentityRegistration(hostName, out _);
             if (idReg != null)
             {
-                var tenantContext = TenantContext.Create(
-                    idReg.Id,
-                    idReg.PrimaryDomainName,
-                    config.Host.TenantDataRootPath,
-                    config.Host.TenantPayloadRootPath,
-                    false);
+                var tenantContext = registry.CreateTenantContext(idReg);
                 sslRoot = tenantContext.SslRoot;
                 domain = idReg.PrimaryDomainName;
             }

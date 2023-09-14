@@ -20,6 +20,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Indicates the system type of file; this changes the internal behavior how the file is saved
         /// </summary>
-        public FileSystemType FileSystemType { get; set; } 
+        public FileSystemType FileSystemType { get; set; }
+
+        public DiskUsage DiskUsage { get; set; }
     }
 }

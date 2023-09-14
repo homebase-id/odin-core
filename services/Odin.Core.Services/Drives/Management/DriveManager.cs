@@ -292,7 +292,7 @@ public class DriveManager
         //TODO: this should probably go in config
         const string driveFolder = "drives";
         return new StorageDrive(
-            Path.Combine(_tenantContext.StorageConfig.DataStoragePath, driveFolder),
+            Path.Combine(_tenantContext.StorageConfig.HeaderDataStoragePath, driveFolder),
             Path.Combine(_tenantContext.StorageConfig.TempStoragePath, driveFolder),
             Path.Combine(_tenantContext.StorageConfig.PayloadStoragePath, driveFolder), sdb);
     }

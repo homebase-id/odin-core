@@ -65,7 +65,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    ContentIsComplete = false,
+                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
@@ -100,6 +100,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+
+            Assert.IsTrue(clientFileHeader.DiskUsage.ApproxMetadataBytes > 0, "metadata bytes was not calculated");
+            Assert.IsTrue(clientFileHeader.DiskUsage.TotalThumbnailBytes == 0, "there should be no thumbnail bytes");
+            Assert.IsTrue(clientFileHeader.DiskUsage.TotalPayloadBytes == 0, "there should be no payload bytes");
+            Assert.IsTrue(clientFileHeader.DiskUsage.TotalOtherBytes == 0, "there should be no other bytes");
+
             //
             // var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
             //

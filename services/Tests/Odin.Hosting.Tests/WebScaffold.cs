@@ -100,9 +100,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
-            Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__TenantPayloadRootPath", TestPayloadPath);
-            Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
+            Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
 
