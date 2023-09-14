@@ -1,7 +1,9 @@
 #!/bin/bash
 
+echo "HER"
+
 # Exit immediately if a command exits with a non-zero status
-set -e
+set -ex
 
 # Configure Git user.email if it's not already set
 gitEmail=$(git config --global --get user.email)
