@@ -400,7 +400,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (string.IsNullOrEmpty(code) || !_configuration.Registry.InvitationCodes.Any())
+        if (!_configuration.Registry.InvitationCodes.Any())
+        {
+            return Task.FromResult(true);
+        }
+        
+        if (string.IsNullOrEmpty(code))
         {
             return Task.FromResult(false);
         }
