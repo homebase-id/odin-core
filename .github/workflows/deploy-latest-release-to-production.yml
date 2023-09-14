@@ -39,6 +39,6 @@ jobs:
           REPO=${{ github.repository }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
           # latest_tag=$(curl -u "$USERNAME:$TOKEN" -s "https://ghcr.io/v2/$USERNAME/$REPO/tags/list" | jq -r '.tags[]' | sort -V | tail -n1)
-          latest_tag=$(curl -u "$USERNAME:$TOKEN" -s "https://ghcr.io/v2/$USERNAME/$REPO/tags/list")
+          latest_tag=$(curl -u "$USERNAME:$TOKEN" -s "https://ghcr.io/v2/youfoundation/dotyoucore/tags/list")
           echo "Latest tag: $latest_tag"
           echo "LATEST_DOCKER_TAG=$latest_tag" >> $GITHUB_ENV
