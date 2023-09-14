@@ -2,11 +2,16 @@ name: Deploy latest release to production
 
 on:
   workflow_dispatch:
-    inputs:
-      reason:
-        description: "Reason for manual run"
-        required: true
-        default: "Just because"
+  push:
+    branches: [ansible]
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       reason:
+#         description: "Reason for manual run"
+#         required: true
+#         default: "Just because"
 
 env:
   REGISTRY: ghcr.io
