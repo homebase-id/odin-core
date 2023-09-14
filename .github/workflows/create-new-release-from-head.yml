@@ -16,7 +16,7 @@ env:
   ARCHITECTURE: x64
 
 jobs:
-  tag:
+  tag-and-build:
     runs-on: ubuntu-latest
 
     steps:
