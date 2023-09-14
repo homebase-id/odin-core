@@ -30,7 +30,7 @@ else
 fi
 
 # Create new tag
-git tag -a "${new_tag}" -m "Auto-incremented to ${new_tag}"
+git tag -a "${new_tag}" -m "Release ${new_tag}"
 
 # Push new tag to remote repository
 git push origin "${new_tag}"
