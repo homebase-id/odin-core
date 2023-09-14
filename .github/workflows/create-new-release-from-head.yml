@@ -8,18 +8,32 @@ on:
         required: true
         default: "Just because"
 
+env:
+  TAG_ENV_NAME: NEW_VERSION_TAG
+
 jobs:
   tag:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all history so we can see all tags
+
       - name: Get the branch name
         run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
 
-      - name: Increment version tag through Ansible
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.ANSIBLE_HOST }}
-          username: ${{ secrets.ANSIBLE_USERNAME }}
-          key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook increment-version-tag.yml -e "branch=${{ env.BRANCH_NAME }}"
+      - name: Execute versioning script
+        run: |
+          output=$(./scripts/increment-version-tag-on-git-tip.sh)
+          echo "Tagging output: $output"
+          echo "${TAG_ENV_NAME}=${output}" >> $GITHUB_ENV
+
+      # - name: Increment version tag through Ansible
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.ANSIBLE_HOST }}
+      #     username: ${{ secrets.ANSIBLE_USERNAME }}
+      #     key: ${{ secrets.ANSIBLE_SSH_KEY }}
+      #     script: cd $HOME/DevOps/ansible && ansible-playbook increment-version-tag.yml -e "branch=${{ env.BRANCH_NAME }}"
