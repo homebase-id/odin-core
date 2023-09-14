@@ -17,25 +17,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      #
-      # Deploy
-      #
-      - name: Get the branch name
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Create image deploy name
-      #   run: |
-      #     lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
-      #     echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
-
-      # - name: Output DEPLOY_IMAGE
-      #   run: |
-      #     echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
-
-      # - name: Deploy to sandbox host using Ansible
-      #   uses: appleboy/ssh-action@master
-      #   with:
-      #     host: ${{ secrets.ANSIBLE_HOST }}
-      #     username: ${{ secrets.ANSIBLE_USERNAME }}
-      #     key: ${{ secrets.ANSIBLE_SSH_KEY }}
-      #     script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+      - name: Get Latest Tag
+        run: |
+          image_name="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          latest_tag=$(docker image ls --format '{{json .}}' $image_name | jq -r '.Tag' | sort -V | tail -n1)
+          echo "Latest tag: $latest_tag"
+          echo "LATEST_DOCKER_TAG=$latest_tag" >> $GITHUB_ENV
