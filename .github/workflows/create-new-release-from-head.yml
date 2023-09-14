@@ -25,4 +25,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook increment-version-tag.yml -e "branch=${{ env.BRANCH_NAME }}""
+          script: cd $HOME/DevOps/ansible && ansible-playbook increment-version-tag.yml -e "branch=${{ env.BRANCH_NAME }}"
