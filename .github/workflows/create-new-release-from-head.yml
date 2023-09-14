@@ -27,6 +27,7 @@ jobs:
           path: dotyoucore
 
       - name: Execute versioning script
+        working-directory: dotyoucore
         run: |
           output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
           echo "Tagging output: $output"
