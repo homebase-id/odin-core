@@ -1,4 +1,4 @@
-name: Create new release from HEAD on selected branch
+name: Create new release from tip of selected branch
 
 on:
   workflow_dispatch:

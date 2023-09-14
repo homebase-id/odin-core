@@ -15,11 +15,15 @@ if [ -z "$gitName" ]; then
   git config --global user.name "GitHub Action"
 fi
 
+echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAa"
+
 # Fetch all tags from remote repository
 git fetch --tags
 
 # Get the latest version tag (ignoring other tags)
 latest_tag=$(git tag | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort -V | tail -n 1)
+
+echo "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB $latest_tag"
 
 # Check if a version tag exists
 if [ -z "$latest_tag" ]; then
@@ -38,10 +42,16 @@ else
     new_tag="v${major}.${minor}.${new_patch}"
 fi
 
+echo "CCCCCCCCCCCCCCCCCCCCCCCCCC $new_tag"
+
 # Create new tag
 git tag -a "${new_tag}" -m "Auto-incremented to ${new_tag}"
 
+echo "DDDDDDDDDDDDDDDDDDDDDDDDDDD"
+
 # Push new tag to remote repository
 git push origin "${new_tag}"
+
+echo "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
 
 echo "${new_tag}"
