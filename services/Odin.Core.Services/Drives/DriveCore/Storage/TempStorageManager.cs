@@ -58,6 +58,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 //Process: if there's a file, we write to a temp file then rename.
                 if (File.Exists(filePath))
                 {
+                    
                     bytesWritten = WriteStream(stream, tempFilePath);
                     lock (filePath)
                     {

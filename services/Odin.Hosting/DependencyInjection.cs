@@ -85,17 +85,17 @@ namespace Odin.Hosting
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
             cb.RegisterType<HomeRegistrationStorage>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
             cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
-            
+
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
@@ -234,12 +234,11 @@ namespace Odin.Hosting
             var config = scope.Resolve<OdinConfiguration>();
             var tenantContext = scope.Resolve<TenantContext>();
 
-            var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ??
-                                  false;
+            var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name,
+                StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
-            var reg = registry.Get(tenant.Name).GetAwaiter().GetResult();
-            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, reg.FirstRunToken, isPreconfigured,
-                config.Host.TenantPayloadRootPath);
+            var tc = registry.CreateTenantContext(tenant.Name);
+            tenantContext.Update(tc);
         }
     }
 }

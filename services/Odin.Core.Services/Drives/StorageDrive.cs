@@ -12,19 +12,22 @@ namespace Odin.Core.Services.Drives
     /// </summary>
     public sealed class StorageDrive : StorageDriveBase
     {
-        private readonly string _longTermDataRootPath;
+        private readonly string _longTermHeaderRootPath;
         private readonly string _tempDataRootPath;
         private readonly string _driveFolderName;
         private readonly string _longTermPayloadPath;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string longTermDataRootPath, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
+        public StorageDrive(string longTermHeaderRootPath, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
         {
             _inner = inner;
             _driveFolderName = this.Id.ToString("N");
-            _longTermDataRootPath = Path.Combine(longTermDataRootPath, _driveFolderName);
+            _longTermHeaderRootPath = Path.Combine(longTermHeaderRootPath, _driveFolderName);
             _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
+            
+            // value = \data\tenant\payloads\p1\{driveId}\
+            // note: p1 is the CIFS mapped drive.
             _longTermPayloadPath = Path.Combine(longTermPayloadPath, _driveFolderName);
         }
 
@@ -95,16 +98,10 @@ namespace Odin.Core.Services.Drives
             get => _inner.OwnerOnly;
             set { }
         }
-
-        // public string GetStoragePath(StorageDisposition storageDisposition)
-        // {
-        //     var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
-        //     return Path.Combine(path, "files");
-        // }
-
+        
         public string GetLongTermHeaderStoragePath()
         {
-            return Path.Combine(_longTermDataRootPath, "files");
+            return Path.Combine(_longTermHeaderRootPath, "files");
         }
 
         public string GetLongTermPayloadStoragePath()
@@ -119,7 +116,7 @@ namespace Odin.Core.Services.Drives
 
         public string GetIndexPath()
         {
-            return Path.Combine(this._longTermDataRootPath, "idx");
+            return Path.Combine(this._longTermHeaderRootPath, "idx");
         }
 
         public void EnsureDirectories()

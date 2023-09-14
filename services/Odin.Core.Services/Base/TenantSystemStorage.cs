@@ -21,7 +21,7 @@ namespace Odin.Core.Services.Base
                 
             _logger = logger;
 
-            string dbPath = tenantContext.StorageConfig.DataStoragePath;
+            string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
             string dbName = "sys.db";
             if (!Directory.Exists(dbPath))
             {

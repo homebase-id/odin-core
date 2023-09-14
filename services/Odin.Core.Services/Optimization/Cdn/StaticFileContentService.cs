@@ -169,8 +169,8 @@ public class StaticFileContentService
     public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
     {
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
-        string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
-
+        string targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
+        
         var config = _tenantSystemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))
@@ -235,7 +235,7 @@ public class StaticFileContentService
 
     private string EnsurePath()
     {
-        string targetFolder = _tenantContext.StaticFileDataRoot;
+        string targetFolder = _tenantContext.StorageConfig.StaticFileStoragePath;
 
         if (!Directory.Exists(targetFolder))
         {

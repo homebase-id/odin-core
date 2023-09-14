@@ -11,6 +11,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Trie;
 using Serilog;
@@ -29,19 +30,21 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
+    private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
-    private readonly string _tenantDataRootPath;
-    private readonly string _tenantDataPayloadPath;
+
+    private readonly string _registrationRoot;
+    private readonly string _tempFolderRoot;
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
-        bool useCertificateAuthorityProductionServers,
-        string tenantDataRootPath,
-        string tenantDataPayloadPath)
+        OdinConfiguration config)
     {
+        string tenantDataRootPath = config.Host.TenantDataRootPath;
+
         if (!Directory.Exists(tenantDataRootPath))
         {
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
@@ -53,13 +56,16 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _certificateServiceFactory = certificateServiceFactory;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
-        _useCertificateAuthorityProductionServers = useCertificateAuthorityProductionServers;
-        _tenantDataRootPath = tenantDataRootPath;
-        _tenantDataPayloadPath = tenantDataPayloadPath;
+        _config = config;
 
+        _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
+
+        _registrationRoot = Path.Combine(tenantDataRootPath, "registrations");
+        _tempFolderRoot = tenantDataRootPath;
         RegisterCertificateInitializerHttpClient();
         Initialize();
     }
+
 
     public void Initialize()
     {
@@ -96,6 +102,51 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return null;
     }
 
+
+    public TenantContext CreateTenantContext(string domain, bool updateFileSystem = false)
+    {
+        var idReg = this.ResolveIdentityRegistration(domain, out _);
+        return this.CreateTenantContext(idReg, updateFileSystem);
+    }
+
+    public TenantContext CreateTenantContext(IdentityRegistration idReg, bool updateFileSystem = false)
+    {
+        var regIdFolder = idReg.Id.ToString();
+
+        var rootPath = Path.Combine(_registrationRoot, regIdFolder);
+        var headerRoot = Path.Combine(rootPath, "headers");
+        var staticRoot = Path.Combine(rootPath, "static");
+        var sslRoot = Path.Combine(rootPath, "ssl");
+
+        var tempRoot = Path.Combine(_tempFolderRoot, "temp", regIdFolder);
+        
+        var shardedPayloadRoot = Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder);
+
+        var storageConfig = new TenantStorageConfig(
+            headerDataStoragePath: Path.Combine(headerRoot, idReg.Id.ToString()),
+            tempStoragePath: Path.Combine(tempRoot, idReg.Id.ToString()),
+            payloadStoragePath: shardedPayloadRoot,
+            staticFileStoragePath: Path.Combine(staticRoot, idReg.Id.ToString())
+        );
+
+        // IO is slow, so make it optional
+        if (updateFileSystem)
+        {
+            Directory.CreateDirectory(sslRoot);
+            Directory.CreateDirectory(storageConfig.HeaderDataStoragePath);
+            Directory.CreateDirectory(storageConfig.TempStoragePath);
+            Directory.CreateDirectory(storageConfig.PayloadStoragePath);
+            Directory.CreateDirectory(storageConfig.StaticFileStoragePath);
+        }
+
+        var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
+            StringComparison.InvariantCultureIgnoreCase)) ?? false;
+        var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured);
+        return tc;
+    }
+
+    public string ShardablePayloadRoot => Path.Combine(_config.Host.TenantDataRootPath, "payloads");
+
     public Task<bool> IsIdentityRegistered(string domain)
     {
         return Task.FromResult(_trie.LookupExactName(domain) != null);
@@ -103,6 +154,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
     {
+        string GetNextShard()
+        {
+            //TODO: read folders under this.ShardablePayloadRoot and choose a folder; wisely (maybe round robin?)
+            const string shard1 = "shard1";
+            return shard1;
+        }
+
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
@@ -110,7 +168,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PlanId = request.PlanId,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
-            FirstRunToken = Guid.NewGuid()
+            FirstRunToken = Guid.NewGuid(),
+            PayloadShardKey = GetNextShard()
         };
 
         await this.SaveRegistrationInternal(registration);
@@ -123,7 +182,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _tenantDataPayloadPath);
+            var tenantContext = this.CreateTenantContext(request.OdinId, true);
 
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
             await tc.SaveSslCertificate(
@@ -144,7 +203,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            string tenantRoot = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
+            string tenantRoot = Path.Combine(_registrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             _trie.RemoveDomain(domain);
         }
@@ -200,11 +259,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task SaveRegistrationInternal(IdentityRegistration registration)
     {
-        string root = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
+        string root = Path.Combine(_registrationRoot, registration.Id.ToString());
         Directory.CreateDirectory(root);
 
         var json = OdinSystemSerializer.Serialize(registration);
-        await File.WriteAllTextAsync(GetRegFilePath(registration.Id), json);
+        var regFilePath = GetRegFilePath(registration.Id);
+        await File.WriteAllTextAsync(regFilePath, json);
 
         Log.Information($"Write registration file for [{registration.Id}]");
 
@@ -225,12 +285,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private string GetRegFilePath(Guid registrationId)
     {
-        return Path.Combine(_tenantDataRootPath, registrationId.ToString(), "reg.json");
+        return Path.Combine(_registrationRoot, registrationId.ToString(), "reg.json");
     }
 
     private void LoadCache()
     {
-        var directories = Directory.GetDirectories(_tenantDataRootPath);
+        if (!Directory.Exists(_registrationRoot))
+        {
+            return;
+        }
+
+        var directories = Directory.GetDirectories(_registrationRoot);
 
         foreach (var dir in directories)
         {
@@ -244,17 +309,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     continue;
                 }
 
-                var regFile = GetRegFilePath(id);
-
-                if (!File.Exists(regFile))
+                var registration = LoadRegistration(id);
+                if (null == registration)
                 {
                     Log.Warning($"Identity Registry: could not find reg file for Id: [{id.ToString()}]; moving to next");
                     continue;
                 }
-
-                var json = File.ReadAllText(regFile);
-
-                var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json);
 
                 Cache(registration);
             }
@@ -266,6 +326,21 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 continue;
             }
         }
+    }
+
+    private IdentityRegistration LoadRegistration(Guid id)
+    {
+        var regFile = GetRegFilePath(id);
+
+        if (!File.Exists(regFile))
+        {
+            return null;
+        }
+
+        var json = File.ReadAllText(regFile);
+
+        var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json);
+        return registration;
     }
 
     private void Cache(IdentityRegistration registration)
@@ -340,13 +415,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void RegisterDotYouHttpClient(IdentityRegistration idReg)
     {
-        var tenantContext = TenantContext.Create(
-            idReg.Id,
-            idReg.PrimaryDomainName,
-            _tenantDataRootPath,
-            _tenantDataPayloadPath,
-            false);
-
+        var tenantContext = this.CreateTenantContext(idReg);
         var domain = idReg.PrimaryDomainName;
         var sslRoot = tenantContext.SslRoot;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);

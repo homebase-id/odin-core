@@ -59,6 +59,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 return null;
             }
+
             var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             return result;
         }
@@ -138,7 +139,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
         }
-        
+
         public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
@@ -236,8 +237,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 // Update the metadata 
                 var updatedThumbs = header.FileMetadata.AppData.AdditionalThumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
                 header.FileMetadata.AppData.AdditionalThumbnails = updatedThumbs;
-                await this.UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
+                await this.UpdateActiveFileHeader(file, header);
             }
 
             return header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -255,8 +256,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 header.FileMetadata.AppData.ContentIsComplete = true;
-                await UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId);
+                await UpdateActiveFileHeader(file, header);
                 return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
                 // down. but in reality we should return it
             }
@@ -377,8 +378,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
-            await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+            await this.WriteFileHeaderInternal(deletedServerFileHeader);
 
             if (await ShouldRaiseDriveEvent(file))
             {
@@ -524,7 +525,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //TODO: clean up old payload if it was removed?
 
             var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
+            await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
             foreach (var thumb in thumbs)
             {
                 var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
@@ -573,7 +574,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
             var existingThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, existingThumbnails); //clean up
+            await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
             foreach (var thumb in incomingThumbnails ?? new List<ImageDataHeader>())
             {
@@ -753,8 +754,23 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
+            var file = header.FileMetadata.File;
+            var du = GetLongTermStorageManager(file.DriveId).GetDiskUsage(file.FileId);
+
             var json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+            header.ServerMetadata.DiskUsage = new DiskUsage()
+            {
+                ApproxMetadataBytes = stream.Length, //using the stream so we get the total size that WILL be on disk after we write it below
+                TotalThumbnailBytes = du.TotalThumbnailBytes,
+                TotalPayloadBytes = du.TotalPayloadBytes,
+                TotalOtherBytes = du.TotalOtherBytes
+            };
+
+            json = OdinSystemSerializer.Serialize(header);
+            stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
         }
 

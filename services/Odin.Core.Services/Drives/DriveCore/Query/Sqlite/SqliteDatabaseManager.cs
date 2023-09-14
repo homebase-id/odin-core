@@ -161,6 +161,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 accessControlList: acl,
                 tagIdList: tags,
                 fileState: (int)metadata.FileState,
+                byteCount: header.ServerMetadata.DiskUsage.GetTotalBytes(),
                 fileSystemType: (int)header.ServerMetadata.FileSystemType);
         }
         else
@@ -180,7 +181,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 tagIdList: tags,
                 fileState: (int)metadata.FileState,
                 fileSystemType: (int)header.ServerMetadata.FileSystemType,
-                byteCount: 1
+                byteCount: header.ServerMetadata.DiskUsage.GetTotalBytes()
             );
         }
 
