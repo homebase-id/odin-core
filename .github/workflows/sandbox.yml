@@ -3,7 +3,7 @@ name: Sandbox
 on:
   workflow_dispatch:
   push:
-    branches: [ansible]
+    branches: [ansibleXX]
 
 permissions:
   contents: read

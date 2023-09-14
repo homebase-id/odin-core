@@ -26,7 +26,7 @@ jobs:
 
       - name: Execute versioning script
         run: |
-          output=$(./scripts/increment-version-tag-on-git-tip.sh)
+          output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
           echo "Tagging output: $output"
           echo "${TAG_ENV_NAME}=${output}" >> $GITHUB_ENV
 
