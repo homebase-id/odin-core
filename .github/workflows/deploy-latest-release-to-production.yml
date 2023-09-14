@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-edge
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   deploy:
@@ -27,6 +27,6 @@ jobs:
       - name: Get Latest Tag
         run: |
           image_name="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          latest_tag=$(docker image ls --format '{{json .}}' $image_name | jq -r '.Tag' | sort -V | tail -n1)
+          latest_tag=$(docker image ls --format '{{json .}}' $image_name | jq -r '.Tag' | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort -V | tail -n1)
           echo "Latest tag: $latest_tag"
           echo "LATEST_DOCKER_TAG=$latest_tag" >> $GITHUB_ENV
