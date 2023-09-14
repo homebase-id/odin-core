@@ -101,10 +101,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
-            Assert.IsTrue(clientFileHeader.DiskUsage.ApproxMetadataBytes > 0, "metadata bytes was not calculated");
-            Assert.IsTrue(clientFileHeader.DiskUsage.TotalThumbnailBytes == 0, "there should be no thumbnail bytes");
-            Assert.IsTrue(clientFileHeader.DiskUsage.TotalPayloadBytes == 0, "there should be no payload bytes");
-            Assert.IsTrue(clientFileHeader.DiskUsage.TotalOtherBytes == 0, "there should be no other bytes");
+            Assert.IsTrue(clientFileHeader.DiskUsageBytes > 0, "Disk usage was not calculated");
 
             //
             // var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);

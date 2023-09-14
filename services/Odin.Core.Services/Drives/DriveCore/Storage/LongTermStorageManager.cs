@@ -75,69 +75,22 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             File.Delete(path);
             return Task.CompletedTask;
         }
+        
 
-        /// <summary>
-        /// Gets the file lenght on disk
-        /// </summary>
-        public long GetFileLength(Guid fileId, FilePart filePart)
+        public Int64 GetPayloadDiskUsage(Guid fileId)
         {
-            string path = GetFilenameAndPath(fileId, filePart);
-            var info = new FileInfo(path);
-
-            if (info.Exists)
-            {
-                return info.Length;
-            }
-
-            return -1;
-        }
-
-        /// <summary>
-        /// Gets the <see cref="DiskUsage"/> for all file parts
-        /// </summary>
-        public DiskUsage GetDiskUsage(Guid fileId)
-        {
-            List<string> filePaths = new List<string>();
-            
             string payloadFilePath = GetPayloadFilePath(fileId);
-            if (Directory.Exists(payloadFilePath))
+            if (!Directory.Exists(payloadFilePath))
             {
-                filePaths.AddRange(Directory.GetFiles(payloadFilePath!));
+                return 0;
             }
 
-            string headerFilePath = GetHeaderFilePath(fileId);
-            if (Directory.Exists(headerFilePath))
-            {
-                filePaths.AddRange(Directory.GetFiles(headerFilePath!));
-            }
-
-            var usage = new DiskUsage();
-
+            Int64 usage = 0;
+            var filePaths = Directory.GetFiles(payloadFilePath!);
             foreach (var filePath in filePaths)
             {
                 var info = new FileInfo(filePath);
-                var isKnownFile = Enum.TryParse(info.Extension.Replace(".", ""), true, out FilePart fileType);
-                if (isKnownFile)
-                {
-                    switch (fileType)
-                    {
-                        case FilePart.Header:
-                            usage.ApproxMetadataBytes += info.Length;
-                            break;
-                        
-                        case FilePart.Payload:
-                            usage.TotalPayloadBytes += info.Length;
-
-                            break;
-                        case FilePart.Thumb:
-                            usage.TotalThumbnailBytes += info.Length;
-                            break;
-                    }
-                }
-                else
-                {
-                    usage.TotalOtherBytes += info.Length;
-                }
+                usage += info.Length;
             }
 
             return usage;

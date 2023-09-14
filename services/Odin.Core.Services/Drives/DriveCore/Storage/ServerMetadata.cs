@@ -1,4 +1,5 @@
-﻿using Odin.Core.Services.Authorization.Acl;
+﻿using System;
+using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
@@ -22,6 +23,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public FileSystemType FileSystemType { get; set; }
 
-        public DiskUsage DiskUsage { get; set; }
+        public Int64 DiskUsageBytes { get; set; }
     }
 }

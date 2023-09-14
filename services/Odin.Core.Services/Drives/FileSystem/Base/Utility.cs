@@ -61,7 +61,7 @@ public static class Utility
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority,
-            DiskUsage = header.ServerMetadata.DiskUsage
+            DiskUsageBytes = header.ServerMetadata.DiskUsageBytes
         };
 
         //add additional info

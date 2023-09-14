@@ -755,21 +755,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var file = header.FileMetadata.File;
-            var du = GetLongTermStorageManager(file.DriveId).GetDiskUsage(file.FileId);
+            var payloadDiskUsage = GetLongTermStorageManager(file.DriveId).GetPayloadDiskUsage(file.FileId);
 
             var json = OdinSystemSerializer.Serialize(header);
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-
-            header.ServerMetadata.DiskUsage = new DiskUsage()
-            {
-                ApproxMetadataBytes = stream.Length,
-                TotalThumbnailBytes = du.TotalThumbnailBytes,
-                TotalPayloadBytes = du.TotalPayloadBytes,
-                TotalOtherBytes = du.TotalOtherBytes
-            };
+            header.ServerMetadata.DiskUsageBytes = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
 
             json = OdinSystemSerializer.Serialize(header);
-            stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
         }
