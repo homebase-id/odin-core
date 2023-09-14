@@ -31,7 +31,7 @@ jobs:
         run: |
           output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
           echo "Tagging output: $output"
-          echo "${TAG_ENV_NAME}=${output}" >> $GITHUB_ENV
+          echo "${NEW_TAG_ENV_NAME}=${output}" >> $GITHUB_ENV
 
       - name: Setup Node
         uses: actions/setup-node@v3
