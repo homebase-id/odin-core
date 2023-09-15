@@ -1,10 +1,5 @@
 name: Deploy latest release to production
 
-# on:
-#   workflow_dispatch:
-#   push:
-#     branches: [ansible]
-
 on:
   workflow_dispatch:
     # inputs:

@@ -1,12 +1,12 @@
-name: Create new release from tip of selected branch
+name: Create new release from tip of branch
 
 on:
   workflow_dispatch:
-    inputs:
-      reason:
-        description: "Reason for manual run"
-        required: true
-        default: "Just because"
+    # inputs:
+    #   reason:
+    #     description: "Reason for manual run"
+    #     required: true
+    #     default: "Just because"
 
 env:
   REGISTRY: ghcr.io
