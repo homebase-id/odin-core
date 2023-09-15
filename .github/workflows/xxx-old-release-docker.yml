@@ -1,4 +1,4 @@
-name: Build Docker image for stable release
+name: XXX OLD Build Docker image for stable release
 
 on:
   release:
