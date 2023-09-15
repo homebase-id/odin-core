@@ -50,5 +50,5 @@ jobs:
             echo "Error: env.LATEST_VERSION_TAG is empty"
             exit 1
           fi
-          image_name_with_tag=$(echo '${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}'" >> $GITHUB_ENV
+          image_name_with_tag="${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}"
           echo "image_name_with_tag: $image_name_with_tag"
