@@ -1,27 +1,30 @@
 name: Deploy latest release to production
 
-# on:
-#   workflow_dispatch:
-#   push:
-#     branches: [ansible]
-
 on:
   workflow_dispatch:
-    inputs:
-      reason:
-        description: "Reason for manual run"
-        required: true
-        default: "Just because"
+  push:
+    branches: [ansible]
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       reason:
+#         description: "Reason for manual run"
+#         required: true
+#         default: "Just because"
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  ARCHITECTURE: x64
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Setup environment variables
+        run: echo "REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:
@@ -29,21 +32,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Get Latest Tag
-      #   run: |
-      #     image_name=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-      #     all_tags=$(docker image ls --format '{{json .}}' $image_name)
-      #     echo "All tags: $all_tags"
-      #     latest_tag=$(docker image ls --format '{{json .}}' $image_name | jq -r '.Tag' | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort -V | tail -n1)
-      #     echo "Latest tag: $latest_tag"
-      #     echo "LATEST_DOCKER_TAG=$latest_tag" >> $GITHUB_ENV
-
       - name: Get Latest Tag
         run: |
+          set -ex
           USERNAME=${{ github.actor }}
-          REPO=${{ github.repository }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
-          registry_token=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
+          registry_token=$(curl -u $USERNAME:$TOKEN -s https://${{ env.REGISTRY }}/token\?scope\="repository:${{ env.REPO }}:pull" | jq -r .token)
+          # registry_token=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
           echo "registry_token: $registry_token"
-          latest_image_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://ghcr.io/v2/youfoundation/dotyoucore/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-${architecture}" | sort -V | tail -n1)
+          latest_image_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-${{ env.ARCHITECTURE }}$" | sort -V | tail -n1)
           echo "latest_image_tag: $latest_image_tag"
+          # image_tag
