@@ -43,5 +43,7 @@ jobs:
           USERNAME=${{ github.actor }}
           REPO=${{ github.repository }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
-          registry_foo=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
-          echo "registry_foo: $registry_foo"
+          registry_token=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
+          echo "registry_token: $registry_token"
+          latest_image_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://ghcr.io/v2/youfoundation/dotyoucore/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-${architecture}" | sort -V | tail -n1)
+          echo "latest_image_tag: $latest_image_tag"
