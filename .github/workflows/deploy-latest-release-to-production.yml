@@ -38,17 +38,17 @@ jobs:
           USERNAME=${{ github.actor }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
           registry_token=$(curl -u $USERNAME:$TOKEN -s https://${{ env.REGISTRY }}/token\?scope\="repository:${{ env.REPO }}:pull" | jq -r .token)
-          # registry_token=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
           echo "registry_token: $registry_token"
           latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-${{ env.ARCHITECTURE }}$" | sort -V | tail -n1)
           echo "latest_version_tag: $latest_version_tag"
           echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
-          if [[ -z "${{ env.LATEST_VERSION_TAG }}" ]]; then
-            echo "LATEST_VERSION_TAG is empty. Failing the workflow."
-            exit 1
-          fi
-          echo "IMAGE_NAME_WITH_TAG=$(echo '${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}'" >> $GITHUB_ENV
 
       - name: Deploy
         run: |
-          echo "IMAGE_NAME_WITH_TAG: ${{ env.IMAGE_NAME_WITH_TAG }}"
+          set -ex
+          if [[ -z "${{ env.LATEST_VERSION_TAG }}" ]]; then
+            echo "Error: env.LATEST_VERSION_TAG is empty"
+            exit 1
+          fi
+          image_name_with_tag=$(echo '${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}'" >> $GITHUB_ENV
+          echo "image_name_with_tag: $image_name_with_tag"
