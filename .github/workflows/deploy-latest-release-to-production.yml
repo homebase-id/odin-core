@@ -54,7 +54,7 @@ jobs:
           echo "image_name_with_tag: $image_name_with_tag"
           echo "IMAGE_NAME_WITH_TAG=$image_name_with_tag" >> $GITHUB_ENV
 
-      - name: Output DEPLOY_IMAGE
+      - name: Check IMAGE_NAME_WITH_TAG
         run: |
           set -ex
           if [[ -z "${{ env.IMAGE_NAME_WITH_TAG }}" ]]; then
@@ -69,4 +69,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
