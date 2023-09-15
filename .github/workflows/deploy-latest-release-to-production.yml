@@ -43,5 +43,5 @@ jobs:
           USERNAME=${{ github.actor }}
           REPO=${{ github.repository }}
           TOKEN=${{ secrets.GITHUB_TOKEN }}
-          registry_token=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
-          echo "registry_token: $registry_token"
+          registry_foo=$(curl -u $USERNAME:$TOKEN -s https://ghcr.io/token\?scope\="repository:youfoundation/dotyoucore:pull" | jq -r .token)
+          echo "registry_foo: $registry_foo"
