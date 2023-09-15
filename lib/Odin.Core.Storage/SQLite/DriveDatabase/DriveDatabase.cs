@@ -54,6 +54,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 
     public class DriveDatabase : DatabaseBase
     {
+        public class NullableGuid { public Guid? uniqueId; }
+
         private DatabaseIndexKind _kind;
 
         public readonly TableMainIndex TblMainIndex = null;
@@ -156,13 +158,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
             List<Guid> tagIdList,
+            Int64 byteCount,
             Int32 fileSystemType = (int)FileSystemType.Standard,
-            Int32 fileState = 0 
-        )
+            Int32 fileState = 0)
         {
+            if (byteCount < 1)
+                throw new ArgumentException("byteCount must be at least 1");
+
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus, historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus, historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType, byteCount = byteCount });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -190,6 +195,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
+            Int64? byteCount = null,
             List<Guid> addAccessControlList = null,
             List<Guid> deleteAccessControlList = null,
             List<Guid> addTagIdList = null,
@@ -197,8 +203,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         {
             using (CreateCommitUnitOfWork())
             {
+
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, new DriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 TblAclIndex.InsertRows(fileId, addAccessControlList);
                 TblTagIndex.InsertRows(fileId, addTagIdList);
@@ -222,6 +229,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
+            Int64? byteCount = null,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
             Int32 fileSystemType = 0)
@@ -229,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, new DriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 TblAclIndex.DeleteAllRows(fileId);
                 TblAclIndex.InsertRows(fileId, accessControlList);

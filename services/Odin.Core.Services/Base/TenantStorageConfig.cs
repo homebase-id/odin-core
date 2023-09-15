@@ -5,17 +5,24 @@
     /// </summary>
     public class TenantStorageConfig
     {
-        public TenantStorageConfig(string dataStoragePath, string tempStoragePath, string payloadStoragePath)
+        public TenantStorageConfig(string headerDataStoragePath, string tempStoragePath, string payloadStoragePath, string staticFileStoragePath)
         {
-            DataStoragePath = dataStoragePath;
+            HeaderDataStoragePath = headerDataStoragePath;
             TempStoragePath = tempStoragePath;
             PayloadStoragePath = payloadStoragePath;
+            StaticFileStoragePath = staticFileStoragePath;
         }
 
-        public string DataStoragePath { get; }
+        public string HeaderDataStoragePath { get; }
 
         public string PayloadStoragePath { get; }
 
         public string TempStoragePath { get; }
+        
+        /// <summary>
+        /// The root path for static files
+        /// </summary>
+        public string StaticFileStoragePath { get; }
+
     }
 }

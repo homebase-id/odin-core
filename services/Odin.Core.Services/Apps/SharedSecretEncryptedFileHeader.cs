@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
@@ -23,6 +24,8 @@ namespace Odin.Core.Services.Apps
         
         public int Priority { get; set; }
         
+        public Int64 DiskUsageBytes { get; set; }
+
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)

@@ -54,6 +54,12 @@ namespace Odin.Core.Services.Registry
         public Guid? FirstRunToken { get; set; }
 
         public string PlanId { get; set; }
+        
+        /// <summary>
+        /// The key used to define on which shard this tenant's payloads are store.  The shard
+        /// being a folder or what ever is holding the payload files
+        /// </summary>
+        public string PayloadShardKey { get; set; }
 
         public override string ToString()
         {

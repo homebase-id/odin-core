@@ -59,6 +59,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 return null;
             }
+
             var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             return result;
         }
@@ -77,27 +78,27 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return df;
         }
 
-        public async Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header, bool raiseEvent = false)
+        public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, bool raiseEvent = false)
         {
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
 
-            AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(targetFile.DriveId);
 
             var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
-            metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embedded
+            metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
 
             bool wasAnUpdate = false;
-            if (this.FileExists(file))
+            if (this.FileExists(targetFile))
             {
                 if (metadata.FileState != FileState.Active)
                 {
                     throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
                 }
 
-                var existingHeader = await this.GetServerFileHeaderInternal(file);
+                var existingHeader = await this.GetServerFileHeaderInternal(targetFile);
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
                 metadata.FileState = existingHeader.FileMetadata.FileState;
@@ -112,16 +113,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             await WriteFileHeaderInternal(header);
 
+            //clean up temp storage
+            await GetTempStorageManager(targetFile.DriveId).EnsureDeleted(targetFile.FileId);
+
             //HACKed in for Feed drive
             if (raiseEvent)
             {
-                if (await ShouldRaiseDriveEvent(file))
+                if (await ShouldRaiseDriveEvent(targetFile))
                 {
                     if (wasAnUpdate)
                     {
                         await _mediator.Publish(new DriveFileAddedNotification()
                         {
-                            File = file,
+                            File = targetFile,
                             ServerFileHeader = header,
                             SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, ContextAccessor)
                         });
@@ -130,7 +134,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     {
                         await _mediator.Publish(new DriveFileChangedNotification()
                         {
-                            File = file,
+                            File = targetFile,
                             ServerFileHeader = header,
                             SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, ContextAccessor)
                         });
@@ -138,7 +142,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
         }
-        
+
         public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
@@ -162,14 +166,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
         {
             AssertCanWriteToDrive(file.DriveId);
-            return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
+            return GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId, extension);
         }
 
         public Task DeleteTempFiles(InternalDriveFileId file)
         {
             AssertCanWriteToDrive(file.DriveId);
 
-            return GetTempStorageManager(file.DriveId).Delete(file.FileId);
+            return GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId);
         }
 
         public Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
@@ -236,8 +240,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 // Update the metadata 
                 var updatedThumbs = header.FileMetadata.AppData.AdditionalThumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
                 header.FileMetadata.AppData.AdditionalThumbnails = updatedThumbs;
-                await this.UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
+                await this.UpdateActiveFileHeader(file, header);
             }
 
             return header.FileMetadata.VersionTag.GetValueOrDefault();
@@ -255,8 +259,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 header.FileMetadata.AppData.ContentIsComplete = true;
-                await UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId);
+                await UpdateActiveFileHeader(file, header);
                 return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
                 // down. but in reality we should return it
             }
@@ -377,8 +381,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
-            await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+            await this.WriteFileHeaderInternal(deletedServerFileHeader);
 
             if (await ShouldRaiseDriveEvent(file))
             {
@@ -457,6 +461,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
 
+            //clean up temp storage
+            await tempStorageManager.EnsureDeleted(targetFile.FileId);
+
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new DriveFileAddedNotification()
@@ -524,7 +531,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //TODO: clean up old payload if it was removed?
 
             var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
+            await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
             foreach (var thumb in thumbs)
             {
                 var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
@@ -541,6 +548,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             };
 
             await WriteFileHeaderInternal(serverHeader);
+
+            //clean up temp storage
+            await tempStorageManager.EnsureDeleted(targetFile.FileId);
+
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new DriveFileChangedNotification()
@@ -573,7 +584,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
             var existingThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, existingThumbnails); //clean up
+            await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
             foreach (var thumb in incomingThumbnails ?? new List<ImageDataHeader>())
             {
@@ -599,6 +610,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             await WriteFileHeaderInternal(existingServerHeader);
+
+            //clean up temp storage
+            await tempStorageManager.EnsureDeleted(targetFile.FileId);
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
@@ -648,6 +662,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             await WriteFileHeaderInternal(existingServerHeader);
 
+            //clean up temp storage
+            await GetTempStorageManager(targetFile.DriveId).EnsureDeleted(targetFile.FileId);
+
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new DriveFileChangedNotification()
@@ -666,6 +683,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
+
+            //clean up temp storage
+            await GetTempStorageManager(targetFile.DriveId).EnsureDeleted(targetFile.FileId);
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
@@ -722,6 +742,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
 
+            //clean up temp storage
+            await GetTempStorageManager(targetFile.DriveId).EnsureDeleted(targetFile.FileId);
+
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new ReactionPreviewUpdatedNotification()
@@ -753,8 +776,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
+            var file = header.FileMetadata.File;
+            var payloadDiskUsage = GetLongTermStorageManager(file.DriveId).GetPayloadDiskUsage(file.FileId);
+
             var json = OdinSystemSerializer.Serialize(header);
+            header.ServerMetadata.DiskUsageBytes = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
+
+            json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
         }
 

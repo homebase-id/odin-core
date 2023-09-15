@@ -100,13 +100,12 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
-            Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__TenantPayloadRootPath", TestPayloadPath);
-            Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
+            Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
 
-            Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+            Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
 
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
@@ -224,8 +223,7 @@ namespace Odin.Hosting.Tests
         private void CreateData()
         {
             Directory.CreateDirectory(TestDataPath);
-            Directory.CreateDirectory(TestPayloadPath);
-            Directory.CreateDirectory(TempDataPath);
+            Directory.CreateDirectory(LogFilePath);
         }
 
         private void DeleteData()
@@ -235,17 +233,11 @@ namespace Odin.Hosting.Tests
                 Console.WriteLine($"Removing data in [{TestDataPath}]");
                 Directory.Delete(TestDataPath, true);
             }
-
-            if (Directory.Exists(TestPayloadPath))
+            
+            if (Directory.Exists(LogFilePath))
             {
-                Console.WriteLine($"Removing data in [{TestPayloadPath}]");
-                Directory.Delete(TestPayloadPath, true);
-            }
-
-            if (Directory.Exists(TempDataPath))
-            {
-                Console.WriteLine($"Removing data in [{TempDataPath}]");
-                Directory.Delete(TempDataPath, true);
+                Console.WriteLine($"Removing data in [{LogFilePath}]");
+                Directory.Delete(LogFilePath, true);
             }
         }
 
@@ -277,7 +269,7 @@ namespace Odin.Hosting.Tests
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoudata", _folder);
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "data", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
             }
@@ -286,22 +278,11 @@ namespace Odin.Hosting.Tests
         private bool isDev => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
         private string home => Environment.GetEnvironmentVariable("HOME") ?? Environment.GetEnvironmentVariable("HOMEPATH");
 
-        private string TempDataPath
-        {
-            get
-            {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", _uniqueSubPath, "dotyoudata", _folder);
-                //return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
-                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
-                return Path.Combine(_testInstancePrefix, x);
-            }
-        }
-
         private string LogFilePath
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoulogs", _folder);
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "logs", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
             }
