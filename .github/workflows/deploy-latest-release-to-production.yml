@@ -1,17 +1,17 @@
 name: Deploy latest release to production
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ansible]
-
 # on:
 #   workflow_dispatch:
-#     inputs:
-#       reason:
-#         description: "Reason for manual run"
-#         required: true
-#         default: "Just because"
+#   push:
+#     branches: [ansible]
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual run"
+        required: true
+        default: "Just because"
 
 env:
   REGISTRY: ghcr.io
@@ -43,7 +43,7 @@ jobs:
           echo "latest_version_tag: $latest_version_tag"
           echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
 
-      - name: Deploy
+      - name: Get deployable image name
         run: |
           set -ex
           if [[ -z "${{ env.LATEST_VERSION_TAG }}" ]]; then
@@ -52,3 +52,21 @@ jobs:
           fi
           image_name_with_tag="${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}"
           echo "image_name_with_tag: $image_name_with_tag"
+          echo "IMAGE_NAME_WITH_TAG=$image_name_with_tag" >> $GITHUB_ENV
+
+      - name: Output DEPLOY_IMAGE
+        run: |
+          set -ex
+          if [[ -z "${{ env.IMAGE_NAME_WITH_TAG }}" ]]; then
+            echo "Error: env.IMAGE_NAME_WITH_TAG is empty"
+            exit 1
+          fi
+          echo "Deploying: ${{ env.IMAGE_NAME_WITH_TAG }}"
+
+      - name: Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox -e "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
