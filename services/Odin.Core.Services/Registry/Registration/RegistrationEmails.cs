@@ -201,9 +201,9 @@ public static class RegistrationEmails
                                                             '
                                                             valign='top'
                                                         >
-                                                            <p style='margin-bottom: 15px'>Hi {email},</p>
+                                                            <p style='margin-bottom: 15px'>Hi there,</p>
                                                             <p style='margin-bottom: 15px'>
-                                                                Your new {domain} identity is ready.<br/><br/>
+                                                                Your new <a href='{link}' style='text-decoration:underlin;'>{domain}</a> identity is ready.<br/><br/>
                                                                 Please click <a href='{link}' style='text-decoration:underlin;'>here</a>  to go to it!
                                                             </p>
                                                             <p style='margin-bottom: 15px'>
