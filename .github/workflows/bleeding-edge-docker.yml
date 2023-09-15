@@ -3,7 +3,7 @@ name: Bleeding Edge Docker
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, ansible]
 
 permissions:
   contents: read
@@ -11,18 +11,13 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-edge
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: 6.0.x
-
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
@@ -105,13 +100,18 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      - name: Combine Docker tags
+        run: |
+          lowercase_image_tags=$(echo "${{ steps.meta.outputs.tags }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
           file: ./dotyoucore/Docker/Dockerfile-identity-host
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
 
       #
@@ -122,7 +122,7 @@ jobs:
 
       - name: Create image deploy name
         run: |
-          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" | tr '[:upper:]' '[:lower:]')
           echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
 
       - name: Output DEPLOY_IMAGE
@@ -135,4 +135,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit bleeding_edge -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
