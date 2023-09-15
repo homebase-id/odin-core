@@ -24,7 +24,7 @@ namespace Odin.Core.Services.Apps
         
         public int Priority { get; set; }
         
-        public Int64 DiskUsageBytes { get; set; }
+        public Int64 FileByteCount { get; set; }
 
         public void AssertFileIsActive()
         {

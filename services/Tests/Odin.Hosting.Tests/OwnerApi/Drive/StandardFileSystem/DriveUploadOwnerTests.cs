@@ -101,7 +101,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
-            Assert.IsTrue(clientFileHeader.DiskUsageBytes > 0, "Disk usage was not calculated");
+            Assert.IsTrue(clientFileHeader.FileByteCount > 0, "Disk usage was not calculated");
 
             //
             // var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);

@@ -780,7 +780,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var payloadDiskUsage = GetLongTermStorageManager(file.DriveId).GetPayloadDiskUsage(file.FileId);
 
             var json = OdinSystemSerializer.Serialize(header);
-            header.ServerMetadata.DiskUsageBytes = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
+            header.ServerMetadata.FileByteCount = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
 
             json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

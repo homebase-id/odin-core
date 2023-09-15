@@ -23,6 +23,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public FileSystemType FileSystemType { get; set; }
 
-        public Int64 DiskUsageBytes { get; set; }
+        public Int64 FileByteCount { get; set; }
     }
 }
