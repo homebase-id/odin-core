@@ -24,6 +24,7 @@ namespace WaitingListApi
 
             PrepareEnvironment(config);
 
+            Console.WriteLine($"CorsUrl: [{config.Host.CorsUrl}]");
             services.AddCors(setup =>
             {
                 setup.AddPolicy(WaitingListCorsPolicy, p =>
