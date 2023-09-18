@@ -68,7 +68,6 @@ namespace Odin.Core.Services.Certificate
             await mutex.WaitAsync();
             try
             {
-                _logger.LogDebug("Create certificate: acquired {domain} mutex", domain);
                 var x509 = ResolveCertificate(domain);
                 if (x509 != null)
                 {
@@ -79,7 +78,6 @@ namespace Odin.Core.Services.Certificate
             }
             finally
             {
-                _logger.LogDebug("Create certificate: releasing {domain} mutex", domain);
                 mutex.Release();
             }
         }
@@ -93,7 +91,6 @@ namespace Odin.Core.Services.Certificate
             await mutex.WaitAsync();
             try
             {
-                _logger.LogDebug("Renew certificate: acquired {domain} mutex", domain);
                 var x509 = ResolveCertificate(domain);
                 if (x509 == null || AboutToExpire(x509))
                 {
@@ -106,7 +103,6 @@ namespace Odin.Core.Services.Certificate
             }
             finally
             {
-                _logger.LogDebug("Renew certificate: releasing {domain} mutex", domain);
                 mutex.Release();
             }
         }
