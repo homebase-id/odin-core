@@ -118,10 +118,6 @@ public class YouAuthAppParameters
         {
             throw new BadRequestException($"{AppNameName} is required");
         }
-        if (string.IsNullOrWhiteSpace(AppOrigin))
-        {
-            throw new BadRequestException($"{AppOriginName} is required");
-        }
         if (string.IsNullOrWhiteSpace(ClientFriendly))
         {
             throw new BadRequestException($"{ClientFriendlyName} is required");
