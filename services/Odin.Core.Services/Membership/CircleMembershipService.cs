@@ -119,7 +119,7 @@ public class CircleMembershipService
         var list = circleIds ?? new List<GuidId>();
         list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
-        return await this.CreateCircleGrantList(circleIds, keyStoreKey);
+        return await this.CreateCircleGrantList(list, keyStoreKey);
     }
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
