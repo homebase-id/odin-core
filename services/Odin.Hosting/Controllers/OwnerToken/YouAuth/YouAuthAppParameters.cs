@@ -19,7 +19,6 @@ public class YouAuthAppParameters
 
     public const string AppOriginName = "o";
     [JsonPropertyName(AppOriginName)]
-    [Required(ErrorMessage = $"{AppOriginName} is required")]
     public string AppOrigin { get; set; } = "";
 
     public const string ClientFriendlyName = "fn";
@@ -31,15 +30,15 @@ public class YouAuthAppParameters
     [JsonPropertyName(DrivesParamName)]
     [Required(ErrorMessage = $"{DrivesParamName} is required")]
     public string DrivesParam { get; set; } = "";
-    
+
     public const string CircleDrivesParamName = "cd";
     [JsonPropertyName(CircleDrivesParamName)]
     public string CircleDrivesParam { get; set; } = "";
-        
+
     public const string PermissionParamName = "p";
     [JsonPropertyName(PermissionParamName)]
     public string PermissionParam { get; set; } = "";
-    
+
     public const string ReturnName = "return";
     [JsonPropertyName(ReturnName)]
     public string Return { get; set; } = "";
@@ -118,10 +117,6 @@ public class YouAuthAppParameters
         if (string.IsNullOrWhiteSpace(AppName))
         {
             throw new BadRequestException($"{AppNameName} is required");
-        }
-        if (string.IsNullOrWhiteSpace(AppOrigin))
-        {
-            throw new BadRequestException($"{AppOriginName} is required");
         }
         if (string.IsNullOrWhiteSpace(ClientFriendly))
         {
