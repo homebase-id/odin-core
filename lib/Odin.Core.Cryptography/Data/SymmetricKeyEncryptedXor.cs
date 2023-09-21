@@ -1,6 +1,7 @@
 ﻿using System;
 using Dawn;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Util;
 
 namespace Odin.Core.Cryptography.Data
@@ -60,7 +61,12 @@ namespace Odin.Core.Cryptography.Data
         public SensitiveByteArray DecryptKeyClone(ref SensitiveByteArray remoteHalfKey)
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref remoteHalfKey)))
-                throw new Exception();
+            {
+                throw new OdinSecurityException()
+                {
+                    IsRemoteKeyMismatch = true
+                };
+            }
 
             var key = new SensitiveByteArray(XorManagement.XorEncrypt(KeyEncrypted, remoteHalfKey.GetKey()));
 

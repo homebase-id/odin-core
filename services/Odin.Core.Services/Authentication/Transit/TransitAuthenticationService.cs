@@ -63,7 +63,8 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
 
     public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
     {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
         return Task.CompletedTask;
     }
 }

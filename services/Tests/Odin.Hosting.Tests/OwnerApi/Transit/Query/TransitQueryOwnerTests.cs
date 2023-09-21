@@ -26,6 +26,7 @@ using Odin.Hosting.Controllers.OwnerToken.Transit;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 

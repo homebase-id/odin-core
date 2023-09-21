@@ -59,11 +59,14 @@ public class OdinContextCache
 
     public void EnqueueIdentityForReset(OdinId identity)
     {
-        throw new NotImplementedException();
+        //TODO: need to find a way to do this per identity instead all items
         //todo: locking
         // if (!_identitiesRequiringReset.Contains(identity))
         // {
         //     _identitiesRequiringReset.Add(identity);
         // }
+        
+        this.Reset();
+
     }
 }
