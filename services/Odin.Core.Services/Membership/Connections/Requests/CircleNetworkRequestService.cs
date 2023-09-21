@@ -77,9 +77,15 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
             var header = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(sender.ToHashId());
-
+            
             if (null == header)
             {
+                return null;
+            }
+
+            if (null == header.Payload)
+            {
+                _logger.LogWarning($"RSA Payload for incoming request from {sender} was null");
                 return null;
             }
 
