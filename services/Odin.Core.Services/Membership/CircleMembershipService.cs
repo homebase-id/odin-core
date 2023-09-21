@@ -119,7 +119,7 @@ public class CircleMembershipService
         var list = circleIds ?? new List<GuidId>();
         list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
-        return await this.CreateCircleGrantList(circleIds, keyStoreKey);
+        return await this.CreateCircleGrantList(list, keyStoreKey);
     }
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
@@ -127,12 +127,8 @@ public class CircleMembershipService
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
         var circleGrants = new Dictionary<Guid, CircleGrant>();
-
-        // Always put identities in the system circle
-        var list = circleIds ?? new List<GuidId>();
-        // list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
-
-        foreach (var id in list)
+        
+        foreach (var id in circleIds)
         {
             var def = this.GetCircle(id);
             var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);

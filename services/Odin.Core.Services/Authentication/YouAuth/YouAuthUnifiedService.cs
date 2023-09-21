@@ -6,6 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
@@ -100,8 +101,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientId);
 
-            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-            var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
+            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId) domain);
             if (info.IsConnected())
             {
                 var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
