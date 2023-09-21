@@ -5,28 +5,27 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower;
+using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.Security;
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Follower;
 
-public class FollowerApiClient
+public class AppFollowerApiClient : AppApiTestUtils
 {
-    private readonly TestIdentity _identity;
-    private readonly OwnerApiTestUtils _ownerApi;
+    private readonly AppClientToken _token;
 
-    public FollowerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
+    public AppFollowerApiClient(OwnerApiTestUtils ownerApiTestUtils, AppClientToken token) : base(ownerApiTestUtils)
     {
-        _ownerApi = ownerApi;
-        _identity = identity;
+        _token = token;
     }
-
-    public async Task<ApiResponse<HttpContent>> FollowIdentity(TestIdentity identity, FollowerNotificationType notificationType, List<TargetDrive> channels, bool assertSuccessStatus = true)
+    
+    public async Task<ApiResponse<HttpContent>> FollowIdentity(TestIdentity identity, FollowerNotificationType notificationType, List<TargetDrive> channels,
+        bool assertSuccessStatus = true)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
 
             var request = new FollowRequest()
             {
@@ -47,9 +46,9 @@ public class FollowerApiClient
 
     public async Task UnfollowIdentity(TestIdentity identity)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
 
             var request = new UnfollowRequest()
             {
@@ -63,9 +62,9 @@ public class FollowerApiClient
 
     public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
             var apiResponse = await svc.GetIdentitiesIFollow(cursor);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
@@ -77,9 +76,9 @@ public class FollowerApiClient
 
     public async Task<CursoredResult<string>> GetIdentitiesFollowingMe(string cursor)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
             var apiResponse = await svc.GetIdentitiesFollowingMe(cursor);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
@@ -91,21 +90,21 @@ public class FollowerApiClient
 
     public async Task<FollowerDefinition> GetFollower(TestIdentity identity)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
             var apiResponse = await svc.GetFollower(identity.OdinId);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;
         }
     }
-    
+
     public async Task<FollowerDefinition> GetIdentityIFollow(TestIdentity identity)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = CreateAppApiHttpClient(_token);
         {
-            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ITestFollowerAppClient>(client, _token.SharedSecret);
             var apiResponse = await svc.GetIdentityIFollow(identity.OdinId);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);

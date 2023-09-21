@@ -5,6 +5,7 @@ using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Auth;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Drive;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Follower;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Security;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -37,7 +38,9 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
 
             this.Drive = new AppDriveApiClient(ownerApi, _token);
             this.Security = new AppSecurityApiClient(ownerApi, _token);
+            this.Follower = new AppFollowerApiClient(ownerApi, _token);
         }
+
 
         public TestIdentity Identity => _identity;
 
@@ -45,6 +48,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
 
         public AppDriveApiClient Drive { get; }
 
+        public AppFollowerApiClient Follower { get; }
 
         public AppSecurityApiClient Security { get; }
 

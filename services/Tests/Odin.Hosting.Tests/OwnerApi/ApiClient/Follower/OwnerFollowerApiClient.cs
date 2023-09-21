@@ -5,18 +5,17 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 
-public class FollowerApiClient
+public class OwnerFollowerApiClient
 {
     private readonly TestIdentity _identity;
     private readonly OwnerApiTestUtils _ownerApi;
 
-    public FollowerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
+    public OwnerFollowerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
     {
         _ownerApi = ownerApi;
         _identity = identity;

@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Authorization.Permissions
         public static readonly int ReadWhoIFollow = 80;
 
         public static readonly int ReadMyFollowers = 130;
-
+        
         public static readonly int UseTransit = 210;
 
         public static readonly List<int> All = new List<int>()

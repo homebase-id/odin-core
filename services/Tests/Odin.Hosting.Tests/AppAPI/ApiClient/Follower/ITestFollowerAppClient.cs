@@ -3,14 +3,14 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Follower
 {
-    public interface ITestFollowerOwnerClient
+    public interface ITestFollowerAppClient
     {
-        private const string RootPath = OwnerApiPathConstants.FollowersV1;
+        private const string RootPath = AppApiPathConstants.FollowersV1;
 
         [Get(RootPath + "/IdentitiesIFollow")]
         Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollow(string cursor);
