@@ -15,6 +15,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
@@ -640,7 +641,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 
         //
 
-        [Test]
+        [Test, Ignore("Todd/Seb need to discuss how to resolve this test")]
         public async Task c4_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
         {
             const string hobbit = "sam.dotyou.cloud";
@@ -756,6 +757,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
             }
+            
+            // Note from Todd
+            // At this point in the test you have a ClientTokenType.IdentityConnectionRegistration so it will fail
+            
+            // this test is doing only the first 1/2 of what the HomeAuthenticatorService does thus it will fail.
+            // in the ClientTokenType, it receives the ICR token from the remoteServer then
+            // calls its RegisterBrowserAccess.  This method creates a client with a Token of type
+            // ClientTokenType.BuiltInBrowserApp which can then be used to call the HomeApiPathConstants.AuthV1 API.
+            // the HomeApiPathConstants.AuthV1 API is authenticated by the YouAuthAuthenticationHandler.HandleYouAuth method
+            // this method only supports the ClientTokenType.BuiltInBrowserApp and ClientTokenType.YouAuth tokens (both of which
+            // are created in the ClientTokenType
 
             // Access resource using cat and shared secret
             {
