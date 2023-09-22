@@ -12,7 +12,8 @@ public class DnsConfigurationSet
     
     public static readonly string[] WellknownPrefixes = { PrefixCertApi, PrefixFile, PrefixWww };
 
-    public List<string> ApexARecords { get; }
+    public string ApexARecord { get; } // SEB:NOTE we currently only allow one A record
+    public string ApexAliasRecord { get; }
     public string WwwCnameTarget { get; }
     public string CApiCnameTarget { get; }
     public string FileCnameTarget { get; }
@@ -20,17 +21,19 @@ public class DnsConfigurationSet
     //
     
     public DnsConfigurationSet(
-        IEnumerable<string> apexARecords,
+        string apexARecord,
+        string apexAliasRecord,
         string wwwCnameTarget, 
         string cApiCnameTarget,
         string fileCnameTarget)
     {
+        ApexARecord = apexARecord;
+        ApexAliasRecord = apexAliasRecord;
         WwwCnameTarget = wwwCnameTarget;
         CApiCnameTarget = cApiCnameTarget;
         FileCnameTarget = fileCnameTarget;
-        ApexARecords = apexARecords.ToList();
     }
-    
+
     //
     
 }

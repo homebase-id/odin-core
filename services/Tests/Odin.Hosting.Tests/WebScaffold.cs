@@ -96,7 +96,6 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApexARecords", "[\"127.0.0.1\"]");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
