@@ -149,7 +149,7 @@ namespace Odin.Core.Services.Configuration
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
-                    config.Required<List<string>>("Registry:DnsRecordValues:BareARecords"),
+                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords"),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
