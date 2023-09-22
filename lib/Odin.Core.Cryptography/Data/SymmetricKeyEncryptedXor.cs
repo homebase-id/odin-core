@@ -64,7 +64,7 @@ namespace Odin.Core.Cryptography.Data
             {
                 throw new OdinSecurityException()
                 {
-                    IsRemoteKeyMismatch = true
+                    IsRemoteIcrIssue = true
                 };
             }
 

@@ -41,7 +41,7 @@ public class TransitQueryService
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
-        AssertValidTransitResponse(queryBatchResponse);
+        HandleInvalidTransitResponse(odinId, queryBatchResponse);
 
         var batch = queryBatchResponse.Content;
         return new QueryBatchResult()
@@ -63,7 +63,7 @@ public class TransitQueryService
             return null;
         }
 
-        AssertValidTransitResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var header = TransformSharedSecret(response.Content, icr);
         return header;
@@ -82,7 +82,7 @@ public class TransitQueryService
             return (null, default, null, null);
         }
 
-        AssertValidTransitResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
@@ -122,7 +122,7 @@ public class TransitQueryService
             return (null, default, null, null);
         }
 
-        AssertValidTransitResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -158,7 +158,7 @@ public class TransitQueryService
             return null;
         }
 
-        AssertValidTransitResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
         return response.Content;
     }
 
@@ -258,21 +258,24 @@ public class TransitQueryService
         return newEncryptedKeyHeader;
     }
 
-    private void AssertValidTransitResponse<T>(ApiResponse<T> response)
+    private void HandleInvalidTransitResponse<T>(OdinId odinId, ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrMismatch, out var values))
+            if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                if (values.SingleOrDefault() == "1")
+                var icrIssueHeaderExists = bool.TryParse(response.Headers.GetValues(HttpHeaderConstants.RemoteServerIcrIssue).Single(), out var isIcrIssue);
+                if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    //TODO: here we need to mark the icr as invalid
+                    _circleNetworkService.MarkConnectionRevokedOnRemoteServer(odinId).GetAwaiter().GetResult();
                 }
+
+                // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+                throw new OdinSecurityException("Remote server returned 403");
             }
 
             // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
             throw new OdinSecurityException("Remote server returned 403");
-
         }
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)

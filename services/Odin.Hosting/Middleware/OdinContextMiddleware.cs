@@ -90,17 +90,32 @@ namespace Odin.Hosting.Middleware
                     return;
                 }
 
-                var user = httpContext.User;
-                var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
-                var callerOdinId = (OdinId)user.Identity!.Name;
-                var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
-
-                if (ctx != null)
+                try
                 {
-                    odinContext.Caller = ctx.Caller;
-                    odinContext.SetPermissionContext(ctx.PermissionsContext);
-                    odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
-                    return;
+                    var user = httpContext.User;
+                    var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
+                    var callerOdinId = (OdinId)user.Identity!.Name;
+                    var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
+
+                    if (ctx != null)
+                    {
+                        odinContext.Caller = ctx.Caller;
+                        odinContext.SetPermissionContext(ctx.PermissionsContext);
+                        odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
+                        return;
+                    }
+                }
+                catch (OdinSecurityException e)
+                {
+                    if (e.IsRemoteIcrIssue)
+                    {
+                        httpContext.Response.Headers.Add(HttpHeaderConstants.RemoteServerIcrIssue, bool.TrueString);
+                        //tell the caller and fall back to public files only
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
 

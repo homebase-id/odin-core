@@ -5,5 +5,6 @@ namespace Odin.Core.Services.Membership.Connections
         None = 1,
         Connected = 2,
         Blocked = 3
+        
     }
 }

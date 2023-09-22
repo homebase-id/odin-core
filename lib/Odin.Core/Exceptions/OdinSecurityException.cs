@@ -24,6 +24,6 @@ namespace Odin.Core.Exceptions
         /// <summary>
         /// Indicates this was due to a key decryption issue
         /// </summary>
-        public bool IsRemoteKeyMismatch { get; set; }
+        public bool IsRemoteIcrIssue { get; set; }
     }
 }

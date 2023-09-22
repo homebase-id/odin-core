@@ -72,7 +72,7 @@ namespace Odin.Core.Cryptography.Data
             {
                 throw new OdinSecurityException("Key hash did not match")
                 {
-                    IsRemoteKeyMismatch = true
+                    IsRemoteIcrIssue = true
                 };
             }
 

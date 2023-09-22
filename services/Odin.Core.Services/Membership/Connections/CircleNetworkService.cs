@@ -63,34 +63,27 @@ namespace Odin.Core.Services.Membership.Connections
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
-                throw new OdinSecurityException("Invalid token");
+                throw new OdinSecurityException("Invalid token")
+                {
+                    IsRemoteIcrIssue = true
+                };
             }
 
             if (!icr.IsConnected())
             {
-                throw new OdinSecurityException("Invalid connection");
-            }
-
-            try
-            {
-                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
-                    icr: icr,
-                    authToken: remoteIcrToken,
-                    accessReg: icr.AccessGrant!.AccessRegistration,
-                    applyAppCircleGrants: true);
-                return (permissionContext, enabledCircles);
-            }
-            catch (OdinSecurityException securityException)
-            {
-                if (securityException.IsRemoteKeyMismatch)
+                throw new OdinSecurityException("Invalid connection")
                 {
-                    //tell the caller their remote key is foobar
-                }
-
-                throw;
+                    IsRemoteIcrIssue = true
+                };
             }
 
-            throw new OdinSystemException("Unhandled scenario");
+            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+                icr: icr,
+                authToken: remoteIcrToken,
+                accessReg: icr.AccessGrant!.AccessRegistration,
+                applyAppCircleGrants: true);
+
+            return (permissionContext, enabledCircles);
         }
 
         /// <summary>
@@ -152,7 +145,7 @@ namespace Odin.Core.Services.Membership.Connections
                 {
                     OdinId = odinId
                 });
-                
+
                 return true;
             }
 
@@ -249,7 +242,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             if (connection?.AccessGrant?.AccessRegistration == null)
             {
-                throw new OdinSecurityException("Unauthorized Action");
+                throw new OdinSecurityException("Unauthorized Action") { IsRemoteIcrIssue = true };
             }
 
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
@@ -804,6 +797,13 @@ namespace Odin.Core.Services.Membership.Connections
                 }
             }
             //
+        }
+
+        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
+        {
+            var icr = await this.GetIdentityConnectionRegistration(odinId);
+            icr.RemoteIcrIsInvalid = true;
+            SaveIcr(icr);
         }
     }
 }

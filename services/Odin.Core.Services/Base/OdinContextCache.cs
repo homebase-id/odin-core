@@ -15,11 +15,9 @@ public class OdinContextCache
     private readonly int _ttlSeconds;
     private readonly IAppCache _dotYouContextCache;
     private readonly CancellationTokenSource _expiryTokenSource = new();
-    private readonly List<OdinId> _identitiesRequiringReset;
 
     public OdinContextCache(int ttlSeconds = 60)
     {
-        _identitiesRequiringReset = new List<OdinId>();
         this._ttlSeconds = ttlSeconds;
         _dotYouContextCache = new CachingService();
     }
@@ -65,8 +63,7 @@ public class OdinContextCache
         // {
         //     _identitiesRequiringReset.Add(identity);
         // }
-        
-        this.Reset();
 
+        this.Reset();
     }
 }

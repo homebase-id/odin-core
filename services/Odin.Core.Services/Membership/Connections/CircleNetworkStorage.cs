@@ -41,6 +41,7 @@ public class CircleNetworkStorage
     {
         var icrAccessRecord = new IcrAccessRecord()
         {
+            RemoteIcrIsInvalid = icr.RemoteIcrIsInvalid,
             AccessGrant = icr.AccessGrant,
             OriginalContactData = icr.OriginalContactData,
             EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData
@@ -180,6 +181,7 @@ public class CircleNetworkStorage
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
 
+            RemoteIcrIsInvalid = data.RemoteIcrIsInvalid,
             EncryptedClientAccessToken = new EncryptedClientAccessToken()
             {
                 EncryptedData = data.EncryptedClientAccessToken
@@ -204,4 +206,6 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
+    
+    public bool RemoteIcrIsInvalid { get; set; }
 }

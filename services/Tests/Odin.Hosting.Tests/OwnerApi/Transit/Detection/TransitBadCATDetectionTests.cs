@@ -1,28 +1,17 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Data;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage;
-using Odin.Core.Time;
-using Odin.Hosting.Tests.AppAPI.Utils;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.Detection;
 
@@ -59,32 +48,29 @@ public class TransitBadCATDetectionTests
         // 
 
         var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
-        var merryPublicDrive = TargetDrive.NewTargetDrive();
-        await merryOwnerClient.Drive.CreateDrive(merryPublicDrive, "a public blog", "", true, false, true);
-
-        var (publicFileUploadResult, publicPayloadContent) = await MerryPostPublicFile();
-        var (securedFileUploadResult, securedPayloadContent) = await MerryPostSecureFile();
-
-        //
-        // 3. Pippin is connected so  he can read both via transit query service
-        //
         var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+        
+        var (publicFileUploadResult, publicPayloadContent) = await MerryPostPublicFile();
+        var (securedFileUploadResult, securedPayloadContent) = await MerryPostSecureFileAndAuthorizePippin();
 
-        var getPublicPayloadTransitResponse1 = await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, publicFileUploadResult.File);
+        //
+        // 3. Pippin is connected so he can read both via transit query service
+        //
+        var getPublicPayloadTransitResponse1 =
+            await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, publicFileUploadResult.File);
         Assert.That(getPublicPayloadTransitResponse1.IsSuccessStatusCode, Is.True);
         Assert.That(getPublicPayloadTransitResponse1.Content, Is.Not.Null);
 
         var remotePublicPayload1 = await getPublicPayloadTransitResponse1.Content.ReadAsStringAsync();
         Assert.IsTrue(remotePublicPayload1 == publicPayloadContent);
-        
-        
-        var getSecuredPayloadTransitResponse1 = await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, securedFileUploadResult.File);
+
+        var getSecuredPayloadTransitResponse1 =
+            await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, securedFileUploadResult.File);
         Assert.That(getSecuredPayloadTransitResponse1.IsSuccessStatusCode, Is.True);
         Assert.That(getSecuredPayloadTransitResponse1.Content, Is.Not.Null);
 
         var remoteSecuredPayload1 = await getSecuredPayloadTransitResponse1.Content.ReadAsStringAsync();
         Assert.IsTrue(remoteSecuredPayload1 == securedPayloadContent);
-        
 
         //
         // Merry gets mad and disconnects from Pippin, pippin leaves for Gondor with Gandalf 🧙‍🐎
@@ -92,28 +78,58 @@ public class TransitBadCATDetectionTests
         await merryOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
 
         //
-        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT)
-        // currently - this will fail because he CAT is bad.  
-        // we can consider here: if we should fall back to public authentication to keep the system running
+        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT).  
         //
-        var getTransitPayloadResponse2 = await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, publicFileUploadResult.File);
-        Assert.IsTrue(getTransitPayloadResponse2.StatusCode == HttpStatusCode.Forbidden, $"Status code was {getTransitPayloadResponse2.StatusCode}");
-
-        // Merry's server detects bad CAT, rejects the call and Tells Pippin's server that the CAT is invalid
-
+        // On the backend - Merry's server detects bad CAT (or ICR), rejects the call and Tells Pippin's server that the CAT is invalid
+        // therefore, the call should fail with 403
         // Pippin's server sees bad CAT then and updates Merry's ICR with a flag indicating not to use the CAT
 
-        //here we need to change the transit query service to not use the CAT when it's marked bad
+        var getPublicPayloadTransitResponse2 =
+            await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, publicFileUploadResult.File);
 
-        // Pippin makes a request w/o sending the CAT and thus access is Public
-        //Note: we have the option of just falling back to public access in transit when you send a bad CAT
+        Assert.That(getPublicPayloadTransitResponse2.IsSuccessStatusCode, Is.True);
+        Assert.That(getPublicPayloadTransitResponse2.Content, Is.Not.Null);
+
+        var remotePublicPayload2 = await getPublicPayloadTransitResponse2.Content.ReadAsStringAsync();
+        Assert.IsTrue(remotePublicPayload2 == publicPayloadContent);
+
+
+        // Call to secure should fail with 403
+        var getSecurePayloadTransitResponse2 =
+            await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, securedFileUploadResult.File);
+        Assert.IsTrue(getSecurePayloadTransitResponse2.StatusCode == HttpStatusCode.Forbidden,
+            $"Status code was {getSecurePayloadTransitResponse2.StatusCode}");
+
+        //
+        // Validate Merry's ICR on pippin's server is marked ConnectionStatus.ConnectedButRemoteIsInvalid
+        //
+        var merryConnectionOnPippin = await pippinOwnerClient.Network.GetConnectionInfo(TestIdentities.Merry);
+        Assert.IsTrue(merryConnectionOnPippin.RemoteIcrIsInvalid);
     }
 
-    private async Task<(UploadResult uploadResult, string securedPayloadContent)> MerryPostSecureFile()
+    private async Task<(UploadResult uploadResult, string securedPayloadContent)> MerryPostSecureFileAndAuthorizePippin()
     {
         var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
         var merrySecuredDrive = TargetDrive.NewTargetDrive();
         await merryOwnerClient.Drive.CreateDrive(merrySecuredDrive, "a private blog", "", false, false, true);
+
+        var canAccessSecureDriveCircle = await merryOwnerClient.Membership.CreateCircle("CanAccessSecureDrive", new PermissionSetGrantRequest()
+        {
+            PermissionSet = new PermissionSet(),
+            Drives = new List<DriveGrantRequest>()
+            {
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = merrySecuredDrive,
+                        Permission = DrivePermission.Read
+                    }
+                }
+            }
+        });
+
+        await merryOwnerClient.Network.GrantCircle(canAccessSecureDriveCircle.Id, TestIdentities.Pippin);
 
         const string headerContent = "some secured header content";
         const string payloadContent = "this is the secured payload";
@@ -161,6 +177,5 @@ public class TransitBadCATDetectionTests
 
         var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merryPublicDrive, fileMetadata, payloadContent);
         return (publicFile, payloadContent);
-
     }
 }
