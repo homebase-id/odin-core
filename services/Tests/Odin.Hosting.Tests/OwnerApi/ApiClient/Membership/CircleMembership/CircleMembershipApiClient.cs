@@ -5,15 +5,15 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 
 public class CircleMembershipApiClient
 {

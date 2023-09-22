@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.CircleMembership;
-using Odin.Core.Services.Membership.Circles;
-using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership
 {
     public interface ICircleMembershipHttpClient
     {

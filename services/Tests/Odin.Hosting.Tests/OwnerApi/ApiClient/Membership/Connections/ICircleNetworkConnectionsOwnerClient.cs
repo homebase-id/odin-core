@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Refit;
