@@ -14,7 +14,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Authentication.YouAuth;
 
-namespace Odin.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base.Drive
 {
     /// <summary>
     /// Base class for any endpoint reading drive storage

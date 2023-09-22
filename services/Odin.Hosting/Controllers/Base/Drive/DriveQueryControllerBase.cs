@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base.Drive
 {
     /// <summary>
     /// Base class for querying a drive's search index

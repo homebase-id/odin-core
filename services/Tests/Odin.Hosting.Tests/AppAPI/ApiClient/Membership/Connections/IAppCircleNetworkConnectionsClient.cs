@@ -6,13 +6,14 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
 {
-    public interface ICircleNetworkConnectionsOwnerClient
+    public interface IAppCircleNetworkConnectionsClient
     {
-        private const string root_path = OwnerApiPathConstants.CirclesV1 + "/connections";
+        private const string root_path = AppApiPathConstants.CirclesV1 + "/connections";
 
         [Post(root_path + "/circles/list")]
         Task<ApiResponse<IEnumerable<OdinId>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);

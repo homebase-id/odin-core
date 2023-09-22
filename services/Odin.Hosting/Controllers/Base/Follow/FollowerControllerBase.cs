@@ -6,7 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.DataSubscription.Follower;
 using Refit;
 
-namespace Odin.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base.Follow
 {
     /// <summary />
     public class FollowerControllerBase : ControllerBase

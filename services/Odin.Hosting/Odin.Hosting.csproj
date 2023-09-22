@@ -25,10 +25,6 @@
         <ProjectReference Include="..\Odin.Core.Services.Background\Odin.Core.Services.Background.csproj"/>
         <ProjectReference Include="..\Odin.Core.Services\Odin.Core.Services.csproj"/>
     </ItemGroup>
-    <ItemGroup>
-        <Folder Include="Controllers\Base\Membership\CircleMembership\"/>
-        <Folder Include="Controllers\Base\Membership\Circles\"/>
-    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Autofac" Version="6.3.0"/>

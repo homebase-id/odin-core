@@ -4,6 +4,7 @@ using Odin.Core;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Follow;
 using Odin.Hosting.Controllers.ClientToken.Shared;
 
 namespace Odin.Hosting.Controllers.ClientToken.Guest

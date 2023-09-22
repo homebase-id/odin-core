@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Razor.TagHelpers;
 using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Auth;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Drive;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Follower;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Security;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -39,8 +43,15 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
             this.Drive = new AppDriveApiClient(ownerApi, _token);
             this.Security = new AppSecurityApiClient(ownerApi, _token);
             this.Follower = new AppFollowerApiClient(ownerApi, _token);
+            this.CircleMembership = new AppCircleMembershipApiClient(ownerApi, _token);
+            this.CircleDefinitions = new AppCircleDefinitionApiClient(ownerApi, _token);
+            this.CircleNetwork = new AppCircleNetworkApiClient(ownerApi, _token);
+            this.CircleNetworkRequests = new AppCircleNetworkRequestsApiClient(ownerApi, _token);
         }
 
+        public AppCircleNetworkRequestsApiClient CircleNetworkRequests { get; }
+
+        public AppCircleNetworkApiClient CircleNetwork { get;}
 
         public TestIdentity Identity => _identity;
 
@@ -51,6 +62,10 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
         public AppFollowerApiClient Follower { get; }
 
         public AppSecurityApiClient Security { get; }
+
+        public AppCircleMembershipApiClient CircleMembership { get; }
+        
+        public AppCircleDefinitionApiClient CircleDefinitions { get; }
 
         public async Task Logout()
         {

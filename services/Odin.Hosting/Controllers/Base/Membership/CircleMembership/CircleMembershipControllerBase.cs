@@ -1,21 +1,17 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
-using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+using Odin.Hosting.Controllers.ClientToken.App;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Membership.CircleMembership
+namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
 {
-    [ApiController]
-    [Route(OwnerApiPathConstants.CirclesV1 + "/membership")]
-    [AuthorizeValidOwnerToken]
-    public class CircleMembershipController : ControllerBase
+    public class CircleMembershipControllerBase : ControllerBase
     {
         private readonly CircleMembershipService _circleMembershipService;
 
-        public CircleMembershipController(CircleMembershipService circleMembershipService)
+        public CircleMembershipControllerBase(CircleMembershipService circleMembershipService)
         {
             _circleMembershipService = circleMembershipService;
         }
@@ -26,6 +22,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.CircleMembership
             var result = _circleMembershipService.GetDomainsInCircle(request.CircleId);
             return Task.FromResult(result);
         }
-        
     }
 }

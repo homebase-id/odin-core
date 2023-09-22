@@ -12,7 +12,7 @@ using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.FileSystem.Standard.Attachments;
 using Odin.Core.Storage;
 
-namespace Odin.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base.Drive;
 
 /// <summary>
 /// Methods to resolve which <see cref="IDriveFileSystem"/> to use based on the

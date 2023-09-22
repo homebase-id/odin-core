@@ -8,7 +8,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 
-namespace Odin.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base.Drive
 {
     /// <summary>
     /// Base API Controller for uploading multi-part streams

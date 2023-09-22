@@ -59,6 +59,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public CronApiClient Cron => _cronApiClient;
 
         public OwnerFollowerApiClient OwnerFollower => _ownerFollowerApiClient;
+        
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;

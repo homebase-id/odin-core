@@ -3,13 +3,14 @@ using Odin.Core;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
 {
-    public interface ICircleNetworkRequestsOwnerClient
+    public interface IAppCircleNetworkRequestsClient
     {
-        private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/requests";
+        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 

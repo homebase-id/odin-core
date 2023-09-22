@@ -96,7 +96,7 @@ public class CircleMembershipApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<ICircleMembershipHttpClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ICircleMembershipOwnerHttpClient>(client, ownerSharedSecret);
 
             var response = await svc.GetDomainsInCircle(new GetCircleMembersRequest()
             {

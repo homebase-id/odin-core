@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles
 {
-    public interface ICircleDefinitionOwnerClient
+    public interface IAppCircleDefinitionClient
     {
-        private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/definitions";
+        private const string RootPath = AppApiPathConstants.CirclesV1 + "/definitions";
 
         [Get(RootPath + "/list")]
-        Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);
+        Task<ApiResponse<List<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);
         
         [Post(RootPath + "/get")]
         Task<ApiResponse<CircleDefinition>> GetCircleDefinition([Body] Guid id);

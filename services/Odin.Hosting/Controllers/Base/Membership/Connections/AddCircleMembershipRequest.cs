@@ -1,4 +1,4 @@
-namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+namespace Odin.Hosting.Controllers.Base.Membership.Connections;
 
 public class AddCircleMembershipRequest
 {

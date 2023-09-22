@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
 
-namespace Odin.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base.Drive;
 
 /// <summary>
 /// Handles reactions for files
