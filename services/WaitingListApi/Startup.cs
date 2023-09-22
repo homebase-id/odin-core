@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Odin.Core.Serialization;
+using Serilog;
 using WaitingListApi.Config;
 using WaitingListApi.Data;
 
@@ -23,7 +24,8 @@ namespace WaitingListApi
             services.AddSingleton(config);
 
             PrepareEnvironment(config);
-
+            
+            Log.Information($"CorsUrl: [{config.Host.CorsUrl}]");
             services.AddCors(setup =>
             {
                 setup.AddPolicy(WaitingListCorsPolicy, p =>

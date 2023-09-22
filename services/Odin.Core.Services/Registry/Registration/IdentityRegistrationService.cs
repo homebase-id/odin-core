@@ -107,20 +107,20 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var result = new List<DnsConfig>();
 
         // Sanity
-        if (dns.BareARecords.Count < 1)
+        if (dns.ApexARecords.Count < 1)
         {
             throw new OdinSystemException("There are no A records. Check config.");
         }
 
-        // Bare A records
-        for (var idx = 0; idx < dns.BareARecords.Count; idx++)
+        // Apex A records
+        for (var idx = 0; idx < dns.ApexARecords.Count; idx++)
         {
             result.Add(new DnsConfig
             {
                 Type = "A",
                 Name = "",
                 Domain = domain,
-                Value = dns.BareARecords[idx],
+                Value = dns.ApexARecords[idx],
                 Description = $"A Record #{idx + 1}"
             });
         }
@@ -400,7 +400,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (string.IsNullOrEmpty(code) || !_configuration.Registry.InvitationCodes.Any())
+        if (!_configuration.Registry.InvitationCodes.Any())
+        {
+            return Task.FromResult(true);
+        }
+        
+        if (string.IsNullOrEmpty(code))
         {
             return Task.FromResult(false);
         }

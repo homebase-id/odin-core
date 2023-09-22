@@ -40,13 +40,12 @@ namespace Odin.Core.Services.Background.Certificate
             _logger.LogDebug("Executing job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
 
             var certificateServiceFactory = _serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-            
+
             var tasks = new List<Task>();
             var identities = await _registry.GetList();
             foreach (var identity in identities.Results)
             {
-                var tenantContext =
-                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, _config.Host.TenantPayloadRootPath);
+                var tenantContext = _registry.CreateTenantContext(identity);
                 var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
                 var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);

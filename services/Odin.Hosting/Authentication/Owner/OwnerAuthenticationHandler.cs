@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization;
@@ -65,9 +66,16 @@ namespace Odin.Hosting.Authentication.Owner
 
                 var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
 
-                if (!await UpdateOdinContext(authResult, dotYouContext))
+                try
                 {
-                    return AuthenticateResult.Fail("Invalid Owner Token");
+                    if (!await UpdateOdinContext(authResult, dotYouContext))
+                    {
+                        return AuthenticateResult.Fail("Invalid Owner Token");
+                    }
+                }
+                catch (OdinSecurityException e)
+                {
+                    return AuthenticateResult.Fail(e.Message);
                 }
 
                 if (dotYouContext.Caller.OdinId == null)

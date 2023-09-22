@@ -149,7 +149,7 @@ namespace Odin.Core.Services.Configuration
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
-                    config.Required<List<string>>("Registry:DnsRecordValues:BareARecords"),
+                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords"),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
@@ -167,10 +167,9 @@ namespace Odin.Core.Services.Configuration
         public class HostSection
         {
             public string TenantDataRootPath { get; init; }
+            
             public string SystemDataRootPath { get; init; }
-
-            public string TenantPayloadRootPath { get; init; }
-
+            
             public string SystemSslRootPath { get; init; }
 
             /// <summary>
@@ -192,10 +191,7 @@ namespace Odin.Core.Services.Configuration
 
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
-
-                var payloadPath = config.Required<string>("Host:TenantPayloadRootPath");
-                TenantPayloadRootPath = isDev && !payloadPath.StartsWith(home) ? PathUtil.Combine(home, payloadPath.Substring(1)) : payloadPath;
-
+                
                 var sd = config.Required<string>("Host:SystemDataRootPath");
                 SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 

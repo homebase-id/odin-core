@@ -47,7 +47,6 @@ namespace Odin.Core.Services.Membership.Connections
             _circleMembershipService = circleMembershipService;
 
             _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
-
         }
 
         /// <summary>
@@ -88,7 +87,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             if (icr.Status == ConnectionStatus.Blocked)
             {
-                throw new OdinClientException($"ICR for domain {odinId} is blocked");
+                return null;
             }
 
             // Only return the permissions if the identity is connected.
@@ -117,7 +116,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             return null;
         }
-        
+
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
@@ -285,7 +284,8 @@ namespace Odin.Core.Services.Membership.Connections
         public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-            var result = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.Identity).Select(m => new OdinId(m.Domain));
+            var result = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.Identity)
+                .Select(m => new OdinId(m.Domain));
             return await Task.FromResult(result);
         }
 
@@ -521,7 +521,7 @@ namespace Odin.Core.Services.Membership.Connections
             await _circleMembershipService.Delete(circleId);
         }
 
-        
+
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)

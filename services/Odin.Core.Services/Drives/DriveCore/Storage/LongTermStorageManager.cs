@@ -61,10 +61,11 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeletePayload(Guid fileId)
         {
             string path = GetFilenameAndPath(fileId, FilePart.Payload);
-            if(File.Exists(path))
+            if (File.Exists(path))
             {
                 File.Delete(path);
             }
+
             return Task.CompletedTask;
         }
 
@@ -74,6 +75,27 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             File.Delete(path);
             return Task.CompletedTask;
         }
+        
+
+        public Int64 GetPayloadDiskUsage(Guid fileId)
+        {
+            string payloadFilePath = GetPayloadFilePath(fileId);
+            if (!Directory.Exists(payloadFilePath))
+            {
+                return 0;
+            }
+
+            Int64 usage = 0;
+            var filePaths = Directory.GetFiles(payloadFilePath!);
+            foreach (var filePath in filePaths)
+            {
+                var info = new FileInfo(filePath);
+                usage += info.Length;
+            }
+
+            return usage;
+        }
+
 
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
@@ -292,7 +314,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
-        public Task ReconcileThumbnailsOnDisk(Guid fileId, List<ImageDataHeader> thumbnailsToKeep)
+        public Task DeleteMissingThumbnailFiles(Guid fileId, List<ImageDataHeader> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
 
@@ -302,7 +324,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
                 var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
-                
+
                 var files = Directory.GetFiles(dir, seekPath);
                 foreach (var thumbnailFilePath in files)
                 {
@@ -329,6 +351,16 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var filePath = GetFilePath(fileId, FilePart.Thumb);
             var thumbnailPath = Path.Combine(filePath, thumbnailFileName);
             return thumbnailPath;
+        }
+
+        private string GetPayloadFilePath(Guid fileId)
+        {
+            return this.GetFilePath(fileId, FilePart.Payload);
+        }
+
+        private string GetHeaderFilePath(Guid fileId)
+        {
+            return this.GetFilePath(fileId, FilePart.Header);
         }
 
         private string GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
@@ -433,7 +465,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
-            if(Directory.Exists(dir))
+            if (Directory.Exists(dir))
             {
                 var thumbnails = Directory.GetFiles(dir, seekPath);
                 foreach (var thumbnail in thumbnails)
