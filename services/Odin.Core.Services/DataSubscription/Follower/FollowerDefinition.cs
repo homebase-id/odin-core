@@ -13,17 +13,4 @@ public class FollowerDefinition
 
     public FollowerNotificationType NotificationType { get; set; }
     public IEnumerable<TargetDrive> Channels { get; set; }
-
-    public ClientAccessToken CreateClientAccessToken()
-    {
-        //HACK: shim for follower support
-        var guidId = OdinId.ToHashId();
-        return new ClientAccessToken()
-        {
-            Id = guidId,
-            AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType.DataProvider,
-            SharedSecret =  Guid.Empty.ToByteArray().ToSensitiveByteArray()
-        };
-    }
 }

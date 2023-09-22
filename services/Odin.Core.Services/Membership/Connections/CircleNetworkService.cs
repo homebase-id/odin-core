@@ -8,6 +8,7 @@ using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -35,16 +36,19 @@ namespace Odin.Core.Services.Membership.Connections
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
+        private readonly IMediator _mediator;
 
         public CircleNetworkService(OdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
-            IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
+            IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService,
+            IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _appRegistrationService = appRegistrationService;
             _circleMembershipService = circleMembershipService;
+            _mediator = mediator;
 
             _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
         }
@@ -53,23 +57,29 @@ namespace Odin.Core.Services.Membership.Connections
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId,
-            ClientAuthenticationToken authToken)
+            ClientAuthenticationToken remoteIcrToken)
         {
-            var icr = await this.GetIdentityConnectionRegistration(odinId, authToken);
+            var icr = await this.GetIdentityConnectionRegistration(odinId, remoteIcrToken);
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
-                throw new OdinSecurityException("Invalid token");
+                throw new OdinSecurityException("Invalid token")
+                {
+                    IsRemoteIcrIssue = true
+                };
             }
 
             if (!icr.IsConnected())
             {
-                throw new OdinSecurityException("Invalid connection");
+                throw new OdinSecurityException("Invalid connection")
+                {
+                    IsRemoteIcrIssue = true
+                };
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
                 icr: icr,
-                authToken: authToken,
+                authToken: remoteIcrToken,
                 accessReg: icr.AccessGrant!.AccessRegistration,
                 applyAppCircleGrants: true);
 
@@ -131,16 +141,13 @@ namespace Odin.Core.Services.Membership.Connections
             {
                 _storage.Delete(odinId);
 
-                //destroy all access
-                // info.AccessGrant = null;
-                //TODO: remove ICR clients
-                // _icrClientValueStorage.Delete();
-                // info.Status = ConnectionStatus.None;
-                // this.SaveIcr(info);
+                await _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+                {
+                    OdinId = odinId
+                });
 
                 return true;
             }
-
 
             return false;
         }
@@ -235,7 +242,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             if (connection?.AccessGrant?.AccessRegistration == null)
             {
-                throw new OdinSecurityException("Unauthorized Action");
+                throw new OdinSecurityException("Unauthorized Action") { IsRemoteIcrIssue = true };
             }
 
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
@@ -790,6 +797,13 @@ namespace Odin.Core.Services.Membership.Connections
                 }
             }
             //
+        }
+
+        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
+        {
+            var icr = await this.GetIdentityConnectionRegistration(odinId);
+            icr.RemoteIcrIsInvalid = true;
+            SaveIcr(icr);
         }
     }
 }

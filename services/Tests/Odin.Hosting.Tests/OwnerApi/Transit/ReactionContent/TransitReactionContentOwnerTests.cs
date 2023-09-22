@@ -50,7 +50,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-            await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+            await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
             var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {
@@ -117,7 +117,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-            await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+            await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
             var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {

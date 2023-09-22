@@ -41,7 +41,7 @@ public class TransitQueryService
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
-        AssertValidResponse(queryBatchResponse);
+        HandleInvalidTransitResponse(odinId, queryBatchResponse);
 
         var batch = queryBatchResponse.Content;
         return new QueryBatchResult()
@@ -63,7 +63,7 @@ public class TransitQueryService
             return null;
         }
 
-        AssertValidResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var header = TransformSharedSecret(response.Content, icr);
         return header;
@@ -82,7 +82,7 @@ public class TransitQueryService
             return (null, default, null, null);
         }
 
-        AssertValidResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
@@ -92,7 +92,8 @@ public class TransitQueryService
         if (payloadIsEncrypted)
         {
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader =
+                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -121,7 +122,7 @@ public class TransitQueryService
             return (null, default, null, null);
         }
 
-        AssertValidResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -131,7 +132,8 @@ public class TransitQueryService
         {
             var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader =
+                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -156,7 +158,7 @@ public class TransitQueryService
             return null;
         }
 
-        AssertValidResponse(response);
+        HandleInvalidTransitResponse(odinId, response);
         return response.Content;
     }
 
@@ -256,11 +258,24 @@ public class TransitQueryService
         return newEncryptedKeyHeader;
     }
 
-    private void AssertValidResponse<T>(ApiResponse<T> response)
+    private void HandleInvalidTransitResponse<T>(OdinId odinId, ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                var icrIssueHeaderExists = bool.TryParse(response.Headers.GetValues(HttpHeaderConstants.RemoteServerIcrIssue).Single(), out var isIcrIssue);
+                if (icrIssueHeaderExists && isIcrIssue)
+                {
+                    _circleNetworkService.MarkConnectionRevokedOnRemoteServer(odinId).GetAwaiter().GetResult();
+                }
+
+                // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+                throw new OdinSecurityException("Remote server returned 403");
+            }
+
+            // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+            throw new OdinSecurityException("Remote server returned 403");
         }
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)

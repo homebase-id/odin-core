@@ -48,7 +48,6 @@ public class ScenarioBootstrapper
         var samCircleDef = await CreateCircle(samAppContext.Identity, targetDrive);
         scenarioContext.AppContexts.Add(samAppContext.Identity, samAppContext);
         
-
         await _ownerApi.CreateConnection(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },

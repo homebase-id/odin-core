@@ -20,5 +20,10 @@ namespace Odin.Core.Exceptions
         protected OdinSecurityException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+
+        /// <summary>
+        /// Indicates this was due to a key decryption issue
+        /// </summary>
+        public bool IsRemoteIcrIssue { get; set; }
     }
 }
