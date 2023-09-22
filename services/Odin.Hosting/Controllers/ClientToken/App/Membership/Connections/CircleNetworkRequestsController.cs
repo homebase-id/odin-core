@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Services.Membership.Connections.Requests;
 
-namespace Odin.Hosting.Controllers.ClientToken.App.Circles
+namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]
-    [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidAppToken]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly CircleNetworkRequestService _requestService;

@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
 {
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
-    [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidAppToken]
     public class AppCommandController : Controller
     {
         private readonly string _currentTenant;

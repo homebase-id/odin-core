@@ -7,7 +7,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/app")]
-    [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidAppToken]
     public class TransitAppController : ControllerBase
     {
         private readonly TransitInboxProcessor _transitInboxProcessor;

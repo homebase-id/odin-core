@@ -14,6 +14,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Membership.Connections.Requests

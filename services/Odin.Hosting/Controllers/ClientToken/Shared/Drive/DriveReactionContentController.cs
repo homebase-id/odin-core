@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [ApiController]
     [Route(AppApiPathConstants.DriveReactionsV1)]
     [Route(GuestApiPathConstants.DriveReactionsV1)]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class DriveReactionContentController : DriveReactionContentControllerBase
     {
         /// <summary />

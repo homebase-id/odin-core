@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared;
 
@@ -12,7 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
     /// <summary />
     [ApiController]
     [Route(GuestApiPathConstants.CirclesV1 + "/followers")]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class GuestFollowerController : FollowerControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;

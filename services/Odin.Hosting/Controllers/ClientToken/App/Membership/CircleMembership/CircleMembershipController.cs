@@ -1,16 +1,12 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core;
-using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership;
-using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Util;
-using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+using Odin.Core.Services.Membership.CircleMembership;
+using Odin.Hosting.Controllers.ClientToken.App.Membership.Connections;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Membership
+namespace Odin.Hosting.Controllers.ClientToken.App.Membership.CircleMembership
 {
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesV1 + "/membership")]

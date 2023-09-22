@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 

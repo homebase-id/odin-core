@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR.Pipeline;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -13,6 +14,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -73,6 +75,15 @@ namespace Odin.Core.Services.Membership.YouAuth
                 throw new OdinClientException("Domain already registered");
             }
 
+            if (request.ConsentRequirement == ConsentRequirement.Expiring)
+            {
+                var nowMs = (Int64)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (request.ConsentExpirationDateTime.milliseconds < nowMs)
+                {
+                    throw new OdinClientException("ConsentExpirationDateTime should be in the future");
+                }
+            }
+            
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
@@ -85,7 +96,9 @@ namespace Odin.Core.Services.Membership.YouAuth
                 Name = request.Name,
                 CorsHostName = request.CorsHostName,
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                CircleGrants = grants
+                CircleGrants = grants,
+                DeviceRegistrationConsentRequirement = request.ConsentRequirement,
+                ConsentExpirationDateTime = request.ConsentExpirationDateTime
             };
 
             this.SaveRegistration(reg);
@@ -413,7 +426,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             if (null != reg)
             {
                 //get the circle grants for this domain
-                var circles = _circleMembershipService.GetCirclesByDomain(reg.Domain);
+                var circles = _circleMembershipService.GetCirclesGrantsByDomain(reg.Domain);
                 reg.CircleGrants = circles.ToDictionary(cg => cg.CircleId.Value, cg => cg);
             }
 

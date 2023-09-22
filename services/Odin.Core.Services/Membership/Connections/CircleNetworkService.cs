@@ -16,9 +16,9 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections.Requests;
-using Odin.Core.Storage;
 using Odin.Core.Time;
 using PermissionSet = Odin.Core.Services.Authorization.Permissions.PermissionSet;
 
@@ -308,19 +308,6 @@ namespace Odin.Core.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Throws an exception if the odinId is blocked.
-        /// </summary>
-        /// <param name="registration">The connection info to be checked</param>
-        /// <returns></returns>
-        public void AssertConnectionIsNoneOrValid(IdentityConnectionRegistration registration)
-        {
-            if (registration.Status == ConnectionStatus.Blocked)
-            {
-                throw new SecurityException("OdinId is blocked");
-            }
-        }
-
-        /// <summary>
         /// Adds the specified odinId to your network
         /// </summary>
         /// <param name="odinIdentity">The public key certificate containing the domain name which will be connected</param>
@@ -527,8 +514,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             await _circleMembershipService.Delete(circleId);
         }
-
-
+        
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)
@@ -546,6 +532,13 @@ namespace Odin.Core.Services.Membership.Connections
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
+        }
+        
+        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
+        {
+            var icr = await this.GetIdentityConnectionRegistration(odinId);
+            icr.RemoteIcrIsInvalid = true;
+            SaveIcr(icr);
         }
 
         //
@@ -706,8 +699,20 @@ namespace Odin.Core.Services.Membership.Connections
                 Results = list
             };
         }
-
-
+        
+        /// <summary>
+        /// Throws an exception if the odinId is blocked.
+        /// </summary>
+        /// <param name="registration">The connection info to be checked</param>
+        /// <returns></returns>
+        private void AssertConnectionIsNoneOrValid(IdentityConnectionRegistration registration)
+        {
+            if (registration.Status == ConnectionStatus.Blocked)
+            {
+                throw new SecurityException("OdinId is blocked");
+            }
+        }
+        
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
         {
             var registration = _storage.Get(odinId);
@@ -797,13 +802,6 @@ namespace Odin.Core.Services.Membership.Connections
                 }
             }
             //
-        }
-
-        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
-        {
-            var icr = await this.GetIdentityConnectionRegistration(odinId);
-            icr.RemoteIcrIsInvalid = true;
-            SaveIcr(icr);
         }
     }
 }

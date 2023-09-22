@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;

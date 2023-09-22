@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [ApiController]
     [Route(AppApiPathConstants.DriveV1 + "/query")]
     [Route(GuestApiPathConstants.DriveV1 + "/query")]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class DriveQueryController : DriveQueryControllerBase
     {
         /// <summary>

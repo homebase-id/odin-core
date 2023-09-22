@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Security;
 [ApiController]
 [Route(AppApiPathConstants.SecurityV1)]
 [Route(GuestApiPathConstants.SecurityV1)]
-[AuthorizeValidExchangeGrant]
+[AuthorizeValidGuestOrAppToken]
 public class SecurityController : Controller
 {
     private readonly OdinContextAccessor _contextAccessor;

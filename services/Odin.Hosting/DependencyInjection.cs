@@ -30,6 +30,7 @@ using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;

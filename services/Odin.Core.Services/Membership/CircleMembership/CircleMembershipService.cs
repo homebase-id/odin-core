@@ -12,22 +12,7 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
-namespace Odin.Core.Services.Membership;
-
-public class CircleDomainResult
-{
-    public AsciiDomainName Domain { get; set; }
-
-    public DomainType DomainType { get; set; }
-    
-    public RedactedCircleGrant CircleGrant { get; set; }
-}
-
-public enum DomainType
-{
-    Identity = 1,
-    YouAuth = 2
-}
+namespace Odin.Core.Services.Membership.CircleMembership;
 
 /// <summary>
 /// Manages circle definitions and their membership.
@@ -55,7 +40,7 @@ public class CircleMembershipService
         _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
     }
 
-    public IEnumerable<CircleGrant> GetCirclesByDomain(AsciiDomainName domainName)
+    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName)
     {
         var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
         foreach (var circleMemberRecord in circleMemberRecords)

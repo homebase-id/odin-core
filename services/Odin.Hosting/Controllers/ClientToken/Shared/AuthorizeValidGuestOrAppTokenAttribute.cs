@@ -3,9 +3,9 @@ using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared;
 
-public class AuthorizeValidExchangeGrantAttribute : AuthorizeAttribute
+public class AuthorizeValidGuestOrAppTokenAttribute : AuthorizeAttribute
 {
-    public AuthorizeValidExchangeGrantAttribute()
+    public AuthorizeValidGuestOrAppTokenAttribute()
     {
         AuthenticationSchemes = YouAuthConstants.YouAuthScheme;
         // Policy = OwnerPolicies.IsAuthorizedApp;

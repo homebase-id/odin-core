@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -157,7 +158,7 @@ public class CircleNetworkStorage
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleGrants = _circleMembershipService.GetCirclesByDomain(record.identity);
+        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity);
         foreach (var circleGrant in circleGrants)
         {
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);

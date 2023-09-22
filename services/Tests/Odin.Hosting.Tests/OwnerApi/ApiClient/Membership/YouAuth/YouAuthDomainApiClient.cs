@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Membership.YouAuth;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -23,7 +24,9 @@ public class YouAuthDomainApiClient
 
 
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain(
-        AsciiDomainName domain, List<GuidId> circleIds = null)
+        AsciiDomainName domain, List<GuidId> circleIds = null, 
+        ConsentRequirement consentRequirement = ConsentRequirement.Never,
+        UnixTimeUtc consentExpiration = default)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -33,7 +36,11 @@ public class YouAuthDomainApiClient
             {
                 Name = $"Test_{domain.DomainName}",
                 Domain = domain.DomainName,
-                CircleIds = circleIds ?? new List<GuidId>()
+                CircleIds = circleIds ?? new List<GuidId>(),
+                ConsentRequirement = consentRequirement,
+                ConsentExpirationDateTime = consentExpiration
+                
+                
             };
 
             var response = await svc.RegisterDomain(request);

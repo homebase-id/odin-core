@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [ApiController]
     [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class DriveUploadController : DriveUploadControllerBase
     {
         

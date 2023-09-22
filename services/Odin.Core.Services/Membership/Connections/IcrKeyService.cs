@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.CircleMembership;
 
 namespace Odin.Core.Services.Membership.Connections
 {

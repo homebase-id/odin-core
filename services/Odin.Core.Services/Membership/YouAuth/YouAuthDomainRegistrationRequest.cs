@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Membership.YouAuth
 {
@@ -17,6 +18,13 @@ namespace Odin.Core.Services.Membership.YouAuth
         /// The circles to be granted to the domain
         /// </summary>
         public List<GuidId> CircleIds { get; set; }
+        
+        public ConsentRequirement ConsentRequirement { get; set; }
+        
+        /// <summary>
+        /// Some time in the future for consent to expire
+        /// </summary>
+        public UnixTimeUtc ConsentExpirationDateTime { get; set; }
         
     }
 }
