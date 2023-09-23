@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -18,19 +14,10 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Membership.Circles;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
-using Odin.Hosting.Tests.AppAPI.Drive;
-using Odin.Hosting.Tests.AppAPI.Utils;
-using Odin.Hosting.Tests.OwnerApi.Utils;
-using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 {
@@ -174,8 +161,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
-            Assert.IsTrue(modifiedResult.uploadResult.File == randomFile.uploadResult.File);
-            Assert.IsFalse(modifiedResult.modifiedMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent, "file was not modified");
+            Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
+            Assert.IsFalse(randomFile.uploadedMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent, "file was not modified");
             // await pippinOwnerClient.Drive.DeleteFile(randomFile.uploadResult.File);
 
             //
@@ -191,6 +178,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 },
                 ResultOptions = new QueryModifiedResultOptions()
                 {
+                    IncludeJsonContent = true,
                     MaxRecords = 100
                 }
             };
@@ -198,9 +186,10 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var getBatchResponse = await merryAppClient.TransitQuery.GetModified(request);
             Assert.IsTrue(getBatchResponse.IsSuccessStatusCode);
             Assert.IsNotNull(getBatchResponse.Content);
-            var theDeletedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
-            Assert.IsNotNull(theDeletedFile);
-            Assert.IsTrue(theDeletedFile.FileState == FileState.Deleted);
+            var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
+            Assert.IsNotNull(theModifiedFile);
+            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
+
         }
 
         [Test]
@@ -263,15 +252,15 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var thumbnail = new ImageDataContent()
             {
-                ContentType = "image/jpg",
-                Content = "this is data".ToUtf8ByteArray(),
-                PixelWidth = 100,
-                PixelHeight = 100
+                PixelHeight = 300,
+                PixelWidth = 300,
+                ContentType = "image/jpeg",
+                Content = TestMedia.ThumbnailBytes300
             };
 
             // Pippin uploads file
-            var randomFile =
-                await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, payload: null, thumbnail: thumbnail);
+            var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo,
+                payload: null, thumbnail: thumbnail);
 
             var response = await merryAppClient.TransitQuery.GetThumbnail(new TransitGetThumbRequest()
             {
@@ -289,9 +278,34 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         [Test]
-        public async Task AppCan_Get_Public_Metadata_Type_OverTransitQuery()
+        public async Task AppCan_Get_Public_Drives_By_Type_OverTransitQuery()
         {
-            Assert.Fail("TODO");
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var driveType = Guid.NewGuid();
+            var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1", "", allowAnonymousReads: true);
+            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: true);
+            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 3 - no anonymous reads", "", allowAnonymousReads: false);
+
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
+
+
+            var getTransitDrives = await merryAppClient.TransitQuery.GetDrives(new TransitGetDrivesByTypeRequest()
+            {
+                OdinId = pippinOwnerClient.Identity.OdinId,
+                DriveType = driveType
+            });
+
+            Assert.IsTrue(getTransitDrives.IsSuccessStatusCode);
+            Assert.IsNotNull(getTransitDrives.Content);
+
+            var drivesOnRecipientIdentityAccessibleToSender = getTransitDrives.Content.Results;
+
+            Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
+            Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
+            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1.TargetDriveInfo));
+            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2.TargetDriveInfo));
+            Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3.TargetDriveInfo));
+            
         }
 
         //
@@ -339,7 +353,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     FileType = 777,
                     JsonContent = $"some json content {Guid.NewGuid()}",
                     ContentIsComplete = payload == null,
-                    UniqueId = Guid.NewGuid()
+                    UniqueId = Guid.NewGuid(),
+                    AdditionalThumbnails = thumbnail == null ? default : new[] { thumbnail }
                 },
                 AccessControlList = AccessControlList.Anonymous
             };

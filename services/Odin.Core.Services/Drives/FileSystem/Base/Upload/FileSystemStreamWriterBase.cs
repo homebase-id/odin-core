@@ -107,6 +107,13 @@ public abstract class FileSystemStreamWriterBase
         //TODO: should i validate width and height are > 0?
         string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+
+        Package.UploadedThumbnails.Add(new ImageDataHeader()
+        {
+            PixelHeight = height,
+            PixelWidth = width,
+            ContentType = contentType
+        });
     }
 
     /// <summary>
@@ -353,6 +360,13 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
             {
                 throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
+            }
+
+            if ((metadata.AppData.AdditionalThumbnails?.Count() ?? 0) != (package.UploadedThumbnails?.Count() ?? 0))
+            {
+                //TODO: technically we could just detect the thumbnails instead of making the user specify AdditionalThumbnails
+                throw new OdinClientException("The number of additional thumbnails in your appData section does not match the number of thumbnails uploaded.",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             if (metadata.PayloadIsEncrypted)

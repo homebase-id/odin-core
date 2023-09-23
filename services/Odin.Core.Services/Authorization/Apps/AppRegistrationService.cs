@@ -68,7 +68,8 @@ namespace Odin.Core.Services.Authorization.Apps
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var icrKey = (request.PermissionSet?.HasKey(PermissionKeys.UseTransitWrite) ?? false) ? _icrKeyService.GetDecryptedIcrKey() : null;
+            var hasTransit = (request.PermissionSet?.HasKey(PermissionKeys.UseTransitRead) ?? false) || (request.PermissionSet?.HasKey(PermissionKeys.UseTransitWrite) ?? false);
+            var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey() : null;
             var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique

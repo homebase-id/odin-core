@@ -841,7 +841,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             };
 
             var postUploadResult =
-                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", null, overwriteFileId: null);
+                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", overwriteFileId: null);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -1461,7 +1461,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             };
 
             var postUploadResult =
-                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", null, overwriteFileId: null);
+                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", overwriteFileId: null);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
