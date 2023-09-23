@@ -96,7 +96,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 CorsHostName = request.CorsHostName,
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 CircleGrants = grants,
-                DeviceRegistrationConsentRequirement = request.ConsentRequirement,
+                ConsentRequirement = request.ConsentRequirement,
                 ConsentExpirationDateTime = request.ConsentExpirationDateTime
             };
 
@@ -163,12 +163,18 @@ namespace Odin.Core.Services.Membership.YouAuth
                 return true;
             }
 
-            if (reg.DeviceRegistrationConsentRequirement == ConsentRequirement.Always)
+            if (reg.ConsentRequirement == ConsentRequirement.Always)
             {
                 return true;
             }
 
-            if (reg.DeviceRegistrationConsentRequirement == ConsentRequirement.Never)
+            if (reg.ConsentRequirement == ConsentRequirement.Expiring)
+            {
+                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return reg.ConsentExpirationDateTime.milliseconds > nowMs;
+            }
+
+            if (reg.ConsentRequirement == ConsentRequirement.Never)
             {
                 return false;
             }

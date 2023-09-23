@@ -39,8 +39,6 @@ public class YouAuthDomainApiClient
                 CircleIds = circleIds ?? new List<GuidId>(),
                 ConsentRequirement = consentRequirement,
                 ConsentExpirationDateTime = consentExpiration
-                
-                
             };
 
             var response = await svc.RegisterDomain(request);

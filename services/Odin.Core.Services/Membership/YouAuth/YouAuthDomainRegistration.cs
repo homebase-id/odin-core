@@ -29,7 +29,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public string CorsHostName { get; set; }
 
-        public ConsentRequirement DeviceRegistrationConsentRequirement { get; set; }
+        public ConsentRequirement ConsentRequirement { get; set; }
         
         public UnixTimeUtc ConsentExpirationDateTime { get; set; }
 
@@ -46,6 +46,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                 Modified = this.Modified,
                 CorsHostName = this.CorsHostName,
                 CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
+                ConsentExpirationDateTime = this.ConsentExpirationDateTime,
+                ConsentRequirement = this.ConsentRequirement
             };
         }
     }
