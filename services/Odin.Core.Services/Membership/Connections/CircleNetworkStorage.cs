@@ -56,7 +56,7 @@ public class CircleNetworkStorage
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId);
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, overrideHack: true);
                 var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)
@@ -207,6 +207,6 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
-    
+
     public bool RemoteIcrIsInvalid { get; set; }
 }

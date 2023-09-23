@@ -11,6 +11,8 @@
         public const string TransitV1 = BasePathV1 + "/transit";
 
         public const string CirclesV1 = BasePathV1 + "/circles";
+        
+        public const string CirclesDefinitionsV1 = CirclesV1 + "/definitions";
 
         public const string FollowersV1 = CirclesV1 + "/followers";
 

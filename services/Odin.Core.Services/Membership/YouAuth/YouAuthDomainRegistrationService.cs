@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR.Pipeline;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -77,7 +76,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             if (request.ConsentRequirement == ConsentRequirement.Expiring)
             {
-                var nowMs = (Int64)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 if (request.ConsentExpirationDateTime.milliseconds < nowMs)
                 {
                     throw new OdinClientException("ConsentExpirationDateTime should be in the future");
@@ -139,6 +138,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public async Task<RedactedYouAuthDomainRegistration?> GetRegistration(AsciiDomainName domain)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var result = await GetDomainRegistrationInternal(domain);
             return result?.Redacted();
         }
@@ -148,6 +149,8 @@ namespace Odin.Core.Services.Membership.YouAuth
         /// </summary>
         public async Task<bool> IsConsentRequired(AsciiDomainName domain)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
             {
                 return false;
@@ -175,6 +178,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public async Task RevokeDomain(AsciiDomainName domain)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var domainReg = await this.GetDomainRegistrationInternal(domain);
             if (null == domainReg)
             {
@@ -189,6 +194,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public async Task RemoveDomainRevocation(AsciiDomainName domain)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var domainReg = await this.GetDomainRegistrationInternal(domain);
             if (null == domainReg)
             {
@@ -203,6 +210,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients(AsciiDomainName domain)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var list = _clientStorage.GetByKey3<YouAuthDomainClient>(_clientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {

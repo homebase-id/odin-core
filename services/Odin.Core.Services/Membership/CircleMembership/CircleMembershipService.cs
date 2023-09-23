@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
@@ -49,14 +50,26 @@ public class CircleMembershipService
             yield return sd.CircleGrant;
         }
     }
-
-    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId)
+    
+    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, bool overrideHack = false)
     {
+        //TODO: need to figure out how to enforce this even when the call is
+        //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
+        if(!overrideHack)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
+
+            if (circleId == CircleConstants.ConnectedIdentitiesSystemCircleId)
+            {
+                _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            }
+        }
+        
         var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            return new CircleDomainResult()
+            return new CircleDomainResult() 
             {
                 DomainType = data.DomainType,
                 Domain = data.DomainName,
@@ -163,6 +176,8 @@ public class CircleMembershipService
     /// <param name="request"></param>
     public async Task CreateCircleDefinition(CreateCircleRequest request)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         await _circleDefinitionService.Create(request);
     }
 
@@ -171,12 +186,18 @@ public class CircleMembershipService
     /// </summary>
     public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
     {
+        if (includeSystemCircle)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        }
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
         var circles = await _circleDefinitionService.GetCircles(includeSystemCircle);
         return circles;
     }
 
     public CircleDefinition GetCircle(GuidId circleId)
     {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
         return _circleDefinitionService.GetCircle(circleId);
     }
 
@@ -187,11 +208,15 @@ public class CircleMembershipService
 
     public async Task Update(CircleDefinition circleDef)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         await _circleDefinitionService.Update(circleDef);
     }
 
     public async Task Delete(GuidId circleId)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         await _circleDefinitionService.Delete(circleId);
     }
 
@@ -201,6 +226,8 @@ public class CircleMembershipService
     /// <param name="circleId"></param>
     public Task DisableCircle(GuidId circleId)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         var circle = this.GetCircle(circleId);
         circle.Disabled = true;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -214,6 +241,8 @@ public class CircleMembershipService
     /// <param name="circleId"></param>
     public Task EnableCircle(GuidId circleId)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         var circle = this.GetCircle(circleId);
         circle.Disabled = false;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -227,12 +256,15 @@ public class CircleMembershipService
     /// <returns></returns>
     public Task CreateSystemCircle()
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         _circleDefinitionService.CreateSystemCircle();
         return Task.CompletedTask;
     }
 
     public bool IsEnabled(GuidId circleId)
     {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
         return _circleDefinitionService.IsEnabled(circleId);
     }
 }

@@ -138,7 +138,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
-            cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
+            cb.RegisterType<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()

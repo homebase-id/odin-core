@@ -39,4 +39,54 @@ public class AppCircleDefinitionApiClient : AppApiTestUtils
             return response;
         }
     }
+    
+    public async Task<ApiResponse<bool>> Update(CircleDefinition definition)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IAppCircleDefinitionClient>(client,  _token.SharedSecret);
+            var response = await svc.UpdateCircleDefinition(definition);
+            return response;
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> Delete(Guid id)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IAppCircleDefinitionClient>(client,  _token.SharedSecret);
+            var response = await svc.DeleteCircleDefinition(id);
+            return response;
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> Create(CreateCircleRequest request)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IAppCircleDefinitionClient>(client,  _token.SharedSecret);
+            var response = await svc.CreateCircleDefinition(request);
+            return response;
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> Disable(Guid id)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IAppCircleDefinitionClient>(client,  _token.SharedSecret);
+            var response = await svc.DisableCircleDefinition(id);
+            return response;
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> Enable(Guid id)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IAppCircleDefinitionClient>(client,  _token.SharedSecret);
+            var response = await svc.EnableCircleDefinition(id);
+            return response;
+        }
+    }
 }

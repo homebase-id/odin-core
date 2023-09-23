@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles
 {
     
     [ApiController]
-    [Route(OwnerApiPathConstants.CirclesV1 + "/definitions")]
+    [Route(OwnerApiPathConstants.CirclesDefinitionsV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerCircleDefinitionController : CircleDefinitionControllerBase
     {

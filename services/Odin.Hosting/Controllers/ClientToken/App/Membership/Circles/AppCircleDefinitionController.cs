@@ -6,7 +6,7 @@ using Odin.Hosting.Controllers.Base.Membership.Circles;
 namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Circles
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/definitions")]
+    [Route(AppApiPathConstants.CirclesDefinitionsV1)]
     [AuthorizeValidAppToken]
     public class AppCircleDefinitionController : CircleDefinitionControllerBase
     {

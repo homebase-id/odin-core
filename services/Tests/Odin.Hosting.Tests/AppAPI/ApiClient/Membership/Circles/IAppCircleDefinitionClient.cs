@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles
 {
     public interface IAppCircleDefinitionClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/definitions";
+        private const string RootPath = AppApiPathConstants.CirclesDefinitionsV1;
 
         [Get(RootPath + "/list")]
         Task<ApiResponse<List<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);
@@ -26,5 +26,11 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles
 
         [Post(RootPath + "/delete")]
         Task<ApiResponse<bool>> DeleteCircleDefinition([Body] Guid id);
+
+        [Post(RootPath + "/disable")]
+        Task<ApiResponse<bool>> DisableCircleDefinition([Body] Guid id);
+        
+        [Post(RootPath + "/enable")]
+        Task<ApiResponse<bool>> EnableCircleDefinition([Body] Guid id);
     }
 }
