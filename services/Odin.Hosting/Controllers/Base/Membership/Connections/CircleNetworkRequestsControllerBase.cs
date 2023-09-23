@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="pageNumber"></param>
         /// <param name="pageSize"></param>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpGet("pending/list")]
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
@@ -38,7 +38,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="sender"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("pending/single")]
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="header"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("pending/accept")]
         public async Task<bool> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
         {
@@ -71,7 +71,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="sender"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("pending/delete")]
         public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
@@ -85,7 +85,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// <param name="pageNumber"></param>
         /// <param name="pageSize"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpGet("sent/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
@@ -99,7 +99,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="recipient"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("sent/single")]
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="recipient"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("sent/delete")]
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
@@ -131,7 +131,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// </summary>
         /// <param name="requestHeader"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("sendrequest")]
         public async Task<bool> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
