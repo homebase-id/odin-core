@@ -34,22 +34,23 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp,
-            QueryModifiedResultOptions options)
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             AssertCanReadDrive(driveId);
+
+            var o = options ?? QueryModifiedResultOptions.Default();
 
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
+                    await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, o);
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, o);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
                 {
-                    IncludesJsonContent = options.IncludeJsonContent,
+                    IncludesJsonContent = o.IncludeJsonContent,
                     Cursor = updatedCursor,
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows

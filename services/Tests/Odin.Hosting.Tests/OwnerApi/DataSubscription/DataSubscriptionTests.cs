@@ -166,7 +166,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Frodo now deletes the file
-        await frodoOwnerClient.Drive.DeleteFile(FileSystemType.Standard, standardFileUploadResult.File);
+        await frodoOwnerClient.Drive.DeleteFile(standardFileUploadResult.File);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
