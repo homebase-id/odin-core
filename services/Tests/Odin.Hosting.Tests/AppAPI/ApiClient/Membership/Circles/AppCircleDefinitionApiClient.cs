@@ -1,17 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
-using Odin.Hosting.Controllers.Base.Membership.Connections;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
-using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
 
-public class AppCircleDefinitionApiClient : AppApiTestUtils
+public class AppCircleDefinitionApiClient : AppApiClientBase
 {
     private readonly AppClientToken _token;
 

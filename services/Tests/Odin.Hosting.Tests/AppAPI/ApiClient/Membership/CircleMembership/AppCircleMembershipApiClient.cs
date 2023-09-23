@@ -9,6 +9,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App.Membership.Connections;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Follower;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
@@ -17,7 +18,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 
-public class AppCircleMembershipApiClient : AppApiTestUtils
+public class AppCircleMembershipApiClient : AppApiClientBase
 {
     private readonly AppClientToken _token;
 

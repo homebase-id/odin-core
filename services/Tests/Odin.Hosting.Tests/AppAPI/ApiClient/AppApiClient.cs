@@ -11,6 +11,7 @@ using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Security;
+using Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -47,6 +48,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
             this.CircleDefinitions = new AppCircleDefinitionApiClient(ownerApi, _token);
             this.CircleNetwork = new AppCircleNetworkApiClient(ownerApi, _token);
             this.CircleNetworkRequests = new AppCircleNetworkRequestsApiClient(ownerApi, _token);
+            this.TransitQuery = new AppTransitQueryApiClient(ownerApi, _token);
         }
 
         public AppCircleNetworkRequestsApiClient CircleNetworkRequests { get; }
@@ -67,6 +69,8 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
         
         public AppCircleDefinitionApiClient CircleDefinitions { get; }
 
+        public AppTransitQueryApiClient TransitQuery { get; }
+        
         public async Task Logout()
         {
             var client = this.CreateAppApiHttpClient();

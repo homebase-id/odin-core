@@ -36,7 +36,7 @@ public class TransitBadCATDetectionTests
 
 
     [Test]
-    public async Task CanDetectBadCAT_and_UpdateICR()
+    public async Task CanDetectBadCAT_and_UpdateICR_and_FallbackToPublicAccess()
     {
         // Prepare Scenario
 

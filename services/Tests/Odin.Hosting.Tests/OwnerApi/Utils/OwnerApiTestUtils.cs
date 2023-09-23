@@ -356,7 +356,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             if (canUseTransit)
             {
-                keys.Add(PermissionKeys.UseTransit);
+                keys.Add(PermissionKeys.UseTransitWrite);
             }
 
             PermissionSet permissionSet = new PermissionSet(keys.ToArray());

@@ -314,7 +314,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         serverMetadata.AccessControlList.Validate();
-        
+
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
@@ -327,7 +327,7 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
-        
+
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
@@ -342,19 +342,19 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("UniqueId cannot be an empty Guid (all zeros)", OdinClientErrorCode.MalformedMetadata);
             }
         }
-        
+
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
             if (metadata.AppData.ContentIsComplete && package.HasPayload)
             {
                 throw new OdinClientException("Content is marked complete in metadata but there is also a payload", OdinClientErrorCode.InvalidPayload);
             }
-            
+
             if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
             {
                 throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
             }
-            
+
             if (metadata.PayloadIsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
@@ -365,7 +365,7 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        
+
         //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
         // uses the existing global transit id
         if (!package.IsUpdateOperation)

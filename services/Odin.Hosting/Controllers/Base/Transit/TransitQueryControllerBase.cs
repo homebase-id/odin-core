@@ -5,13 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
-using Odin.Hosting.Controllers.OwnerToken;
-using Swashbuckle.AspNetCore.Annotations;
+    using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {
@@ -136,35 +134,5 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
             return page;
         }
-        
-        
-        // /// <summary />
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        // [HttpPost("list")]
-        // public GetReactionsResponse GetAllReactions([FromBody] GetReactionsRequest request)
-        // {
-        //     return _transitQueryService.GetReactions(request);
-        // }
-        //
-        // /// <summary>
-        // /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored
-        // /// </summary>
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        // [HttpPost("summary")]
-        // public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
-        // {
-        //     return _transitQueryService.GetReactionCounts(request);
-        // }
-        //
-        // /// <summary>
-        // /// Get reactions by identity and file
-        // /// </summary>
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        // [HttpPost("listbyidentity")]
-        // public List<string> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
-        // {
-        //     return _transitQueryService.GetReactionsByIdentityAndFile(request);
-        // }
-        
     }
 }

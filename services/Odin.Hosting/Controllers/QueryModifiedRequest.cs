@@ -50,7 +50,7 @@ public class GetQueryModifiedRequest
     public bool IncludeJsonContent { get; set; }
     public bool ExcludePreviewThumbnail { get; set; }
 
-     public QueryModifiedRequest toQueryModifiedRequest () {
+     public QueryModifiedRequest ToQueryModifiedRequest () {
         return new QueryModifiedRequest() {
             QueryParams = new FileQueryParams() {
                 TargetDrive = new TargetDrive() {

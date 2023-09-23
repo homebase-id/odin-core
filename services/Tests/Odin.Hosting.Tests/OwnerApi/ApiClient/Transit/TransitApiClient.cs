@@ -212,7 +212,7 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var transitService = RestService.For<ITransitTestHttpClientForOwner>(client);
+            var transitService = RestService.For<IRefitOwnerTransitSender>(client);
             ApiResponse<TransitResult> response = await transitService.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -291,7 +291,7 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var transitSvc = RestService.For<ITransitTestHttpClientForOwner>(client);
+            var transitSvc = RestService.For<IRefitOwnerTransitSender>(client);
             ApiResponse<TransitResult> response = await transitSvc.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -330,7 +330,7 @@ public class TransitApiClient
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitTestHttpClientForOwner>(client, sharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitSender>(client, sharedSecret);
             var response = await transitSvc.SendDeleteRequest(request);
 
             Assert.IsTrue(response.IsSuccessStatusCode);

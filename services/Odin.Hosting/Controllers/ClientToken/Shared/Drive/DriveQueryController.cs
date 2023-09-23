@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("modified")]
         public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
         {
-            var queryModifiedRequest = request.toQueryModifiedRequest();
+            var queryModifiedRequest = request.ToQueryModifiedRequest();
             return await base.QueryModified(queryModifiedRequest);
         }
 

@@ -213,7 +213,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, TestIdentities.Frodo);
             var grant = new PermissionSetGrantRequest()
             {
-                PermissionSet = new PermissionSet(new[] { PermissionKeys.UseTransit })
+                PermissionSet = new PermissionSet(new[] { PermissionKeys.UseTransitWrite })
             };
             
             var createCircleResponse = await client.Membership.CreateCircleRaw("Circle with UseTransit", grant);

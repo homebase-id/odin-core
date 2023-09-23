@@ -3,18 +3,14 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Hosting.Controllers.OwnerToken;
-using Odin.Hosting.Controllers.OwnerToken.Transit;
+using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
 {
-    /// <summary>
-    /// The interface for storing files
-    /// </summary>
-    public interface ITransitTestHttpClientForOwner
+    public interface IRefitAppTransitTest
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitSenderV1;
+        private const string RootEndpoint = AppApiPathConstants.TransitSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]
