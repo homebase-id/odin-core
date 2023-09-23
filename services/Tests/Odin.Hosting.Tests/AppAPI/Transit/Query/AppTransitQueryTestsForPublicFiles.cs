@@ -270,7 +270,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, thumbnail: thumbnail);
+            var randomFile =
+                await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, payload: null, thumbnail: thumbnail);
 
             var response = await merryAppClient.TransitQuery.GetThumbnail(new TransitGetThumbRequest()
             {
@@ -337,14 +338,14 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 {
                     FileType = 777,
                     JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = payload != null,
+                    ContentIsComplete = payload == null,
                     UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
-                payloadData: payload,
+                payloadData: payload ?? "",
                 thumbnail: thumbnail);
             return (result, fileMetadata);
         }
