@@ -24,15 +24,23 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             _transitQueryService = transitQueryService;
         }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpPost("batchcollection")]
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection([FromBody] TransitQueryBatchCollectionRequest request)
+        {
+            var result = await _transitQueryService.GetBatchCollection((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
+            return result;
+        }
 
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
-        // [HttpPost("modified")]
-        // public async Task<QueryModifiedResult> GetModified([FromBody] QueryModifiedRequest request)
-        // {
-        //     var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-        //     var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
-        //     return batch;
-        // }
+            
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpPost("modified")]
+        public async Task<QueryModifiedResponse> GetModified([FromBody] TransitQueryModifiedRequest request)
+        {
+            var result = await _transitQueryService.GetModified((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
+            return QueryModifiedResponse.FromResult(result);
+        }
 
         /// <summary>
         /// Executes a QueryBatch operation on a remote identity server

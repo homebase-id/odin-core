@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
+using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
 {

@@ -21,6 +21,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
@@ -49,7 +50,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         [Test]
-        public async Task AppFailsTo_Query_Public_Batch_OverTransitQuery_Without_UseTransitRead_Permission()
+        public async Task AppFailsTo_GetBatch_OverTransitQuery_Without_UseTransitRead_Permission()
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
@@ -57,6 +58,24 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             {
                 OdinId = TestIdentities.Pippin.OdinId
             });
+            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+        }
+
+        [Test]
+        public async Task AppFailsTo_GetHeader_OverTransitQuery_Without_UseTransitRead_Permission()
+        {
+            //Note: I do not prepare any remote data because the permission is enforced on the origin identity
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+            var getBatchResponse = await merryAppClient.TransitQuery.GetFileHeader(new TransitExternalFileIdentifier()
+            {
+                OdinId = TestIdentities.Merry.OdinId,
+                File = new()
+                {
+                    FileId = Guid.NewGuid(),
+                    TargetDrive = TargetDrive.NewTargetDrive()
+                }
+            });
+            
             Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 

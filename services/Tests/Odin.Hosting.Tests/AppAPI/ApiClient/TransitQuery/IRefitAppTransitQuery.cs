@@ -16,9 +16,12 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
     {
         private const string RootEndpoint = AppApiPathConstants.TransitQueryV1;
 
-        // [Post(RootQueryEndpoint + "/modified")]
-        // Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
+        [Post(RootEndpoint + "/modified")]
+        Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request);
 
+        [Post(RootEndpoint + "/batchcollection")]
+        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] TransitQueryBatchCollectionRequest request);
+        
         [Post(RootEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] TransitQueryBatchRequest request);
 

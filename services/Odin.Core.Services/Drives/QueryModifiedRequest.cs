@@ -1,15 +1,15 @@
 using System;
-using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Time;
 
-namespace Odin.Hosting.Controllers;
+namespace Odin.Core.Services.Drives;
 
 public class QueryModifiedRequest
 {
     public FileQueryParams QueryParams { get; set; }
     public QueryModifiedResultOptions ResultOptions { get; set; }
 }
+
 public class GetQueryModifiedRequest
 {
     // FileQueryParams

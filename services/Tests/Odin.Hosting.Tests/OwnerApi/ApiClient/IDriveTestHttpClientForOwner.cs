@@ -12,6 +12,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
+using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 {

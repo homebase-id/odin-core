@@ -20,6 +20,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Refit;
+using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive
 {

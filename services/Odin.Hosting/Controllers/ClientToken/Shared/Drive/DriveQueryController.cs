@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
@@ -86,7 +85,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 var section = query.ToCollectionQueryParamSection();
                 section.AssertIsValid();
                 sections.Add(section);
-            };
+            }
 
             var request = new QueryBatchCollectionRequest(){
                 Queries = sections
