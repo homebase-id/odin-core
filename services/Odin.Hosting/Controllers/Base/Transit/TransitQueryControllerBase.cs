@@ -9,23 +9,20 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer.SendingHost;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
+using Odin.Hosting.Controllers.OwnerToken;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.Base.Transit
 {
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    [ApiController]
-    [Route(OwnerApiPathConstants.TransitQueryV1)]
-    [AuthorizeValidOwnerToken]
-    public class TransitQueryController : OdinControllerBase
+    public class TransitQueryControllerBase : OdinControllerBase
     {
         private readonly TransitQueryService _transitQueryService;
 
-        public TransitQueryController(TransitQueryService transitQueryService)
+        public TransitQueryControllerBase(TransitQueryService transitQueryService)
         {
             _transitQueryService = transitQueryService;
         }

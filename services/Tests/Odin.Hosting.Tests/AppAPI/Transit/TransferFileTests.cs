@@ -148,7 +148,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.StatusCode == HttpStatusCode.Forbidden);
-
             }
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
@@ -777,7 +776,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1, $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
 
                 var uploadedFile = new ExternalFileIdentifier()
                 {

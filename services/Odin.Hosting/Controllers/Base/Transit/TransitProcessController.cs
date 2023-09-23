@@ -1,19 +1,15 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Peer.ReceivingHost;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.Base.Transit
 {
-    [ApiController]
-    [Route(OwnerApiPathConstants.TransitV1 + "/inbox/processor")]
-    [AuthorizeValidOwnerToken]
-    public class TransitProcessController : ControllerBase
+    public class TransitProcessControllerBase : ControllerBase
     {
         private readonly TransitInboxProcessor _transitInboxProcessor;
 
-        public TransitProcessController(TransitInboxProcessor transitInboxProcessor)
+        public TransitProcessControllerBase(TransitInboxProcessor transitInboxProcessor)
         {
             _transitInboxProcessor = transitInboxProcessor;
         }

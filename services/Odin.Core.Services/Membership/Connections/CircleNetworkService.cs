@@ -37,11 +37,12 @@ namespace Odin.Core.Services.Membership.Connections
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
         private readonly IMediator _mediator;
+        private readonly CircleDefinitionService _circleDefinitionService;
 
         public CircleNetworkService(OdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
             IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService,
-            IMediator mediator)
+            IMediator mediator, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
@@ -49,6 +50,7 @@ namespace Odin.Core.Services.Membership.Connections
             _appRegistrationService = appRegistrationService;
             _circleMembershipService = circleMembershipService;
             _mediator = mediator;
+            _circleDefinitionService = circleDefinitionService;
 
             _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
         }
@@ -629,7 +631,7 @@ namespace Odin.Core.Services.Membership.Connections
                     foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
-                        if (alreadyEnabledCircle || _circleMembershipService.IsEnabled(appCg.CircleId))
+                        if (alreadyEnabledCircle || _circleDefinitionService.IsEnabled(appCg.CircleId))
                         {
                             if (!alreadyEnabledCircle)
                             {

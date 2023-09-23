@@ -6,22 +6,19 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer.ReceivingHost.Reactions;
 using Odin.Core.Services.Peer.SendingHost;
-using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.OwnerToken;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.Base.Transit
 {
     /// <summary>
     /// Routes reaction requests from the owner app to a target identity
     /// </summary>
-    [ApiController]
-    [Route(OwnerApiPathConstants.TransitReactionContentV1)]
-    [AuthorizeValidOwnerToken]
-    public class TransitReactionContentSenderController : OdinControllerBase
+    public class TransitReactionContentSenderControllerBase : OdinControllerBase
     {
         private readonly TransitReactionContentSenderService _transitReactionContentSenderService;
 
-        public TransitReactionContentSenderController(TransitReactionContentSenderService transitReactionContentSenderService)
+        public TransitReactionContentSenderControllerBase(TransitReactionContentSenderService transitReactionContentSenderService)
         {
             _transitReactionContentSenderService = transitReactionContentSenderService;
         }

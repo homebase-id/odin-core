@@ -262,9 +262,8 @@ public class CircleMembershipService
         return Task.CompletedTask;
     }
 
-    public bool IsEnabled(GuidId circleId)
+    private bool IsEnabled(GuidId circleId)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
         return _circleDefinitionService.IsEnabled(circleId);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
@@ -12,22 +11,18 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
-using Odin.Core.Storage;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.OwnerToken;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.Base.Transit
 {
     /// <summary />
-    [ApiController]
-    [Route(OwnerApiPathConstants.TransitSenderV1)]
-    [AuthorizeValidOwnerToken]
-    public class TransitSenderController : DriveUploadControllerBase
+    public class TransitSenderControllerBase : DriveUploadControllerBase
     {
         private readonly ITransitService _transitService;
 
-        public TransitSenderController(ITransitService transitService)
+        public TransitSenderControllerBase(ITransitService transitService)
         {
             _transitService = transitService;
         }
@@ -158,20 +153,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
 
             return uploadInstructionSet;
         }
-    }
-
-    public class DeleteFileByGlobalTransitIdRequest
-    {
-        public FileSystemType FileSystemType { get; set; }
-
-        /// <summary>
-        /// The file to be deleted
-        /// </summary>
-        public GlobalTransitIdFileIdentifier GlobalTransitIdFileIdentifier { get; set; }
-
-        /// <summary>
-        /// List of recipients to receive the delete-file notification
-        /// </summary>
-        public List<string> Recipients { get; set; }
     }
 }
