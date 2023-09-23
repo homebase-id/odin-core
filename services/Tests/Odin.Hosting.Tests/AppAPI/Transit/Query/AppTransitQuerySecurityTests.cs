@@ -62,6 +62,20 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         [Test]
+        public async Task AppFailsTo_GetModified_OverTransitQuery_Without_UseTransitRead_Permission()
+        {
+            //Note: I do not prepare any remote data because the permission is enforced on the origin identity
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+            var getBatchResponse = await merryAppClient.TransitQuery.GetModified(new TransitQueryModifiedRequest()
+            {
+                OdinId = TestIdentities.Merry.OdinId,
+            });
+            
+            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+        }
+
+        
+        [Test]
         public async Task AppFailsTo_GetHeader_OverTransitQuery_Without_UseTransitRead_Permission()
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
@@ -75,10 +89,69 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     TargetDrive = TargetDrive.NewTargetDrive()
                 }
             });
-            
+
             Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
+        [Test]
+        public async Task AppFailsTo_GetPayload_OverTransitQuery_Without_UseTransitRead_Permission()
+        {
+            //Note: I do not prepare any remote data because the permission is enforced on the origin identity
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+            var getBatchResponse = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            {
+                OdinId = TestIdentities.Merry.OdinId,
+                File = new()
+                {
+                    FileId = Guid.NewGuid(),
+                    TargetDrive = TargetDrive.NewTargetDrive()
+                }
+            });
+
+            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+        }
+
+
+        [Test]
+        public async Task AppFailsTo_GetThumbnails_OverTransitQuery_Without_UseTransitRead_Permission()
+        {
+            //Note: I do not prepare any remote data because the permission is enforced on the origin identity
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+            var getBatchResponse = await merryAppClient.TransitQuery.GetThumbnail(new TransitGetThumbRequest()
+            {
+                OdinId = TestIdentities.Merry.OdinId,
+                File = new()
+                {
+                    FileId = Guid.NewGuid(),
+                    TargetDrive = TargetDrive.NewTargetDrive()
+                }
+            });
+
+            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+        }
+
+        [Test]
+        public async Task AppFailsTo_GetBatchCollection_OverTransitQuery_Without_UseTransitRead_Permission()
+        {
+            //Note: I do not prepare any remote data because the permission is enforced on the origin identity
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
+            var getBatchResponse = await merryAppClient.TransitQuery.GetBatchCollection(new TransitQueryBatchCollectionRequest()
+            {
+                OdinId = TestIdentities.Merry.OdinId,
+                Queries = new List<CollectionQueryParamSection>()
+                {
+                    new CollectionQueryParamSection()
+                    {
+                        Name = "test01",
+                        QueryParams = default,
+                        ResultOptionsRequest = default
+                    }
+                }
+            });
+
+            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+        }
+        
         //
 
         private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)
