@@ -24,6 +24,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
+using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
@@ -102,7 +103,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var randomFile1 = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo);
             var randomFile2 = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo);
 
-            const string testResult1 = "test02";
+            const string testResult1 = "test01";
             const string testResult2 = "test02";
             var request = new TransitQueryBatchCollectionRequest()
             {
@@ -117,7 +118,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                             TargetDrive = randomFile1.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
                         },
-                        ResultOptionsRequest = default
+                        ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                        {
+                            MaxRecords = 100,
+                            IncludeMetadataHeader = true
+                        }
                     },
                     new()
                     {
@@ -127,7 +132,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                             TargetDrive = randomFile2.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
                         },
-                        ResultOptionsRequest = default
+                        ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                        {
+                            MaxRecords = 100,
+                            IncludeMetadataHeader = true
+                        }
                     }
                 }
             };
@@ -143,7 +152,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var set1File1 = set1.SearchResults.SingleOrDefault(f => f.FileId == randomFile1.uploadResult.File.FileId);
             Assert.IsNotNull(set1File1);
-            
+
             var set2 = collectionResponse.Content.Results.SingleOrDefault(r => r.Name.ToLower() == testResult2.ToLower());
             Assert.IsNotNull(set2);
 
@@ -197,19 +206,85 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         [Test]
         public async Task AppCan_Get_Public_Header_OverTransitQuery()
         {
-            Assert.Fail("TODO");
+            // Prep
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var remoteDrive = await pippinOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some target drive", "", allowAnonymousReads: true);
+
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
+
+            // Pippin uploads file
+            var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo);
+
+            var response = await merryAppClient.TransitQuery.GetFileHeader(new TransitExternalFileIdentifier()
+            {
+                OdinId = pippinOwnerClient.Identity.OdinId,
+                File = randomFile.uploadResult.File
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsNotNull(response.Content);
+            Assert.IsTrue(response.Content.FileMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent);
         }
 
         [Test]
         public async Task AppCan_Get_Public_Payload_OverTransitQuery()
         {
-            Assert.Fail("TODO");
+            // Prep
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var remoteDrive = await pippinOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some target drive", "", allowAnonymousReads: true);
+
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
+
+            const string uploadedPayload = "some payload of something";
+
+            // Pippin uploads file
+            var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, uploadedPayload);
+
+            var response = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            {
+                OdinId = pippinOwnerClient.Identity.OdinId,
+                File = randomFile.uploadResult.File
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsNotNull(response.Content);
+            var payload = await response.Content.ReadAsStringAsync();
+            Assert.IsTrue(payload == uploadedPayload);
         }
 
         [Test]
         public async Task AppCan_Get_Public_Thumbnail_OverTransitQuery()
         {
-            Assert.Fail("TODO");
+            // Prep
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var remoteDrive = await pippinOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some target drive", "", allowAnonymousReads: true);
+
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
+
+            var thumbnail = new ImageDataContent()
+            {
+                ContentType = "image/jpg",
+                Content = "this is data".ToUtf8ByteArray(),
+                PixelWidth = 100,
+                PixelHeight = 100
+            };
+
+            // Pippin uploads file
+            var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, thumbnail: thumbnail);
+
+            var response = await merryAppClient.TransitQuery.GetThumbnail(new TransitGetThumbRequest()
+            {
+                OdinId = pippinOwnerClient.Identity.OdinId,
+                File = randomFile.uploadResult.File,
+                Width = thumbnail.PixelWidth,
+                Height = thumbnail.PixelHeight,
+                DirectMatchOnly = true
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.IsNotNull(response.Content);
+            var thumbnailContent = await response.Content.ReadAsStringAsync();
+            Assert.True(thumbnail.Content.Length == thumbnailContent.Length);
         }
 
         [Test]
@@ -251,7 +326,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomPublicFileHeader(TestIdentity identity,
-            TargetDrive targetDrive)
+            TargetDrive targetDrive, string payload = null, ImageDataContent thumbnail = null)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
@@ -262,13 +337,15 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 {
                     FileType = 777,
                     JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = true,
+                    ContentIsComplete = payload != null,
                     UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
             };
 
-            var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata);
+            var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
+                payloadData: payload,
+                thumbnail: thumbnail);
             return (result, fileMetadata);
         }
 
