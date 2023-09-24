@@ -163,7 +163,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
             Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
             Assert.IsFalse(randomFile.uploadedMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent, "file was not modified");
-            // await pippinOwnerClient.Drive.DeleteFile(randomFile.uploadResult.File);
 
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
@@ -171,11 +170,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var request = new TransitQueryModifiedRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                QueryParams = new()
-                {
-                    TargetDrive = randomFile.uploadResult.File.TargetDrive,
-                    FileType = new[] { randomFile.uploadedMetadata.AppData.FileType }
-                },
+                QueryParams = FileQueryParams.FromFileType(randomFile.uploadResult.File.TargetDrive, randomFile.uploadedMetadata.AppData.FileType),
                 ResultOptions = new QueryModifiedResultOptions()
                 {
                     IncludeJsonContent = true,
@@ -189,7 +184,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
             Assert.IsNotNull(theModifiedFile);
             Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
-
         }
 
         [Test]
@@ -284,7 +278,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var driveType = Guid.NewGuid();
             var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1", "", allowAnonymousReads: true);
             var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: true);
-            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 3 - no anonymous reads", "", allowAnonymousReads: false);
+            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 3 - no anonymous reads", "",
+                allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -305,7 +300,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1.TargetDriveInfo));
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2.TargetDriveInfo));
             Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3.TargetDriveInfo));
-            
         }
 
         //
@@ -386,8 +380,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, file.TargetDrive, fileMetadata, overwriteFileId: file.FileId);
-
-
+            
             var modifiedFile = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
             return (result, modifiedFile.FileMetadata);
         }
