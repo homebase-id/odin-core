@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsTrue(getBatchResponse.IsSuccessStatusCode);
             Assert.IsNotNull(getBatchResponse.Content);
             Assert.IsNotNull(getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId));
-            
+
             await _scaffold.Scenarios.DisconnectHobbits();
         }
 
@@ -112,8 +112,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var randomFile2 = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
-            
-            
+
+
             const string testResult1 = "test01";
             const string testResult2 = "test02";
             var request = new TransitQueryBatchCollectionRequest()
@@ -169,15 +169,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var set2File1 = set2.SearchResults.SingleOrDefault(f => f.FileId == randomFile2.uploadResult.File.FileId);
             Assert.IsNotNull(set2File1);
-            
+
             await _scaffold.Scenarios.DisconnectHobbits();
-            
         }
 
         [Test]
         public async Task AppCan_Query_Secured_Modified_OverTransitQuery()
         {
-            
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var remoteDrive = TargetDrive.NewTargetDrive();
 
@@ -196,7 +194,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
-            
+
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
             Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
@@ -226,7 +224,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
             Assert.IsNotNull(theModifiedFile);
             Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
-            
+
             await _scaffold.Scenarios.DisconnectHobbits();
         }
 
@@ -250,7 +248,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 File = randomFile.uploadResult.File
             });
-            
+
             Assert.IsTrue(response.IsSuccessStatusCode);
             Assert.IsNotNull(response.Content);
             Assert.IsTrue(response.Content.FileMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent);
@@ -286,7 +284,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(response.Content);
             var payload = await response.Content.ReadAsStringAsync();
             Assert.IsTrue(payload == uploadedPayload);
-            
+
             await _scaffold.Scenarios.DisconnectHobbits();
         }
 
@@ -326,7 +324,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(response.Content);
             var thumbnailContent = await response.Content.ReadAsStringAsync();
             Assert.True(thumbnail.Content.Length == thumbnailContent.Length);
-            
+
             await _scaffold.Scenarios.DisconnectHobbits();
         }
 
@@ -334,21 +332,29 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         public async Task AppCan_Get_Secured_Metadata_Type_OverTransitQuery()
         {
             // Connected merry and pippin; also grant RW to the remote drive
+            var driveType = Guid.Parse("11111111-2222-3333-a88f-e2475560bced");
 
-            var remoteDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive1);
+            var remoteDrive1GrantedViaCircle = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = driveType
+            };
             
+            await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive1GrantedViaCircle);
+
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-            var driveType = Guid.NewGuid();
-            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1", "", allowAnonymousReads: true);
-            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: false);
+
+            var remoteDrive2AnonymousDrive = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive allow anonymous=true", "", allowAnonymousReads: true);
+            var remoteDrive3NeverGrantedToMerry = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
             var getTransitDrives = await merryAppClient.TransitQuery.GetDrives(new TransitGetDrivesByTypeRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                DriveType = driveType
+                DriveType = driveType,
+                PageSize = 10,
+                PageNumber = 1
             });
 
             Assert.IsTrue(getTransitDrives.IsSuccessStatusCode);
@@ -357,13 +363,12 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var drivesOnRecipientIdentityAccessibleToSender = getTransitDrives.Content.Results;
 
             Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
-            Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 3, $"count was {drivesOnRecipientIdentityAccessibleToSender.Count}");
-            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1));
-            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2.TargetDriveInfo));
-            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3.TargetDriveInfo));
+            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1GrantedViaCircle));
+            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2AnonymousDrive.TargetDriveInfo));
             
-            await _scaffold.Scenarios.DisconnectHobbits();
+            Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3NeverGrantedToMerry.TargetDriveInfo));
 
+            await _scaffold.Scenarios.DisconnectHobbits();
         }
 
         //
@@ -449,6 +454,5 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var modifiedFile = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
             return (result, modifiedFile.FileMetadata);
         }
-
     }
 }

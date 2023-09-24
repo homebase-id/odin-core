@@ -140,7 +140,7 @@ public class CircleMembershipService
     {
         //TODO: this code needs to be refactored to avoid all the mapping
 
-        //Map CircleGrants and AppCircleGrants to Exchange grants
+        // Map CircleGrants to Exchange Grants
         // Note: remember that all connected users are added to a system
         // circle; this circle has grants to all drives marked allowAnonymous == true
 
