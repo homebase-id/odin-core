@@ -5,6 +5,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
@@ -56,7 +57,13 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, bool failIfNotConnected = true)
         {
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
+            //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
+                PermissionKeys.UseTransitWrite,
+                PermissionKeys.UseTransitRead);
+            
+            //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)

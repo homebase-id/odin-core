@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -10,7 +9,7 @@ using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query
 {
     public interface IRefitAppTransitQuery
     {

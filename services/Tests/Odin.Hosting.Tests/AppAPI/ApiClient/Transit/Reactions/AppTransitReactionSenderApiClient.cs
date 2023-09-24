@@ -9,7 +9,7 @@ using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery;
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions;
 
 public class AppTransitReactionSenderApiClient : AppApiClientBase
 {

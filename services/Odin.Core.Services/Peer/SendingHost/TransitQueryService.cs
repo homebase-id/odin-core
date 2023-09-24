@@ -217,6 +217,7 @@ public class TransitQueryService
 
     private async Task<(IdentityConnectionRegistration, IPeerHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
+        //TODO: this check is duplicated in the ResolveClientAccessToken method; need to centralize
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);

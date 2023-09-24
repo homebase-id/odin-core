@@ -1,12 +1,11 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files
 {
     public interface IRefitAppTransitTest
     {

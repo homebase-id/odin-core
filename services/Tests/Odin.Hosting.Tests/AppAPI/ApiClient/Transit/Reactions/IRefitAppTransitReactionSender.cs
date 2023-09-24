@@ -1,14 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer.ReceivingHost.Reactions;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions
 {
     public interface IRefitAppTransitReactionSender
     {
