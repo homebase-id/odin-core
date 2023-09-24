@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
@@ -149,7 +150,7 @@ namespace Odin.Core.Services.Configuration
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
-                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords")[0], // SEB:NOTE we currently only allow one A record
+                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
                     config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
