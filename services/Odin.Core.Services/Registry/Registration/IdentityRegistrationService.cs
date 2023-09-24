@@ -456,7 +456,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")
     {
-        // SEB:TODO this should be injected into ctor as a factory instead 
+        // SEB:TODO this should be injected into ctor as a factory instead (remember to disable caching!)
 
         if (resolverAddressOrHostName == "")
         {
@@ -471,7 +471,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
         nameServerIp = ips.First();
 
-        return new LookupClient(nameServerIp);
+        var options = new LookupClientOptions(nameServerIp)
+        {
+            UseCache = false
+        };
+
+        return new LookupClient(options);
     }
 
     //
