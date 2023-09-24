@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Razor.TagHelpers;
-using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Auth;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Drive;
@@ -49,11 +47,12 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
             this.CircleNetwork = new AppCircleNetworkApiClient(ownerApi, _token);
             this.CircleNetworkRequests = new AppCircleNetworkRequestsApiClient(ownerApi, _token);
             this.TransitQuery = new AppTransitQueryApiClient(ownerApi, _token);
+            this.TransitReactionSender = new AppTransitReactionSenderApiClient(ownerApi, _token);
         }
 
         public AppCircleNetworkRequestsApiClient CircleNetworkRequests { get; }
 
-        public AppCircleNetworkApiClient CircleNetwork { get;}
+        public AppCircleNetworkApiClient CircleNetwork { get; }
 
         public TestIdentity Identity => _identity;
 
@@ -66,11 +65,13 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
         public AppSecurityApiClient Security { get; }
 
         public AppCircleMembershipApiClient CircleMembership { get; }
-        
+
         public AppCircleDefinitionApiClient CircleDefinitions { get; }
 
         public AppTransitQueryApiClient TransitQuery { get; }
-        
+
+        public AppTransitReactionSenderApiClient TransitReactionSender { get; }
+
         public async Task Logout()
         {
             var client = this.CreateAppApiHttpClient();

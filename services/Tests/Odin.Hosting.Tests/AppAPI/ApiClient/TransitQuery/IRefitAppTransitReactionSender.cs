@@ -10,7 +10,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.TransitQuery
 {
-    public interface IRefitAppTransitReaction
+    public interface IRefitAppTransitReactionSender
     {
         private const string RootEndpoint = AppApiPathConstants.TransitReactionContentV1;
 
