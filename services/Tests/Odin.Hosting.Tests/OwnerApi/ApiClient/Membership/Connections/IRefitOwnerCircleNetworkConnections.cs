@@ -10,7 +10,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
 {
-    public interface ICircleNetworkConnectionsOwnerClient
+    public interface IRefitOwnerCircleNetworkConnections
     {
         private const string root_path = OwnerApiPathConstants.CirclesV1 + "/connections";
 

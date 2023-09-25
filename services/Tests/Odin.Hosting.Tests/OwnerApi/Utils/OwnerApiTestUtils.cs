@@ -570,7 +570,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(odinId1, out var ownerSharedSecret);
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
+                var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
@@ -578,7 +578,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             client = this.CreateOwnerApiHttpClient(odinId2, out ownerSharedSecret);
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
+                var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
@@ -598,7 +598,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
         {
-            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
@@ -622,7 +622,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //have frodo send it
             var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -643,7 +643,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //accept the request
             client = this.CreateOwnerApiHttpClient(recipient, out ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -660,7 +660,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
-                var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var connectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
                 if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null &&
                     existingConnectionInfo.Content.Status == ConnectionStatus.Connected)

@@ -177,11 +177,10 @@ public class CircleNetworkStorage
         {
             OdinId = record.identity,
             Status = (ConnectionStatus)record.status,
-            Created = record.created.uniqueTime,
-            LastUpdated = record.modified?.uniqueTime ?? default,
+            Created = record.created.ToUnixTimeUtc().milliseconds,
+            LastUpdated = record.modified.HasValue ? record.modified.Value.ToUnixTimeUtc().milliseconds : 0,
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
-
             RemoteIcrIsInvalid = data.RemoteIcrIsInvalid,
             EncryptedClientAccessToken = new EncryptedClientAccessToken()
             {

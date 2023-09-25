@@ -8,23 +8,6 @@ using Odin.Core.Services.Drives;
 
 namespace Odin.Hosting.Tests.DriveApi
 {
-    public class PermissionedDriveComparer : IEqualityComparer<PermissionedDrive>
-    {
-        public bool Equals(PermissionedDrive x, PermissionedDrive y)
-        {
-            if (ReferenceEquals(x, y)) return true;
-            if (ReferenceEquals(x, null)) return false;
-            if (ReferenceEquals(y, null)) return false;
-            if (x.GetType() != y.GetType()) return false;
-            return x.Drive == y.Drive && x.Permission == y.Permission;
-        }
-
-        public int GetHashCode(PermissionedDrive obj)
-        {
-            return HashCode.Combine(obj.Drive, (int)obj.Permission);
-        }
-    }
-
     public class DriveTypeTests
     {
         [Test]

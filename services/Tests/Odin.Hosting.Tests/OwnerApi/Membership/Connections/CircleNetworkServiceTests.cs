@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -68,7 +68,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -105,7 +105,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
@@ -127,7 +127,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -146,7 +146,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -165,7 +165,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
@@ -189,7 +189,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
@@ -217,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //Check Sam's list of sent requests
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.GetSentRequestList(PageOptions.Default);
 
@@ -239,7 +239,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.GetSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
 
@@ -269,7 +269,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var connectionRequestService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -291,7 +291,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Frodo should be in Sam's contacts network.
                 //
-                var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnetions = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -333,14 +333,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Sent request should be deleted
                 //
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
 
                 //
                 // Sam should be in Frodo's contacts network
                 //
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse =
                     await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
 
@@ -394,7 +394,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var connectionRequestService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -416,7 +416,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Frodo should be in Sam's contacts network.
                 //
-                var samsConnetionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnetionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -450,14 +450,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Sent request should be deleted
                 //
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
 
                 //
                 // Sam should be in Frodo's contacts network
                 //
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
@@ -503,7 +503,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Add Frodo to newCircleDefinitionOnSamsIdentity
                 //
-                var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var circleMemberSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var addMemberResponse = await circleMemberSvc.AddCircle(new AddCircleMembershipRequest()
                 {
                     CircleId = newCircleDefinitionOnSamsIdentity.Id,
@@ -522,7 +522,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Get frodo's connection info to see he s been given access to the new circle's drives
                 //
-                var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -569,7 +569,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var connectionRequestService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -591,7 +591,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Frodo should be in Sam's contacts network.
                 //
-                var samsConnetionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnetionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -625,14 +625,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Sent request should be deleted
                 //
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
 
                 //
                 // Sam should be in Frodo's contacts network
                 //
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
@@ -677,7 +677,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Revoke circleOnSamsIdentity1 from frodo
                 //
-                var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var circleMemberSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var removeMembersResponse = await circleMemberSvc.RevokeCircle(new RevokeCircleMembershipRequest()
                 {
                     CircleId = revokedCircle.Id,
@@ -704,7 +704,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 // Get frodo's connection info to see he's no longer has the drives for this circle
                 //
-                var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -735,7 +735,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -750,7 +750,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var blockResponse = await samConnections.Block(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
@@ -769,7 +769,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -784,7 +784,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var blockResponse = await samConnections.Block(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
@@ -805,7 +805,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -819,7 +819,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.None);
@@ -827,7 +827,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
@@ -851,7 +851,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
 
                 //
-                var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samsConnetions = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
@@ -891,7 +891,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
 
                 //
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
 
                 Assert.IsTrue(getSamInfoResponse.IsSuccessStatusCode,
@@ -935,7 +935,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
         private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, OdinId expectedIdentity)
         {
-            var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var circleMemberSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
             Assert.IsTrue(getCircleMemberResponse.IsSuccessStatusCode, $"Actual status code {getCircleMemberResponse.StatusCode}");
             var members = getCircleMemberResponse.Content;
@@ -946,7 +946,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
         {
-            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
@@ -1018,7 +1018,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //have frodo send it
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
@@ -1029,7 +1029,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //check that sam got it
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
@@ -1045,7 +1045,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -1064,7 +1064,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -1075,7 +1075,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -1089,7 +1089,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
-                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
@@ -1097,7 +1097,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
             {
-                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);

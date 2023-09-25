@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -111,6 +112,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
         {
+            if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
+            {
+                throw new OdinClientException("The Names of Queries must be unique", OdinClientErrorCode.InvalidQuery);
+            }
+            
             foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
             {
                 AssertCanReadDrive(driveId);

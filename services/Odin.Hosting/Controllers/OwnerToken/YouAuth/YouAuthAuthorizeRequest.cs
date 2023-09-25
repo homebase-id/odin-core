@@ -95,7 +95,7 @@ public sealed class YouAuthAuthorizeRequest
         
         return new YouAuthAuthorizeRequest(
             clientType: clientType,
-            clientId: qs[ClientIdName] ?? string.Empty,
+            clientId: qs[ClientIdName] ?? string.Empty, 
             clientInfo: qs[ClientInfoName] ?? string.Empty,
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             publicKey: qs[PublicKeyName] ?? string.Empty,

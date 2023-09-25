@@ -7,7 +7,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
 {
-    public interface ICircleNetworkRequestsOwnerClient
+    public interface IRefitOwnerCircleNetworkRequests
     {
         private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";

@@ -335,6 +335,11 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
+        if (string.IsNullOrEmpty(metadata.ContentType) || string.IsNullOrWhiteSpace(metadata.ContentType))
+        {
+            throw new OdinClientException("ContentType is required", OdinClientErrorCode.InvalidFile);
+        }
+
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
