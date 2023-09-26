@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Net;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
@@ -97,12 +98,16 @@ namespace Odin.Hosting.Middleware
             if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
+                if (exception is ClientException ce)
+                {
+                    problemDetails.Title = ce.Message;
+                    problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+                }
             }
-
-            if (exception is ClientException ce)
+            else if (IsCancellationException(exception))
             {
-                problemDetails.Title = ce.Message;
-                problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+                problemDetails.Status = 499;
+                problemDetails.Title = "Operation was cancelled";
             }
             else
             {
@@ -125,6 +130,25 @@ namespace Odin.Hosting.Middleware
             }
 
             return context.Response.WriteAsync(result);
+        }
+
+        //
+
+        // SEB:NOTE
+        // This is a last resort exception filter.
+        // Exceptions should caught and handled as close to the source
+        // as possble. Only rely on the below if there are no other way.
+        private static bool IsCancellationException(Exception ex)
+        {
+            switch (ex)
+            {
+                case OperationCanceledException:
+                case IOException when ex.Message == "The client reset the request stream.":
+                case ConnectionResetException:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }
