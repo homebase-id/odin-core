@@ -58,7 +58,6 @@ public class CircleNetworkApiClient
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
             var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.OdinId });
-            Assert.IsTrue(response.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sender.OdinId} still exists");
 
             return response.Content;
         }

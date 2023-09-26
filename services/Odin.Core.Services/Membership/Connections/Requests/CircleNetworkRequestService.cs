@@ -139,6 +139,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
             header.ContactData.Validate();
 
+            var recipientOdinId = (OdinId)header.Recipient;
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {
                 throw new OdinClientException(
@@ -146,18 +147,21 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                     OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
-            var incomingRequest = await this.GetPendingRequest((OdinId)header.Recipient);
+            var incomingRequest = await this.GetPendingRequest(recipientOdinId);
             if (null != incomingRequest)
             {
                 throw new OdinClientException("You already have an incoming request from the recipient.",
                     OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
             }
 
-            var existingRequest = await this.GetSentRequest((OdinId)header.Recipient);
+            var existingRequest = await this.GetSentRequest(recipientOdinId);
             if (existingRequest != null)
             {
-                throw new OdinClientException("You already sent a request to this recipient.",
-                    OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
+                //delete the existing request 
+
+                await this.DeleteSentRequest(recipientOdinId);
+                // throw new OdinClientException("You already sent a request to this recipient.",
+                //     OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
             }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
