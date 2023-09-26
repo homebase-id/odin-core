@@ -95,7 +95,12 @@ namespace Odin.Hosting.Middleware
                 }
             };
 
-            if (exception is ApiException ae)
+            if (IsCancellationException(exception))
+            {
+                problemDetails.Status = 499;
+                problemDetails.Title = "Operation was cancelled";
+            }
+            else if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
                 if (exception is ClientException ce)
@@ -104,12 +109,8 @@ namespace Odin.Hosting.Middleware
                     problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
                 }
             }
-            else if (IsCancellationException(exception))
-            {
-                problemDetails.Status = 499;
-                problemDetails.Title = "Operation was cancelled";
-            }
-            else
+
+            if (problemDetails.Status >= 500)
             {
                 _logger.LogError(exception, "{ErrorText}", exception.Message);
             }
