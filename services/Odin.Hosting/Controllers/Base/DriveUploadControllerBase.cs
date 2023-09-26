@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
@@ -32,7 +33,14 @@ namespace Odin.Hosting.Controllers.Base
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            await driveUploadService.StartUpload(section!.Body);
+            try
+            {
+                await driveUploadService.StartUpload(section!.Body);
+            }
+            catch (JsonException e)
+            {
+                throw new OdinClientException($"JSON error: {e.Message}", e);
+            }
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
