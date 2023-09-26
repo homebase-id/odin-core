@@ -9,11 +9,11 @@ namespace Odin.Core.Storage;
 /// <summary>
 /// Key value storage using 2 keys; serializes as json
 /// </summary>
-public class TwoKeyStorage
+public class TwoKeyValueStorage
 {
     private readonly TableKeyTwoValue _db;
 
-    public TwoKeyStorage(TableKeyTwoValue db)
+    public TwoKeyValueStorage(TableKeyTwoValue db)
     {
         _db = db;
     }

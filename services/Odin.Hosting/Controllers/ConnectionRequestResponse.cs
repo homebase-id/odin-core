@@ -13,7 +13,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
     {
         return new ConnectionRequestResponse()
         {
-            Id = arg.Id,
+            // Id = arg.Id,
             ContactData = arg.ContactData,
             SenderOdinId = arg.SenderOdinId,
             CircleIds = arg.CircleIds,

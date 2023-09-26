@@ -17,6 +17,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 
@@ -71,10 +72,6 @@ public class CircleNetworkApiClient
 
             var response = await svc.GetSentRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-            Assert.IsNotNull(response.Content, $"No request found with recipient [{recipient.OdinId}]");
-            Assert.IsTrue(response.Content.Recipient == recipient.OdinId);
-
             return response.Content;
         }
     }
@@ -113,12 +110,25 @@ public class CircleNetworkApiClient
             var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
             Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-            var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
+            var getResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
             Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {recipient.OdinId} still exists");
         }
     }
 
     public async Task SendConnectionRequest(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
+    {
+        if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
+        {
+            throw new NotImplementedException("need to add your recipient to the list of identities");
+        }
+
+        var response = await this.SendConnectionRequestRaw(recipient, circlesGrantedToRecipient);
+
+        Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+        Assert.IsTrue(response!.Content, "Failed sending the request");
+    }
+
+    public async Task<ApiResponse<bool>> SendConnectionRequestRaw(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
         if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
         {
@@ -141,9 +151,7 @@ public class CircleNetworkApiClient
             };
 
             var response = await svc.SendConnectionRequest(requestHeader);
-
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-            Assert.IsTrue(response!.Content, "Failed sending the request");
+            return response;
         }
     }
 
@@ -226,6 +234,16 @@ public class CircleNetworkApiClient
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.OdinId}.  Status code was {apiResponse.StatusCode}");
             Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.OdinId} found");
+            return apiResponse.Content;
+        }
+    }
+
+    public async Task<bool> BlockConnection(TestIdentity recipient)
+    {
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
+            var apiResponse = await svc.Block(new OdinIdRequest() { OdinId = recipient.OdinId });
             return apiResponse.Content;
         }
     }

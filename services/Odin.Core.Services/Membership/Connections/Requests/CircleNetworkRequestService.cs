@@ -41,7 +41,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         private readonly CircleMembershipService _circleMembershipService;
 
-        private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
+        // private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
+        private readonly TwoKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
         public CircleNetworkRequestService(
@@ -67,7 +68,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _contextAccessor = contextAccessor;
 
-            _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            // _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _pendingRequestValueStorage = tenantSystemStorage.TwoKeyValueStorage;
             _sentRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
         }
 
@@ -78,7 +80,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
             var header = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(sender.ToHashId());
-            
+
             if (null == header)
             {
                 return null;
@@ -110,7 +112,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _pendingRequestValueStorage.GetByKey3<PendingConnectionRequestHeader>(_pendingRequestsDataType);
+            // var results = _pendingRequestValueStorage.GetByKey3<PendingConnectionRequestHeader>(_pendingRequestsDataType);
+            var results = _pendingRequestValueStorage.GetByKey2<PendingConnectionRequestHeader>(_pendingRequestsDataType);
             return await Task.FromResult(new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList()));
         }
 
@@ -147,26 +150,27 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                     OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
-            var incomingRequest = await this.GetPendingRequest(recipientOdinId);
-            if (null != incomingRequest)
-            {
-                throw new OdinClientException("You already have an incoming request from the recipient.",
-                    OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
-            }
+            // var incomingRequest = await this.GetPendingRequest(recipientOdinId);
+            // if (null != incomingRequest)
+            // {
+            //     throw new OdinClientException("You already have an incoming request from the recipient.",
+            //         OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
+            // }
 
-            var existingRequest = await this.GetSentRequest(recipientOdinId);
-            if (existingRequest != null)
-            {
-                //delete the existing request 
-
-                await this.DeleteSentRequest(recipientOdinId);
-                // throw new OdinClientException("You already sent a request to this recipient.",
-                //     OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
-            }
+            // var existingRequest = await this.GetSentRequest(recipientOdinId);
+            // if (existingRequest != null)
+            // {
+            //     //delete the existing request 
+            //
+            //      await this.DeleteSentRequest(recipientOdinId);
+            //     throw new OdinClientException("You already sent a request to this recipient.",
+            //         OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
+            // }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.IdentityConnectionRegistration);
+            var (accessRegistration, clientAccessToken) =
+                await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.IdentityConnectionRegistration);
 
             var tempIcrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var outgoingRequest = new ConnectionRequest
@@ -216,7 +220,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
+                    keyStoreKey),
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
@@ -248,7 +253,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 Payload = payload
             };
 
-            _pendingRequestValueStorage.Upsert(request.SenderOdinId.ToHashId(), GuidId.Empty, _pendingRequestsDataType, request);
+            // _pendingRequestValueStorage.Upsert(request.SenderOdinId.ToHashId(), GuidId.Empty, _pendingRequestsDataType, request);
+            _pendingRequestValueStorage.Upsert(request.SenderOdinId.ToHashId(), _pendingRequestsDataType, request);
 
             await _mediator.Publish(new ConnectionRequestReceived()
             {
@@ -348,7 +354,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
+                    keyStoreKey),
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
@@ -434,6 +441,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         private async Task<ConnectionRequest> GetSentRequestInternal(OdinId recipient)
         {
+            // var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToHashId());
             var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToHashId());
             return await Task.FromResult(result);
         }

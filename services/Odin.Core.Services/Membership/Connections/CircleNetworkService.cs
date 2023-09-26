@@ -328,13 +328,14 @@ namespace Odin.Core.Services.Membership.Connections
 
             var odinId = (OdinId)odinIdentity;
 
+            //Note: we will just overwrite the record
             //1. validate current connection state
-            var info = await this.GetIdentityConnectionRegistrationInternal(odinId);
+            // var info = await this.GetIdentityConnectionRegistrationInternal(odinId);
 
-            if (info.Status != ConnectionStatus.None)
-            {
-                throw new OdinSecurityException("invalid connection state");
-            }
+            // if (info.Status != ConnectionStatus.None)
+            // {
+            //     throw new OdinSecurityException("invalid connection state");
+            // }
 
             //TODO: need to scan the YouAuthServiceClassic to see if this user has a HomeAppIdentityRegistration
 
