@@ -287,8 +287,24 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         private Task DeleteSentRequestInternal(OdinId recipient)
         {
-            _sentRequestValueStorage.Delete(MakeSentRequestsKey(recipient));
-            return Task.CompletedTask;
+            var newKey = MakeSentRequestsKey(recipient);
+            var recordFromNewKeyFormat = _sentRequestValueStorage.Get<ConnectionRequest>(newKey);
+            if (null != recordFromNewKeyFormat)
+            {
+                _sentRequestValueStorage.Delete(newKey);
+                return Task.CompletedTask;
+            }
+            
+            try
+            {
+                //old method
+                _sentRequestValueStorage.Delete(recipient.ToHashId());
+                return Task.CompletedTask;
+            }
+            catch (Exception e)
+            {
+                throw new OdinSystemException("old key lookup method failed", e);
+            }
         }
 
         /// <summary>
@@ -424,8 +440,24 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         private Task DeletePendingRequestInternal(OdinId sender)
         {
-            _pendingRequestValueStorage.Delete(MakePendingRequestsKey(sender));
-            return Task.CompletedTask;
+            var newKey = MakePendingRequestsKey(sender);
+            var recordFromNewKeyFormat = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(newKey);
+            if (null != recordFromNewKeyFormat)
+            {
+                _pendingRequestValueStorage.Delete(newKey);
+                return Task.CompletedTask;
+            }
+
+            //try the old key
+            try
+            {
+                _pendingRequestValueStorage.Delete(sender.ToHashId());
+                return Task.CompletedTask;
+            }
+            catch (Exception e)
+            {
+                throw new OdinSystemException("Failed with old key lookup method.", e);
+            }
         }
 
         private void UpsertSentConnectionRequest(ConnectionRequest request)
