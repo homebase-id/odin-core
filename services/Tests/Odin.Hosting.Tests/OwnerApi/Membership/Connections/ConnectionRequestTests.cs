@@ -376,7 +376,7 @@ public class ConnectionRequestTests
 
     [Test]
     [Description("Merry: Incoming, Pippin: Outgoing")]
-    public async Task CanConnectWhenState_Merry_Incoming_Pippin_Outgoing()
+    public void CanConnectWhenState_Merry_Incoming_Pippin_Outgoing()
     {
         Assert.Pass("Already tested above");
     }

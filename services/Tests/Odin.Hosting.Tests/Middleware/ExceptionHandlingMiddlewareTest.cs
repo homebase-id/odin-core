@@ -305,4 +305,76 @@ public class ExceptionHandlingMiddlewareTest
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
             Times.Once);
     }
+
+    [Test]
+    public async Task CancellationExceptionInProduction()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new OperationCanceledException("run away!");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(499));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo(499));
+        Assert.That(problems.Title, Is.EqualTo("Operation was cancelled"));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task CancellationExceptionInDevelopment()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new OperationCanceledException("run away!");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(499));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo(499));
+        Assert.That(problems.Title, Is.EqualTo("run away!"));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
+        Assert.That(problems.Extensions["stackTrace"].ToString(), Is.Not.Empty.And.Not.Null);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
 }

@@ -317,7 +317,7 @@ namespace Odin.Core.Services.Membership.Connections
         /// <param name="encryptedCat">The keys used when accessing the remote identity</param>
         /// <param name="contactData"></param>
         /// <returns></returns>
-        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData)
+        public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData)
         {
             //TODO: need to add security that this method can be called
 
@@ -352,6 +352,7 @@ namespace Odin.Core.Services.Membership.Connections
             };
 
             this.SaveIcr(newConnection);
+            return Task.CompletedTask;
         }
 
         /// <summary>

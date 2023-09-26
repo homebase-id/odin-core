@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Net;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
@@ -94,19 +95,29 @@ namespace Odin.Hosting.Middleware
                 }
             };
 
-            if (exception is ApiException ae)
+            if (IsCancellationException(exception))
+            {
+                problemDetails.Status = 499;
+                problemDetails.Title = "Operation was cancelled";
+            }
+            else if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
+                if (exception is ClientException ce)
+                {
+                    problemDetails.Title = ce.Message;
+                    problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+                }
             }
 
-            if (exception is ClientException ce)
+            switch (problemDetails.Status)
             {
-                problemDetails.Title = ce.Message;
-                problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
-            }
-            else
-            {
-                _logger.LogError(exception, "{ErrorText}", exception.Message);
+                case 499:
+                    _logger.LogWarning("{WarningText}", exception.Message);
+                    break;
+                case >= 500:
+                    _logger.LogError(exception, "{ErrorText}", exception.Message);
+                    break;
             }
 
             if (_sendInternalErrorDetailsToClient)
@@ -125,6 +136,25 @@ namespace Odin.Hosting.Middleware
             }
 
             return context.Response.WriteAsync(result);
+        }
+
+        //
+
+        // SEB:NOTE
+        // This is a last resort exception filter.
+        // Exceptions should be caught and handled as close to the source
+        // as possble. Only rely on the below if there are no other way.
+        private static bool IsCancellationException(Exception ex)
+        {
+            switch (ex)
+            {
+                case OperationCanceledException:
+                case IOException when ex.Message == "The client reset the request stream.":
+                case ConnectionResetException:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }

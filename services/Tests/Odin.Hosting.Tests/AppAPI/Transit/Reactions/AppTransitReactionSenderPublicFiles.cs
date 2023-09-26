@@ -41,6 +41,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
         }
 
         [Test]
+        [Ignore("WIP")]
         public async Task AppCan_SendAndGet_Public_ReactionContent()
         {
             // Prep

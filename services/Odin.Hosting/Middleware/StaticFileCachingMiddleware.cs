@@ -14,12 +14,12 @@ namespace Odin.Hosting.Middleware
         //Note: be sure it does not end with a "/"
         private static readonly List<string> paths = new List<string>()
         {
-            "/home/assets/js",
-            "/owner/assets/js",
-            "/home/assets/css",
-            "/owner/assets/css",
+            "/assets",
+            "/owner/assets",
+            "/assets",
+            "/owner/assets",
             "/owner/icons",
-            "/home/icons",
+            "/icons",
         };
 
         public StaticFileCachingMiddleware(RequestDelegate next)

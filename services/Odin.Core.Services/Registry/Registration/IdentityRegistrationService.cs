@@ -106,24 +106,40 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         var result = new List<DnsConfig>();
 
-        // Sanity
-        if (dns.ApexARecords.Count < 1)
+        // Sanity #1
+        if (string.IsNullOrWhiteSpace(dns.ApexARecord))
         {
-            throw new OdinSystemException("There are no A records. Check config.");
+            throw new OdinSystemException("Missing apex A record. Check config.");
         }
 
-        // Apex A records
-        for (var idx = 0; idx < dns.ApexARecords.Count; idx++)
+        // Sanity #2
+        if (string.IsNullOrWhiteSpace(dns.ApexAliasRecord))
         {
-            result.Add(new DnsConfig
-            {
-                Type = "A",
-                Name = "",
-                Domain = domain,
-                Value = dns.ApexARecords[idx],
-                Description = $"A Record #{idx + 1}"
-            });
+            throw new OdinSystemException("Missing apex alias record. Check config.");
         }
+        AsciiDomainNameValidator.AssertValidDomain(dns.ApexAliasRecord);
+
+        // Apex A records
+        result.Add(new DnsConfig
+        {
+            Type = "A",
+            Name = "",
+            Domain = domain,
+            Value = dns.ApexARecord,
+            Verify = dns.ApexARecord,
+            Description = "A Record"
+        });
+
+        // ALIAS Apex (if DNS provider supports ALIAS/ANAME/CNAME flattening, e.g. clouldflare)
+        result.Add(new DnsConfig
+        {
+            Type = "ALIAS",
+            Name = "",
+            Domain = domain,
+            Value = dns.ApexAliasRecord,
+            Verify = dns.ApexARecord,
+            Description = "Apex CNAME with flattening"
+        });
 
         // CNAME WWW
         result.Add(new DnsConfig
@@ -132,7 +148,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Name = DnsConfigurationSet.PrefixWww,
             Domain = $"{DnsConfigurationSet.PrefixWww}.{domain}",
             Value = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
-            Description = $"WWW CNAME"
+            Verify = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
+            Description = "WWW CNAME"
         });
 
         // CNAME CAPI
@@ -142,7 +159,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Name = DnsConfigurationSet.PrefixCertApi,
             Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
             Value = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
-            Description = $"CAPI CNAME"
+            Verify = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
+            Description = "CAPI CNAME"
         });
 
         // CNAME FILE
@@ -152,7 +170,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Name = DnsConfigurationSet.PrefixFile,
             Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
             Value = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
-            Description = $"FILE CNAME"
+            Verify = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
+            Description = "FILE CNAME"
         });
 
         return Task.FromResult(result);
@@ -437,7 +456,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")
     {
-        // SEB:TODO this should be injected into ctor as a factory instead 
+        // SEB:TODO this should be injected into ctor as a factory instead (remember to disable caching!)
 
         if (resolverAddressOrHostName == "")
         {
@@ -452,7 +471,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
         nameServerIp = ips.First();
 
-        return new LookupClient(nameServerIp);
+        var options = new LookupClientOptions(nameServerIp)
+        {
+            UseCache = false
+        };
+
+        return new LookupClient(options);
     }
 
     //
@@ -478,13 +502,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         switch (dnsConfig.Type.ToUpper())
         {
             case "A":
+            case "ALIAS":
                 response = await dnsClient.QueryAsync(domain, QueryType.A);
                 entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
                 break;
             case "CNAME":
                 response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
                 entries = response.Answers.CnameRecords()
-                    .Select(x => x.CanonicalName.ToString().TrimEnd('.'))
+                    .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
                     .ToList();
                 break;
             default:
@@ -497,7 +522,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
         else
         {
-            if (!validateConfiguredValue || entries.Contains(dnsConfig.Value))
+            if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
             {
                 dnsConfig.Status = DnsConfig.LookupRecordStatus.Success;
             }
@@ -595,6 +620,7 @@ public class DnsConfig
     public string Name { get; init; } = ""; // e.g. "www" or ""
     public string Domain { get; init; } = ""; // e.g. "www.example.com" or "example.com"
     public string Value { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
+    public string Verify { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
     public string Description { get; init; } = "";
     public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
 }
