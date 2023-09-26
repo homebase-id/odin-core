@@ -137,7 +137,7 @@ namespace Odin.Hosting.Middleware
 
         // SEB:NOTE
         // This is a last resort exception filter.
-        // Exceptions should caught and handled as close to the source
+        // Exceptions should be caught and handled as close to the source
         // as possble. Only rely on the below if there are no other way.
         private static bool IsCancellationException(Exception ex)
         {
