@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -24,14 +25,18 @@ namespace Odin.Hosting.Controllers.Registration
         /// </summary>
         /// <returns></returns>
         [HttpGet("dns-config/{domain}")]
-        public async Task<IActionResult> GetDnsConfiguration(string domain)
+        public async Task<IActionResult> GetDnsConfiguration(string domain, [FromQuery] bool includeAlias = false)
         {
             // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             
             var dnsConfig = await _regService.GetDnsConfiguration(domain);
+            if (!includeAlias)
+            {
+                dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
+            }
             return new JsonResult(dnsConfig);
         }
-        
+
         /// <summary>
         /// Test if dns records have propageted to selection of major dns resolvers
         /// </summary>
@@ -163,7 +168,7 @@ namespace Odin.Hosting.Controllers.Registration
         /// </summary>
         /// <returns></returns>
         [HttpGet("own-domain-dns-status/{domain}")]
-        public async Task<IActionResult> GetOwnDomainDnsStatus(string domain)
+        public async Task<IActionResult> GetOwnDomainDnsStatus(string domain, [FromQuery] bool includeAlias = false)
         {
             // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             // if (string.IsNullOrWhiteSpace(domain))
@@ -175,6 +180,10 @@ namespace Odin.Hosting.Controllers.Registration
             // }
             
             var (success, dnsConfig) = await _regService.GetOwnDomainDnsStatus(domain);
+            if (!includeAlias)
+            {
+                dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
+            }
             return new JsonResult(dnsConfig)
             {
                 StatusCode = success ? StatusCodes.Status200OK : StatusCodes.Status202Accepted
