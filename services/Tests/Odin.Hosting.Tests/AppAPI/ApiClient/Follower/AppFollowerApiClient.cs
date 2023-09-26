@@ -5,13 +5,13 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Follower;
 
-public class AppFollowerApiClient : AppApiTestUtils
+public class AppFollowerApiClient : AppApiClientBase
 {
     private readonly AppClientToken _token;
 

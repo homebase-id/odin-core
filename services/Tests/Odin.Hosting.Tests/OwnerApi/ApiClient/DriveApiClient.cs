@@ -18,6 +18,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Drive.Management;
@@ -136,8 +137,8 @@ public class DriveApiClient
 
     public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
-        ImageDataContent thumbnail = null,
-        Guid? overwriteFileId = null)
+        Guid? overwriteFileId = null,
+        ImageDataContent thumbnail = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -180,8 +181,12 @@ public class DriveApiClient
 
             if (thumbnail != null)
             {
-                var thumbnailCipherBytes = keyHeader.EncryptDataAesAsStream(thumbnail.Content);
-                parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                // if (!fileMetadata.AppData.AdditionalThumbnails.Any(t => t.PixelHeight == thumbnail.PixelHeight && t.PixelWidth == thumbnail.PixelWidth))
+                // {
+                //     throw new Exception("You sent a thumbnail but didnt specify it in your file data");
+                // }
+
+                parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -314,7 +319,7 @@ public class DriveApiClient
     }
 
 
-    public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
+    public async Task DeleteFile(ExternalFileIdentifier file, List<string> recipients = null, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {

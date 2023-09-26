@@ -41,7 +41,23 @@ namespace Odin.Hosting.Controllers.Peer
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
         }
-
+        
+        
+        [HttpPost("batchcollection")]
+        public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
+        {
+            var perimeterService = GetPerimeterService();
+            return await perimeterService.QueryBatchCollection(request);
+        }
+        
+        [HttpPost("querymodified")]
+        public async Task<QueryModifiedResponse> QueryModified(QueryModifiedRequest request)
+        {
+            var perimeterService = GetPerimeterService();
+            var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions);
+            return QueryModifiedResponse.FromResult(result);
+        }
+            
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {

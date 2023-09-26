@@ -166,7 +166,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Frodo now deletes the file
-        await frodoOwnerClient.Drive.DeleteFile(FileSystemType.Standard, standardFileUploadResult.File);
+        await frodoOwnerClient.Drive.DeleteFile(standardFileUploadResult.File);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
@@ -308,7 +308,7 @@ public class DataSubscriptionTests
         //
         // Connect sam and frodo; sam gets access to the secured channel
         //
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
 
 
@@ -534,7 +534,7 @@ public class DataSubscriptionTests
         //
         // Connect sam and frodo; sam gets access to the secured channel
         //
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
 
         // Sam to follow everything from frodo
@@ -675,7 +675,7 @@ public class DataSubscriptionTests
         //
         // Connect sam and frodo; sam gets access to the secured channel
         //
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
 
         // Sam to follow everything from frodo
@@ -800,7 +800,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
             allowSubscriptions: true);
 
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
 
         // Sam to follow everything from frodo
@@ -900,7 +900,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
             allowSubscriptions: true);
 
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
 
         // Sam to follow everything from frodo
@@ -1003,7 +1003,7 @@ public class DataSubscriptionTests
             allowSubscriptions: true);
 
         // Sam is connected to follow everything from frodo
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { });
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { });
         await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
         await samOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 

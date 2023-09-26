@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -55,7 +56,7 @@ public class CircleNetworkStorage
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId);
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, overrideHack: true);
                 var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)
@@ -157,7 +158,7 @@ public class CircleNetworkStorage
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleGrants = _circleMembershipService.GetCirclesByDomain(record.identity);
+        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity);
         foreach (var circleGrant in circleGrants)
         {
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
@@ -176,11 +177,10 @@ public class CircleNetworkStorage
         {
             OdinId = record.identity,
             Status = (ConnectionStatus)record.status,
-            Created = record.created.uniqueTime,
-            LastUpdated = record.modified?.uniqueTime ?? default,
+            Created = record.created.ToUnixTimeUtc().milliseconds,
+            LastUpdated = record.modified.HasValue ? record.modified.Value.ToUnixTimeUtc().milliseconds : 0,
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
-
             RemoteIcrIsInvalid = data.RemoteIcrIsInvalid,
             EncryptedClientAccessToken = new EncryptedClientAccessToken()
             {
@@ -206,6 +206,6 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
-    
+
     public bool RemoteIcrIsInvalid { get; set; }
 }

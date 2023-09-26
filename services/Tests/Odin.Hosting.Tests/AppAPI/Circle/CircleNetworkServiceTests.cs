@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -105,7 +105,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
             //have frodo send it
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var sharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, sharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, sharedSecret);
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
                 {
@@ -124,7 +124,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
             //check that sam got it
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
 
@@ -141,7 +141,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -152,7 +152,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);

@@ -30,6 +30,7 @@ using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
@@ -43,6 +44,7 @@ using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 
 namespace Odin.Hosting
@@ -136,7 +138,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
-            cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
+            cb.RegisterType<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()
                 .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()

@@ -107,6 +107,13 @@ public abstract class FileSystemStreamWriterBase
         //TODO: should i validate width and height are > 0?
         string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+
+        Package.UploadedThumbnails.Add(new ImageDataHeader()
+        {
+            PixelHeight = height,
+            PixelWidth = width,
+            ContentType = contentType
+        });
     }
 
     /// <summary>
@@ -314,7 +321,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         serverMetadata.AccessControlList.Validate();
-        
+
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
@@ -327,7 +334,12 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
-        
+
+        if (string.IsNullOrEmpty(metadata.ContentType) || string.IsNullOrWhiteSpace(metadata.ContentType))
+        {
+            throw new OdinClientException("ContentType is required", OdinClientErrorCode.InvalidFile);
+        }
+
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
@@ -342,19 +354,26 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("UniqueId cannot be an empty Guid (all zeros)", OdinClientErrorCode.MalformedMetadata);
             }
         }
-        
+
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
             if (metadata.AppData.ContentIsComplete && package.HasPayload)
             {
                 throw new OdinClientException("Content is marked complete in metadata but there is also a payload", OdinClientErrorCode.InvalidPayload);
             }
-            
+
             if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
             {
                 throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
             }
-            
+
+            if ((metadata.AppData.AdditionalThumbnails?.Count() ?? 0) != (package.UploadedThumbnails?.Count() ?? 0))
+            {
+                //TODO: technically we could just detect the thumbnails instead of making the user specify AdditionalThumbnails
+                throw new OdinClientException("The number of additional thumbnails in your appData section does not match the number of thumbnails uploaded.",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
             if (metadata.PayloadIsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
@@ -365,7 +384,7 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        
+
         //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
         // uses the existing global transit id
         if (!package.IsUpdateOperation)

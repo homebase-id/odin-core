@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 {
                     AppId = applicationId,
                     Name = name,
-                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit }),
+                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitWrite }),
                     Drives = null,
                     CorsHostName = default
                 };
@@ -74,7 +74,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 Assert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should have use transit permission");
+                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit permission");
                 Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
             }
         }
@@ -106,7 +106,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 Assert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should not have UseTransit");
+                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should not have UseTransit");
                 Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
             }
         }
@@ -120,14 +120,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var appPermissionsGrant = new PermissionSetGrantRequest()
             {
                 Drives = null,
-                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit })
+                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitWrite })
             };
 
              await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
        
              var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
              Assert.IsNotNull(appReg);
-             Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
              Assert.IsTrue(appReg.Grant.HasIcrKey);
 
              appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
@@ -135,7 +135,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
              
              var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
              Assert.IsNotNull(updatedAppReg);
-             Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
              Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
              
              

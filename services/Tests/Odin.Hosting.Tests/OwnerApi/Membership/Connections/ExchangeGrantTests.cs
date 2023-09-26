@@ -59,7 +59,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 }
             });
 
-            await senderOwnerClient.Network.SendConnectionRequest(recipient, new List<GuidId>() { senderChatCircle.Id });
+            await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { senderChatCircle.Id });
             await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
 
             // Test
@@ -110,7 +110,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 }
             });
 
-            await senderOwnerClient.Network.SendConnectionRequest(recipient, new List<GuidId>() { senderChatCircle.Id });
+            await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { senderChatCircle.Id });
             await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
 
             // Test

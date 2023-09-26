@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Follow;
 using Refit;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Follow

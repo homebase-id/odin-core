@@ -34,8 +34,7 @@ namespace Odin.Core.Services.Base
 
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
-
-            IcrClientStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
+            TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = _db.tblConnections;
             CircleMemberStorage = _db.tblCircleMember;
@@ -62,6 +61,8 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
+        public TwoKeyValueStorage TwoKeyValueStorage { get; }
+        
         public TableFeedDistributionOutbox Feedbox { get; }
 
         public TableOutbox Outbox { get; }
@@ -71,9 +72,7 @@ namespace Odin.Core.Services.Base
         public TableImFollowing WhoIFollow { get; }
 
         public TableFollowsMe Followers { get; }
-
-        public ThreeKeyValueStorage IcrClientStorage { get; }
-
+        
         public TableCircleMember CircleMemberStorage { get; }
 
         public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()

@@ -9,7 +9,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
 {
     [ApiController]
     [Route(AppApiPathConstants.AuthV1)]
-    [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidAppToken]
     public class AppAuthController : Controller
     {
         private readonly IAppRegistrationService _appRegistrationService;

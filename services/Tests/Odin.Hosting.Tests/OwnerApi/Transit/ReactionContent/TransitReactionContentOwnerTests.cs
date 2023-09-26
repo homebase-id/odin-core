@@ -67,7 +67,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 }
             });
 
-            await samOwnerClient.Network.SendConnectionRequest(pippinOwnerClient.Identity, new List<GuidId>() { });
+            await samOwnerClient.Network.SendConnectionRequestTo(pippinOwnerClient.Identity, new List<GuidId>() { });
             await pippinOwnerClient.Network.AcceptConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { targetCircle.Id });
 
             // var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
@@ -134,7 +134,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 }
             });
 
-            await samOwnerClient.Network.SendConnectionRequest(pippinOwnerClient.Identity, new List<GuidId>() { });
+            await samOwnerClient.Network.SendConnectionRequestTo(pippinOwnerClient.Identity, new List<GuidId>() { });
             await pippinOwnerClient.Network.AcceptConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { targetCircle.Id });
 
             // var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);

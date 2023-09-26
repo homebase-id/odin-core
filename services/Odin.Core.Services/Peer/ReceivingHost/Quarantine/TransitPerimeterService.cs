@@ -221,6 +221,18 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             }
         }
 
+        public Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
+            var results = _fileSystem.Query.GetModified(driveId, qp, options);
+            return results;
+        }
+        
+        public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
+        {
+            var results = _fileSystem.Query.GetBatchCollection(request);
+            return results;
+        }
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);

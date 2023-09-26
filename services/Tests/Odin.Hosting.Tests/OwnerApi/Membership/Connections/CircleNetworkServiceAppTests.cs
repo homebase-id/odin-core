@@ -79,7 +79,7 @@ public class CircleNetworkServiceAppTests
 
         // Send Sam connection request and grant him access to the chat friend's circle
         var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircle.Id, documentSharingCircle.Id };
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, circleIdsGrantedToRecipient);
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, circleIdsGrantedToRecipient);
 
         // Sam must accept the connection request to apply the permissions
         var circlesGrantedToSender = new List<GuidId>();
@@ -255,7 +255,7 @@ public class CircleNetworkServiceAppTests
 
         // Send Sam connection request and grant him access to the chat friend's circle
         var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircle.Id };
-        await frodoOwnerClient.Network.SendConnectionRequest(TestIdentities.Samwise, circleIdsGrantedToRecipient);
+        await frodoOwnerClient.Network.SendConnectionRequestTo(TestIdentities.Samwise, circleIdsGrantedToRecipient);
 
         // Sam must accept the connection request to apply the permissions
         var circlesGrantedToSender = new List<GuidId>();
@@ -377,7 +377,7 @@ public class CircleNetworkServiceAppTests
 
         // Send Sam connection request and grant him access to the chat friend's circle
         var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircle.Id };
-        await frodoOwnerClient.Network.SendConnectionRequest(TestIdentities.Samwise, circleIdsGrantedToRecipient);
+        await frodoOwnerClient.Network.SendConnectionRequestTo(TestIdentities.Samwise, circleIdsGrantedToRecipient);
 
         // Sam must accept the connection request to apply the permissions
         var circlesGrantedToSender = new List<GuidId>();
@@ -565,7 +565,7 @@ public class CircleNetworkServiceAppTests
 
         // Sam will send Frodo connection request.  Sam has given no access but frodo will give access to the chat friend's scirlce
         var circleIdsGrantedToRecipient = new List<GuidId>() { };
-        await samOwnerClient.Network.SendConnectionRequest(frodoOwnerClient.Identity, circleIdsGrantedToRecipient);
+        await samOwnerClient.Network.SendConnectionRequestTo(frodoOwnerClient.Identity, circleIdsGrantedToRecipient);
 
         // Frodo must accept the connection request.  this Should grant Sam access to the chat friend's circle
         var circlesGrantedToSender = new List<GuidId>() { chatFriendsCircle.Id };
@@ -768,7 +768,7 @@ public class CircleNetworkServiceAppTests
 
         // Frodo will send sam connection request with access to the two circles
         var circleIdsGrantedToRecipient = new List<GuidId>() { chatFriendsCircle.Id, documentShareCircle.Id };
-        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, circleIdsGrantedToRecipient);
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, circleIdsGrantedToRecipient);
 
         // Frodo must accept the connection request.  this Should grant Sam access to the chat friend's circle
         var circlesGrantedToSender = new List<GuidId>() { };

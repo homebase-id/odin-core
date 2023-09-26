@@ -5,6 +5,7 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Swashbuckle.AspNetCore.Annotations;
@@ -15,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [ApiController]
     [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class DriveAttachmentsController : DriveStorageControllerBase
     {
         private readonly ILogger<DriveAttachmentsController> _logger;

@@ -25,6 +25,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;

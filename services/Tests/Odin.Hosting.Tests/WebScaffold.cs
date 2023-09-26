@@ -15,6 +15,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -49,6 +50,12 @@ namespace Odin.Hosting.Tests
                 }));
 
             HttpClientFactory.Register<AppApiTestUtils>(b =>
+                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
+                {
+                    UseCookies = false // DO NOT CHANGE!
+                }));
+            
+            HttpClientFactory.Register<AppApiClientBase>(b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
                 {
                     UseCookies = false // DO NOT CHANGE!

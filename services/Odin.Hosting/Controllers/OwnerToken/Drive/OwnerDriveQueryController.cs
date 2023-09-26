@@ -1,10 +1,10 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using Odin.Core.Services.Authentication.Owner;
+using Odin.Hosting.Controllers.Base.Drive;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
@@ -35,7 +35,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("modified")]
         public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
         {
-            var queryModifiedRequest = request.toQueryModifiedRequest();
+            var queryModifiedRequest = request.ToQueryModifiedRequest();
             return await base.QueryModified(queryModifiedRequest);
         }
 

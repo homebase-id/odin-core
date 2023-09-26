@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Time;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Membership.YouAuth
@@ -28,7 +29,10 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public string CorsHostName { get; set; }
 
-        public ConsentRequirement DeviceRegistrationConsentRequirement { get; set; }
+        public ConsentRequirement ConsentRequirement { get; set; }
+        
+        public UnixTimeUtc ConsentExpirationDateTime { get; set; }
+
 
         public RedactedYouAuthDomainRegistration Redacted()
         {
@@ -42,6 +46,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                 Modified = this.Modified,
                 CorsHostName = this.CorsHostName,
                 CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
+                ConsentExpirationDateTime = this.ConsentExpirationDateTime,
+                ConsentRequirement = this.ConsentRequirement
             };
         }
     }
