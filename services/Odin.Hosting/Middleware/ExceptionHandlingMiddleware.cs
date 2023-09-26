@@ -110,9 +110,14 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
-            if (problemDetails.Status >= 500)
+            switch (problemDetails.Status)
             {
-                _logger.LogError(exception, "{ErrorText}", exception.Message);
+                case 499:
+                    _logger.LogWarning("{WarningText}", exception.Message);
+                    break;
+                case >= 500:
+                    _logger.LogError(exception, "{ErrorText}", exception.Message);
+                    break;
             }
 
             if (_sendInternalErrorDetailsToClient)

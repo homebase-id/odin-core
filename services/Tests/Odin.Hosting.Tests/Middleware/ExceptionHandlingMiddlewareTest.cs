@@ -332,12 +332,12 @@ public class ExceptionHandlingMiddlewareTest
 
         loggerMock.Verify(x =>
             x.Log(
-                LogLevel.Error,
+                LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => true),
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
-            Times.Never);
+            Times.Once);
     }
 
     [Test]
@@ -367,12 +367,12 @@ public class ExceptionHandlingMiddlewareTest
 
         loggerMock.Verify(x =>
             x.Log(
-                LogLevel.Error,
+                LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => true),
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
-            Times.Never);
+            Times.Once);
     }
 
 }
