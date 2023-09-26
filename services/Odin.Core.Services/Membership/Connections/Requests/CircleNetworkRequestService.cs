@@ -447,13 +447,15 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         private Guid MakeSentRequestsKey(OdinId recipient)
         {
-            var bytes = ByteArrayUtil.EquiByteArrayXor(recipient.ToHashId().ToByteArray(), _sentRequestsDataType);
+            var combined = ByteArrayUtil.Combine(recipient.ToHashId().ToByteArray(), _sentRequestsDataType);
+            var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
             return new Guid(bytes);
         }
 
         private Guid MakePendingRequestsKey(OdinId sender)
         {
-            var bytes = ByteArrayUtil.EquiByteArrayXor(sender.ToHashId().ToByteArray(), _pendingRequestsDataType);
+            var combined = ByteArrayUtil.Combine(sender.ToHashId().ToByteArray(), _pendingRequestsDataType);
+            var bytes = ByteArrayUtil.ReduceSHA256Hash(combined);
             return new Guid(bytes);
         }
     }
