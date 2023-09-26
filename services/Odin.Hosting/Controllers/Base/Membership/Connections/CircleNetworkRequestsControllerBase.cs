@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
                 return null;
             }
 
-            return ConnectionRequestResponse.FromConnectionRequest(result);
+            return ConnectionRequestResponse.FromConnectionRequest(result, ConnectionRequestDirection.Incoming);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
-            var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
+            var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing)).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
@@ -110,7 +110,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
                 return null;
             }
 
-            return ConnectionRequestResponse.FromConnectionRequest(result);
+            return ConnectionRequestResponse.FromConnectionRequest(result, ConnectionRequestDirection.Outgoing);
         }
 
         /// <summary>

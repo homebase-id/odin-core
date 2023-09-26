@@ -55,7 +55,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership
             await AddYouAuthDomain(youAuthDomain, new List<GuidId>() { circle1.Id });
 
             //Add an identity
-            await client.Network.SendConnectionRequest(recipient, new List<GuidId>() { circle1.Id });
+            await client.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { circle1.Id });
             await recipientClient.Network.AcceptConnectionRequest(_identity, new List<GuidId>());
 
             var getDomainsResponse = await client.Membership.GetDomainsInCircle(circle1.Id);

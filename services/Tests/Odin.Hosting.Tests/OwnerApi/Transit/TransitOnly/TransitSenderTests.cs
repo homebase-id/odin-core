@@ -619,7 +619,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Network.SendConnectionRequest(recipientOwnerClient.Identity, new List<GuidId>() { });
+            await senderOwnerClient.Network.SendConnectionRequestTo(recipientOwnerClient.Identity, new List<GuidId>() { });
 
             //
             // Recipient accepts; grants access to circle

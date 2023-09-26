@@ -115,7 +115,7 @@ public class CircleNetworkApiClient
         }
     }
 
-    public async Task SendConnectionRequest(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
+    public async Task SendConnectionRequestTo(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
         if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
         {

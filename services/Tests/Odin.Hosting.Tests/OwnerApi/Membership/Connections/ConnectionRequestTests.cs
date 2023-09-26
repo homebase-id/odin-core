@@ -6,6 +6,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Hosting.Controllers;
 
 namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 
@@ -126,7 +127,7 @@ public class ConnectionRequestTests
         // Pippin should disconnect (note: this relies on not telling the remote server you are disconnecting)
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
         await pippinClient.Network.DisconnectFrom(merry);
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
 
         // Merry deletes the incoming request
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
@@ -138,6 +139,45 @@ public class ConnectionRequestTests
         await Cleanup(merry, pippin);
     }
 
+    [Test]
+    public async Task CanStoreSentRequestAndOutgoingRequestForSameIdentity()
+    {
+        //Scenario: merry sends request to pippin, therefore pippin has an incoming request from merry
+        // pippin sends a request to merry, therefore pippin has an outgoing request to merry
+        var merry = TestIdentities.Merry;
+        var pippin = TestIdentities.Pippin;
+
+        var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
+        var merryClient = _scaffold.CreateOwnerApiClient(merry);
+        
+        await merryClient.Network.SendConnectionRequestTo(pippin);
+
+        var pendingRequestFromMerry = await pippinClient.Network.GetIncomingRequestFrom(merry);
+        Assert.IsNotNull(pendingRequestFromMerry);
+        Assert.IsTrue(pendingRequestFromMerry.SenderOdinId == merryClient.Identity.OdinId);
+        Assert.IsTrue(pendingRequestFromMerry.Direction == ConnectionRequestDirection.Incoming);
+
+        
+        //Now that Pippin has an incoming request
+        await pippinClient.Network.SendConnectionRequestTo(merry);
+        
+        // Assert that we still have an outgoing request to merry and an incoming request from merry; two different requests
+        var sentRequestToMerry = await pippinClient.Network.GetOutgoingSentRequestTo(merry);
+        Assert.IsNotNull(sentRequestToMerry);
+        Assert.IsTrue(sentRequestToMerry.Recipient == merryClient.Identity.OdinId);
+        Assert.IsTrue(sentRequestToMerry.Direction == ConnectionRequestDirection.Outgoing);
+        
+        var pendingRequestFromMerry2 = await pippinClient.Network.GetIncomingRequestFrom(merry);
+        Assert.IsNotNull(pendingRequestFromMerry2);
+        Assert.IsTrue(pendingRequestFromMerry2.SenderOdinId == merryClient.Identity.OdinId);
+        Assert.IsTrue(pendingRequestFromMerry2.Direction == ConnectionRequestDirection.Incoming);
+
+        // They try to reconnect again fully
+        await Connect(merry, pippin);
+        await AssertConnected(merry, pippin);
+        await Cleanup(merry, pippin);
+    }
+    
     [Test]
     [Description("Merry: Connected, Pippin: Incoming")]
     public async Task CanConnectWhenState_Merry__Connected_Pippin_Incoming()
@@ -153,7 +193,7 @@ public class ConnectionRequestTests
         await pippinClient.Network.DisconnectFrom(merry);
 
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
         await merryClient.Network.DeleteSentRequestTo(pippin);
 
         //Now that Pippin has an incoming request
@@ -180,7 +220,7 @@ public class ConnectionRequestTests
         await AssertConnected(merry, pippin);
 
         await merryClient.Network.DisconnectFrom(pippin);
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
 
         await pippinClient.Network.DeleteConnectionRequestFrom(merry);
 
@@ -212,8 +252,8 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
 
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
         await pippinClient.Network.DeleteConnectionRequestFrom(merry);
@@ -246,7 +286,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
 
         //
         // Assert state is ready for test
@@ -276,7 +316,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
 
         await pippinClient.Network.DeleteConnectionRequestFrom(merry);
 
@@ -312,7 +352,7 @@ public class ConnectionRequestTests
         await AssertConnected(merry, pippin);
 
         await merryClient.Network.DisconnectFrom(pippin);
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
 
         await pippinClient.Network.DeleteSentRequestTo(merry);
 
@@ -351,8 +391,8 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await pippinClient.Network.SendConnectionRequest(merry);
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
 
         await pippinClient.Network.DeleteSentRequestTo(merry);
         await merryClient.Network.DeleteSentRequestTo(pippin);
@@ -385,7 +425,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
         await pippinClient.Network.DeleteSentRequestTo(merry);
 
         //
@@ -416,7 +456,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.AcceptConnectionRequest(pippin);
 
         await merryClient.Network.DisconnectFrom(pippin);
@@ -445,7 +485,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
         await merryClient.Network.DeleteConnectionRequestFrom(pippin);
 
         //
@@ -476,7 +516,7 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
         await merryClient.Network.DeleteSentRequestTo(pippin);
 
         //
@@ -507,8 +547,8 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
-        await pippinClient.Network.SendConnectionRequest(merry);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
+        await pippinClient.Network.SendConnectionRequestTo(merry);
 
         //
         // Assert state is ready for test
@@ -557,10 +597,10 @@ public class ConnectionRequestTests
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
 
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
         Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
 
-        await merryClient.Network.SendConnectionRequest(pippin);
+        await merryClient.Network.SendConnectionRequestTo(pippin);
         Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
     }
 
@@ -576,7 +616,7 @@ public class ConnectionRequestTests
         var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
         var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-        await senderOwnerClient.Network.SendConnectionRequest(recipient, new List<GuidId>() { });
+        await senderOwnerClient.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { });
         await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>() { });
     }
 
