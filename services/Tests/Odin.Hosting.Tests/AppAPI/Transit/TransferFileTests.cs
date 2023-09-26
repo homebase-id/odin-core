@@ -165,6 +165,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
+                ContentType = "application/json",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,
@@ -248,6 +249,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
+                ContentType = "application/json",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,

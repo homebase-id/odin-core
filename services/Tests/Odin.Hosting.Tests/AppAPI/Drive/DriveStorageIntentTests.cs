@@ -46,6 +46,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
+                ContentType = "text/unknown",
                 AppData = new()
                 {
                     FileType = 101,
@@ -86,6 +87,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
+                ContentType = "text/unknown",
                 AppData = new()
                 {
                     FileType = 101,
@@ -131,6 +133,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
+                ContentType = "text/unknown",
                 AppData = new()
                 {
                     FileType = 101,
