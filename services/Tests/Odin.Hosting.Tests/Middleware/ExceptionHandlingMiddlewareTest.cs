@@ -313,6 +313,7 @@ public class ExceptionHandlingMiddlewareTest
         var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
         var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
         {
+            await Task.CompletedTask;
             throw new OperationCanceledException("run away!");
         });
         var client = server.CreateClient();
@@ -347,6 +348,7 @@ public class ExceptionHandlingMiddlewareTest
         var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
         var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
         {
+            await Task.CompletedTask;
             throw new OperationCanceledException("run away!");
         });
         var client = server.CreateClient();
