@@ -126,7 +126,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToBase64(), item);
                  }
                 return count;
             } // Lock
@@ -156,7 +156,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam2.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToBase64(), item);
                 return count;
             } // Lock
         }
@@ -183,7 +183,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToBase64(), item);
                 }
                 return count;
             } // Lock
@@ -248,7 +248,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param1.Value = key;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableKeyValueCRUD", key.ToString());
+                    _cache.Remove("TableKeyValueCRUD", key.ToBase64());
                 return count;
             } // Lock
         }
@@ -287,7 +287,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", key.ToString());
+            var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", key.ToBase64());
             if (hit)
                 return (KeyValueRecord)cacheObject;
             lock (_get0Lock)
@@ -307,11 +307,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyValueCRUD", key.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyValueCRUD", key.ToBase64(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, key);
-                    _cache.AddOrUpdate("TableKeyValueCRUD", key.ToString(), r);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", key.ToBase64(), r);
                     return r;
                 } // using
             } // lock

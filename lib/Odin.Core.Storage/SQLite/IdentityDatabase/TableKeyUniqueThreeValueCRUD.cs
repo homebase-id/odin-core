@@ -187,7 +187,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToBase64(), item);
                  }
                 return count;
             } // Lock
@@ -225,7 +225,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToBase64(), item);
                 return count;
             } // Lock
         }
@@ -260,7 +260,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.key1.ToBase64(), item);
                 }
                 return count;
             } // Lock
@@ -351,7 +351,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param1.Value = key1;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableKeyUniqueThreeValueCRUD", key1.ToString());
+                    _cache.Remove("TableKeyUniqueThreeValueCRUD", key1.ToBase64());
                 return count;
             } // Lock
         }
@@ -537,7 +537,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key2.ToString()+key3.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key2.ToBase64()+key3.ToBase64(), null);
                         return null;
                     }
                     var result = new List<KeyUniqueThreeValueRecord>();
@@ -632,11 +632,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key1.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key1.ToBase64(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader3(rdr, key1);
-                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key1.ToString(), r);
+                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", key1.ToBase64(), r);
                     return r;
                 } // using
             } // lock
