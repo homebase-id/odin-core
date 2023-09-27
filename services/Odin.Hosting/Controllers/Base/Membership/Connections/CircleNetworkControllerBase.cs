@@ -46,26 +46,24 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         }
 
         [HttpPost("connected")]
-        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count,long cursor,
-            bool omitContactData = false)
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count,long cursor)
         {
             var result = await _circleNetwork.GetConnectedIdentities(count, cursor);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted(true)).ToList()
             };
         }
         
         [HttpPost("blocked")]
-        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count,long cursor,
-            bool omitContactData = false)
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count,long cursor)
         {
             var result = await _circleNetwork.GetBlockedProfiles(count, cursor);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted(true)).ToList()
             };
         }
 

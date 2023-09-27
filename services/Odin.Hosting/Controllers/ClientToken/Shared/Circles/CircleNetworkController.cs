@@ -26,14 +26,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
         /// </summary>
         /// <returns></returns>
         [HttpGet("connected")]
-        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
-            bool omitContactData = false)
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor)
         {
             var result = await _circleNetwork.GetConnectedIdentities(count, cursor);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted(true)).ToList()
             };
         }
     }
