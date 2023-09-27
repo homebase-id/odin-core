@@ -43,7 +43,7 @@ public class TenantConfigService
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
-        RecoveryService recoverService, 
+        RecoveryService recoverService,
         CircleMembershipService circleMembershipService)
     {
         _cns = cns;
@@ -70,13 +70,12 @@ public class TenantConfigService
     public async Task CreateInitialKeys()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
+
         await _recoverService.CreateInitialKey();
 
         await _publicPrivateKeyService.CreateInitialKeys();
 
         await _icrKeyService.CreateInitialKeys();
-
     }
 
     /// <summary>
@@ -161,6 +160,22 @@ public class TenantConfigService
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
                 this.UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
+                break;
+
+            case TenantConfigFlagNames.AllAuthenticatedIdentitiesCanReactOnPublicDrives:
+                cfg.AllAuthenticatedIdentitiesCanReactOnPublicDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.AllAuthenticatedIdentitiesCanCommentOnPublicDrives:
+                cfg.AllAuthenticatedIdentitiesCanCommentOnPublicDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.AllConnectedIdentitiesCanReactOnPublicDrives:
+                cfg.AllConnectedIdentitiesCanReactOnPublicDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.AllConnectedIdentitiesCanCommentOnPublicDrives:
+                cfg.AllConnectedIdentitiesCanCommentOnPublicDrives = bool.Parse(request.Value);
                 break;
 
             default:

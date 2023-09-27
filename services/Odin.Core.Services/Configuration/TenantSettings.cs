@@ -11,7 +11,11 @@ public class TenantSettings
         AllConnectedIdentitiesCanViewConnections = false,
         AnonymousVisitorsCanViewWhoIFollow = false,
         AuthenticatedIdentitiesCanViewWhoIFollow = false,
-        AllConnectedIdentitiesCanViewWhoIFollow = false
+        AllConnectedIdentitiesCanViewWhoIFollow = false,
+        AllAuthenticatedIdentitiesCanCommentOnPublicDrives = false,
+        AllAuthenticatedIdentitiesCanReactOnPublicDrives = true,
+        AllConnectedIdentitiesCanReactOnPublicDrives = true,
+        AllConnectedIdentitiesCanCommentOnPublicDrives = true
     };
 
     /// <summary/>
@@ -30,4 +34,12 @@ public class TenantSettings
 
     /// <summary/>
     public bool AllConnectedIdentitiesCanViewConnections { get; set; }
+
+    public bool AllAuthenticatedIdentitiesCanReactOnPublicDrives { get; set; }
+    
+    public bool AllAuthenticatedIdentitiesCanCommentOnPublicDrives { get; set; }
+    
+    public bool AllConnectedIdentitiesCanReactOnPublicDrives { get; set; }
+    
+    public bool AllConnectedIdentitiesCanCommentOnPublicDrives { get; set; }
 }

@@ -78,7 +78,18 @@ namespace Odin.Core.Services.Membership.Connections
                     IsRemoteIcrIssue = true
                 };
             }
+            
+            if (_tenantContext.Settings?.AllConnectedIdentitiesCanCommentOnPublicDrives ?? false)
+            {
+                // need to upgrade the access to the public drives to write comments
+            }
+            
+            if (_tenantContext.Settings?.AllConnectedIdentitiesCanReactOnPublicDrives ?? false)
+            {
+                // need to upgrade the access to the public drives to write reactions
 
+            }
+            
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
                 icr: icr,
                 authToken: remoteIcrToken,
