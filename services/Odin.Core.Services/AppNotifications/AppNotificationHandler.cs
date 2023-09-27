@@ -89,10 +89,9 @@ namespace Odin.Core.Services.AppNotifications
                 if (null == request)
                 {
                     //send a close method
-                    await webSocket.SendAsync(
-                        new ArraySegment<byte>(buffer, 0, 0),
-                        WebSocketMessageType.Close,
-                        WebSocketMessageFlags.EndOfMessage,
+                    await webSocket.CloseOutputAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Closing",
                         CancellationToken.None);
                 }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using DnsClient;
 using DnsClient.Protocol;
+using Odin.Core.Exceptions;
 
 //using DnsClient; // https://www.nuget.org/packages/DnsClient/
 
@@ -141,7 +142,9 @@ namespace Odin.Core.Util
         public static void AssertValidDomain(string punyCodeDomain)
         {
             if (TryValidateDomain(punyCodeDomain) == false)
-                throw new Exception("Illegal puny code domain name."); // Thrown an exception
+            {
+                throw new OdinSystemException($"Illegal puny code domain name: '{punyCodeDomain}'"); // Thrown an exception
+            }
         }
 
 
