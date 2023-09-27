@@ -20,7 +20,7 @@ public class ThreeKeyValueStorage
 
     public T Get<T>(GuidId key) where T : class
     {
-        var bytes = _db.Get(key.Value);
+        var bytes = _db.Get(key);
         if (null == bytes)
         {
             return null;
@@ -65,12 +65,12 @@ public class ThreeKeyValueStorage
     public void Upsert<T>(GuidId key1, byte[] key2, byte[] key3, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _db.Upsert(new KeyThreeValueRecord() { key1 = key1.Value, key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
+        _db.Upsert(new KeyThreeValueRecord() { key1 = key1.Value.ToByteArray(), key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid id)
     {
-        _db.Delete(id);
+        _db.Delete(id.ToByteArray());
     }
 
     private T Deserialize<T>(byte[] bytes)

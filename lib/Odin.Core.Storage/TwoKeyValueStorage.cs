@@ -43,12 +43,12 @@ public class TwoKeyValueStorage
     public void Upsert<T>(Guid key1, byte[] key2, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _db.Upsert(new KeyTwoValueRecord() { key1 = key1, key2 = key2, data = json.ToUtf8ByteArray() });
+        _db.Upsert(new KeyTwoValueRecord() { key1 = key1.ToByteArray(), key2 = key2, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid id)
     {
-        _db.Delete(id);
+        _db.Delete(id.ToByteArray());
     }
 
     private T Deserialize<T>(byte[] bytes)
