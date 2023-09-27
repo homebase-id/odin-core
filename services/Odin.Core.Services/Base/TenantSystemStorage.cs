@@ -13,7 +13,6 @@ namespace Odin.Core.Services.Base
         private readonly ILogger<TenantSystemStorage> _logger;
 
         private readonly IdentityDatabase _db;
-        private readonly ThreeKeyValueStorage _threeKeyValueStorage;
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
