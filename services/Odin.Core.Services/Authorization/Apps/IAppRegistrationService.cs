@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -63,6 +64,13 @@ namespace Odin.Core.Services.Authorization.Apps
         Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName);
         
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId);
+        
+        /// <summary>
+        /// Determines if the app requires consent for YouAuth login when creating a client
+        /// </summary>
+        /// <param name="appId"></param>
+        /// <returns></returns>
+        Task<bool> IsConsentRequired(Guid appId);
 
         /// <summary>
         /// Revokes a client from using the app
@@ -79,5 +87,7 @@ namespace Odin.Core.Services.Authorization.Apps
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
         Task DeleteCurrentAppClient();
+
+        Task UpdateConsentRequirements(Guid appId, ConsentRequirements consentRequirements);
     }
 }

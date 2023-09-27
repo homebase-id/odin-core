@@ -68,7 +68,8 @@ namespace Odin.Core.Services.Authorization.Apps
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var hasTransit = (request.PermissionSet?.HasKey(PermissionKeys.UseTransitRead) ?? false) || (request.PermissionSet?.HasKey(PermissionKeys.UseTransitWrite) ?? false);
+            var hasTransit = (request.PermissionSet?.HasKey(PermissionKeys.UseTransitRead) ?? false) ||
+                             (request.PermissionSet?.HasKey(PermissionKeys.UseTransitWrite) ?? false);
             var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey() : null;
             var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
 
@@ -83,7 +84,8 @@ namespace Odin.Core.Services.Authorization.Apps
 
                 CorsHostName = request.CorsHostName,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
-                AuthorizedCircles = request.AuthorizedCircles
+                AuthorizedCircles = request.AuthorizedCircles,
+                ConsentRequirements = ConsentRequirements.Default
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
@@ -142,7 +144,8 @@ namespace Odin.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
+            string friendlyName)
         {
             var (cat, corsHostName) = await this.RegisterClient(appId, friendlyName);
 
@@ -301,6 +304,19 @@ namespace Odin.Core.Services.Authorization.Apps
             return await Task.FromResult(resp);
         }
 
+        public async Task<bool> IsConsentRequired(Guid appId)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (null == appReg)
+            {
+                throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+            }
+
+            return appReg.ConsentRequirements.IsRequired();
+        }
+
         public async Task RevokeClient(GuidId accessRegistrationId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -341,6 +357,25 @@ namespace Odin.Core.Services.Authorization.Apps
 
             _appClientValueStorage.Delete(accessRegistrationId);
             await Task.CompletedTask;
+        }
+
+        public async Task UpdateConsentRequirements(Guid appId, ConsentRequirements consentRequirements)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (null == appReg)
+            {
+                throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+            }
+            
+            consentRequirements.Validate();
+            
+            appReg.ConsentRequirements = consentRequirements;
+
+            _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetAppPermissionContextCache();
         }
 
         public async Task DeleteClient(GuidId accessRegistrationId)

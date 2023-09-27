@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -46,10 +47,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
-        //TODO: remove this when consent is stored in db for domains only
+        //TODO: need to talk with Seb about the redirecting loop issue here
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
             return false;
+        }
+
+        if (clientType == ClientType.app)
+        {
+            var appId = Guid.Parse(clientIdOrDomain);
+            return await _appRegistrationService.IsConsentRequired(appId);
         }
 
         if (clientType == ClientType.domain)
@@ -63,33 +70,62 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task StoreConsent(string clientIdOrDomain, string permissionRequest, ConsentRequirements consentRequirement)
+    public Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
     {
-        if (string.IsNullOrWhiteSpace(clientIdOrDomain))
+        Guard.Argument(clientIdOrDomain, nameof(clientIdOrDomain)).NotEmpty().NotWhiteSpace();
+        Guard.Argument(consentRequirements, nameof(consentRequirements)).NotNull();
+
+        if (clientType == ClientType.app)
         {
-            throw new ArgumentException("Missing clientIdOrDomain");
+            var appId = Guid.Parse(clientIdOrDomain);
+            _appRegistrationService.UpdateConsentRequirements(appId, consentRequirements).GetAwaiter().GetResult();
+
+            //so for now i'll just use this dictionary
+            _tempConsent[clientIdOrDomain] = true;
         }
 
-        //TODO: Todd to update the consent requirement for the given domain.
-        
-        
-        //so for now i'll just use this dictionary
-        _tempConsent[clientIdOrDomain] = true;
+        if (clientType == ClientType.domain)
+        {
+            var domain = new AsciiDomainName(clientIdOrDomain);
+
+            var existingDomain = _domainRegistrationService.GetRegistration(domain).GetAwaiter().GetResult();
+            if (null == existingDomain)
+            {
+                var request = new YouAuthDomainRegistrationRequest()
+                {
+                    Domain = domain.DomainName,
+                    Name = domain.DomainName,
+                    CorsHostName = clientIdOrDomain,
+                    CircleIds = default, //TODO: should we set a circle here?
+                    ConsentRequirements = consentRequirements
+                };
+
+                _domainRegistrationService.RegisterDomain(request).GetAwaiter().GetResult();
+            }
+            else
+            {
+                _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements).GetAwaiter().GetResult();
+            }
+            
+            //so for now i'll just use this dictionary
+            _tempConsent[clientIdOrDomain] = true;
+        }
+
         return Task.CompletedTask;
     }
 
     //
 
     public async Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
-            ClientType clientType,
-            string clientId,
-            string clientInfo,
-            string permissionRequest,
-            string publicKey)
+        ClientType clientType,
+        string clientId,
+        string clientInfo,
+        string permissionRequest,
+        string publicKey)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        ClientAccessToken? token = null;
+        ClientAccessToken? token;
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
@@ -102,7 +138,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId) domain);
+            var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)domain);
             if (info.IsConnected())
             {
                 var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
@@ -170,14 +206,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain,
-        string permissionRequest)
+    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
     {
-        if (clientType != ClientType.app)
-        {
-            throw new OdinSystemException($"Invalid clientType '{clientType}'");
-        }
-
         var appId = Guid.Parse(clientIdOrDomain);
         var appReg = await _appRegistrationService.GetAppRegistration(appId);
         if (appReg == null)
@@ -199,7 +229,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         if (clientType == ClientType.app)
         {
-            if (await AppNeedsRegistration(clientType, clientIdOrDomain, permissionRequest))
+            if (await AppNeedsRegistration(clientIdOrDomain, permissionRequest))
             {
                 throw new OdinSystemException("App must be registered before consent check is possible");
             }
@@ -207,7 +237,5 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     }
 
     //
-
 }
 //
-

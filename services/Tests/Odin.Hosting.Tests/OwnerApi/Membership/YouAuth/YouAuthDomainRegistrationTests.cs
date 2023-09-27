@@ -44,10 +44,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var domain = new AsciiDomainName("amazoo4320m2.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
-            
+
             var expectedConsentRequirement = ConsentRequirementType.Never;
             var expectedConsentExpirationDateTime = UnixTimeUtc.ZeroTime;
-            
+
             var response = await client.YouAuth.RegisterDomain(domain, null, expectedConsentRequirement, expectedConsentExpirationDateTime);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
@@ -57,21 +57,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.That(domainRegistrationResponse.IsSuccessStatusCode, Is.True);
             Assert.That(domainRegistrationResponse.Content, Is.Not.Null);
             Assert.That(domainRegistrationResponse.Content.Domain, Is.EqualTo(domain.DomainName));
-            
-            Assert.That(domainRegistrationResponse.Content.ConsentExpirationDateTime == expectedConsentExpirationDateTime);
-            Assert.That(domainRegistrationResponse.Content.ConsentRequirement == expectedConsentRequirement);
+
+            Assert.That(domainRegistrationResponse.Content.ConsentRequirements.Expiration == expectedConsentExpirationDateTime);
+            Assert.That(domainRegistrationResponse.Content.ConsentRequirements.ConsentRequirementType == expectedConsentRequirement);
         }
-        
+
         [Test]
         public async Task CanRegisterNewDomainWithExpiringConsent()
         {
             var domain = new AsciiDomainName("ishallexpire.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
-            
+
             var expectedConsentRequirement = ConsentRequirementType.Expiring;
             var expectedConsentExpirationDateTime = new UnixTimeUtc(DateTimeOffset.UtcNow.AddDays(10).ToUnixTimeMilliseconds());
-            
+
             var response = await client.YouAuth.RegisterDomain(domain, null, expectedConsentRequirement, expectedConsentExpirationDateTime);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
@@ -81,8 +81,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.That(domainRegistrationResponse.IsSuccessStatusCode, Is.True);
             Assert.That(domainRegistrationResponse.Content, Is.Not.Null);
             Assert.That(domainRegistrationResponse.Content.Domain, Is.EqualTo(domain.DomainName));
-            Assert.That(domainRegistrationResponse.Content.ConsentExpirationDateTime == expectedConsentExpirationDateTime);
-            Assert.That(domainRegistrationResponse.Content.ConsentRequirement == expectedConsentRequirement);
+
+            Assert.That(domainRegistrationResponse.Content.ConsentRequirements.Expiration == expectedConsentExpirationDateTime);
+            Assert.That(domainRegistrationResponse.Content.ConsentRequirements.ConsentRequirementType == expectedConsentRequirement);
         }
 
         [Test]
@@ -523,7 +524,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var domain1Clients = domain1ClientsResponse.Content;
             Assert.IsTrue(domain1Clients.Count == 1);
 
-            
+
             var domain2ClientsResponse = await client.YouAuth.GetRegisteredClients(domain2);
             Assert.IsTrue(domain2ClientsResponse.IsSuccessStatusCode);
             var domain2Clients = domain2ClientsResponse.Content;
