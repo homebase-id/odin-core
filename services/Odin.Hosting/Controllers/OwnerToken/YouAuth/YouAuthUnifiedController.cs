@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.Extensions;
@@ -162,8 +163,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
         [HttpPost(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
         public async Task<ActionResult> Consent(
-            [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)]
-            string returnUrl)
+            [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)] string returnUrl,
+            [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)] string consentRequirementJson)
         {
             // SEB:TODO CSRF ValidateAntiForgeryToken
 
@@ -192,7 +193,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             authorize.Validate();
 
-            await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest);
+            var consentReq = OdinSystemSerializer.Deserialize<ConsentRequirements>(consentRequirementJson);
+            await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest, consentReq);
 
             // Redirect back to authorize
             return Redirect(returnUrl);

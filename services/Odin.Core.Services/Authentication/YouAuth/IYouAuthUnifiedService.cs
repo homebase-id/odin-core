@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Membership.YouAuth;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
 
@@ -25,7 +26,7 @@ public interface IYouAuthUnifiedService
         string clientIdOrDomain, 
         string permissionRequest);
     
-    Task StoreConsent(string clientIdOrDomain, string permissionRequest);
+    Task StoreConsent(string clientIdOrDomain, string permissionRequest, ConsentRequirements consentRequirement);
     
     Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
         ClientType clientType,

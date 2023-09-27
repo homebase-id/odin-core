@@ -74,7 +74,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 throw new OdinClientException("Domain already registered");
             }
 
-            if (request.ConsentRequirement == ConsentRequirement.Expiring)
+            if (request.ConsentRequirement == ConsentRequirementType.Expiring)
             {
                 var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 if (request.ConsentExpirationDateTime.milliseconds < nowMs)
@@ -163,18 +163,18 @@ namespace Odin.Core.Services.Membership.YouAuth
                 return true;
             }
 
-            if (reg.ConsentRequirement == ConsentRequirement.Always)
+            if (reg.ConsentRequirement == ConsentRequirementType.Always)
             {
                 return true;
             }
 
-            if (reg.ConsentRequirement == ConsentRequirement.Expiring)
+            if (reg.ConsentRequirement == ConsentRequirementType.Expiring)
             {
                 var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 return reg.ConsentExpirationDateTime.milliseconds > nowMs;
             }
 
-            if (reg.ConsentRequirement == ConsentRequirement.Never)
+            if (reg.ConsentRequirement == ConsentRequirementType.Never)
             {
                 return false;
             }

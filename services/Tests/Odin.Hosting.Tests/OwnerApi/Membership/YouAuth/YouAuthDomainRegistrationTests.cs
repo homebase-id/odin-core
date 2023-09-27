@@ -45,7 +45,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
             
-            var expectedConsentRequirement = ConsentRequirement.Never;
+            var expectedConsentRequirement = ConsentRequirementType.Never;
             var expectedConsentExpirationDateTime = UnixTimeUtc.ZeroTime;
             
             var response = await client.YouAuth.RegisterDomain(domain, null, expectedConsentRequirement, expectedConsentExpirationDateTime);
@@ -69,7 +69,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
             
-            var expectedConsentRequirement = ConsentRequirement.Expiring;
+            var expectedConsentRequirement = ConsentRequirementType.Expiring;
             var expectedConsentExpirationDateTime = new UnixTimeUtc(DateTimeOffset.UtcNow.AddDays(10).ToUnixTimeMilliseconds());
             
             var response = await client.YouAuth.RegisterDomain(domain, null, expectedConsentRequirement, expectedConsentExpirationDateTime);

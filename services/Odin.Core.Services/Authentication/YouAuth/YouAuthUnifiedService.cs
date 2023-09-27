@@ -46,6 +46,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
+        //TODO: remove this when consent is stored in db for domains only
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
             return false;
@@ -62,16 +63,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task StoreConsent(string clientIdOrDomain, string permissionRequest)
+    public Task StoreConsent(string clientIdOrDomain, string permissionRequest, ConsentRequirements consentRequirement)
     {
         if (string.IsNullOrWhiteSpace(clientIdOrDomain))
         {
             throw new ArgumentException("Missing clientIdOrDomain");
         }
 
-        //TODO: i wonder if consent should be stored here or by the UI call on the backend.
-        // if the latter, we need a mechanism proving the result of the consent
-
+        //TODO: Todd to update the consent requirement for the given domain.
+        
+        
         //so for now i'll just use this dictionary
         _tempConsent[clientIdOrDomain] = true;
         return Task.CompletedTask;

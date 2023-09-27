@@ -25,7 +25,7 @@ public class YouAuthDomainApiClient
 
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain(
         AsciiDomainName domain, List<GuidId> circleIds = null, 
-        ConsentRequirement consentRequirement = ConsentRequirement.Never,
+        ConsentRequirementType consentRequirement = ConsentRequirementType.Never,
         UnixTimeUtc consentExpiration = default)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

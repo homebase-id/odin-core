@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         /// </summary>
         public List<GuidId> CircleIds { get; set; }
         
-        public ConsentRequirement ConsentRequirement { get; set; }
+        public ConsentRequirementType ConsentRequirement { get; set; }
         
         /// <summary>
         /// Some time in the future for consent to expire

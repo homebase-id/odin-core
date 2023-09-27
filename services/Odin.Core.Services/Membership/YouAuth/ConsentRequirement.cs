@@ -1,7 +1,9 @@
 #nullable enable
+using Odin.Core.Time;
+
 namespace Odin.Core.Services.Membership.YouAuth;
 
-public enum ConsentRequirement
+public enum ConsentRequirementType
 {
     /// <summary>
     /// Always require consent
@@ -17,4 +19,11 @@ public enum ConsentRequirement
     /// Never require consent
     /// </summary>
     Never = 0
+}
+
+public class ConsentRequirements
+{
+    public ConsentRequirementType ConsentRequirementType {get; set; }
+    
+    public UnixTimeUtc ConsentExpirationDateTime { get; set; }
 }

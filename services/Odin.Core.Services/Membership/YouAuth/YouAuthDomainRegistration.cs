@@ -29,7 +29,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public string CorsHostName { get; set; }
 
-        public ConsentRequirement ConsentRequirement { get; set; }
+        public ConsentRequirementType ConsentRequirement { get; set; }
         
         public UnixTimeUtc ConsentExpirationDateTime { get; set; }
 
