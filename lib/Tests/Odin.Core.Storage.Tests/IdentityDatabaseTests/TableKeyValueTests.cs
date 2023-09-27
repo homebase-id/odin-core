@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -76,8 +76,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -100,8 +100,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -133,8 +133,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -160,8 +160,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
             var v3 = Guid.NewGuid().ToByteArray();
@@ -192,7 +192,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void LockingTest()
         {
-            List<Guid> Rows = new List<Guid>();
+            List<byte[]> Rows = new List<byte[]>();
 
             void writeDB(IdentityDatabase db)
             {
@@ -211,7 +211,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             for (int i = 0; i < 100; i++)
             {
-                Rows.Add(Guid.NewGuid());
+                Rows.Add(Guid.NewGuid().ToByteArray());
                 db.tblKeyValue.Insert(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
@@ -231,8 +231,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -279,8 +279,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 

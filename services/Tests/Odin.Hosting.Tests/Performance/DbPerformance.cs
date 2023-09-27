@@ -163,7 +163,7 @@ namespace Odin.Hosting.Tests.Performance
             {
                 sw.Restart();
 
-                var r = _db.tblKeyValue.Get(_keys[0]);
+                var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
                 Debug.Assert(r != null);
 
                 timers[count] = sw.ElapsedMilliseconds;

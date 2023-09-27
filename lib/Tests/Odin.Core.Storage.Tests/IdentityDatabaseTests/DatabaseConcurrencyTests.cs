@@ -10,15 +10,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class DatabaseConcurrencyTests
     {
-
         [Test]
         public void InsertTest()
         {
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -40,7 +39,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test, Explicit]
         public void WriteLockingTest()
         {
-            List<Guid> Rows = new List<Guid>();
+            List<byte[]> Rows = new List<byte[]>();
 
             void writeDB1(IdentityDatabase db)
             {
@@ -51,8 +50,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             void writeDB2(IdentityDatabase db)
             {
                 for (int i = 0; i < 10000; i++)
-                    db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyTwoValue.Insert(new KeyTwoValueRecord()
+                        { key1 = Rows[i], key2 = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             }
+
             void readDB(IdentityDatabase db)
 
             {
@@ -65,7 +66,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             for (int i = 0; i < 10000; i++)
             {
-                Rows.Add(Guid.NewGuid());
+                Rows.Add(Guid.NewGuid().ToByteArray());
                 db.tblKeyValue.Insert(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
@@ -82,14 +83,15 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             tr.Join();
         }
 
-        
+
         /// <summary>
         /// This test passes because the Database class locks on it's _transactionLock() object
         /// </summary>
         [Test, Explicit]
         public void ReaderLockingTest()
         {
-            List<Guid> Rows = new List<Guid>();
+            // List<Guid> Rows = new List<Guid>();
+            List<byte[]> Rows = new List<byte[]>();
 
             void writeDB1(IdentityDatabase db)
             {
@@ -116,7 +118,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             for (int i = 0; i < 10000; i++)
             {
-                Rows.Add(Guid.NewGuid());
+                Rows.Add(Guid.NewGuid().ToByteArray());
                 db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             }
 
@@ -143,13 +145,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             {
                 using var db2 = new IdentityDatabase("DataSource=mansi.db");
                 Assert.Fail("It's supposed to do a database lock");
-
             }
             catch (Exception ex)
             {
                 Assert.Pass(ex.Message);
             }
-
         }
     }
 }

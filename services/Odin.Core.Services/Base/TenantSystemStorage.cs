@@ -18,7 +18,7 @@ namespace Odin.Core.Services.Base
         {
             ArgumentNullException.ThrowIfNull(tenantContext);
             ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
-                
+
             _logger = logger;
 
             string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
@@ -62,7 +62,7 @@ namespace Odin.Core.Services.Base
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
         public TwoKeyValueStorage TwoKeyValueStorage { get; }
-        
+
         public TableFeedDistributionOutbox Feedbox { get; }
 
         public TableOutbox Outbox { get; }
@@ -72,7 +72,7 @@ namespace Odin.Core.Services.Base
         public TableImFollowing WhoIFollow { get; }
 
         public TableFollowsMe Followers { get; }
-        
+
         public TableCircleMember CircleMemberStorage { get; }
 
         public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
