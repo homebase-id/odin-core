@@ -81,7 +81,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// The owner shared secret encrypted key header for the thumbnail is found in the header 'SharedSecretEncryptedHeader64'
         ///
         /// The flag indicating if the payload is encrypted is found in the header 'PayloadEncrypted'
-        /// This is a byte array where the first 16 bytes are the IV, second 16 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
+        /// This is a byte array where the first 16 bytes are the IV, second 48 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("payload")]
