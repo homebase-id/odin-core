@@ -127,10 +127,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            return await Benchmark.MillisecondsAsync<IActionResult>(_logger, "(TODO:deleteme) POST GetThumbnail", async () =>
-            {
-                return await base.GetThumbnail(request);
-            });
+            return await base.GetThumbnail(request);
         }
 
         /// <summary>
@@ -142,22 +139,19 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
-            return await Benchmark.MillisecondsAsync<IActionResult>(_logger, "(TODO:deleteme) POST GetThumbnail", async () =>
+            return await base.GetThumbnail(new GetThumbnailRequest()
             {
-                return await base.GetThumbnail(new GetThumbnailRequest()
+                File = new ExternalFileIdentifier()
                 {
-                    File = new ExternalFileIdentifier()
+                    FileId = fileId,
+                    TargetDrive = new()
                     {
-                        FileId = fileId,
-                        TargetDrive = new()
-                        {
-                            Alias = alias,
-                            Type = type
-                        }
-                    },
-                    Width = width,
-                    Height = height
-                });
+                        Alias = alias,
+                        Type = type
+                    }
+                },
+                Width = width,
+                Height = height
             });
         }
 

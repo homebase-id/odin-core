@@ -41,9 +41,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
-            _logger.LogInformation("(TODO:deleteme) entering GetFileHeader");
-
-            _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.FileId);
             var result = await this.GetFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(MapToInternalFile(request));
 
             if (result == null)
@@ -53,7 +50,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             AddCacheHeader();
 
-            _logger.LogInformation("(TODO:deleteme) exiting GetFileHeader");
             return new JsonResult(result);
         }
 
@@ -62,22 +58,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            _logger.LogInformation("(TODO:deleteme) entering GetPayloadStream");
-
-            _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.File.FileId);
             var file = MapToInternalFile(request.File);
 
-            _logger.LogInformation("(TODO:deleteme) ResolveFileSystem");
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            _logger.LogInformation("(TODO:deleteme) GetPayloadStream");
             var payload = await fs.Storage.GetPayloadStream(file, request.Chunk);
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
-            _logger.LogInformation("(TODO:deleteme) GetSharedSecretEncryptedHeader");
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
@@ -96,7 +86,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 ? "application/octet-stream"
                 : header.FileMetadata.ContentType);
 
-            _logger.LogInformation("(TODO:deleteme) exiting GetPayloadStream");
             return result;
         }
 
@@ -105,15 +94,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            _logger.LogInformation("(TODO:deleteme) entering GetThumbnail");
-
-            _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.File.FileId);
             var file = MapToInternalFile(request.File);
 
-            _logger.LogInformation("(TODO:deleteme) ResolveFileSystem");
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            _logger.LogInformation("(TODO:deleteme) GetThumbnailPayloadStream");
             var (thumbPayload, thumbHeader) =
                 await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height,
                     request.DirectMatchOnly);
@@ -122,7 +106,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            _logger.LogInformation("(TODO:deleteme) GetSharedSecretEncryptedHeader");
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
@@ -138,15 +121,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64,
                 encryptedKeyHeader64);
 
-            _logger.LogInformation("(TODO:deleteme) AddCacheHeader");
             AddCacheHeader();
 
-            _logger.LogInformation("(TODO:deleteme) FileStreamResult");
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
                     ? "application/octet-stream"
                     : header.FileMetadata.ContentType);
 
-            _logger.LogInformation("(TODO:deleteme) exiting GetThumbnail");
             return result;
         }
 
