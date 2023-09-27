@@ -49,8 +49,9 @@ namespace Odin.Core.Services.Authorization.Apps
 
             _tenantSystemStorage = tenantSystemStorage;
 
-            _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appRegistrationDataType);
+            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appClientDataType);
+            
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -287,7 +288,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId)
         {
-            var list = _appClientValueStorage.GetByKey3<AppClient>(_appClientDataType);
+            var list = _appClientValueStorage.GetByCategory<AppClient>(_appClientDataType);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
@@ -408,7 +409,7 @@ namespace Odin.Core.Services.Authorization.Apps
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var apps = _appRegistrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
+            var apps = _appRegistrationValueStorage.GetByCategory<AppRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }

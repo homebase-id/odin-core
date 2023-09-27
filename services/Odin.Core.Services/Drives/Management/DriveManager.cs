@@ -11,6 +11,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Storage;
 using Serilog;
 
 namespace Odin.Core.Services.Drives.Management;
@@ -34,6 +35,7 @@ public class DriveManager
 
     private readonly object _createDriveLock = new object();
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
+    private readonly ThreeKeyValueStorage _driveStorage;
 
     public DriveManager(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
@@ -42,6 +44,8 @@ public class DriveManager
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
+
+        _driveStorage = _tenantSystemStorage.CreateThreeKeyValueStorage(_driveDataType);
 
         LoadCache();
     }
@@ -98,7 +102,7 @@ public class DriveManager
 
             storageKey.Wipe();
 
-            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
+            _tenantSystemStorage.CreateThreeKeyValueStorage(_driveDataType).Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
@@ -137,7 +141,7 @@ public class DriveManager
         {
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
-            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+            _driveStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
 
             CacheDrive(storageDrive);
 
@@ -154,10 +158,10 @@ public class DriveManager
     public Task UpdateMetadata(Guid driveId, string metadata)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        var sdb = _tenantSystemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+        var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
         sdb.Metadata = metadata;
 
-        _tenantSystemStorage.ThreeKeyValueStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+        _driveStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
         return Task.CompletedTask;
@@ -170,7 +174,7 @@ public class DriveManager
             return cachedDrive;
         }
 
-        var sdb = _tenantSystemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+        var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
         if (null == sdb)
         {
             if (failIfInvalid)
@@ -193,7 +197,7 @@ public class DriveManager
             return cachedDrive.Id;
         }
 
-        var list = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
+        var list = _driveStorage.GetByDataType<StorageDriveBase>(targetDrive.ToKey());
         var drives = list as StorageDriveBase[] ?? list.ToArray();
         if (!drives.Any())
         {
@@ -261,8 +265,8 @@ public class DriveManager
         }
         else
         {
-            allDrives = _tenantSystemStorage.ThreeKeyValueStorage
-                .GetByKey3<StorageDriveBase>(_driveDataType)
+            allDrives = _driveStorage
+                .GetByCategory<StorageDriveBase>(_driveDataType)
                 .Select(ToStorageDrive).ToList();
 
             Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
@@ -305,7 +309,7 @@ public class DriveManager
 
     private void LoadCache()
     {
-        var storageDrives = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
+        var storageDrives = _driveStorage.GetByCategory<StorageDriveBase>(_driveDataType);
         foreach (var drive in storageDrives.Select(ToStorageDrive).ToList())
         {
             CacheDrive(drive);

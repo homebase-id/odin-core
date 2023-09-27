@@ -49,8 +49,8 @@ namespace Odin.Core.Services.Membership.YouAuth
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
-            _domainStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _clientStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_domainRegistrationDataType);
+            _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_clientDataType);
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -218,7 +218,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var list = _clientStorage.GetByKey3<YouAuthDomainClient>(_clientDataType);
+            var list = _clientStorage.GetByCategory<YouAuthDomainClient>(_clientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {
                 Domain = domainClient.Domain,
@@ -286,7 +286,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             }
 
             //delete the clients
-            var clientsByDomain = _clientStorage.GetByKey2<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
+            var clientsByDomain = _clientStorage.GetByDataType<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
 
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
@@ -305,7 +305,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var domains = _domainStorage.GetByKey3<YouAuthDomainRegistration>(_domainRegistrationDataType);
+            var domains = _domainStorage.GetByCategory<YouAuthDomainRegistration>(_domainRegistrationDataType);
             var redactedList = domains.Select(d => d.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }

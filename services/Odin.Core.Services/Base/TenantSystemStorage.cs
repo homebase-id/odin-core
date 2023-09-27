@@ -13,6 +13,7 @@ namespace Odin.Core.Services.Base
         private readonly ILogger<TenantSystemStorage> _logger;
 
         private readonly IdentityDatabase _db;
+        private readonly ThreeKeyValueStorage _threeKeyValueStorage;
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
@@ -33,7 +34,6 @@ namespace Odin.Core.Services.Base
             _db.CreateDatabase(false);
 
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
-            ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
             TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = _db.tblConnections;
@@ -55,11 +55,6 @@ namespace Odin.Core.Services.Base
         /// Store values using a single key
         /// </summary>
         public SingleKeyValueStorage SingleKeyValueStorage { get; }
-
-        /// <summary>
-        /// Store values using a single key while offering 2 other keys to categorize your data
-        /// </summary>
-        public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
         public TwoKeyValueStorage TwoKeyValueStorage { get; }
 
@@ -83,6 +78,15 @@ namespace Odin.Core.Services.Base
         public void Dispose()
         {
             _db.Dispose();
+        }
+
+        /// <summary>
+        /// Store values using a single key while offering 2 other keys to categorize your data
+        /// </summary>
+        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
+        public ThreeKeyValueStorage CreateThreeKeyValueStorage(byte[] contextKey)
+        {
+            return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
         }
     }
 }
