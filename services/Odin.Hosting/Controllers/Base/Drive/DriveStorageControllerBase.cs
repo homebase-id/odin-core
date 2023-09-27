@@ -125,7 +125,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
                     ? "application/octet-stream"
-                    : header.FileMetadata.ContentType);
+                    : thumbHeader.ContentType);
 
             return result;
         }
