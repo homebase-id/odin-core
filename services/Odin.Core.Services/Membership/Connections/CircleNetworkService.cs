@@ -78,18 +78,7 @@ namespace Odin.Core.Services.Membership.Connections
                     IsRemoteIcrIssue = true
                 };
             }
-            
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanCommentOnPublicDrives ?? false)
-            {
-                // need to upgrade the access to the public drives to write comments
-            }
-            
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanReactOnPublicDrives ?? false)
-            {
-                // need to upgrade the access to the public drives to write reactions
 
-            }
-            
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
                 icr: icr,
                 authToken: remoteIcrToken,
@@ -529,7 +518,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             await _circleMembershipService.Delete(circleId);
         }
-        
+
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)
@@ -548,7 +537,7 @@ namespace Odin.Core.Services.Membership.Connections
         {
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
-        
+
         public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
         {
             var icr = await this.GetIdentityConnectionRegistration(odinId);
@@ -681,22 +670,16 @@ namespace Odin.Core.Services.Membership.Connections
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
-            List<int> permissionKeys = new List<int>();
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewWhoIFollow ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
-                additionalPermissionKeys: permissionKeys);
+                additionalPermissionKeys: permissionKeys,
+                includeAnonymousDrives: false,
+                anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
             return await Task.FromResult(result);
@@ -714,7 +697,7 @@ namespace Odin.Core.Services.Membership.Connections
                 Results = list
             };
         }
-        
+
         /// <summary>
         /// Throws an exception if the odinId is blocked.
         /// </summary>
@@ -727,7 +710,7 @@ namespace Odin.Core.Services.Membership.Connections
                 throw new SecurityException("OdinId is blocked");
             }
         }
-        
+
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
         {
             var registration = _storage.Get(odinId);

@@ -82,7 +82,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     throw new OdinClientException("ConsentExpirationDateTime should be in the future");
                 }
             }
-            
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
@@ -393,7 +393,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     return odinContext;
                 }
 
-                return await CreateContextForYouAuthDomain(token, domainRegistration, accessReg);
+                return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg);
             }
 
             var result = await _cache.GetOrAddContext(token, Creator);
@@ -487,7 +487,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             }
         }
 
-        private async Task<OdinContext> CreateContextForYouAuthDomain(
+        private async Task<OdinContext> CreateAuthenticatedContextForYouAuthDomain(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
             AccessRegistration accessReg)
@@ -500,16 +500,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             //TODO: do we want allow youauthdomains to have these permissions?
 
-            List<int> permissionKeys = new List<int>();
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
-            {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
-            {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
+            var anonymousDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
 
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.CircleGrants.Values.ToList());
 
@@ -518,7 +510,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                 grants: grants,
                 accessReg: accessReg,
                 additionalPermissionKeys: permissionKeys,
-                includeAnonymousDrives: true);
+                includeAnonymousDrives: true,
+                anonymousDrivePermission: anonymousDrivePermissions);
 
             var dotYouContext = new OdinContext()
             {

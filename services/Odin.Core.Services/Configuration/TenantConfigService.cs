@@ -162,20 +162,20 @@ public class TenantConfigService
                 this.UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
                 break;
 
-            case TenantConfigFlagNames.AllAuthenticatedIdentitiesCanReactOnPublicDrives:
-                cfg.AllAuthenticatedIdentitiesCanReactOnPublicDrives = bool.Parse(request.Value);
+            case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
+                cfg.AuthenticatedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
                 break;
             
-            case TenantConfigFlagNames.AllAuthenticatedIdentitiesCanCommentOnPublicDrives:
-                cfg.AllAuthenticatedIdentitiesCanCommentOnPublicDrives = bool.Parse(request.Value);
+            case TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives:
+                cfg.AuthenticatedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
             
-            case TenantConfigFlagNames.AllConnectedIdentitiesCanReactOnPublicDrives:
-                cfg.AllConnectedIdentitiesCanReactOnPublicDrives = bool.Parse(request.Value);
+            case TenantConfigFlagNames.ConnectedIdentitiesCanReactOnAnonymousDrives:
+                cfg.ConnectedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
                 break;
             
-            case TenantConfigFlagNames.AllConnectedIdentitiesCanCommentOnPublicDrives:
-                cfg.AllConnectedIdentitiesCanCommentOnPublicDrives = bool.Parse(request.Value);
+            case TenantConfigFlagNames.ConnectedIdentitiesCanCommentOnAnonymousDrives:
+                cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
             default:
