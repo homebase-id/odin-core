@@ -419,17 +419,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public KeyTwoValueRecord Get(Guid key1)
-        {
-            return this.Get(key1.ToByteArray());
-        }
-        
         public KeyTwoValueRecord Get(byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToString());
+            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToBase64());
             if (hit)
                 return (KeyTwoValueRecord)cacheObject;
             lock (_get1Lock)

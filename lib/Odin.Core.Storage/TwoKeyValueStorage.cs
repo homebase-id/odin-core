@@ -18,7 +18,7 @@ public class TwoKeyValueStorage
         _db = db;
     }
 
-    public T Get<T>(Guid key) where T : class
+    public T Get<T>(byte[] key) where T : class
     {
         var record = _db.Get(key);
         if (null == record)
