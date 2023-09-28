@@ -89,13 +89,9 @@ public class TransitReactionContentSenderService : TransitServiceBase
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
-        var apiResponse = await client.AddReaction(payload);
-        if (apiResponse.IsSuccessStatusCode)
-        {
-            return;
-        }
+        var response = await client.AddReaction(payload);
 
-        throw new OdinRemoteIdentityException("Remote server returned unsuccessful status code");
+        AssertValidResponse(response);
     }
 
     /// <summary />
@@ -177,7 +173,8 @@ public class TransitReactionContentSenderService : TransitServiceBase
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+            // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+            throw new OdinSecurityException("Remote server returned 403");
         }
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
@@ -185,7 +182,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
             throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
 
-        if (!response.IsSuccessStatusCode || response.Content == null)
+        if (!response.IsSuccessStatusCode)
         {
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }

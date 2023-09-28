@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -16,8 +18,11 @@ using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.ReceivingHost.Reactions;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.Transit.Query;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -207,7 +212,7 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var transitService = RestService.For<ITransitTestHttpClientForOwner>(client);
+            var transitService = RestService.For<IRefitOwnerTransitSender>(client);
             ApiResponse<TransitResult> response = await transitService.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -286,7 +291,7 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var transitSvc = RestService.For<ITransitTestHttpClientForOwner>(client);
+            var transitSvc = RestService.For<IRefitOwnerTransitSender>(client);
             ApiResponse<TransitResult> response = await transitSvc.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -325,10 +330,29 @@ public class TransitApiClient
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitTestHttpClientForOwner>(client, sharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitSender>(client, sharedSecret);
             var response = await transitSvc.SendDeleteRequest(request);
 
             Assert.IsTrue(response.IsSuccessStatusCode);
+        }
+    }
+    
+    
+    //Query
+
+    public async Task<ApiResponse<HttpContent>> GetPayloadOverTransit(OdinId remoteIdentity, ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        {
+            var svc = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, sharedSecret);
+
+            var response = await svc.GetPayload(new TransitExternalFileIdentifier()
+            {
+                OdinId = remoteIdentity,
+                File = file
+            });
+
+            return response;
         }
     }
 }

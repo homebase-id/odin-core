@@ -8,7 +8,7 @@ using Odin.Core.Services.AppNotifications;
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
-    [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidAppToken]
     [Route(AppApiPathConstants.NotificationsV1)]
     public class AppNotificationSocketController : Controller
     {

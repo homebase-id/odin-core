@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.Acl;
@@ -63,7 +64,8 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
 
     public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
     {
-        _cache.EnqueueIdentityForReset(notification.OdinId);
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
         return Task.CompletedTask;
     }
 }

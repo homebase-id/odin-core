@@ -2,7 +2,9 @@
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
@@ -24,7 +26,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly CircleMembershipApiClient _circleMembershipApiClient;
         private readonly TransitApiClient _transitApiClient;
         private readonly DriveApiClient _driveApiClient;
-        private readonly FollowerApiClient _followerApiClient;
+        private readonly OwnerFollowerApiClient _ownerFollowerApiClient;
         private readonly CronApiClient _cronApiClient;
         private readonly SecurityApiClient _securityApiClient;
         private readonly PublicPrivateKeyApiClient _publicPrivateKey;
@@ -39,7 +41,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _circleNetworkApiClient = new CircleNetworkApiClient(ownerApi, identity);
             _transitApiClient = new TransitApiClient(ownerApi, identity);
             _driveApiClient = new DriveApiClient(ownerApi, identity);
-            _followerApiClient = new FollowerApiClient(ownerApi, identity);
+            _ownerFollowerApiClient = new OwnerFollowerApiClient(ownerApi, identity);
             _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
             _publicPrivateKey = new PublicPrivateKeyApiClient(ownerApi, identity);
@@ -56,7 +58,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 
         public CronApiClient Cron => _cronApiClient;
 
-        public FollowerApiClient Follower => _followerApiClient;
+        public OwnerFollowerApiClient OwnerFollower => _ownerFollowerApiClient;
+        
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;

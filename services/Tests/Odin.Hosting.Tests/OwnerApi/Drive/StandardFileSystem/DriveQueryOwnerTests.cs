@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -10,8 +11,8 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
-using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 {
@@ -384,6 +385,124 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var file2Result = batch.Results.Single(x => x.Name == file2Section.Name);
                 CollectionAssert.AreEquivalent(file2Metadata.AppData.Tags, file2Result.SearchResults.Single().FileMetadata.AppData.Tags);
                 Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptionsRequest.IncludeMetadataHeader);
+            }
+        }
+
+        [Test]
+        public async Task FailToQueryBatchCollectionWhenQueryHasDuplicateNames()
+        {
+            var identity = TestIdentities.Samwise;
+            Guid file1Tag = Guid.NewGuid();
+
+            TargetDrive file1TargetDrive = TargetDrive.NewTargetDrive();
+            var file1Metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    Tags = new List<Guid>() { file1Tag }
+                }
+            };
+
+            var file1InstructionSet = new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new()
+                {
+                    Drive = file1TargetDrive
+                }
+            };
+
+            await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, file1InstructionSet, file1Metadata, "file one payload");
+
+            //
+            // Add another drive and file
+            //
+            Guid file2Tag = Guid.NewGuid();
+            TargetDrive file2TargetDrive = TargetDrive.NewTargetDrive();
+
+            var file2InstructionSet = new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new()
+                {
+                    Drive = file2TargetDrive
+                }
+            };
+
+            var file2Metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    Tags = new List<Guid>() { file2Tag }
+                }
+            };
+
+            await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, file2InstructionSet, file2Metadata, "file two payload");
+
+            const string sectionName = "sectionName";
+            //
+            // perform the batch search
+            //
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+
+                var file1Section = new CollectionQueryParamSection()
+                {
+                    Name = sectionName,
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = file1TargetDrive,
+                        TagsMatchAtLeastOne = new[] { file1Tag }
+                    },
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        MaxRecords = 10,
+                        IncludeMetadataHeader = true
+                    }
+                };
+
+                var file2Section = new CollectionQueryParamSection()
+                {
+                    Name = sectionName,
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = file2TargetDrive,
+                        TagsMatchAtLeastOne = new[] { file2Tag }
+                    },
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        MaxRecords = 10,
+                        IncludeMetadataHeader = true
+                    }
+                };
+
+
+                var response = await svc.GetBatchCollection(new QueryBatchCollectionRequest()
+                {
+                    Queries = new List<CollectionQueryParamSection>()
+                    {
+                        file1Section, file2Section
+                    }
+                });
+
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, $"Status code was {response.StatusCode}");
             }
         }
     }

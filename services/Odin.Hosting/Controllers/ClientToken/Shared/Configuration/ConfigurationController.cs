@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 [ApiController]
 [Route(AppApiPathConstants.DriveV1)]
 [Route(GuestApiPathConstants.DriveV1)]
-[AuthorizeValidExchangeGrant]
+[AuthorizeValidGuestOrAppToken]
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;

@@ -29,6 +29,12 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         [Post(DriveRoot + "/querybatch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
+        
+        [Post(DriveRoot + "/batchcollection")]
+        Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection([Body] QueryBatchCollectionRequest request);
+        
+        [Post(DriveRoot + "/querymodified")]
+        Task<ApiResponse<QueryModifiedResponse>> QueryModified([Body] QueryModifiedRequest request);
 
         [Post(DriveRoot + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
@@ -44,6 +50,5 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext();
-
     }
 }

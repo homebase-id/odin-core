@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Membership.YouAuth
 {
@@ -19,5 +20,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         public string CorsHostName { get; set; }
         
         public List<RedactedCircleGrant> CircleGrants { get; set; }
+        public ConsentRequirement ConsentRequirement { get; set; }
+        public UnixTimeUtc ConsentExpirationDateTime { get; set; }
     }
 }

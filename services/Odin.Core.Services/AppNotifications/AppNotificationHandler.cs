@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Base;
@@ -22,12 +23,18 @@ namespace Odin.Core.Services.AppNotifications
         private readonly OdinContextAccessor _contextAccessor;
         private readonly TransitInboxProcessor _transitInboxProcessor;
         private readonly DriveManager _driveManager;
+        private readonly ILogger<AppNotificationHandler> _logger;
 
-        public AppNotificationHandler(OdinContextAccessor contextAccessor, TransitInboxProcessor transitInboxProcessor, DriveManager driveManager)
+        public AppNotificationHandler(
+            OdinContextAccessor contextAccessor,
+            TransitInboxProcessor transitInboxProcessor,
+            DriveManager driveManager,
+            ILogger<AppNotificationHandler> logger)
         {
             _contextAccessor = contextAccessor;
             _transitInboxProcessor = transitInboxProcessor;
             _driveManager = driveManager;
+            _logger = logger;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
@@ -66,28 +73,34 @@ namespace Odin.Core.Services.AppNotifications
         {
             var buffer = new byte[1024 * 4];
 
-            //Wait for the caller to request the connection parameters
-            var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            EstablishConnectionRequest request = null;
-            if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+            try
             {
-                Array.Resize(ref buffer, receiveResult.Count);
-                var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                request = OdinSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
-            }
+                //Wait for the caller to request the connection parameters
+                var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-            if (null == request)
+                EstablishConnectionRequest request = null;
+                if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                {
+                    Array.Resize(ref buffer, receiveResult.Count);
+                    var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
+                    request = OdinSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
+                }
+
+                if (null == request)
+                {
+                    //send a close method
+                    await webSocket.CloseOutputAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Closing",
+                        CancellationToken.None);
+                }
+
+                await this.Connect(webSocket, request);
+            }
+            catch (WebSocketException e)
             {
-                //send a close method
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, 0),
-                    WebSocketMessageType.Close,
-                    WebSocketMessageFlags.EndOfMessage,
-                    CancellationToken.None);
+                _logger.LogWarning("WebSocketException: {error}", e.Message);
             }
-
-            await this.Connect(webSocket, request);
         }
 
         private async Task AwaitCommands(DeviceSocket deviceSocket)
@@ -96,25 +109,35 @@ namespace Odin.Core.Services.AppNotifications
 
             while (true)
             {
-                var receiveResult = await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                if (receiveResult.MessageType == WebSocketMessageType.Close)
+                try
                 {
-                    await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                    //TODO: need to send the right response but not quite sure what that is.
-                    // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
-                    break;
-                }
+                    var receiveResult =
+                        await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-                if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
-                {
-                    Array.Resize(ref buffer, receiveResult.Count);
-                    var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                    var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
-                    if (null != command)
+                    if (receiveResult.MessageType == WebSocketMessageType.Close)
                     {
-                        await ProcessCommand(command);
+                        await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                        //TODO: need to send the right response but not quite sure what that is.
+                        // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
+                        break;
                     }
+
+                    if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                    {
+                        Array.Resize(ref buffer, receiveResult.Count);
+                        var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer,
+                            _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
+                        var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
+                        if (null != command)
+                        {
+                            await ProcessCommand(command);
+                        }
+                    }
+                }
+                catch (WebSocketException e)
+                {
+                    _logger.LogWarning("WebSocketException: {error}", e.Message);
+                    break;
                 }
             }
         }
@@ -213,10 +236,14 @@ namespace Odin.Core.Services.AppNotifications
                     messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                     cancellationToken: CancellationToken.None);
             }
+            catch (WebSocketException e)
+            {
+                _logger.LogWarning("WebSocketException: {error}", e.Message);
+            }
             catch (Exception e)
             {
                 //HACK: need to find out what is trying to write when the response is complete
-                Console.WriteLine(e);
+                _logger.LogError(e, "SendMessageAsync: {error}", e.Message);
             }
         }
 

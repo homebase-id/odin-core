@@ -84,31 +84,38 @@ namespace Odin.Hosting.Middleware
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
-                //therefore use the transit subsystem but load permissions only for the fee drive
-                // if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
-                // {
-                //     await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
-                //     return;
-                // }
-
                 if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
                     await LoadFollowerContext(httpContext, odinContext);
                     return;
                 }
 
-                var user = httpContext.User;
-                var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
-                var callerOdinId = (OdinId)user.Identity!.Name;
-                var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
-
-                if (ctx != null)
+                try
                 {
-                    odinContext.Caller = ctx.Caller;
-                    odinContext.SetPermissionContext(ctx.PermissionsContext);
-                    odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
-                    return;
+                    var user = httpContext.User;
+                    var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
+                    var callerOdinId = (OdinId)user.Identity!.Name;
+                    var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
+
+                    if (ctx != null)
+                    {
+                        odinContext.Caller = ctx.Caller;
+                        odinContext.SetPermissionContext(ctx.PermissionsContext);
+                        odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
+                        return;
+                    }
+                }
+                catch (OdinSecurityException e)
+                {
+                    if (e.IsRemoteIcrIssue)
+                    {
+                        httpContext.Response.Headers.Add(HttpHeaderConstants.RemoteServerIcrIssue, bool.TrueString);
+                        //tell the caller and fall back to public files only
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
 

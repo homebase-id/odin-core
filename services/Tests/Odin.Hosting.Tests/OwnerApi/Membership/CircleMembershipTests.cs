@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership;
+using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -54,7 +55,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership
             await AddYouAuthDomain(youAuthDomain, new List<GuidId>() { circle1.Id });
 
             //Add an identity
-            await client.Network.SendConnectionRequest(recipient, new List<GuidId>() { circle1.Id });
+            await client.Network.SendConnectionRequestTo(recipient, new List<GuidId>() { circle1.Id });
             await recipientClient.Network.AcceptConnectionRequest(_identity, new List<GuidId>());
 
             var getDomainsResponse = await client.Membership.GetDomainsInCircle(circle1.Id);

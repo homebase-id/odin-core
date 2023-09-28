@@ -6,4 +6,6 @@ public class HttpHeaderConstants
     public const string SharedSecretEncryptedHeader64 = "SharedSecretEncryptedHeader64";
     public const string DecryptedContentType = "DecryptedContentType";
     public const string PayloadEncrypted = "PayloadEncrypted";
+
+    public const string RemoteServerIcrIssue = "RemoteServerIcrIssue";
 }

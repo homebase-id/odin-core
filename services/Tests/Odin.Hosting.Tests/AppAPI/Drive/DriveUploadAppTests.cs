@@ -272,7 +272,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // Delete the first file
             //
 
-            await ownerClient.Drive.DeleteFile(FileSystemType.Standard, firstFile.File);
+            await ownerClient.Drive.DeleteFile(firstFile.File);
 
             //
             // Validate first file is gone

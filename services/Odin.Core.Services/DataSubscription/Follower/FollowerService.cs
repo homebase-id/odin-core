@@ -133,7 +133,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             //a follower is allowed to read their own configuration
             if (odinId != _contextAccessor.GetCurrent().Caller.OdinId)
             {
-                _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+                _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
             }
 
             return await GetFollowerInternal(odinId);
@@ -144,7 +144,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
             return GetIdentityIFollowInternal(odinId);
         }
 

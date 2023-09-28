@@ -15,6 +15,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -49,6 +50,12 @@ namespace Odin.Hosting.Tests
                 }));
 
             HttpClientFactory.Register<AppApiTestUtils>(b =>
+                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
+                {
+                    UseCookies = false // DO NOT CHANGE!
+                }));
+            
+            HttpClientFactory.Register<AppApiClientBase>(b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
                 {
                     UseCookies = false // DO NOT CHANGE!
@@ -95,8 +102,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dotyou.cloud\"]");
 
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApexARecords", "[\"127.0.0.1\"]");
+            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApexAliasRecord", "provisioning.dotyou.cloud");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 

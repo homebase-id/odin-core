@@ -15,6 +15,7 @@ using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Refit;
+using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.YouAuthApi.Drive
 {

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
@@ -620,7 +619,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Network.SendConnectionRequest(recipientOwnerClient.Identity, new List<GuidId>() { });
+            await senderOwnerClient.Network.SendConnectionRequestTo(recipientOwnerClient.Identity, new List<GuidId>() { });
 
             //
             // Recipient accepts; grants access to circle

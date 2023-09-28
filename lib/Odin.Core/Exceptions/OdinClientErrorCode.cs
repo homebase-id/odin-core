@@ -61,6 +61,7 @@ public enum OdinClientErrorCode
     MissingVersionTag = 4159,
     VersionTagMismatch = 4160,
     InvalidFile = 4161,
+    InvalidQuery = 4162,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
@@ -86,5 +87,5 @@ public enum OdinClientErrorCode
     InvalidFlagName = 9001,
     NotInitialized = 9002,
     UnknownFlagName = 9003,
-    InvalidOrExpiredRsaKey = 9004
+    InvalidOrExpiredRsaKey = 9004,
 }

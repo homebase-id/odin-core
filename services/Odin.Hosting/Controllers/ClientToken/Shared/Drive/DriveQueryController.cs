@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Drives;
-using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Swashbuckle.AspNetCore.Annotations;
@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [ApiController]
     [Route(AppApiPathConstants.DriveV1 + "/query")]
     [Route(GuestApiPathConstants.DriveV1 + "/query")]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidGuestOrAppToken]
     public class DriveQueryController : DriveQueryControllerBase
     {
         /// <summary>
@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("modified")]
         public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
         {
-            var queryModifiedRequest = request.toQueryModifiedRequest();
+            var queryModifiedRequest = request.ToQueryModifiedRequest();
             return await base.QueryModified(queryModifiedRequest);
         }
 
@@ -85,7 +85,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 var section = query.ToCollectionQueryParamSection();
                 section.AssertIsValid();
                 sections.Add(section);
-            };
+            }
 
             var request = new QueryBatchCollectionRequest(){
                 Queries = sections

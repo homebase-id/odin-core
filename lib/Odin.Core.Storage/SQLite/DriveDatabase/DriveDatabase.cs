@@ -750,11 +750,21 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
             }
 
+            // if (IsSet(aclAnyOf))
+            // {
+            //     strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})) ";
+            // }
+            
             if (IsSet(aclAnyOf))
             {
-                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})) ";
+                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
+                                 $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
             }
-
+            else
+            {
+                strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})";
+            }
+            
             if (IsSet(tagsAllOf))
             {
                 // TODO: This will return 0 matches. Figure out the right query.

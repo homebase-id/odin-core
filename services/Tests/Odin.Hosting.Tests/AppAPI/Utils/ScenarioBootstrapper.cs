@@ -29,25 +29,29 @@ public class ScenarioBootstrapper
         var scenarioContext = new ScenarioContext()
         {
             AppId = Guid.NewGuid(),
-            AppContexts = new Dictionary<OdinId, TestAppContext>()
+            AppContexts = new Dictionary<OdinId, TestAppContext>(),
+            Circles = new Dictionary<OdinId, CircleDefinition>()
         };
 
         var frodoAppContext = await _ownerApi.SetupTestSampleApp(scenarioContext.AppId, TestIdentities.Frodo, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
         var frodoCircleDef = await CreateCircle(frodoAppContext.Identity, targetDrive);
         scenarioContext.AppContexts.Add(frodoAppContext.Identity, frodoAppContext);
+        scenarioContext.Circles.Add(frodoAppContext.Identity, frodoCircleDef);
         
         var merryAppContext = await _ownerApi.SetupTestSampleApp(scenarioContext.AppId, TestIdentities.Merry, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
         var merryCircleDef = await CreateCircle(merryAppContext.Identity, targetDrive);
         scenarioContext.AppContexts.Add(merryAppContext.Identity, merryAppContext);
-        
+        scenarioContext.Circles.Add(merryAppContext.Identity, merryCircleDef);
+
         var pippinAppContext = await _ownerApi.SetupTestSampleApp(scenarioContext.AppId, TestIdentities.Pippin, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
         var pippinCircleDef = await CreateCircle(pippinAppContext.Identity, targetDrive);
         scenarioContext.AppContexts.Add(pippinAppContext.Identity, pippinAppContext);
+        scenarioContext.Circles.Add(pippinAppContext.Identity, pippinCircleDef);
 
         var samAppContext = await _ownerApi.SetupTestSampleApp(scenarioContext.AppId, TestIdentities.Samwise, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
         var samCircleDef = await CreateCircle(samAppContext.Identity, targetDrive);
         scenarioContext.AppContexts.Add(samAppContext.Identity, samAppContext);
-        
+        scenarioContext.Circles.Add(samAppContext.Identity, samCircleDef);
 
         await _ownerApi.CreateConnection(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId, new CreateConnectionOptions()
         {
@@ -87,6 +91,16 @@ public class ScenarioBootstrapper
 
         return scenarioContext;
     }
+    
+    public async Task DisconnectHobbits()
+    {
+        await _ownerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId);
+        await _ownerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Merry.OdinId);
+        await _ownerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Pippin.OdinId);
+        await _ownerApi.DisconnectIdentities(TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId);
+        await _ownerApi.DisconnectIdentities(TestIdentities.Samwise.OdinId, TestIdentities.Pippin.OdinId);
+        await _ownerApi.DisconnectIdentities(TestIdentities.Pippin.OdinId, TestIdentities.Merry.OdinId);
+    }
 
     private async Task<CircleDefinition> CreateCircle(OdinId identity, TargetDrive targetDrive)
     {
@@ -105,4 +119,5 @@ public class ScenarioContext
     public Guid AppId { get; set; }
 
     public Dictionary<OdinId, TestAppContext> AppContexts { get; set; }
+    public Dictionary<OdinId,CircleDefinition> Circles { get; set; }
 }
