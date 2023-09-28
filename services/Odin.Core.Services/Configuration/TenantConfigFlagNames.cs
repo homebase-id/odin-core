@@ -18,5 +18,10 @@ public enum TenantConfigFlagNames
     AuthenticatedIdentitiesCanViewConnections,
 
     /// <summary/>
-    ConnectedIdentitiesCanViewConnections
+    ConnectedIdentitiesCanViewConnections,
+    
+    AllAuthenticatedIdentitiesCanReactOnPublicDrives,
+    AllAuthenticatedIdentitiesCanCommentOnPublicDrives,
+    AllConnectedIdentitiesCanReactOnPublicDrives,
+    AllConnectedIdentitiesCanCommentOnPublicDrives
 }
