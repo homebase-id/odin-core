@@ -13,8 +13,11 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="cp -r ../../Odin.Hosting/https/thirdparty.dotyou.cloud/* $(OutDir)" />
+    <ItemGroup>
+      <SourceFiles Include="../../Odin.Hosting/https/thirdparty.dotyou.cloud/*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SourceFiles)" DestinationFolder="$(OutDir)" />
   </Target>
- 
+
 
 </Project>
