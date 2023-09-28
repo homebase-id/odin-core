@@ -30,7 +30,7 @@ public class ReactionContentService
     public async Task AddReaction(InternalDriveFileId file, string reactionContent)
     {
         var context = _contextAccessor.GetCurrent();
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
         var callerId = context.GetCallerOdinIdOrFail();
 
         var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
@@ -54,7 +54,7 @@ public class ReactionContentService
     public async Task DeleteReaction(InternalDriveFileId file, string reactionContent)
     {
         var context = _contextAccessor.GetCurrent();
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
         var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
         if (manager != null)
@@ -110,7 +110,7 @@ public class ReactionContentService
     public async Task DeleteAllReactions(InternalDriveFileId file)
     {
         var context = _contextAccessor.GetCurrent();
-        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
         var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
         if (manager != null)

@@ -26,7 +26,6 @@ namespace Odin.Core.Services.Drives.Management;
 /// </summary>
 public class DriveManager
 {
-    private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly IMediator _mediator;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
@@ -40,12 +39,11 @@ public class DriveManager
     public DriveManager(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
         _contextAccessor = contextAccessor;
-        _tenantSystemStorage = tenantSystemStorage;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
 
-        _driveStorage = _tenantSystemStorage.CreateThreeKeyValueStorage(null);
+        _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
 
         LoadCache();
     }
@@ -102,7 +100,7 @@ public class DriveManager
 
             storageKey.Wipe();
 
-            _tenantSystemStorage.CreateThreeKeyValueStorage(_driveDataType).Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
+            _driveStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
