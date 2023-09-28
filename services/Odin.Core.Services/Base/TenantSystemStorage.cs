@@ -33,7 +33,7 @@ namespace Odin.Core.Services.Base
             _db.CreateDatabase(false);
 
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
-            TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
+            // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = _db.tblConnections;
             CircleMemberStorage = _db.tblCircleMember;
@@ -55,7 +55,8 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public SingleKeyValueStorage SingleKeyValueStorage { get; }
 
-        public TwoKeyValueStorage TwoKeyValueStorage { get; }
+        // Not currently in use
+        // public TwoKeyValueStorage TwoKeyValueStorage { get; }
 
         public TableFeedDistributionOutbox Feedbox { get; }
 

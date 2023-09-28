@@ -17,8 +17,8 @@ public class ThreeKeyValueStorage
 
     public ThreeKeyValueStorage(TableKeyThreeValue db, byte[] contextKey)
     {
-        Guard.Argument(contextKey, nameof(contextKey)).NotNull().NotEmpty().MinCount(4);
-
+        // Guard.Argument(contextKey, nameof(contextKey)).NotNull().NotEmpty().MinCount(4);
+        
         _db = db;
         _contextKey = contextKey;
     }
@@ -81,6 +81,11 @@ public class ThreeKeyValueStorage
 
     private byte[] MakeStorageKey(GuidId key)
     {
+        if (null == _contextKey)
+        {
+            return key;
+        }
+        
         return ByteArrayUtil.Combine(key, _contextKey);
     }
 

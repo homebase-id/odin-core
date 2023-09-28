@@ -130,7 +130,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextCore(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg)
@@ -335,7 +335,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // Only return the permissions if the identity is connected.
             if (isAuthenticated && isConnected)
             {
-                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+                var (permissionContext, enabledCircles) = await CreatePermissionContextCore(
                     icr: icr,
                     accessReg: client.AccessRegistration,
                     authToken: authToken);

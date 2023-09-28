@@ -45,7 +45,7 @@ public class DriveManager
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
 
-        _driveStorage = _tenantSystemStorage.CreateThreeKeyValueStorage(_driveDataType);
+        _driveStorage = _tenantSystemStorage.CreateThreeKeyValueStorage(null);
 
         LoadCache();
     }
