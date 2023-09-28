@@ -612,7 +612,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyUniqueThreeValueCRUD", key1.ToString());
+            var (hit, cacheObject) = _cache.Get("TableKeyUniqueThreeValueCRUD", key1.ToBase64());
             if (hit)
                 return (KeyUniqueThreeValueRecord)cacheObject;
             lock (_get3Lock)
