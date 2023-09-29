@@ -7,17 +7,21 @@
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
 
-ARG TARGETPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
-ARG TARGETVARIANT
-ARG BUILDPLATFORM
-ARG BUILDOS
-ARG BUILDARCH
-ARG BUILDVARIANT
-RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
-RUN echo "Building on ${BUILDOS} and ${BUILDARCH} with optional variant ${BUILDVARIANT}"
-RUN echo "Targeting ${TARGETOS} and ${TARGETARCH} with optional variant ${TARGETVARIANT}"
+# ARG TARGETPLATFORM
+# ARG TARGETOS
+# ARG TARGETARCH
+# ARG TARGETVARIANT
+# ARG BUILDPLATFORM
+# ARG BUILDOS
+# ARG BUILDARCH
+# ARG BUILDVARIANT
+# RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
+# RUN echo "Building on ${BUILDOS} and ${BUILDARCH} with optional variant ${BUILDVARIANT}"
+# RUN echo "Targeting ${TARGETOS} and ${TARGETARCH} with optional variant ${TARGETVARIANT}"
+
+# Silicon:
+# e.g. --build-arg CPU_ARCHITECTURE=x64
+ARG CPU_ARCHITECTURE=set-me-as-a-build-arg
 
 WORKDIR /build
 
@@ -31,13 +35,13 @@ COPY services/Odin.Hosting/Odin.Hosting.csproj services/Odin.Hosting/
 COPY services/Odin.Cli/Odin.Cli.csproj services/Odin.Cli/
 
 # Restore dependencies
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel lib/Odin.Core/Odin.Core.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel lib/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel lib/Odin.Core.Storage/Odin.Core.Storage.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel services/Odin.Core.Services/Odin.Core.Services.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel services/Odin.Hosting/Odin.Hosting.csproj
-RUN dotnet restore -r ${TARGETOS}-${TARGETARCH} --disable-parallel services/Odin.Cli/Odin.Cli.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel lib/Odin.Core/Odin.Core.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel lib/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel lib/Odin.Core.Storage/Odin.Core.Storage.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel services/Odin.Core.Services/Odin.Core.Services.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel services/Odin.Hosting/Odin.Hosting.csproj
+RUN dotnet restore -r linux-$CPU_ARCHITECTURE --disable-parallel services/Odin.Cli/Odin.Cli.csproj
 
 # Copy the rest for building
 COPY lib/ lib/
@@ -47,8 +51,8 @@ COPY services/Odin.Hosting/ services/Odin.Hosting/
 COPY services/Odin.Cli/ services/Odin.Cli/
 
 # Build release
-RUN dotnet publish --no-restore  --warnaserror -r ${TARGETOS}-${TARGETARCH} --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
-RUN dotnet publish --no-restore  --warnaserror -r ${TARGETOS}-${TARGETARCH} --self-contained false services/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
+RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
+RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-contained false services/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
 
 # Copy release to runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
