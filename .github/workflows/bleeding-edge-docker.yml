@@ -87,6 +87,13 @@ jobs:
       #
       # Build Docker image
       #
+      - name: Get CPU architecture
+        working-directory: dotyoucore
+        run: |
+          output=$(./.github/scripts/get-cpu-architecture.sh)
+          echo "Silocon is: $output"
+          echo "CPU_ARCHITECTURE=${output}" >> $GITHUB_ENV
+
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:
@@ -108,6 +115,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
 
       #
       # Deploy

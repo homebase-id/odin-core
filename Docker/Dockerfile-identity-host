@@ -1,23 +1,9 @@
 ﻿# here's what to do when we upgrade to dotnet 8:
 # https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
-
 # https://github.com/dotnet/dotnet-docker/issues/4388
-#
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
-
-# ARG TARGETPLATFORM
-# ARG TARGETOS
-# ARG TARGETARCH
-# ARG TARGETVARIANT
-# ARG BUILDPLATFORM
-# ARG BUILDOS
-# ARG BUILDARCH
-# ARG BUILDVARIANT
-# RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
-# RUN echo "Building on ${BUILDOS} and ${BUILDARCH} with optional variant ${BUILDVARIANT}"
-# RUN echo "Targeting ${TARGETOS} and ${TARGETARCH} with optional variant ${TARGETVARIANT}"
 
 # Silicon:
 # e.g. --build-arg CPU_ARCHITECTURE=x64
