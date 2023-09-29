@@ -116,7 +116,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            CPU_ARCHITECTURE=$${{ env.CPU_ARCHITECTURE }}"
+            CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
 
       #
       # Deploy
