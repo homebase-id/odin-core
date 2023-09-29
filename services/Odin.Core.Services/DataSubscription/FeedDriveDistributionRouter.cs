@@ -213,30 +213,30 @@ namespace Odin.Core.Services.DataSubscription
         {
             var file = notification.File;
 
-            var recipients = await GetFollowers(notification.File.DriveId);
-            if (!recipients.Any())
+            var followers = await GetFollowers(notification.File.DriveId);
+            if (!followers.Any())
             {
                 return new List<OdinId>();
             }
 
             //find all followers that are connected, return those which are not to be processed differently
             var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
-            var connectedRecipients = recipients.Intersect(connectedIdentities).ToList();
+            var connectedFollowers = followers.Intersect(connectedIdentities).ToList();
 
-            if (connectedRecipients.Any())
+            if (connectedFollowers.Any())
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(file);
                 var header = await fs.Storage.GetServerFileHeader(file);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
                 {
-                    await DeleteFileOverTransit(header, connectedRecipients);
+                    await DeleteFileOverTransit(header, connectedFollowers);
                 }
 
-                await SendFileOverTransit(header, connectedRecipients);
+                await SendFileOverTransit(header, connectedFollowers);
             }
 
-            return recipients.Except(connectedRecipients).ToList();
+            return followers.Except(connectedFollowers).ToList();
         }
 
         private async Task<List<OdinId>> GetFollowers(Guid driveId)
