@@ -130,3 +130,5 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
