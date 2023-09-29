@@ -101,40 +101,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Extract metadata (tags, labels) for Docker
-      #   id: meta
-      #   uses: docker/metadata-action@v4
-      #   with:
-      #     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      # - name: Build and push Docker image
-      #   uses: docker/build-push-action@v4
-      #   with:
-      #     context: ./dotyoucore
-      #     file: ./dotyoucore/Docker/Dockerfile-identity-host
-      #     push: true
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./dotyoucore
+          file: ./dotyoucore/Docker/Dockerfile-identity-host
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CPU_ARCHITECTURE=$${{ env.CPU_ARCHITECTURE }}"
 
-      # #
-      # # Deploy
-      # #
-      # - name: Get the branch name
-      #   run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+      #
+      # Deploy
+      #
+      - name: Get the branch name
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
 
-      # - name: Create image deploy name
-      #   run: |
-      #     lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
-      #     echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
+      - name: Create image deploy name
+        run: |
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
 
-      # - name: Output DEPLOY_IMAGE
-      #   run: |
-      #     echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
+      - name: Output DEPLOY_IMAGE
+        run: |
+          echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
-      # - name: Deploy to bleeding edge host using Ansible
-      #   uses: appleboy/ssh-action@master
-      #   with:
-      #     host: ${{ secrets.ANSIBLE_HOST }}
-      #     username: ${{ secrets.ANSIBLE_USERNAME }}
-      #     key: ${{ secrets.ANSIBLE_SSH_KEY }}
-      #     script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+      - name: Deploy to bleeding edge host using Ansible
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
