@@ -56,6 +56,7 @@ RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-
 
 # Copy release to runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
+RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
 
 WORKDIR /app/cli
 COPY --from=build /build/out/cli .
