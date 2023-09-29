@@ -29,7 +29,7 @@ public class OwnerConfigurationApiClient
         }
     }
     
-    public async Task<ApiResponse<bool>> IsIdentityConfigured(InitialSetupRequest setupConfig)
+    public async Task<ApiResponse<bool>> IsIdentityConfigured()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -38,6 +38,23 @@ public class OwnerConfigurationApiClient
         }
     }
     
+    public async Task<ApiResponse<HttpContent>> MarkEulaSigned(MarkEulaSignedRequest request)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.MarkEulaSigned(request);
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> IsEulaAgreementRequired()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.IsEulaSignatureRequired();
+        }
+    }
     public async Task<ApiResponse<bool>> UpdateTenantSettingsFlag(TenantConfigFlagNames flag, string value)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

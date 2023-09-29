@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Configuration;
@@ -8,8 +9,13 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration
     public interface IRefitOwnerConfiguration
     {
         private const string RootEndpoint = OwnerApiPathConstants.ConfigurationV1;
-
-
+        
+        [Post(RootEndpoint + "/system/iseulasignaturerequired")]
+        Task<ApiResponse<bool>> IsEulaSignatureRequired();
+        
+        [Post(RootEndpoint + "/system/MarkEulaSigned")]
+        Task<ApiResponse<HttpContent>> MarkEulaSigned([Body]MarkEulaSignedRequest request);
+        
         [Post(RootEndpoint + "/system/isconfigured")]
         Task<ApiResponse<bool>> IsIdentityConfigured();
 

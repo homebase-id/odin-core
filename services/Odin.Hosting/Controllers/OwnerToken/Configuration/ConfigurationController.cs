@@ -35,7 +35,23 @@ public class ConfigurationController : Controller
         var result = _tenantConfigService.IsIdentityServerConfigured();
         return Task.FromResult(result);
     }
+    
+    
 
+    [HttpPost("system/iseulasignaturerequired")]
+    public Task<bool> IsEulaSignatureRequired()
+    {
+        var result = _tenantConfigService.IsEulaSignatureRequired();
+        return Task.FromResult(result);
+    }
+    
+    [HttpPost("system/MarkEulaSigned")]
+    public IActionResult MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
+    {
+         _tenantConfigService.MarkEulaSigned(request);
+         return Ok();
+    }
+    
     /// <summary>
     /// Ensures all new configuration is setup when a new tenant is configured.
     /// </summary>

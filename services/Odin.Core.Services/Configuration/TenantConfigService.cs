@@ -67,6 +67,27 @@ public class TenantConfigService
         return firstRunInfo != null;
     }
 
+    public bool IsEulaSignatureRequired()
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        
+        var info = _configStorage.Get<EulaSignatureInfo>(EulaSignatureInfo.Key);
+        return info == null;
+    }
+    
+    public void MarkEulaSigned(MarkEulaSignedRequest request)
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        
+        Guard.Argument(request, nameof(request)).NotNull();
+        Guard.Argument(request.Version, nameof(request.Version)).NotNull().NotEmpty();
+        _configStorage.Upsert(EulaSignatureInfo.Key, new EulaSignatureInfo()
+        {
+            SignatureDate = UnixTimeUtc.Now(),
+            VersionInfo = request.Version
+        });
+    }
+    
     public async Task CreateInitialKeys()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -285,4 +306,5 @@ public class TenantConfigService
 
         return false;
     }
+    
 }
