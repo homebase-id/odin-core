@@ -51,6 +51,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_domainRegistrationDataType);
             _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_clientDataType);
+            
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
