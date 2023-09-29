@@ -12,7 +12,7 @@ using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Tests.OwnerApi.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 
 public class AppsApiClient
 {
@@ -31,7 +31,7 @@ public class AppsApiClient
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
             var request = new AppClientRegistrationRequest()
             {
@@ -71,7 +71,7 @@ public class AppsApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
             await svc.RevokeApp(new GetAppRequest() { AppId = appId });
         }
@@ -81,7 +81,7 @@ public class AppsApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
             await svc.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest()
             {
@@ -96,7 +96,7 @@ public class AppsApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
             await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest()
             {
@@ -119,7 +119,7 @@ public class AppsApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
             var request = new AppRegistrationRequest
             {
@@ -149,7 +149,7 @@ public class AppsApiClient
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
             Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
             return appResponse.Content;
@@ -160,7 +160,7 @@ public class AppsApiClient
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredClients(new GetAppRequest(){AppId = appId});
             Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app clients");
             return appResponse.Content;

@@ -66,6 +66,8 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstants.DriveV1}/files/attachments/upload",
             
                 $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstants.TransitSenderV1}/files/send",
+
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/attachments/upload",
                 $"{AppApiPathConstants.AuthV1}/logout", 

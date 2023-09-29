@@ -66,7 +66,7 @@ public class ConfigurationController : Controller
     /// Gets the system flags
     /// </summary>
     [HttpPost("system/flags")]
-    public TenantSettings GetSystemSettings()
+    public TenantSettings GetTenantSettings()
     {
         var settings = _tenantConfigService.GetTenantSettings();
         return settings;

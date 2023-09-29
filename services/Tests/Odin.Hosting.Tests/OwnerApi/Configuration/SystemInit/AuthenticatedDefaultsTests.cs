@@ -1,5 +1,7 @@
 using System.Reflection;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.Configuration;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -10,7 +12,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: false);
         }
@@ -35,7 +37,31 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             Assert.Inconclusive("TODO");
         }
-        
 
+
+        [Test]
+        public async Task SystemDefault_TenantSettings_AuthenticatedIdentitiesCanReactOnAnonymousDrives_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSettingsResponse.Content.AuthenticatedIdentitiesCanReactOnAnonymousDrives);
+        }
+        
+        
+        [Test]
+        public async Task SystemDefault_TenantSettings_AuthenticatedIdentitiesCan_NOT_CommentOnAnonymousDrives_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsFalse(getSettingsResponse.Content.AuthenticatedIdentitiesCanCommentOnAnonymousDrives);
+        }
     }
 }

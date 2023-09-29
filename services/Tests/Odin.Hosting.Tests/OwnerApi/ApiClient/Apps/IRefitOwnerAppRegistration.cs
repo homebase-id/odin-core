@@ -5,13 +5,12 @@ using Odin.Core;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
-using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Apps
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
 {
-    public interface IAppRegistrationClient
+    public interface IRefitOwnerAppRegistration
     {
         private const string RootPath = OwnerApiPathConstants.AppManagementV1;
 

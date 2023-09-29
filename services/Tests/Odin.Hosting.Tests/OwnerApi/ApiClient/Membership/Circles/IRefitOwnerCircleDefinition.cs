@@ -7,7 +7,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
 {
-    public interface ICircleDefinitionOwnerClient
+    public interface IRefitOwnerCircleDefinition
     {
         private const string RootPath = OwnerApiPathConstants.CirclesDefinitionsV1;
 

@@ -31,7 +31,7 @@ public class CircleMembershipApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
             var request = new CreateCircleRequest()
             {
@@ -76,7 +76,7 @@ public class CircleMembershipApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
             var request = new CreateCircleRequest()
             {
@@ -103,6 +103,16 @@ public class CircleMembershipApiClient
                 CircleId = circleId
             });
             
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<CircleDefinition>> GetCircleDefinition(GuidId circleId)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.GetCircleDefinition(circleId);
             return response;
         }
     }

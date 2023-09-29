@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration
 {
@@ -13,7 +14,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: true);
         }
@@ -27,32 +28,29 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration
         [Test]
         public async Task CanGetAndReadOwnerAppSetting()
         {
-            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            
+            var getOwnerAppSettingsEmpty = await frodoOwnerClient.Configuration.GetOwnerAppSettings();
+            Assert.IsTrue(getOwnerAppSettingsEmpty.IsSuccessStatusCode, "system should return empty settings when first initialized");
+            Assert.IsNotNull(getOwnerAppSettingsEmpty.Content, "system should return empty settings when first initialized");
+            Assert.IsNotNull(getOwnerAppSettingsEmpty.Content.Settings, "system should return empty settings when first initialized");
+
+            var ownerSettings = new OwnerAppSettings()
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-
-                var getOwnerAppSettingsEmpty = await svc.GetOwnerAppSettings();
-                Assert.IsTrue(getOwnerAppSettingsEmpty.IsSuccessStatusCode, "system should return empty settings when first initialized");
-                Assert.IsNotNull(getOwnerAppSettingsEmpty.Content, "system should return empty settings when first initialized");
-                Assert.IsNotNull(getOwnerAppSettingsEmpty.Content.Settings, "system should return empty settings when first initialized");
-                
-                var ownerSettings = new OwnerAppSettings()
+                Settings = new Dictionary<string, string>()
                 {
-                    Settings = new Dictionary<string, string>()
-                    {
-                        { "setting1", "value1" },
-                        { "setting2", "value2" }
-                    }
-                };
+                    { "setting1", "value1" },
+                    { "setting2", "value2" }
+                }
+            };
+            
+            await frodoOwnerClient.Configuration.UpdateOwnerAppSetting(ownerSettings);
+            var getSettingsResponse = await frodoOwnerClient.Configuration.GetOwnerAppSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getSettingsResponse.Content);
+            var updatedSettings = getSettingsResponse.Content;
 
-                await svc.UpdateOwnerAppSetting(ownerSettings);
-                var getSettingsResponse = await svc.GetOwnerAppSettings();
-                Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getSettingsResponse.Content);
-                var updatedSettings = getSettingsResponse.Content;
-
-                CollectionAssert.AreEquivalent(ownerSettings.Settings, updatedSettings.Settings);
-            }
+            CollectionAssert.AreEquivalent(ownerSettings.Settings, updatedSettings.Settings);
         }
     }
 }

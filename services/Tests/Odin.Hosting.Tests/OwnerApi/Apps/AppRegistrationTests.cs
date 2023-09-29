@@ -12,6 +12,7 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 
 namespace Odin.Hosting.Tests.OwnerApi.Apps
 {
@@ -26,7 +27,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -47,15 +48,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
         }
 
+
         [Test]
-        public async Task RegisterNewAppWithUseTransitHasIcrKey()
+        public async Task RegisterNewAppWith_UseTransitWrite_HasReadWriteOnTransientTempDrive_and_ICR_Key()
         {
             var applicationId = Guid.NewGuid();
-            var name = "App with Use Transit Access";
+            var name = "App with Use Transit Read Access";
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -74,20 +76,61 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 Assert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit permission");
+                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit read permission");
                 Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
+
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                Assert.IsNotNull(transientDriveGrant);
+                Assert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
+            }
+        }
+
+
+        [Test]
+        public async Task RegisterNewAppWith_UseTransitRead_HasReadWriteOnTransientTempDrive_and_ICR_Key()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Read Access";
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+            {
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitRead }),
+                    Drives = null,
+                    CorsHostName = default
+                };
+
+                var response = await svc.RegisterApp(request);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+
+                var registeredApp = appResponse.Content;
+                Assert.IsNotNull(registeredApp, "App should exist");
+
+                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should have use transit read permission");
+                Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
+
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                Assert.IsNotNull(transientDriveGrant);
+                Assert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
             }
         }
 
         [Test]
-        public async Task RegisterNewApp_Without_UseTransit_HasNoIcrKey()
+        public async Task RegisterNewApp_Without_UseTransitWrite_HasNoIcrKey_AndDoesNotHavePermissionOn_TransientTempDrive()
         {
             var applicationId = Guid.NewGuid();
             var name = "App with Use Transit Access";
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -108,11 +151,120 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should not have UseTransit");
                 Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                Assert.IsNull(transientDriveGrant);
+            }
+        }
+
+
+        [Test]
+        public async Task RegisterNewApp_Without_UseTransitRead_HasNoIcrKey_AndDoesNotHavePermissionOn_TransientTempDrive()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Access";
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+            {
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = new PermissionSet(new List<int>()),
+                    Drives = null,
+                    CorsHostName = default
+                };
+
+                var response = await svc.RegisterApp(request);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+
+                var registeredApp = appResponse.Content;
+                Assert.IsNotNull(registeredApp, "App should exist");
+
+                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should not have UseTransit");
+                Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                Assert.IsNull(transientDriveGrant);
             }
         }
 
         [Test]
-        public async Task RevokingUseTransitRemovesIcrKey()
+        public async Task AppPermissionUpdate_Keeps_TransientDriveWhen_UseTransitWrite_IsGranted()
+        {
+            var applicationId = Guid.NewGuid();
+
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = null,
+                PermissionSet = new PermissionSet(new List<int>() { })
+            };
+
+            await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
+
+            //
+            // Should not have icr or transient temp drive
+            //
+            var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(appReg);
+            Assert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            Assert.IsFalse(appReg.Grant.HasIcrKey);
+            Assert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+
+            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitWrite}); 
+            await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+
+            var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(updatedAppReg);
+            Assert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            Assert.IsTrue(updatedAppReg.Grant.HasIcrKey);
+
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            Assert.IsNotNull(transientDriveGrant);
+        }
+
+        [Test]
+        public async Task AppPermissionUpdate_Keeps_TransientDriveWhen_UseTransitRead_IsGranted()
+        {
+            var applicationId = Guid.NewGuid();
+
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = null,
+                PermissionSet = new PermissionSet(new List<int>() { })
+            };
+
+            await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
+
+            //
+            // Should not have icr or transient temp drive
+            //
+            var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(appReg);
+            Assert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            Assert.IsFalse(appReg.Grant.HasIcrKey);
+            Assert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+
+            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitRead}); 
+            await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+
+            var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(updatedAppReg);
+            Assert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            Assert.IsTrue(updatedAppReg.Grant.HasIcrKey);
+
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            Assert.IsNotNull(transientDriveGrant);
+        }
+
+        [Test]
+        public async Task RevokingUseTransitWrite_RemovesIcrKey_And_TransientTempDrive()
         {
             var applicationId = Guid.NewGuid();
 
@@ -123,23 +275,54 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitWrite })
             };
 
-             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
-       
-             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-             Assert.IsNotNull(appReg);
-             Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-             Assert.IsTrue(appReg.Grant.HasIcrKey);
+            await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
 
-             appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
-             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
-             
-             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-             Assert.IsNotNull(updatedAppReg);
-             Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-             Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
-             
-             
+            var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(appReg);
+            Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            Assert.IsTrue(appReg.Grant.HasIcrKey);
 
+            appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
+            await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+
+            var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(updatedAppReg);
+            Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            Assert.IsNull(transientDriveGrant);
+        }
+
+        [Test]
+        public async Task RevokingUseTransitRead_RemovesIcrKey_And_TransientTempDrive()
+        {
+            var applicationId = Guid.NewGuid();
+
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = null,
+                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitRead })
+            };
+
+            await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
+
+            var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(appReg);
+            Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            Assert.IsTrue(appReg.Grant.HasIcrKey);
+
+            appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
+            await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+
+            var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+            Assert.IsNotNull(updatedAppReg);
+            Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            Assert.IsNull(transientDriveGrant);
         }
 
         // [Test]
@@ -157,7 +340,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -187,7 +370,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -218,7 +401,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -272,7 +455,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -310,79 +493,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         }
 
         [Test]
-        public async Task UpdateAppDriveAndPermissions()
-        {
-            var applicationId = Guid.NewGuid();
-            var name = "API TestApp";
-
-            var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(_identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
-
-            var dgr1 = new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = targetDrive1,
-                    Permission = DrivePermission.ReadWrite
-                }
-            };
-
-            var dgr2 = new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = targetDrive1,
-                    Permission = DrivePermission.Write
-                }
-            };
-
-            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
-            {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
-                var request = new AppRegistrationRequest
-                {
-                    AppId = applicationId,
-                    Name = name,
-                    Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
-                    AuthorizedCircles = new List<Guid>(),
-                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
-                    {
-                        Drives = new List<DriveGrantRequest>() { dgr2 },
-                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
-                    }
-                };
-
-                var response = await svc.RegisterApp(request);
-
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                var appReg = response.Content;
-                Assert.IsNotNull(appReg);
-
-                var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.AppId == request.AppId);
-                Assert.IsTrue(savedApp.Name == request.Name);
-
-                CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
-
-                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
-                    request.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
-
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
-                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
-            }
-
-            //
-            // Now update it
-            //
-
-            // 1. Add an authorized circle
-            // 2. add a new drive
-        }
-
-        [Test]
         public async Task RevokeAppRegistration()
         {
             var appId = Guid.NewGuid();
@@ -393,7 +503,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
 
                 Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
@@ -416,7 +526,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
@@ -492,7 +602,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -596,7 +706,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -663,7 +773,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -692,7 +802,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
-                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
                 Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
                 Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");

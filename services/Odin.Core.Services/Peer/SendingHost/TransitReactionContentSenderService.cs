@@ -85,7 +85,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 

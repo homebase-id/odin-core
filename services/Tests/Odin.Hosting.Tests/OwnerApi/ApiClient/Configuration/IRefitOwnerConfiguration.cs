@@ -1,12 +1,11 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Configuration;
-using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Configuration
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration
 {
-    public interface IOwnerConfigurationClient
+    public interface IRefitOwnerConfiguration
     {
         private const string RootEndpoint = OwnerApiPathConstants.ConfigurationV1;
 
@@ -19,6 +18,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration
 
         [Post(RootEndpoint + "/system/updateflag")]
         Task<ApiResponse<bool>> UpdateSystemConfigFlag([Body] UpdateFlagRequest request);
+        
+        [Post(RootEndpoint + "/system/flags")]
+        Task<ApiResponse<TenantSettings>> GetTenantSettings();
         
         [Post(RootEndpoint + "/ownerapp/settings/update")]
         Task<ApiResponse<bool>> UpdateOwnerAppSetting([Body] OwnerAppSettings settings);

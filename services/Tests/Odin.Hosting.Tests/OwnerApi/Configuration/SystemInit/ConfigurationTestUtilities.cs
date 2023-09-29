@@ -13,6 +13,7 @@ using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 
@@ -168,11 +169,11 @@ public class ConfigurationTestUtilities
         }
     }
 
-    public async Task UpdateSystemConfigFlag(TestIdentity identity, string flag, string value)
+    public async Task UpdateTenantSettingsFlag(TestIdentity identity, string flag, string value)
     {
         var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()
             {
                 FlagName = flag,

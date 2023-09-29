@@ -44,6 +44,8 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Apps;
@@ -289,7 +291,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
                 {
-                    var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                    var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
                     var setupConfig = new InitialSetupRequest();
                     await svc.InitializeIdentity(setupConfig);
                 }
@@ -390,7 +392,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     });
                 }
 
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 var request = new AppRegistrationRequest
                 {
@@ -423,7 +425,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
@@ -460,7 +462,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.RevokeApp(new GetAppRequest() { AppId = appId });
             }
@@ -470,7 +472,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest()
                 {
@@ -485,7 +487,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest()
                 {
@@ -541,7 +543,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
@@ -942,7 +944,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var dgrList = drives.Select(d => new DriveGrantRequest()
                 {

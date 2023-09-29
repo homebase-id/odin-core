@@ -7,14 +7,14 @@ using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files
 {
-    public interface IRefitAppTransitTest
+    public interface IRefitAppTransitSender
     {
         private const string RootEndpoint = AppApiPathConstants.TransitSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]
         Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] parts);
-        
+
         [Post(RootEndpoint + "/files/senddeleterequest")]
         Task<ApiResponse<DeleteLinkedFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);
     }

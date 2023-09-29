@@ -678,7 +678,7 @@ namespace Odin.Core.Services.Membership.Connections
                 grants: grants,
                 accessReg: accessReg,
                 additionalPermissionKeys: permissionKeys,
-                includeAnonymousDrives: false,
+                includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
