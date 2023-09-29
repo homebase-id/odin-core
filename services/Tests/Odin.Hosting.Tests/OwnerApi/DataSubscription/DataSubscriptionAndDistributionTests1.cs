@@ -22,7 +22,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 namespace Odin.Hosting.Tests.OwnerApi.DataSubscription;
 
 [TestFixture]
-public class DataSubscriptionTests
+public class DataSubscriptionAndDistributionTests1
 {
     private WebScaffold _scaffold;
 
@@ -683,7 +683,7 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (standardFileUploadResult, encryptedStandardFileJsonContent64) =
+        var (standardFileUploadResult, encryptedStandardFileJsonContent64, _) =
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         //Tell frodo's identity to process the outbox
@@ -908,7 +908,7 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -960,7 +960,7 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -1076,7 +1076,7 @@ public class DataSubscriptionTests
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
     }
 
-    private async Task<(UploadResult uploadResult, string encryptedJsonContent64)> UploadStandardEncryptedFileToChannel(OwnerApiClient client,
+    private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(OwnerApiClient client,
         TargetDrive targetDrive, string uploadedContent,
         int fileType)
     {

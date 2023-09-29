@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Apps;
@@ -15,6 +16,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
     /// <summary>
     /// The interface for storing files
     /// </summary>
+    [Obsolete]
     public interface ITransitQueryHttpClientForOwner
     {
         private const string RootEndpoint = OwnerApiPathConstants.TransitQueryV1;
