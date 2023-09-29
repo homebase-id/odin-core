@@ -240,6 +240,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 circleIds: null,
                 youAuthClientContext: new OdinYouAuthClientContext()
                 {
+                    ClientIdOrDomain = client.OdinId,
                     CorsHostName = "",
                     AccessRegistrationId = client.AccessRegistration!.Id
                 }
@@ -353,6 +354,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                     circleIds: enabledCircles,
                     youAuthClientContext: new OdinYouAuthClientContext()
                     {
+                        ClientIdOrDomain = client.OdinId,
                         CorsHostName = "",
                         AccessRegistrationId = client.AccessRegistration.Id
                     });

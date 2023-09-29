@@ -506,4 +506,12 @@ public class DriveApiClient
             return (uploadResult, encryptedJsonContent64);
         }
     }
+    
+    public async Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives(int pageNumber = 1, int pageSize = 100)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, sharedSecret);
+        return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -33,20 +34,36 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         [Test]
-        public async Task AppCan_ReadAnonymousDrives_WhenConnected()
+        public async Task SystemDefault_AppHas_Read_React_Comment_Permissions_On_AnonymousDrives_WhenConnected()
         {
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
-            
+
             await pippinOwnerClient.Network.SendConnectionRequestTo(merryOwnerClient.Identity);
             await merryOwnerClient.Network.AcceptConnectionRequest(pippinOwnerClient.Identity);
 
-            
+            var allPippinDrivesResponse = await pippinOwnerClient.Drive.GetDrives(1, 200);
+            Assert.IsTrue(allPippinDrivesResponse.IsSuccessStatusCode);
+            var allPippinDrives = allPippinDrivesResponse.Content;
+            Assert.IsNotNull(allPippinDrives);
+
+            var expectedAnonymousDrives = allPippinDrives.Results.Where(drive => drive.AllowAnonymousReads);
+
             var remoteDotYouContextResponse = await merryAppClient.TransitQuery.GetRemoteDotYouContext(new TransitGetSecurityContextRequest() { OdinId = pippinOwnerClient.Identity.OdinId });
             Assert.IsTrue(remoteDotYouContextResponse.IsSuccessStatusCode);
+            var remoteContext = remoteDotYouContextResponse.Content;
+            Assert.IsNotNull(remoteContext);
+            var groups = remoteContext.PermissionContext.PermissionGroups;
             
+            var allDrivesFound = expectedAnonymousDrives.All(ownerAnonDrive =>
+                groups.Any(pg => pg.DriveGrants.Any(dg =>
+                    dg.PermissionedDrive.Drive == ownerAnonDrive.TargetDriveInfo && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.React) && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Comment))));
             
+            Assert.IsTrue(allDrivesFound);
         }
 
         [Test]

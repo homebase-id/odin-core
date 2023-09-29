@@ -253,11 +253,13 @@ namespace Odin.Core.Services.Authorization.Apps
                         securityLevel: SecurityGroupType.Owner,
                         youAuthClientContext: new OdinYouAuthClientContext()
                         {
+                            ClientIdOrDomain = appReg.Name,
                             CorsHostName = appReg.CorsHostName,
                             AccessRegistrationId = accessReg.Id
                         })
                 };
 
+                
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
             }
