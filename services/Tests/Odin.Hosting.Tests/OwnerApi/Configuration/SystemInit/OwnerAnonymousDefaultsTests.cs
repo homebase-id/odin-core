@@ -16,7 +16,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: false);
         }
@@ -31,35 +31,41 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task CanAllowAnonymousToViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
+            
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
-            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            var frodoInitResponse = await frodoOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
+            
+            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            Assert.IsTrue(frodoInitResponse.Content);
     
-
-            var identity = TestIdentities.Samwise;
-            await _scaffold.OldOwnerApi.InitializeIdentity(identity, new InitialSetupRequest()
+            var samInitResponse = await samOwnerClient.Configuration.InitializeIdentity( new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
-
+            
+            Assert.IsTrue(samInitResponse.IsSuccessStatusCode);
+            Assert.IsTrue(samInitResponse.Content);
 
             var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
 
-            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            var client = _scaffold.CreateAnonymousApiHttpClient(samOwnerClient.Identity.OdinId);
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
                 var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 0);
                 Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
-            await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.AnonymousVisitorsCanViewConnections.ToString(), bool.TrueString);
+            await samOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewConnections, bool.TrueString);
 
-            client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            client = _scaffold.CreateAnonymousApiHttpClient(samOwnerClient.Identity.OdinId);
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
@@ -76,17 +82,27 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task SystemDefault_AnonymousVisitorsCannotViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
-            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Merry, new InitialSetupRequest()
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+
+            var frodoInitResponse = await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
             
-            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Pippin, new InitialSetupRequest()
+            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            Assert.IsTrue(frodoInitResponse.Content);
+    
+            var pippinInitResponse = await pippinOwnerClient.Configuration.InitializeIdentity( new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
+            
+            Assert.IsTrue(pippinInitResponse.IsSuccessStatusCode);
+            Assert.IsTrue(pippinInitResponse.Content);
+            
 
             var (frodo, sam, _) = await utils.CreateConnectionRequest(TestIdentities.Merry, TestIdentities.Pippin);
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);

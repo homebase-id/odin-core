@@ -1,0 +1,85 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests.OwnerApi.Utils;
+using Refit;
+
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
+
+public class OwnerConfigurationApiClient
+{
+    private readonly TestIdentity _identity;
+    private readonly OwnerApiTestUtils _ownerApi;
+
+    public OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
+    {
+        _ownerApi = ownerApi;
+        _identity = identity;
+    }
+
+    public async Task<ApiResponse<bool>> InitializeIdentity(InitialSetupRequest setupConfig)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.InitializeIdentity(setupConfig);
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> IsIdentityConfigured(InitialSetupRequest setupConfig)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.IsIdentityConfigured();
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> UpdateTenantSettingsFlag(TenantConfigFlagNames flag, string value)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()
+            {
+                FlagName = Enum.GetName(flag),
+                Value = value
+            });
+
+            return updateFlagResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<TenantSettings>> GetTenantSettings()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return  await svc.GetTenantSettings();
+        }
+    }
+    
+    public async Task<ApiResponse<OwnerAppSettings>> GetOwnerAppSettings()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.GetOwnerAppSettings();
+        }
+    }
+    
+    public async Task<ApiResponse<bool>> UpdateOwnerAppSetting(OwnerAppSettings ownerSettings)
+    {
+        
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+
+            return await svc.UpdateOwnerAppSetting(ownerSettings);
+        }
+    }
+
+}

@@ -250,7 +250,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToString(), item);
+                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                  }
                 return count;
             } // Lock
@@ -304,7 +304,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _upsertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToString(), item);
+                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 return count;
             } // Lock
         }
@@ -355,7 +355,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToString(), item);
+                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
                 return count;
             } // Lock
@@ -474,7 +474,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _delete0Param1.Value = notarySignature;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableNotaryChainCRUD", notarySignature.ToString());
+                    _cache.Remove("TableNotaryChainCRUD", notarySignature.ToBase64());
                 return count;
             } // Lock
         }
@@ -567,7 +567,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
             if (notarySignature?.Length > 200) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToString());
+            var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToBase64());
             if (hit)
                 return (NotaryChainRecord)cacheObject;
             lock (_get0Lock)
@@ -587,11 +587,11 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToString(), null);
+                        _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, notarySignature);
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToString(), r);
+                    _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), r);
                     return r;
                 } // using
             } // lock

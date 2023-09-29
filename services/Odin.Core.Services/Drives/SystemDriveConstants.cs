@@ -52,7 +52,7 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = TransientTempDrive,
-        OwnerOnly = true
+        OwnerOnly = false
     };
     
     public static readonly CreateDriveRequest CreateFeedDriveRequest = new()

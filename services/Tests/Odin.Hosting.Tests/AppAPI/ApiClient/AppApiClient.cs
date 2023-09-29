@@ -9,6 +9,7 @@ using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Security;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions;
 using Odin.Hosting.Tests.AppAPI.Utils;
@@ -49,6 +50,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
             this.CircleNetworkRequests = new AppCircleNetworkRequestsApiClient(ownerApi, _token);
             this.TransitQuery = new AppTransitQueryApiClient(ownerApi, _token);
             this.TransitReactionSender = new AppTransitReactionSenderApiClient(ownerApi, _token);
+            TransitFileSender = new AppTransitSenderApiClient(ownerApi, _token);
         }
 
         public AppCircleNetworkRequestsApiClient CircleNetworkRequests { get; }
@@ -72,6 +74,8 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient
         public AppTransitQueryApiClient TransitQuery { get; }
 
         public AppTransitReactionSenderApiClient TransitReactionSender { get; }
+        
+        public AppTransitSenderApiClient TransitFileSender { get; }
 
         public async Task Logout()
         {

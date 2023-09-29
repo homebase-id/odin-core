@@ -5,7 +5,7 @@ namespace Odin.Core.Services.Drives
     //Note there is a separate Write permission as we have scenarios where we want to receive
     //but not let data be read; i.e. best buy sending me purchase receipts.  They cannot read
     //my other data
-    
+
     /// <summary>
     /// Permissions for operations on a drive.
     /// </summary>
@@ -24,16 +24,17 @@ namespace Odin.Core.Services.Drives
         /// </summary>
         Write = 2,
 
+        React = 4,
+
+        Comment = 8,
+
         /// <summary>
         /// Write comments and reactions
         /// </summary>
-        WriteReactionsAndComments = 4,
-        
+        WriteReactionsAndComments = React | Comment,
 
-        ReadWrite = Read | Write | WriteReactionsAndComments,
+        ReadWrite = Read | Write | Comment | React,
 
-        // ManagePermissions = 4,
-        // All = ManagePermissions  | ReadWrite
         All = ReadWrite
     }
 }

@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         }
 
         /// <summary>
-        /// Sends a Delete Linked File Request to recpients
+        /// Sends a Delete Linked File Request to recipients
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/senddeleterequest")]

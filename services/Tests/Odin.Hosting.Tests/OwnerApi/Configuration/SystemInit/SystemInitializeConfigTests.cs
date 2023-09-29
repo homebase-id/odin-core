@@ -4,17 +4,15 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Drive.Management;
-using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -43,7 +41,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //success = system drives created, other drives created
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
 
                 var getIsIdentityConfiguredResponse1 = await svc.IsIdentityConfigured();
                 Assert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
@@ -112,7 +110,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //success = system drives created, other drives created
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
 
                 var getIsIdentityConfiguredResponse1 = await svc.IsIdentityConfigured();
                 Assert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
@@ -152,7 +150,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
                     $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
 
-                var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var circleDefinitionService = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions(includeSystemCircle: true);
                 Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
@@ -203,7 +201,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
 
                 var contactDrive = SystemDriveConstants.ContactDrive;
                 var standardProfileDrive = SystemDriveConstants.ProfileDrive;
@@ -266,7 +264,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
                 }
 
-                var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var circleDefinitionService = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions(includeSystemCircle: true);
                 Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);

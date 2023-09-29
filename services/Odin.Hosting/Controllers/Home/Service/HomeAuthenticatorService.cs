@@ -13,6 +13,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections;
@@ -130,29 +131,23 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextCore(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg)
         {
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
 
-            List<int> permissionKeys = new List<int>();
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewWhoIFollow ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
-                additionalPermissionKeys: permissionKeys);
+                additionalPermissionKeys: permissionKeys,
+                includeAnonymousDrives: true,
+                anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
             return await Task.FromResult(result);
@@ -175,7 +170,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 try
                 {
-                    var (cc, permissionContext) = CreateIcrPermissionContext(authToken).GetAwaiter().GetResult();
+                    var (cc, permissionContext) = CreateConnectedPermissionContext(authToken).GetAwaiter().GetResult();
                     return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionContext));
                 }
                 catch (OdinSecurityException)
@@ -203,29 +198,40 @@ namespace Odin.Hosting.Controllers.Home.Service
                 throw new OdinSecurityException("Invalid Client");
             }
 
-            List<int> permissionKeys = new List<int>() { };
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
+            if (null == client.AccessRegistration)
             {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
+                //TODO: should we fail or fallback?  if this is missing we have a data
+                //issue on the server BUT we dont want to block the user from seeing the site.
             }
 
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
+            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
+
+            var grants = new Dictionary<Guid, ExchangeGrant>()
             {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+                //no additional grants for authenticated
+            };
 
-            var token = authToken.AccessTokenHalfKey;
-            var accessKey = client.AccessRegistration?.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            var ss = client.AccessRegistration?.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            accessKey?.Wipe();
+            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken,
+                    grants,
+                    client.AccessRegistration!,
+                    additionalPermissionKeys: permissionKeys, //read_connections
+                    includeAnonymousDrives: true,
+                    anonymousDrivePermission: anonDrivePermissions)
+                .GetAwaiter().GetResult();
 
-            var permissionCtx = new PermissionContext(
-                new Dictionary<string, PermissionGroup>
-                {
-                    { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
-                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
-                },
-                sharedSecretKey: ss);
+            // var token = authToken.AccessTokenHalfKey;
+            // var accessKey = client.AccessRegistration?.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+            // var ss = client.AccessRegistration?.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+            // accessKey?.Wipe();
+
+            // var permissionCtx = new PermissionContext(
+            //     new Dictionary<string, PermissionGroup>
+            //     {
+            //         { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
+            //         { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
+            //     },
+            //     sharedSecretKey: ss);
 
             var cc = new CallerContext(
                 odinId: client.OdinId,
@@ -316,7 +322,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateIcrPermissionContext(
+        private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedPermissionContext(
             ClientAuthenticationToken authToken)
         {
             var client = _storage.GetClient(authToken.Id);
@@ -335,7 +341,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // Only return the permissions if the identity is connected.
             if (isAuthenticated && isConnected)
             {
-                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+                var (permissionContext, enabledCircles) = await CreatePermissionContextCore(
                     icr: icr,
                     accessReg: client.AccessRegistration,
                     authToken: authToken);

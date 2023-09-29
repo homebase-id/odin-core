@@ -49,39 +49,65 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task SystemCircleUpdatedWhenConnectedFlagChanges()
         {
-            var identity = TestIdentities.Frodo;
-            var utils = new ConfigurationTestUtilities(_scaffold);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
-            await _scaffold.OldOwnerApi.InitializeIdentity(identity, new InitialSetupRequest());
-            
-            await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections.ToString(), bool.TrueString);
-            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ss);
+            var frodoInitResponse = await frodoOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest()
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
+                Drives = null,
+                Circles = null
+            });
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
-                Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getSystemCircleResponse.Content);
-                var systemCircle = getSystemCircleResponse.Content;
-                Assert.IsTrue(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
-            }
-            
+            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            Assert.IsTrue(frodoInitResponse.Content);
+
+
+            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
+
+            var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            Assert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
+            Assert.IsNotNull(getSystemCircleResponse1.Content);
+
+            var systemCircle1 = getSystemCircleResponse1.Content;
+            Assert.IsTrue(systemCircle1.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+
             //
-            // disable ability to read connections
+            // Disable ability to read connections
             //
-            await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections.ToString(), bool.FalseString);
-          
+            await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.FalseString);
+
+            //
             // system circle should not have permissions
-            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out ss);
-            {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
+            //
+            var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            Assert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
+            Assert.IsNotNull(getSystemCircleResponse2.Content);
+            var systemCircle = getSystemCircleResponse2.Content;
+            Assert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+        }
+        
+        [Test]
+        public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanReactOnAnonymousDrives_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
-                Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getSystemCircleResponse.Content);
-                var systemCircle = getSystemCircleResponse.Content;
-                Assert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
-            }
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
+        }
+        
+        
+        [Test]
+        public async Task SystemDefault_TenantSettings_ConnectedIdentitiesCanCommentOnAnonymousDrives_IsTrue()
+        {
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
+
+            var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
+            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanCommentOnAnonymousDrives);
         }
     }
 }

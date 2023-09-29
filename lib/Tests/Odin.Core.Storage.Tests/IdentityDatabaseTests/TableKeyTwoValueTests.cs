@@ -15,8 +15,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
@@ -45,7 +45,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
@@ -81,7 +81,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
@@ -105,8 +105,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
@@ -140,8 +140,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
@@ -169,8 +169,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var k11 = Guid.NewGuid().ToByteArray();
             var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
@@ -207,8 +207,8 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
             var i1 = Guid.NewGuid().ToByteArray();
             var i2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();

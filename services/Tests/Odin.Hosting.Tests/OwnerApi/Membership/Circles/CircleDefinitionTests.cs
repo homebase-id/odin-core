@@ -67,7 +67,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var requestWithOwnerOnlyDrive = new CreateCircleRequest()
                 {
@@ -101,7 +101,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -186,7 +186,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var requestWithNoPermissionsOrDrives = new CreateCircleRequest()
                 {
@@ -232,7 +232,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var dgr1 = new DriveGrantRequest()
                 {
@@ -296,7 +296,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var request1 = new CreateCircleRequest()
                 {
@@ -355,7 +355,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -416,7 +416,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -469,7 +469,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -517,7 +517,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
                 var request = new CreateCircleRequest()
                 {
                     Id = Guid.NewGuid(),

@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                  }
                 return count;
             } // Lock
@@ -185,7 +185,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _upsertParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 return count;
             } // Lock
         }
@@ -216,7 +216,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 }
                 return count;
             } // Lock
@@ -276,7 +276,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _delete0Param1.Value = attestationId;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableAttestationRequestCRUD", attestationId.ToString());
+                    _cache.Remove("TableAttestationRequestCRUD", attestationId);
                 return count;
             } // Lock
         }
@@ -316,7 +316,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
             if (attestationId?.Length > 65535) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableAttestationRequestCRUD", attestationId.ToString());
+            var (hit, cacheObject) = _cache.Get("TableAttestationRequestCRUD", attestationId);
             if (hit)
                 return (AttestationRequestRecord)cacheObject;
             lock (_get0Lock)
@@ -336,11 +336,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId.ToString(), null);
+                        _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId, null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, attestationId);
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId.ToString(), r);
+                    _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId, r);
                     return r;
                 } // using
             } // lock

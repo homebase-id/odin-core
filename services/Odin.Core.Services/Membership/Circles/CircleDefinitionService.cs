@@ -24,7 +24,7 @@ namespace Odin.Core.Services.Membership.Circles
         public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _driveManager = driveManager;
-            _circleValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_circleDataType);
         }
 
         public Task<CircleDefinition> Create(CreateCircleRequest request)
@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Membership.Circles
 
         public Task<IEnumerable<CircleDefinition>> GetCircles(bool includeSystemCircle)
         {
-            var circles = _circleValueStorage.GetByKey3<CircleDefinition>(_circleDataType);
+            var circles = _circleValueStorage.GetByCategory<CircleDefinition>(_circleDataType);
             if (!includeSystemCircle)
             {
                 return Task.FromResult(circles.Where(c => c.Id != CircleConstants.ConnectedIdentitiesSystemCircleId.Value));

@@ -67,8 +67,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _contextAccessor = contextAccessor;
 
-            _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _sentRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _pendingRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_pendingRequestsDataType);
+            _sentRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_sentRequestsDataType);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _pendingRequestValueStorage.GetByKey3<PendingConnectionRequestHeader>(_pendingRequestsDataType);
+            var results = _pendingRequestValueStorage.GetByCategory<PendingConnectionRequestHeader>(_pendingRequestsDataType);
             return await Task.FromResult(new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList()));
         }
 
@@ -121,7 +121,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _sentRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
+            var results = _sentRequestValueStorage.GetByCategory<ConnectionRequest>(_sentRequestsDataType);
             return await Task.FromResult(new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList()));
         }
 
