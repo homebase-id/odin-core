@@ -54,9 +54,11 @@ COPY services/Odin.Cli/ services/Odin.Cli/
 RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
 RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-contained false services/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
 
-# Copy release to runtime image
+# Create runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
 RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
+RUN echo "alias l='ls -lah'" >> ~/.bashrc
+RUN echo "alias ll='ls -lh'" >> ~/.bashrc
 
 WORKDIR /app/cli
 COPY --from=build /build/out/cli .

@@ -6,7 +6,5 @@ docker run \
   -p 443:443 \
   dotyou:local
 
-
 # docker exec identity-host du -h
-
 # docker exec --interactive --tty identity-host bash
