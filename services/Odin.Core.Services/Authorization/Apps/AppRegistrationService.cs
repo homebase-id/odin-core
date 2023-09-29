@@ -46,8 +46,11 @@ namespace Odin.Core.Services.Authorization.Apps
             _mediator = mediator;
             _icrKeyService = icrKeyService;
 
-            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appRegistrationDataType);
-            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appClientDataType);
+            // _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appRegistrationDataType);
+            // _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appClientDataType);
+            
+            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
+            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
 
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }

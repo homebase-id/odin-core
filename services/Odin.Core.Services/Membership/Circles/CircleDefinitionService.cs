@@ -24,7 +24,8 @@ namespace Odin.Core.Services.Membership.Circles
         public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _driveManager = driveManager;
-            _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_circleDataType);
+            // _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_circleDataType);
+            _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
         }
 
         public Task<CircleDefinition> Create(CreateCircleRequest request)
