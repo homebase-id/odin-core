@@ -301,6 +301,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var theRemoteComment = getTransitBatchResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theRemoteComment);
             Assert.IsTrue(theRemoteComment.FileMetadata.AppData.JsonContent == commentFileMetadata.AppData.JsonContent);
+
+            await pippinOwnerClient.Network.DisconnectFrom(merryOwnerClient.Identity);
         }
         
         

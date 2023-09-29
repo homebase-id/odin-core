@@ -291,7 +291,7 @@ public class TransitQueryService
             var icrIssueHeaderExists = bool.TryParse(response.Headers.GetValues(HttpHeaderConstants.RemoteServerIcrIssue).Single(), out var isIcrIssue);
             if (icrIssueHeaderExists && isIcrIssue)
             {
-                _circleNetworkService.MarkConnectionRevokedOnRemoteServer(odinId).GetAwaiter().GetResult();
+                _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
             }
 
             throw new OdinSecurityException("Remote server returned 403");

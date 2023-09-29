@@ -538,11 +538,13 @@ namespace Odin.Core.Services.Membership.Connections
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
 
-        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
+        public async Task RevokeConnection(OdinId odinId)
         {
-            var icr = await this.GetIdentityConnectionRegistration(odinId);
-            icr.RemoteIcrIsInvalid = true;
-            SaveIcr(icr);
+            _storage.Delete(odinId);
+            await _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+            {
+                OdinId = odinId
+            });
         }
 
         //
