@@ -11,7 +11,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  ARCHITECTURE: x64
+  CPU_ARCHITECTURE: "overwritten-below"
   NEW_VERSION_TAG: "overwritten-below"
   IMAGE_TAGS: "overwritten-below"
 
@@ -97,6 +97,13 @@ jobs:
       #
       # Build Docker image
       #
+      - name: Get CPU architecture
+        working-directory: dotyoucore
+        run: |
+          output=$(./.github/scripts/get-cpu-architecture.sh)
+          echo "Silocon is: $output"
+          echo "CPU_ARCHITECTURE=${output}" >> $GITHUB_ENV
+
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:
@@ -112,7 +119,7 @@ jobs:
 
       - name: Combine Docker tags
         run: |
-          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}-${{ env.ARCHITECTURE }}" | tr '[:upper:]' '[:lower:]')
+          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}-${{ env.CPU_ARCHITECTURE }}" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
 
       - name: Build and push Docker image
