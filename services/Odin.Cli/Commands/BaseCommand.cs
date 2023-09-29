@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Services.Configuration;
@@ -9,7 +10,32 @@ namespace Odin.Cli.Commands;
 
 public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
 {
-    public OdinConfiguration OdinConfig { get; private set; } = null!;
+    // public OdinConfiguration OdinConfig { get; private set; } = null!;
+    public CultureInfo HumanReadableCulture { get; }
+
+    protected BaseCommand()
+    {
+        HumanReadableCulture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+        HumanReadableCulture.NumberFormat.NumberGroupSeparator = ",";
+        HumanReadableCulture.NumberFormat.NumberDecimalSeparator = ".";
+    }
+
+    //
+
+    public string HumanReadableBytes(long bytes)
+    {
+        string[] sizeSuffixes = { "Bi", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi" };
+
+        if (bytes == 0)
+        {
+            return "0" + sizeSuffixes[0];
+        }
+
+        var magnitudeIndex = (int)(Math.Log(bytes, 1024));
+        var adjustedSize = (decimal)bytes / (1L << (magnitudeIndex * 10));
+
+        return $"{adjustedSize.ToString("N1", HumanReadableCulture)}{sizeSuffixes[magnitudeIndex]}";
+    }
 
     //
 
@@ -19,7 +45,7 @@ public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
 
     public override int Execute([NotNull] CommandContext context, [NotNull] T settings)
     {
-        OdinConfig = LoadConfig(settings.Config ?? "", settings.Verbose);
+        // OdinConfig = LoadConfig(settings.Config ?? "", settings.Verbose);
         return Run(context, settings);
     }
 
@@ -35,6 +61,11 @@ public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
             configFile = Path.Combine(directory, "appsettings.production.json");
         }
 
+        if (verbose)
+        {
+            AnsiConsole.MarkupLine($"Loading config: [underline]{configFile}[/]");
+        }
+
         if (!File.Exists(configFile))
         {
             throw new Exception($"Config file {configFile} does not exist. Please specify --config.");
@@ -43,10 +74,6 @@ public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
         var builder = new ConfigurationBuilder().AddJsonFile(configFile, optional: false, reloadOnChange: false);
         var configuration = builder.Build();
 
-        if (verbose)
-        {
-            AnsiConsole.MarkupLine($"Config file: [underline]{configFile}[/]");
-        }
 
         return new OdinConfiguration(configuration);
     }
