@@ -288,12 +288,15 @@ public class TransitQueryService
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            var icrIssueHeaderExists = bool.TryParse(response.Headers.GetValues(HttpHeaderConstants.RemoteServerIcrIssue).Single(), out var isIcrIssue);
-            if (icrIssueHeaderExists && isIcrIssue)
+            if(response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values))
             {
-                _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
+                var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
+                if (icrIssueHeaderExists && isIcrIssue)
+                {
+                    _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
+                }
             }
-
+            
             throw new OdinSecurityException("Remote server returned 403");
         }
 
