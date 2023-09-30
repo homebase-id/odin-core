@@ -381,7 +381,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
-            await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+            await GetLongTermStorageManager(file.DriveId).DeleteAttachments(file.FileId);
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
 
             if (await ShouldRaiseDriveEvent(file))

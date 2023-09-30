@@ -540,7 +540,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.OwnerOnly
+                AccessControlList = AccessControlList.Connected
             };
 
             var recipients = new List<string>() { recipient.OdinId };
