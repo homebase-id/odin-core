@@ -368,7 +368,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             AssertCanWriteToDrive(file.DriveId);
 
             var existingHeader = await this.GetServerFileHeader(file);
-
+            
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
@@ -388,6 +388,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 await _mediator.Publish(new DriveFileDeletedNotification()
                 {
+                    PreviousServerFileHeader = existingHeader,
                     IsHardDelete = false,
                     File = file,
                     ServerFileHeader = deletedServerFileHeader,

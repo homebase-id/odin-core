@@ -16,7 +16,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    [Obsolete]
     public interface ITransitQueryHttpClientForOwner
     {
         private const string RootEndpoint = OwnerApiPathConstants.TransitQueryV1;

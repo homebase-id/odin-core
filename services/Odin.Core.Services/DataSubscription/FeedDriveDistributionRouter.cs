@@ -74,7 +74,12 @@ namespace Odin.Core.Services.DataSubscription
             {
                 if (_contextAccessor.GetCurrent().Caller.IsOwner)
                 {
-                    if (notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted)
+                    var deleteNotification = notification as DriveFileDeletedNotification;
+                    var isEncryptedFile =
+                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.PayloadIsEncrypted) ||
+                        notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted;
+
+                    if (isEncryptedFile)
                     {
                         await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
@@ -279,7 +284,7 @@ namespace Odin.Core.Services.DataSubscription
                 transitOptions,
                 TransferFileType.Normal,
                 header.ServerMetadata.FileSystemType);
-            
+
             // TODO: need to determine how to handle the transferStatusMap
             // this feed drive router happens in the background so how do
             // we want to handle any TransferStatus that indicates an
