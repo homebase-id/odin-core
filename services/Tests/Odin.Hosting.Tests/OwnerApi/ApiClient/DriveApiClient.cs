@@ -331,7 +331,6 @@ public class DriveApiClient
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
             {
                 File = file,

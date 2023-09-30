@@ -435,6 +435,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 try
                 {
+                    //Note: it's just as performant to directly get the file length as it is to perform File.Exists
                     string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
                     metadata.PayloadSize = new FileInfo(sourceFile).Length;
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);

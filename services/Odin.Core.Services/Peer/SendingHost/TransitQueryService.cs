@@ -119,7 +119,7 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, null);
+            return (null, default, null, Stream.Null);
         }
 
         HandleInvalidTransitResponse(odinId, response);
@@ -161,7 +161,7 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, null);
+            return (null, default, null, Stream.Null);
         }
 
         HandleInvalidTransitResponse(odinId, response);

@@ -581,7 +581,8 @@ public class DataSubscriptionAndDistributionTests1
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
                 Tags = default
-            }
+            },
+            AccessControlList = AccessControlList.Anonymous
         };
 
         // transfer a comment from Sam directly to frodo
@@ -722,7 +723,8 @@ public class DataSubscriptionAndDistributionTests1
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
                 Tags = default
-            }
+            },
+            AccessControlList = AccessControlList.Connected
         };
 
         // transfer a comment from Sam directly to frodo

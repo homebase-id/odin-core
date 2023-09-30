@@ -7,6 +7,7 @@ using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -35,6 +36,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
 
         public TransitService(
             OdinContextAccessor contextAccessor,
@@ -45,7 +47,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             CircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration) : base(odinHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAclAuthorizationService) : base(odinHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -55,6 +57,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             _driveManager = driveManager;
             _fileSystemResolver = fileSystemResolver;
             _odinConfiguration = odinConfiguration;
+            _driveAclAuthorizationService = driveAclAuthorizationService;
 
             _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
         }
@@ -226,12 +229,29 @@ namespace Odin.Core.Services.Peer.SendingHost
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
+            //enforce ACL at the last possible moment before shipping the file out of the identty
+            var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
+
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
             try
             {
+                if (!await _driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
+                {
+                    return new SendResult()
+                    {
+                        File = file,
+                        Recipient = recipient,
+                        Timestamp = UnixTimeUtc.Now().milliseconds,
+                        Success = false,
+                        ShouldRetry = false,
+                        FailureReason = TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl,
+                        OutboxItem = outboxItem
+                    };
+                }
+
                 //look up transfer key
                 var transferInstructionSet = outboxItem.TransferInstructionSet;
                 if (null == transferInstructionSet)
@@ -258,7 +278,6 @@ namespace Odin.Core.Services.Peer.SendingHost
                     "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                var header = await fs.Storage.GetServerFileHeader(file);
                 if (header.ServerMetadata.AllowDistribution == false)
                 {
                     return new SendResult()
@@ -491,9 +510,15 @@ namespace Odin.Core.Services.Peer.SendingHost
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
 
+                        
+                        case TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientDoesNotHavePermissionToFileAcl;
+                            break;
+                        
                         case TransferFailureReason.FileDoesNotAllowDistribution:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
+                        
                         case TransferFailureReason.RecipientServerReturnedAccessDenied:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientReturnedAccessDenied;
 
