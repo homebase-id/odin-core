@@ -42,6 +42,11 @@ namespace Odin.Core.Services.Peer
         /// <summary>
         /// Indicates the recipient server returned a security error
         /// </summary>
-        RecipientReturnedAccessDenied = 13
+        RecipientReturnedAccessDenied = 13,
+        
+        /// <summary>
+        /// The recipient cannot read the file due to the file's ACL configuration
+        /// </summary>
+        RecipientDoesNotHavePermissionToFileAcl = 15
     }
 }

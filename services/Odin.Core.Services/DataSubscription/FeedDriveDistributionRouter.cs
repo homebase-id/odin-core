@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription.Follower;
@@ -40,6 +41,8 @@ namespace Odin.Core.Services.DataSubscription
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
 
+        private readonly IDriveAclAuthorizationService _driveAcl;
+
         /// <summary>
         /// Routes file changes to drives which allow subscriptions to be sent in a background process
         /// </summary>
@@ -48,7 +51,7 @@ namespace Odin.Core.Services.DataSubscription
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
             CircleNetworkService circleNetworkService,
-            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration)
+            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAcl)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -60,6 +63,7 @@ namespace Odin.Core.Services.DataSubscription
             _contextAccessor = contextAccessor;
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
+            _driveAcl = driveAcl;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory);
         }
@@ -70,7 +74,12 @@ namespace Odin.Core.Services.DataSubscription
             {
                 if (_contextAccessor.GetCurrent().Caller.IsOwner)
                 {
-                    if (notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted)
+                    var deleteNotification = notification as DriveFileDeletedNotification;
+                    var isEncryptedFile =
+                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.PayloadIsEncrypted) ||
+                        notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted;
+
+                    if (isEncryptedFile)
                     {
                         await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
@@ -183,7 +192,7 @@ namespace Odin.Core.Services.DataSubscription
 
             var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
-            
+
             var failures = tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
@@ -213,30 +222,34 @@ namespace Odin.Core.Services.DataSubscription
         {
             var file = notification.File;
 
-            var recipients = await GetFollowers(notification.File.DriveId);
-            if (!recipients.Any())
+            var followers = await GetFollowers(notification.File.DriveId);
+            if (!followers.Any())
             {
                 return new List<OdinId>();
             }
 
             //find all followers that are connected, return those which are not to be processed differently
             var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
-            var connectedRecipients = recipients.Intersect(connectedIdentities).ToList();
+            var connectedFollowers = followers.Intersect(connectedIdentities)
+                .Where(cf => _driveAcl.IdentityHasPermission(
+                        (OdinId)cf.DomainName,
+                        notification.ServerFileHeader.ServerMetadata.AccessControlList)
+                    .GetAwaiter().GetResult()).ToList();
 
-            if (connectedRecipients.Any())
+            if (connectedFollowers.Any())
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(file);
                 var header = await fs.Storage.GetServerFileHeader(file);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
                 {
-                    await DeleteFileOverTransit(header, connectedRecipients);
+                    await DeleteFileOverTransit(header, connectedFollowers);
                 }
 
-                await SendFileOverTransit(header, connectedRecipients);
+                await SendFileOverTransit(header, connectedFollowers);
             }
 
-            return recipients.Except(connectedRecipients).ToList();
+            return followers.Except(connectedFollowers).ToList();
         }
 
         private async Task<List<OdinId>> GetFollowers(Guid driveId)
@@ -266,11 +279,17 @@ namespace Odin.Core.Services.DataSubscription
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };
 
-            var _ = await _transitService.SendFile(
+            var transferStatusMap = await _transitService.SendFile(
                 header.FileMetadata.File,
                 transitOptions,
                 TransferFileType.Normal,
                 header.ServerMetadata.FileSystemType);
+
+            // TODO: need to determine how to handle the transferStatusMap
+            // this feed drive router happens in the background so how do
+            // we want to handle any TransferStatus that indicates an
+            // unsuccessful that is not retried by the transit system
+            // i.e. TransferStatus.TotalRejectionClientShouldRetry
         }
 
         private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients)

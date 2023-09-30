@@ -39,6 +39,11 @@
         /// <summary>
         /// Indicates the file's header has AllowDistribution == false.  The file should be removed from the queue
         /// </summary>
-        FileDoesNotAllowDistribution = 1001
+        FileDoesNotAllowDistribution = 1001,
+        
+        /// <summary>
+        /// Indicates the target recipient does not match the ACL requirements on the file 
+        /// </summary>
+        RecipientDoesNotHavePermissionToFileAcl = 1002
     }
 }

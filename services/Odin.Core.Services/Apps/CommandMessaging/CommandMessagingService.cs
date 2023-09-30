@@ -64,7 +64,7 @@ public class CommandMessagingService
 
         var serverMetadata = new ServerMetadata()
         {
-            AccessControlList = AccessControlList.OwnerOnly,
+            AccessControlList = AccessControlList.Connected,
             AllowDistribution = true,
             DoNotIndex = true
         };

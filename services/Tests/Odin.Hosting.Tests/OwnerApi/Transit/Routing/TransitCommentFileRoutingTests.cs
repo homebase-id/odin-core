@@ -662,7 +662,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                (uploadResult, encryptedJsonContent64, _) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
             }
             else
             {

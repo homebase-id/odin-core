@@ -523,6 +523,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     circleIds: enabledCircles,
                     youAuthClientContext: new OdinYouAuthClientContext()
                     {
+                        ClientIdOrDomain = domainRegistration.Domain.DomainName,
                         CorsHostName = domainRegistration.CorsHostName,
                         AccessRegistrationId = accessReg.Id
                     })
