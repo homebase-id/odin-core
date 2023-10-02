@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Cli.Commands.Tenant;
 using Odin.Cli.Infrastructure;
 using Odin.Cli.Commands.Tenants;
 using Odin.Cli.Services;
@@ -17,10 +18,22 @@ app.Configure(config =>
 {
     config.PropagateExceptions();
     config.SetApplicationName("odin-admin");
-    config.AddBranch("tenants", tenantsConfig =>
+    config.AddBranch("tenant", c =>
     {
-        tenantsConfig.AddCommand<ListTenantsCommand>("list");
+        c.AddCommand<ShowTenantCommand>("show")
+            .WithExample("tenant", "show", "130c23d5-e76a-421b-927d-92a22a220b54")
+            .WithExample("tenant", "show", "frodo.dotyou.cloud", "--payload")
+            .WithExample("tenant", "show", "/identity-host/data/tenants/130c23d5-e76a-421b-927d-92a22a220b54")
+            .WithExample("tenant", "show", "/identity-host/data/tenants/frodo.dotyou.cloud", "--payload");
+
     });
+    config.AddBranch("tenants", c =>
+    {
+        c.AddCommand<ListTenantsCommand>("list")
+            .WithExample("tenants", "list", "--payload", "--tree")
+            .WithExample("tenants", "list", "/identity-host/data/tenants", "--quiet");
+    });
+
 });
 
 try

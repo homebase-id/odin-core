@@ -7,15 +7,61 @@ namespace Odin.Cli.Services;
 
 public interface ITenantFileSystem: IBaseService
 {
-    List<TenantDetails> LoadAll(string tenantRootPath);
+    TenantDetails Load(string tenantDomainOrId,  bool includePayload, bool verbose);
+    List<TenantDetails> LoadAll(string tenantRootPath, bool includePayload, bool verbose);
 }
 
 public class TenantFileSystem : BaseService, ITenantFileSystem
 {
-    public List<TenantDetails> LoadAll(string tenantRootPath)
+    public TenantDetails Load(string tenantDomainOrId,  bool includePayload, bool verbose)
+    {
+        var tenantRootPath = Path.GetDirectoryName(tenantDomainOrId);
+        if (string.IsNullOrWhiteSpace(tenantRootPath))
+        {
+            tenantRootPath = ".";
+        }
+        tenantDomainOrId = Path.GetFileName(tenantDomainOrId);
+
+        return Guid.TryParse(tenantDomainOrId, out _)
+            ? TenantFromId(tenantRootPath, tenantDomainOrId, includePayload)
+            : TenantFromDomain(tenantRootPath, tenantDomainOrId, includePayload);
+    }
+
+    //
+
+    public List<TenantDetails> LoadAll(string tenantRootPath, bool includePayload, bool verbose)
     {
         var result = new List<TenantDetails>();
+        var (registrationsPath, payloadsPath) = GetPaths(tenantRootPath);
 
+        if (verbose) AnsiConsole.MarkupLine($"Loading all tenants in [underline]{registrationsPath}[/]");
+
+        var registrationDirectories = Directory.GetDirectories(registrationsPath);
+        foreach (var registrationDirectory in registrationDirectories)
+        {
+            try
+            {
+                var tenantDetails = LoadTenantDetails(registrationDirectory, payloadsPath, includePayload);
+                result.Add(tenantDetails);
+            }
+            catch (Exception e)
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {e.Message}");
+            }
+        }
+
+        result.Sort((a, b) => string.Compare(
+            a.Registration.PrimaryDomainName,
+            b.Registration.PrimaryDomainName,
+            StringComparison.CurrentCulture));
+
+        return result;
+    }
+
+    //
+
+    private static (string registrationsPath, string payloadsPath) GetPaths(string tenantRootPath)
+    {
         var registrationsPath = Path.Combine(tenantRootPath, "registrations");
         if (!Directory.Exists(registrationsPath))
         {
@@ -28,41 +74,79 @@ public class TenantFileSystem : BaseService, ITenantFileSystem
             throw new Exception($"Directory '{payloadsPath}' not found");
         }
 
-        if (Verbose) AnsiConsole.MarkupLine($"Loading all tenants in [underline]{registrationsPath}[/]");
+        return (registrationsPath, payloadsPath);
+    }
+
+    //
+
+    private static TenantDetails TenantFromDomain(string tenantRootPath, string domain, bool includePayload)
+    {
+        domain = domain.ToLower();
+        var (registrationsPath, payloadsPath) = GetPaths(tenantRootPath);
 
         var registrationDirectories = Directory.GetDirectories(registrationsPath);
         foreach (var registrationDirectory in registrationDirectories)
         {
             var registrationFile = Path.Combine(registrationDirectory, "reg.json");
-            if (!File.Exists(registrationFile))
+            if (File.Exists(registrationFile))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] no reg.json in {registrationDirectory}");
-            }
-            else
-            {
-                try
+                var tenant = InternalDeserializeTenant(registrationFile);
+                if (tenant.Registration.PrimaryDomainName == domain)
                 {
-                    var json = File.ReadAllText(registrationFile);
-                    var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json) ?? throw new Exception();
-                    var tenant = new TenantDetails(registration);
-                    tenant.RegistrationPath = registrationDirectory;
-                    tenant.RegistrationSize = GetDirectoryByteSize(tenant.RegistrationPath);
-                    tenant.Payloads = GetPayloads(payloadsPath, registration.Id.ToString());
-                    result.Add(tenant);
-                }
-                catch (Exception)
-                {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] error loading {registrationFile}");
+                    return LoadTenantDetails(registrationDirectory, payloadsPath, includePayload);
                 }
             }
         }
 
-        result.Sort((a, b) => string.Compare(
-            a.Registration.PrimaryDomainName,
-            b.Registration.PrimaryDomainName,
-            StringComparison.CurrentCulture));
+        throw new Exception($"Tenant domain {domain} not found");
+    }
 
-        return result;
+    //
+
+    private static TenantDetails TenantFromId(string tenantRootPath, string id, bool includePayload)
+    {
+        var (registrationsPath, payloadsPath) = GetPaths(tenantRootPath);
+
+        var registrationFile = Path.Combine(registrationsPath, id, "reg.json");
+        if (!File.Exists(registrationFile))
+        {
+            throw new Exception($"Tenant ID {id} not found");
+        }
+
+        var registrationPath = Path.Combine(registrationsPath, id);
+        var tenant = LoadTenantDetails(registrationPath, payloadsPath, includePayload);
+
+        return tenant;
+    }
+
+    //
+
+    private static TenantDetails LoadTenantDetails(string registrationPath, string payloadsPath, bool includePayload)
+    {
+        var registrationFile = Path.Combine(registrationPath, "reg.json");
+        if (!File.Exists(registrationFile))
+        {
+            throw new Exception($"{registrationFile} not found");
+        }
+
+        var tenant = InternalDeserializeTenant(registrationFile);
+        tenant.RegistrationPath = registrationPath;
+        tenant.RegistrationSize = GetDirectoryByteSize(registrationPath);
+        if (includePayload)
+        {
+            tenant.Payloads = GetPayloads(payloadsPath, tenant.Registration.Id.ToString());
+        }
+
+        return tenant;
+    }
+
+    //
+
+    private static TenantDetails InternalDeserializeTenant(string registrationFile)
+    {
+        var json = File.ReadAllText(registrationFile);
+        var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json) ?? throw new Exception();
+        return new TenantDetails(registration);
     }
 
     //

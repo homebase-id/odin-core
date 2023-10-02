@@ -6,12 +6,12 @@ using Odin.Core.Services.Configuration;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace Odin.Cli.Commands;
+namespace Odin.Cli.Commands.Base;
 
 public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
 {
     // public OdinConfiguration OdinConfig { get; private set; } = null!;
-    public CultureInfo HumanReadableCulture { get; }
+    private CultureInfo HumanReadableCulture { get; }
 
     protected BaseCommand()
     {
@@ -22,7 +22,7 @@ public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
 
     //
 
-    public string HumanReadableBytes(long bytes)
+    protected string HumanReadableBytes(long bytes)
     {
         string[] sizeSuffixes = { "Bi", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi" };
 

@@ -1,8 +1,7 @@
 using System.ComponentModel;
-
-namespace Odin.Cli.Commands;
-
 using Spectre.Console.Cli;
+
+namespace Odin.Cli.Commands.Base;
 
 public class BaseSettings : CommandSettings
 {
@@ -14,3 +13,4 @@ public class BaseSettings : CommandSettings
     [CommandOption("-V | --verbose")]
     public bool Verbose { get; set; } = false;
 }
+
