@@ -143,7 +143,6 @@ namespace Odin.Hosting
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
                 .UseSerilog((context, services, loggerConfiguration) => { CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration); })
-                .UseSystemd() // SEB:TODO remove this when we're fully containerized
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
                     DependencyInjection.InitializeTenant))
                 .ConfigureWebHostDefaults(webBuilder =>
