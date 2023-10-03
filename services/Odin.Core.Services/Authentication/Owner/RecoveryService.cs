@@ -20,7 +20,10 @@ public class RecoveryService
     {
         _contextAccessor = contextAccessor;
         _odinConfiguration = odinConfiguration;
-        _storage = tenantSystemStorage.SingleKeyValueStorage;
+
+        const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
+        Guid contextKey = Guid.Parse(k);
+        _storage = tenantSystemStorage.CreateSingleKeyValueStorage(contextKey);
     }
 
     /// <summary>
@@ -112,5 +115,4 @@ public class RecoveryService
 
         _storage.Upsert(_recordKey, record);
     }
-    
 }

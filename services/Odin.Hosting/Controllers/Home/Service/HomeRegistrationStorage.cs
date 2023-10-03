@@ -3,21 +3,23 @@
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
+using Odin.Core.Storage;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
     public class HomeRegistrationStorage
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
+        private readonly SingleKeyValueStorage _clientStorage;
 
         public HomeRegistrationStorage(TenantSystemStorage tenantSystemStorage)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            const string sk = "7daac4aa-5088-4b46-96bd-47f03704dab4";
+            _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(sk));
         }
 
         public HomeAppClient? GetClient(Guid id)
         {
-            var client = _tenantSystemStorage.SingleKeyValueStorage.Get<HomeAppClient>(id);
+            var client = _clientStorage.Get<HomeAppClient>(id);
             return client;
         }
 
@@ -27,13 +29,13 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 throw new OdinClientException("Invalid client id");
             }
-            
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(client.AccessRegistration.Id, client);
+
+            _clientStorage.Upsert(client.AccessRegistration.Id, client);
         }
 
         public void DeleteClient(GuidId accessRegistrationId)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(accessRegistrationId);
+            _clientStorage.Delete(accessRegistrationId);
         }
     }
 }

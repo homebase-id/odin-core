@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Cryptography.Data;
@@ -9,6 +10,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
@@ -20,10 +22,16 @@ public class CircleNetworkStorage
     private readonly CircleMembershipService _circleMembershipService;
     private readonly TenantSystemStorage _tenantSystemStorage;
 
+    private readonly SingleKeyValueStorage _icrKeyStorage;
+
     public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
         _tenantSystemStorage = tenantSystemStorage;
         _circleMembershipService = circleMembershipService;
+
+        const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
+        _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
@@ -127,7 +135,7 @@ public class CircleNetworkStorage
     /// <exception cref="OdinClientException"></exception>
     public void CreateIcrKey(SensitiveByteArray masterKey)
     {
-        var existingKey = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
         if (null != existingKey)
         {
             throw new OdinClientException("IcrKey already exists");
@@ -141,12 +149,12 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_icrKeyStorageId, record);
+        _icrKeyStorage.Upsert(_icrKeyStorageId, record);
     }
 
     public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
     {
-        var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        var key = _icrKeyStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 

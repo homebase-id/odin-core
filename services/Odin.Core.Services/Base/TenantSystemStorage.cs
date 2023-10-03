@@ -32,7 +32,6 @@ namespace Odin.Core.Services.Base
             _db = new IdentityDatabase($"Data Source={finalPath}");
             _db.CreateDatabase(false);
 
-            SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = _db.tblConnections;
@@ -49,14 +48,6 @@ namespace Odin.Core.Services.Base
         public TableAppGrants AppGrants { get; }
 
         public TableConnections Connections { get; }
-
-        /// <summary>
-        /// Store values using a single key
-        /// </summary>
-        public SingleKeyValueStorage SingleKeyValueStorage { get; }
-
-        // Not currently in use
-        // public TwoKeyValueStorage TwoKeyValueStorage { get; }
 
         public TableFeedDistributionOutbox Feedbox { get; }
 
@@ -80,6 +71,12 @@ namespace Odin.Core.Services.Base
             _db.Dispose();
         }
 
+        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
+        {
+            return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
+        }
+
+
         /// <summary>
         /// Store values using a single key while offering 2 other keys to categorize your data
         /// </summary>
@@ -87,6 +84,14 @@ namespace Odin.Core.Services.Base
         public ThreeKeyValueStorage CreateThreeKeyValueStorage(byte[] contextKey)
         {
             return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
+        }
+
+        /// <summary>
+        /// Store values using a single key
+        /// </summary>
+        public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
+        {
+            return new SingleKeyValueStorage(_db.tblKeyValue, contextKey);
         }
     }
 }

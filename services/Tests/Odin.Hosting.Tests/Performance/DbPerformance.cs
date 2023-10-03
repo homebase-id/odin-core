@@ -8,10 +8,8 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Hosting.Tests.Performance
 {
-
     public class DbPerformanceTests
     {
-
         // For the performance test
         private static readonly int MAXTHREADS = 20;
         private const int MAXITERATIONS = 50000;
@@ -21,6 +19,7 @@ namespace Odin.Hosting.Tests.Performance
         private IdentityDatabase _db;
         private SingleKeyValueStorage storage;
         private Guid[] _keys = new Guid[KEYS];
+
         public class Item
         {
             public string Name { get; set; }
@@ -31,12 +30,13 @@ namespace Odin.Hosting.Tests.Performance
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
+            var testContextKey = Guid.NewGuid();
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
             _db = new IdentityDatabase("");
             _db.CreateDatabase();
-            storage = new SingleKeyValueStorage(_db.tblKeyValue);
+            storage = new SingleKeyValueStorage(_db.tblKeyValue, testContextKey);
 
             for (int i = 0; i < KEYS; i++)
             {
@@ -64,9 +64,9 @@ namespace Odin.Hosting.Tests.Performance
 
         /*
          *  TaskPerformanceTest_Ident
-           Duration: 5.3 sec
+  Duration: 5.3 sec
 
-          Standard Output: 
+          Standard Output:
             2023-05-31 Host [SEMIBEASTII]
             Threads   : 1
             Iterations: 50,000
@@ -82,11 +82,11 @@ namespace Odin.Hosting.Tests.Performance
 
         After DB cache
 
-         TaskPerformanceTest_Db_SingleThread
-            Source: DbPerformance.cs line 86
-            Duration: 41 ms
+        TaskPerformanceTest_Db_SingleThread
+  Source: DbPerformance.cs line 86
+  Duration: 41 ms
 
-            Standard Output: 
+            Standard Output:
             2023-06-01 Host [SEMIBEASTII]
             Threads   : 1
             Iterations: 50,000
@@ -109,11 +109,11 @@ namespace Odin.Hosting.Tests.Performance
 
         /*
          * Before DB cache
-         * 
-           TaskPerformanceTest_Ident_MultiThread
-               Duration: 1.1 min
+         *
+          TaskPerformanceTest_Ident_MultiThread
+  Duration: 1.1 min
 
-              Standard Output: 
+              Standard Output:
                 2023-05-31 Host [SEMIBEASTII]
                 Threads   : 20
                 Iterations: 50,000
@@ -129,10 +129,10 @@ namespace Odin.Hosting.Tests.Performance
 
         After DB cache
 
-             TaskPerformanceTest_Db_MultiThread
-                Duration: 118 ms
+TaskPerformanceTest_Db_MultiThread
+   Duration: 118 ms
 
-            Standard Output: 
+            Standard Output:
                 2023-06-01 Host [SEMIBEASTII]
                 Threads   : 20
                 Iterations: 50,000
@@ -174,11 +174,11 @@ namespace Odin.Hosting.Tests.Performance
 
 
         /*
-             TaskPerformanceTest_DbWrapper_SingleThread
-               Source: DbPerformance.cs line 181
-               Duration: 74 ms
+TaskPerformanceTest_DbWrapper_SingleThread
+  Source: DbPerformance.cs line 181
+  Duration: 74 ms
 
-              Standard Output: 
+              Standard Output:
             2023-06-01 Host [SEMIBEASTII]
             Threads   : 1
             Iterations: 50,000
@@ -200,11 +200,11 @@ namespace Odin.Hosting.Tests.Performance
         }
 
         /*
-             TaskPerformanceTest_DbWrapper_MultiThread
-               Source: DbPerformance.cs line 205
-               Duration: 244 ms
+TaskPerformanceTest_DbWrapper_MultiThread
+  Source: DbPerformance.cs line 205
+  Duration: 244 ms
 
-              Standard Output: 
+              Standard Output:
             2023-06-01 Host [SEMIBEASTII]
             Threads   : 20
             Iterations: 50,000
@@ -227,7 +227,6 @@ namespace Odin.Hosting.Tests.Performance
 
         public Task<(long, long[])> DoWrapperDb(int threadno, int iterations)
         {
-
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
             var sw = new Stopwatch();

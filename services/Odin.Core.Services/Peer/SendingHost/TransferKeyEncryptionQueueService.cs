@@ -1,32 +1,33 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Base;
+using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer.SendingHost
 {
     public class TransferKeyEncryptionQueueService
     {
-        private readonly GuidId _queueKey = GuidId.FromString("tkequeue__");
-        private readonly TenantSystemStorage _tenantSystemStorage;
+        private readonly GuidId _queueStorageId = Guid.Parse("0bc60d9a-1f43-4724-84fa-3ba9508c84fc");
+        private readonly byte[] _queueDataType = Guid.Parse("3ba60266-663b-47ac-8931-1ffc15d62720").ToByteArray();
+
+        private readonly TwoKeyValueStorage _queueStorage;
 
         public TransferKeyEncryptionQueueService(TenantSystemStorage tenantSystemStorage)
         {
-            _tenantSystemStorage = tenantSystemStorage;
+            const string sk = "21a24e2d-f2c6-4d7a-9cfa-44d0d956d0d7";
+            _queueStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(sk));
         }
 
         public Task Enqueue(TransitKeyEncryptionQueueItem item)
         {
-            var items = _tenantSystemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
-
-            items.Add(item);
-            this._tenantSystemStorage.SingleKeyValueStorage.Upsert(_queueKey, items);
-
+            _queueStorage.Upsert(item.Id, _queueDataType, item);
             return Task.CompletedTask;
         }
 
         public Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext()
         {
-            var items = _tenantSystemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
+            var items = _queueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueStorageId);
             return Task.FromResult<IEnumerable<TransitKeyEncryptionQueueItem>>(items);
         }
     }
