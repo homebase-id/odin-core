@@ -43,7 +43,8 @@ public class DriveManager
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
 
-        _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
+        const string driveContextKey = "4cca76c6-3432-4372-bef8-5f05313c0376";
+        _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(driveContextKey));
 
         LoadCache();
     }

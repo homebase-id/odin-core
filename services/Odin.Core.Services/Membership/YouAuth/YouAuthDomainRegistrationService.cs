@@ -29,10 +29,10 @@ namespace Odin.Core.Services.Membership.YouAuth
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
-        private readonly GuidId _domainRegistrationDataType = GuidId.FromString("__youauth_domain_reg");
+        private readonly byte[] _domainRegistrationDataType = Guid.Parse("0c2c70c2-86e9-4214-818d-8b57c8d59762").ToByteArray();
         private readonly ThreeKeyValueStorage _domainStorage;
 
-        private readonly GuidId _clientDataType = GuidId.FromString("__youauth_domain_client_reg");
+        private readonly byte[] _clientDataType = Guid.Parse("cd16bc37-3e1f-410b-be03-7bec83dd6c33").ToByteArray();
         private readonly ThreeKeyValueStorage _clientStorage;
 
         private readonly OdinContextCache _cache;
@@ -49,8 +49,11 @@ namespace Odin.Core.Services.Membership.YouAuth
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
-            _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_domainRegistrationDataType);
-            _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_clientDataType);
+            const string domainStorageContextKey = "e11ff091-0edf-4532-8b0f-b9d9ebe0880f";
+            _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
+            
+            const string domainClientStorageContextKey = "8994c20a-179c-469c-a3b9-c4d6a8d2eb3c";
+            _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
             
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
