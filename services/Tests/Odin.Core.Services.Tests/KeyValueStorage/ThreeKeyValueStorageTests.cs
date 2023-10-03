@@ -5,7 +5,7 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Services.Tests.KeyValueStorage;
 
-public class SingleKeyValueStorageTests
+public class ThreeKeyValueStorageTests
 {
     [Test]
     public void RequireNonEmptyContextKey()
@@ -14,7 +14,7 @@ public class SingleKeyValueStorageTests
         var db = new IdentityDatabase($"Data Source={finalPath}");
         db.CreateDatabase(false);
 
-        Assert.Throws<ArgumentException>(() => { new SingleKeyValueStorage(db.tblKeyValue, Guid.Empty); });
+        Assert.Throws<ArgumentException>(() => { new ThreeKeyValueStorage(db.TblKeyThreeValue, Guid.Empty); });
         db.Dispose();
     }
 
@@ -26,24 +26,27 @@ public class SingleKeyValueStorageTests
         db.CreateDatabase(false);
 
         var contextKey1 = Guid.NewGuid();
-        var singleKvp1 = new SingleKeyValueStorage(db.tblKeyValue, contextKey1);
+        var dataTypeKey = Guid.NewGuid().ToByteArray();
+        var dataCategoryKey = Guid.NewGuid().ToByteArray();
+        var kvp1 = new ThreeKeyValueStorage(db.TblKeyThreeValue, contextKey1);
 
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
         const string expectedValue1 = "some value";
-        singleKvp1.Upsert(pk, expectedValue1);
-        Assert.IsTrue(singleKvp1.Get<string>(pk) == expectedValue1);
-        singleKvp1.Delete(pk);
-        Assert.IsTrue(singleKvp1.Get<string>(pk) == null);
+        kvp1.Upsert(pk, dataTypeKey, dataCategoryKey, expectedValue1);
+        Assert.IsTrue(kvp1.Get<string>(pk) == expectedValue1);
+
+        kvp1.Delete(pk);
+        Assert.IsTrue(kvp1.Get<string>(pk) == null);
 
         var contextKey2 = Guid.NewGuid();
-        var singleKvp2 = new SingleKeyValueStorage(db.tblKeyValue, contextKey2);
+        var kvp2 = new ThreeKeyValueStorage(db.TblKeyThreeValue, contextKey2);
         const string expectedValue2 = "another value";
-        singleKvp2.Upsert(pk, expectedValue2);
-        Assert.IsTrue(singleKvp2.Get<string>(pk) == expectedValue2);
+        kvp2.Upsert(pk, dataTypeKey, dataCategoryKey, expectedValue2);
+        Assert.IsTrue(kvp2.Get<string>(pk) == expectedValue2);
         
-        singleKvp2.Delete(pk);
-        Assert.IsTrue(singleKvp2.Get<string>(pk) == null);
+        kvp2.Delete(pk);
+        Assert.IsTrue(kvp2.Get<string>(pk) == null);
 
         
         db.Dispose();
