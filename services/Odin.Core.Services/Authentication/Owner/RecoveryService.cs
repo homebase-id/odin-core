@@ -13,7 +13,7 @@ public class RecoveryService
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _storage;
-    private readonly GuidId _recordKey = GuidId.FromString("_recoveryKey");
+    private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private readonly OdinConfiguration _odinConfiguration;
 
     public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, OdinConfiguration odinConfiguration)
@@ -45,7 +45,7 @@ public class RecoveryService
     public async Task CreateInitialKey()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordKey);
+        var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
         if (null != keyRecord)
         {
             throw new OdinSystemException("Recovery key already exists");
@@ -94,7 +94,7 @@ public class RecoveryService
 
     private RecoveryKeyRecord GetKeyInternal()
     {
-        var existingKey = _storage.Get<RecoveryKeyRecord>(_recordKey);
+        var existingKey = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
         return existingKey;
     }
 
@@ -113,6 +113,6 @@ public class RecoveryService
             RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref recoveryKey, ref masterKey)
         };
 
-        _storage.Upsert(_recordKey, record);
+        _storage.Upsert(_recordStorageId, record);
     }
 }

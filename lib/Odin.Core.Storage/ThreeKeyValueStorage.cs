@@ -13,18 +13,18 @@ namespace Odin.Core.Storage;
 public class ThreeKeyValueStorage
 {
     private readonly TableKeyThreeValue _table;
-    private readonly byte[] _contextKey;
+    private readonly Guid _contextKey;
 
-    public ThreeKeyValueStorage(TableKeyThreeValue table, byte[] contextKey)
+    public ThreeKeyValueStorage(TableKeyThreeValue table, Guid contextKey)
     {
-        Guard.Argument(contextKey, nameof(contextKey)).NotNull().NotEmpty().MinCount(4);
+        Guard.Argument(contextKey, nameof(contextKey)).Require(k => k != Guid.Empty);
         Guard.Argument(table, nameof(table)).NotNull();
 
         _table = table;
         _contextKey = contextKey;
     }
 
-    public T Get<T>(GuidId key) where T : class
+    public T Get<T>(Guid key) where T : class
     {
         var bytes = _table.Get(MakeStorageKey(key));
 
@@ -36,7 +36,7 @@ public class ThreeKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(GuidId key1, byte[] dataTypeKey, byte[] categoryKey, T value)
+    public void Upsert<T>(Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
         _table.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
@@ -80,14 +80,9 @@ public class ThreeKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    private byte[] MakeStorageKey(GuidId key)
+    private byte[] MakeStorageKey(Guid key)
     {
-        if (null == _contextKey)
-        {
-            return key;
-        }
-        
-        return ByteArrayUtil.Combine(key, _contextKey);
+        return ByteArrayUtil.Combine(key.ToByteArray(), _contextKey.ToByteArray());
     }
 
     private T Deserialize<T>(byte[] bytes)

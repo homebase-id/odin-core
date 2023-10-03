@@ -13,8 +13,8 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public HomeRegistrationStorage(TenantSystemStorage tenantSystemStorage)
         {
-            const string sk = "7daac4aa-5088-4b46-96bd-47f03704dab4";
-            _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(sk));
+            const string homeClientContextKey = "7daac4aa-5088-4b46-96bd-47f03704dab4";
+            _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
         public HomeAppClient? GetClient(Guid id)

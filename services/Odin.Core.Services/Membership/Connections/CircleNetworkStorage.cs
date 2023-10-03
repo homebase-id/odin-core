@@ -18,7 +18,7 @@ namespace Odin.Core.Services.Membership.Connections;
 
 public class CircleNetworkStorage
 {
-    private readonly GuidId _icrKeyStorageId = GuidId.FromString("icr_key");
+    private readonly Guid _icrKeyStorageId = Guid.Parse("42739542-22eb-49cb-b43a-110acf2b18a1");
     private readonly CircleMembershipService _circleMembershipService;
     private readonly TenantSystemStorage _tenantSystemStorage;
 
@@ -31,7 +31,6 @@ public class CircleNetworkStorage
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
-
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
@@ -212,5 +211,4 @@ public class IcrAccessRecord
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
-
 }

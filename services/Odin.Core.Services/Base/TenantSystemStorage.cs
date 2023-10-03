@@ -65,27 +65,7 @@ namespace Odin.Core.Services.Base
         {
             return _db.CreateCommitUnitOfWork();
         }
-
-        public void Dispose()
-        {
-            _db.Dispose();
-        }
-
-        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
-        {
-            return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
-        }
-
-
-        /// <summary>
-        /// Store values using a single key while offering 2 other keys to categorize your data
-        /// </summary>
-        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
-        public ThreeKeyValueStorage CreateThreeKeyValueStorage(byte[] contextKey)
-        {
-            return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
-        }
-
+        
         /// <summary>
         /// Store values using a single key
         /// </summary>
@@ -93,5 +73,24 @@ namespace Odin.Core.Services.Base
         {
             return new SingleKeyValueStorage(_db.tblKeyValue, contextKey);
         }
+        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
+        {
+            return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
+        }
+
+        /// <summary>
+        /// Store values using a single key while offering 2 other keys to categorize your data
+        /// </summary>
+        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
+        public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
+        {
+            return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
+        }
+        
+        public void Dispose()
+        {
+            _db.Dispose();
+        }
+
     }
 }

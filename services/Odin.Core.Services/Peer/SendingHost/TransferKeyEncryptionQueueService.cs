@@ -15,8 +15,8 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         public TransferKeyEncryptionQueueService(TenantSystemStorage tenantSystemStorage)
         {
-            const string sk = "21a24e2d-f2c6-4d7a-9cfa-44d0d956d0d7";
-            _queueStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(sk));
+            const string queueContextKey = "21a24e2d-f2c6-4d7a-9cfa-44d0d956d0d7";
+            _queueStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(queueContextKey));
         }
 
         public Task Enqueue(TransitKeyEncryptionQueueItem item)

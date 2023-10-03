@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 
 namespace Odin.Core.Services.Configuration;
 
 public class OwnerAppSettings
 {
-    public static readonly GuidId ConfigKey = GuidId.FromString("owner_app_settings");
+    public static readonly Guid ConfigKey = Guid.Parse("2b6f6f80-d1f4-4153-8ec6-3e6c98f99de3");
 
     public static OwnerAppSettings Default { get; } = new()
     {
