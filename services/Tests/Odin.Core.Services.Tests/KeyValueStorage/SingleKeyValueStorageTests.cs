@@ -7,7 +7,6 @@ namespace Odin.Core.Services.Tests.KeyValueStorage;
 
 public class SingleKeyValueStorageTests
 {
-        
     [Test]
     public void RequireNonEmptyContextKey()
     {
@@ -16,9 +15,7 @@ public class SingleKeyValueStorageTests
         db.CreateDatabase(false);
 
         Assert.Throws<ArgumentException>(() => { new SingleKeyValueStorage(db.tblKeyValue, Guid.Empty); });
-        
         db.Dispose();
-
     }
 
     [Test]
@@ -36,10 +33,8 @@ public class SingleKeyValueStorageTests
         const string expectedValue1 = "some value";
         singleKvp1.Upsert(pk, expectedValue1);
         Assert.IsTrue(singleKvp1.Get<string>(pk) == expectedValue1);
-
         singleKvp1.Delete(pk);
         Assert.IsTrue(singleKvp1.Get<string>(pk) == null);
-
 
         var contextKey2 = Guid.NewGuid();
         var singleKvp2 = new SingleKeyValueStorage(db.tblKeyValue, contextKey2);

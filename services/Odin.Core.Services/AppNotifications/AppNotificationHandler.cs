@@ -94,8 +94,10 @@ namespace Odin.Core.Services.AppNotifications
                         "Closing",
                         CancellationToken.None);
                 }
-
-                await this.Connect(webSocket, request);
+                else
+                {
+                    await Connect(webSocket, request);
+                }
             }
             catch (WebSocketException e)
             {
