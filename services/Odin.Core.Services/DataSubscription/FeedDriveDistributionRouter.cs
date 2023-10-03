@@ -65,7 +65,7 @@ namespace Odin.Core.Services.DataSubscription
             _odinConfiguration = odinConfiguration;
             _driveAcl = driveAcl;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory);
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
