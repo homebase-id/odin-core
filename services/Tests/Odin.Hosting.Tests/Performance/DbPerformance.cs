@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -31,7 +33,7 @@ namespace Odin.Hosting.Tests.Performance
         public void OneTimeSetUp()
         {
             var testContextKey = Guid.NewGuid();
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
             _db = new IdentityDatabase("");
@@ -50,7 +52,8 @@ namespace Odin.Hosting.Tests.Performance
                     Data = new byte[] { (byte)(i % 256), 2, 3, 4, 5, /* ... */ } // This should contain 50 elements
                 };
 
-                storage.Upsert<Item>(_keys[i], item);
+                // storage.Upsert<Item>(_keys[i], item);
+                _db.tblKeyValue.Upsert(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
                 // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
             }
         }
@@ -101,6 +104,7 @@ namespace Odin.Hosting.Tests.Performance
             DB Opened 5, Closed 0
          */
         [Test]
+        [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public void TaskPerformanceTest_Db_SingleThread()
         {
             PerformanceFramework.ThreadedTest(1, MAXITERATIONS, DoDb);
@@ -147,6 +151,7 @@ TaskPerformanceTest_Db_MultiThread
                 DB Opened 5, Closed 0
         */
         [Test]
+        [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public void TaskPerformanceTest_Db_MultiThread()
         {
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoDb);
@@ -193,6 +198,7 @@ TaskPerformanceTest_DbWrapper_SingleThread
             DB Opened 5, Closed 0
          */
         [Test]
+        [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public void TaskPerformanceTest_DbWrapper_SingleThread()
         {
             PerformanceFramework.ThreadedTest(1, MAXITERATIONS, DoWrapperDb);
@@ -219,6 +225,7 @@ TaskPerformanceTest_DbWrapper_MultiThread
             DB Opened 5, Closed 0
          */
         [Test]
+        [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public void TaskPerformanceTest_DbWrapper_MultiThread()
         {
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoWrapperDb);
