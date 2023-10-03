@@ -1072,7 +1072,7 @@ public class DataSubscriptionAndDistributionTests1
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = AccessControlList.Authenticated
+            AccessControlList = AccessControlList.Anonymous
         };
 
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
@@ -1118,7 +1118,7 @@ public class DataSubscriptionAndDistributionTests1
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = AccessControlList.OwnerOnly
+            AccessControlList = AccessControlList.Anonymous
         };
 
         return await client.Drive.UploadFile(FileSystemType.Standard, overwriteFile.TargetDrive, fileMetadata, overwriteFileId: overwriteFile.FileId);
