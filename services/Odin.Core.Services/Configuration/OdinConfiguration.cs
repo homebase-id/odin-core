@@ -25,6 +25,7 @@ namespace Odin.Core.Services.Configuration
         public CertificateRenewalSection CertificateRenewal { get; init; }
 
         public MailgunSection Mailgun { get; init; }
+        public AdminSection Admin { get; init; }
 
         public FeedSection Feed { get; init; }
         public TransitSection Transit { get; init; }
@@ -41,6 +42,7 @@ namespace Odin.Core.Services.Configuration
             Quartz = new QuartzSection(config);
             Registry = new RegistrySection(config);
             Mailgun = new MailgunSection(config);
+            Admin = new AdminSection(config);
 
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
@@ -169,10 +171,9 @@ namespace Odin.Core.Services.Configuration
         public class HostSection
         {
             public string TenantDataRootPath { get; init; }
-            
             public string SystemDataRootPath { get; init; }
-            
             public string SystemSslRootPath { get; init; }
+
 
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
@@ -335,6 +336,27 @@ namespace Odin.Core.Services.Configuration
                 };
                 EmailDomain = config.Required<string>("Mailgun:EmailDomain");
                 Enabled = config.Required<bool>("Mailgun:Enabled");
+            }
+        }
+
+        //
+
+        public class AdminSection
+        {
+            public bool ApiEnabled { get; init; }
+            public string ApiKey { get; init; }
+            public string ApiKeyHttpHeaderName { get; init; }
+
+            public AdminSection()
+            {
+                // Mockable support
+            }
+
+            public AdminSection(IConfiguration config)
+            {
+                ApiEnabled = config.Required<bool>("Admin:ApiEnabled");
+                ApiKey = config.Required<string>("Admin:ApiKey");
+                ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
             }
         }
 
