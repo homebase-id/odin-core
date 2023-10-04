@@ -32,9 +32,7 @@ namespace Odin.Core.Services.Base
             _db = new IdentityDatabase($"Data Source={finalPath}");
             _db.CreateDatabase(false);
 
-            SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
-            ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
-            TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
+            // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = _db.tblConnections;
             CircleMemberStorage = _db.tblCircleMember;
@@ -50,18 +48,6 @@ namespace Odin.Core.Services.Base
         public TableAppGrants AppGrants { get; }
 
         public TableConnections Connections { get; }
-
-        /// <summary>
-        /// Store values using a single key
-        /// </summary>
-        public SingleKeyValueStorage SingleKeyValueStorage { get; }
-
-        /// <summary>
-        /// Store values using a single key while offering 2 other keys to categorize your data
-        /// </summary>
-        public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
-
-        public TwoKeyValueStorage TwoKeyValueStorage { get; }
 
         public TableFeedDistributionOutbox Feedbox { get; }
 
@@ -79,10 +65,32 @@ namespace Odin.Core.Services.Base
         {
             return _db.CreateCommitUnitOfWork();
         }
+        
+        /// <summary>
+        /// Store values using a single key
+        /// </summary>
+        public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
+        {
+            return new SingleKeyValueStorage(_db.tblKeyValue, contextKey);
+        }
+        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
+        {
+            return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
+        }
 
+        /// <summary>
+        /// Store values using a single key while offering 2 other keys to categorize your data
+        /// </summary>
+        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
+        public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
+        {
+            return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
+        }
+        
         public void Dispose()
         {
             _db.Dispose();
         }
+
     }
 }

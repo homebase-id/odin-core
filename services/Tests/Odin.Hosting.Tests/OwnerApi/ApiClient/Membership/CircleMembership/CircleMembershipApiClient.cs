@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
@@ -25,13 +27,13 @@ public class CircleMembershipApiClient
         _ownerApi = ownerApi;
         _identity = identity;
     }
-    
-    
+
+
     public async Task<CircleDefinition> CreateCircle(string circleName, PermissionSetGrantRequest grant)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
             var request = new CreateCircleRequest()
             {
@@ -76,7 +78,7 @@ public class CircleMembershipApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
             var request = new CreateCircleRequest()
             {
@@ -102,8 +104,37 @@ public class CircleMembershipApiClient
             {
                 CircleId = circleId
             });
-            
+
             return response;
         }
+    }
+
+    public async Task<ApiResponse<CircleDefinition>> GetCircleDefinition(GuidId circleId)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.GetCircleDefinition(circleId);
+            return response;
+        }
+    }
+
+    public async Task<CircleDefinition> CreateCircle(string name, TargetDrive drive, DrivePermission drivePermission, params int[] permissionKeys)
+    {
+        return await this.CreateCircle(name, new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = drive,
+                        Permission = drivePermission
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(permissionKeys)
+        });
     }
 }

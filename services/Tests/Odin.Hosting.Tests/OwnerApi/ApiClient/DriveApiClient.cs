@@ -206,7 +206,7 @@ public class DriveApiClient
         }
     }
 
-    public async Task<(UploadResult uploadResult, string encryptedJsonContent64)> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive,
+    public async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
@@ -247,6 +247,12 @@ public class DriveApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
+
+            if (fileMetadata.AppData.ContentIsComplete && payloadData.Length > 0)
+            {
+                Assert.Inconclusive("ContentIsComplete is marked false but a payload was provided in the unit test");
+            }
+
             if (fileMetadata.AppData.ContentIsComplete == false)
             {
                 encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
@@ -278,7 +284,7 @@ public class DriveApiClient
 
             keyHeader.AesKey.Wipe();
 
-            return (uploadResult, encryptedJsonContent64);
+            return (uploadResult, encryptedJsonContent64, encryptedPayloadBytes.ToBase64());
         }
     }
 
@@ -325,7 +331,6 @@ public class DriveApiClient
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
             {
                 File = file,
@@ -505,5 +510,13 @@ public class DriveApiClient
 
             return (uploadResult, encryptedJsonContent64);
         }
+    }
+
+    public async Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives(int pageNumber = 1, int pageSize = 100)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, sharedSecret);
+        return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
     }
 }

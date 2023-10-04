@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dawn;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -11,16 +12,22 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class ThreeKeyValueStorage
 {
-    private readonly TableKeyThreeValue _db;
+    private readonly TableKeyThreeValue _table;
+    private readonly Guid _contextKey;
 
-    public ThreeKeyValueStorage(TableKeyThreeValue db)
+    public ThreeKeyValueStorage(TableKeyThreeValue table, Guid contextKey)
     {
-        _db = db;
+        Guard.Argument(contextKey, nameof(contextKey)).Require(k => k != Guid.Empty);
+        Guard.Argument(table, nameof(table)).NotNull();
+
+        _table = table;
+        _contextKey = contextKey;
     }
 
-    public T Get<T>(GuidId key) where T : class
+    public T Get<T>(Guid key) where T : class
     {
-        var bytes = _db.Get(key);
+        var bytes = _table.Get(MakeStorageKey(key));
+
         if (null == bytes)
         {
             return null;
@@ -29,9 +36,20 @@ public class ThreeKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class
+    public void Upsert<T>(Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
-        var list = _db.GetByKeyTwo(key2);
+        var json = OdinSystemSerializer.Serialize(value);
+        _table.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
+    }
+
+    public void Delete(Guid id)
+    {
+        _table.Delete(MakeStorageKey(id));
+    }
+
+    public IEnumerable<T> GetByDataType<T>(byte[] dataType) where T : class
+    {
+        var list = _table.GetByKeyTwo(dataType);
         if (null == list)
         {
             return new List<T>();
@@ -40,9 +58,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey3<T>(byte[] key3) where T : class
+    public IEnumerable<T> GetByCategory<T>(byte[] categoryKey) where T : class
     {
-        var list = _db.GetByKeyThree(key3);
+        var list = _table.GetByKeyThree(categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -51,9 +69,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(byte[] key2, byte[] key3) where T : class
+    public IEnumerable<T> GetByKey2And3<T>(byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
-        var list = _db.GetByKeyTwoThree(key2, key3);
+        var list = _table.GetByKeyTwoThree(dataTypeKey, categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -62,15 +80,9 @@ public class ThreeKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(GuidId key1, byte[] key2, byte[] key3, T value)
+    private byte[] MakeStorageKey(Guid key)
     {
-        var json = OdinSystemSerializer.Serialize(value);
-        _db.Upsert(new KeyThreeValueRecord() { key1 = key1.Value.ToByteArray(), key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
-    }
-
-    public void Delete(Guid id)
-    {
-        _db.Delete(id.ToByteArray());
+        return ByteArrayUtil.Combine(key.ToByteArray(), _contextKey.ToByteArray());
     }
 
     private T Deserialize<T>(byte[] bytes)

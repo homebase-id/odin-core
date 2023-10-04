@@ -1,33 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Serialization;
-using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
-using Odin.Hosting.Tests.AppAPI.Drive;
-using Odin.Hosting.Tests.AppAPI.Utils;
-using Odin.Hosting.Tests.OwnerApi.Utils;
-using Refit;
 
 namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 {
@@ -47,6 +31,39 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();
+        }
+
+        [Test]
+        public async Task SystemDefault_AppHas_Read_React_Comment_Permissions_On_AnonymousDrives_WhenConnected()
+        {
+            var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
+            var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+
+            await pippinOwnerClient.Network.SendConnectionRequestTo(merryOwnerClient.Identity);
+            await merryOwnerClient.Network.AcceptConnectionRequest(pippinOwnerClient.Identity);
+
+            var allPippinDrivesResponse = await pippinOwnerClient.Drive.GetDrives(1, 200);
+            Assert.IsTrue(allPippinDrivesResponse.IsSuccessStatusCode);
+            var allPippinDrives = allPippinDrivesResponse.Content;
+            Assert.IsNotNull(allPippinDrives);
+
+            var expectedAnonymousDrives = allPippinDrives.Results.Where(drive => drive.AllowAnonymousReads);
+
+            var remoteDotYouContextResponse = await merryAppClient.TransitQuery.GetRemoteDotYouContext(new TransitGetSecurityContextRequest() { OdinId = pippinOwnerClient.Identity.OdinId });
+            Assert.IsTrue(remoteDotYouContextResponse.IsSuccessStatusCode);
+            var remoteContext = remoteDotYouContextResponse.Content;
+            Assert.IsNotNull(remoteContext);
+            var groups = remoteContext.PermissionContext.PermissionGroups;
+            
+            var allDrivesFound = expectedAnonymousDrives.All(ownerAnonDrive =>
+                groups.Any(pg => pg.DriveGrants.Any(dg =>
+                    dg.PermissionedDrive.Drive == ownerAnonDrive.TargetDriveInfo && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.React) && 
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Comment))));
+            
+            Assert.IsTrue(allDrivesFound);
         }
 
         [Test]
@@ -70,11 +87,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             {
                 OdinId = TestIdentities.Merry.OdinId,
             });
-            
+
             Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
-        
+
         [Test]
         public async Task AppFailsTo_GetHeader_OverTransitQuery_Without_UseTransitRead_Permission()
         {
@@ -151,7 +168,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
-        
+
         //
 
         private async Task<AppApiClient> CreateAppAndClient(TestIdentity identity, params int[] permissionKeys)

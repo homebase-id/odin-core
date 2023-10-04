@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                  {
                      item.created = now;
-                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.DomainName, item);
                  }
                 return count;
             } // Lock
@@ -292,7 +292,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                          item.modified = new UnixTimeUtcUnique((long)modified);
                       else
                          item.modified = null;
-                      _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                      _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.DomainName, item);
                       return 1;
                    }
                 }
@@ -345,7 +345,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                 {
                      item.modified = now;
-                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.DomainName, item);
                 }
                 return count;
             } // Lock
@@ -436,7 +436,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param1.Value = identity.DomainName;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableConnectionsCRUD", identity.ToString());
+                    _cache.Remove("TableConnectionsCRUD", identity.DomainName);
                 return count;
             } // Lock
         }
@@ -504,7 +504,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public ConnectionsRecord Get(OdinId identity)
         {
-            var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identity.ToString());
+            var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identity.DomainName);
             if (hit)
                 return (ConnectionsRecord)cacheObject;
             lock (_get0Lock)
@@ -524,11 +524,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableConnectionsCRUD", identity.ToString(), null);
+                        _cache.AddOrUpdate("TableConnectionsCRUD", identity.DomainName, null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, identity);
-                    _cache.AddOrUpdate("TableConnectionsCRUD", identity.ToString(), r);
+                    _cache.AddOrUpdate("TableConnectionsCRUD", identity.DomainName, r);
                     return r;
                 } // using
             } // lock

@@ -368,7 +368,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             AssertCanWriteToDrive(file.DriveId);
 
             var existingHeader = await this.GetServerFileHeader(file);
-
+            
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
@@ -381,13 +381,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
-            await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+            await GetLongTermStorageManager(file.DriveId).DeleteAttachments(file.FileId);
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
 
             if (await ShouldRaiseDriveEvent(file))
             {
                 await _mediator.Publish(new DriveFileDeletedNotification()
                 {
+                    PreviousServerFileHeader = existingHeader,
                     IsHardDelete = false,
                     File = file,
                     ServerFileHeader = deletedServerFileHeader,
@@ -435,6 +436,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 try
                 {
+                    //Note: it's just as performant to directly get the file length as it is to perform File.Exists
                     string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
                     metadata.PayloadSize = new FileInfo(sourceFile).Length;
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
@@ -678,8 +680,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
-
+            ContextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOneDrivePermission(targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
+            
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);

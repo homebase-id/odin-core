@@ -68,10 +68,10 @@ namespace Odin.Core.Services.Peer.SendingHost
             {
                 if (failIfNotConnected)
                 {
-                    return null;
+                    throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
                 }
-
-                throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
+                
+                return null;
             }
 
             return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());

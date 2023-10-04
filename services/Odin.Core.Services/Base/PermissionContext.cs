@@ -67,6 +67,15 @@ namespace Odin.Core.Services.Base
             return false;
         }
 
+
+        public void AssertHasAtLeastOneDrivePermission(Guid driveId, params DrivePermission[] permissions)
+        {
+            if (!permissions.Any(p => HasDrivePermission(driveId, p)))
+            {
+                throw new OdinSecurityException($"Unauthorized access to drive [{driveId}]");
+            }
+        }
+
         public void AssertHasDrivePermission(Guid driveId, DrivePermission permission)
         {
             if (!this.HasDrivePermission(driveId, permission))
@@ -97,7 +106,7 @@ namespace Odin.Core.Services.Base
 
         public void AssertHasAtLeastOnePermission(params int[] permissionKeys)
         {
-            if(!permissionKeys.Any(HasPermission))
+            if (!permissionKeys.Any(HasPermission))
             {
                 throw new OdinSecurityException("Does not have permission");
             }
@@ -122,13 +131,6 @@ namespace Odin.Core.Services.Base
             }
         }
 
-        public void AssertCanWriteReactionsAndCommentsToDrive(Guid driveId)
-        {
-            if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
-            {
-                throw new OdinSecurityException($"Unauthorized to write reactions and comments to drive [{driveId}]");
-            }
-        }
 
         /// <summary>
         /// Determines if the current request can write to the specified drive

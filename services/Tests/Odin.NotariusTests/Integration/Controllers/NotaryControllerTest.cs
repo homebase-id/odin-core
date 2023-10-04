@@ -170,7 +170,7 @@ public class NotaryControllerTest
 
     private void SeedDatabase(string identity)
     {
-        var db = _factory.Services.GetRequiredService<NotaryDatabase>();
+        using var db = _factory.Services.GetRequiredService<NotaryDatabase>();
 
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         var ecc = new EccFullKeyData(pwd, 1);

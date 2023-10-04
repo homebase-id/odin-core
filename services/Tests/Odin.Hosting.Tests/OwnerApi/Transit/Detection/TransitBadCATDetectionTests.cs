@@ -101,10 +101,10 @@ public class TransitBadCATDetectionTests
             $"Status code was {getSecurePayloadTransitResponse2.StatusCode}");
 
         //
-        // Validate Merry's ICR on pippin's server is marked ConnectionStatus.ConnectedButRemoteIsInvalid
+        // Validate there is no longer a connection with merry/pippin
         //
         var merryConnectionOnPippin = await pippinOwnerClient.Network.GetConnectionInfo(TestIdentities.Merry);
-        Assert.IsTrue(merryConnectionOnPippin.RemoteIcrIsInvalid);
+        Assert.IsTrue(merryConnectionOnPippin.Status == ConnectionStatus.None);
     }
 
     private async Task<(UploadResult uploadResult, string securedPayloadContent)> MerryPostSecureFileAndAuthorizePippin()

@@ -13,8 +13,6 @@ using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.Transit;
 
-//TODO: the name 'registration' is not accurate here because nothing is being registered.  this is just a cache loader
-//
 public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
 {
     private readonly OdinContextCache _cache;

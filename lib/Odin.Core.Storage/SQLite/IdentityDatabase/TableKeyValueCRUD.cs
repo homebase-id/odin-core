@@ -282,7 +282,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-       public KeyValueRecord Get(byte[] key)
+        public KeyValueRecord Get(byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");

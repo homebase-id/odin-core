@@ -4,13 +4,11 @@ using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
@@ -30,7 +28,6 @@ public class TenantConfigService
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
-    private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
     private readonly RecoveryService _recoverService;
@@ -39,24 +36,26 @@ public class TenantConfigService
 
     public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService,
+        IIdentityRegistry registry,
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
-        RecoveryService recoverService, 
+        RecoveryService recoverService,
         CircleMembershipService circleMembershipService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
         _tenantContext = tenantContext;
         _registry = registry;
-        _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
         _recoverService = recoverService;
         _circleMembershipService = circleMembershipService;
         _icrKeyService = icrKeyService;
-        _configStorage = storage.SingleKeyValueStorage;
+
+        const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
+        _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
+        
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
 
@@ -70,13 +69,12 @@ public class TenantConfigService
     public async Task CreateInitialKeys()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
+
         await _recoverService.CreateInitialKey();
 
         await _publicPrivateKeyService.CreateInitialKeys();
 
         await _icrKeyService.CreateInitialKeys();
-
     }
 
     /// <summary>
@@ -161,6 +159,22 @@ public class TenantConfigService
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
                 this.UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
+                break;
+
+            case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
+                cfg.AuthenticatedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives:
+                cfg.AuthenticatedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.ConnectedIdentitiesCanReactOnAnonymousDrives:
+                cfg.ConnectedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
+                break;
+            
+            case TenantConfigFlagNames.ConnectedIdentitiesCanCommentOnAnonymousDrives:
+                cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
             default:

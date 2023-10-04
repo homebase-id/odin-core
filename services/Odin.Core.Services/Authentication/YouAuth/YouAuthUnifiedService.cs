@@ -53,12 +53,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             return false;
         }
 
-        if (clientType == ClientType.app)
-        {
-            var appId = Guid.Parse(clientIdOrDomain);
-            return await _appRegistrationService.IsConsentRequired(appId);
-        }
-
         if (clientType == ClientType.domain)
         {
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
@@ -77,9 +71,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (clientType == ClientType.app)
         {
-            var appId = Guid.Parse(clientIdOrDomain);
-            _appRegistrationService.UpdateConsentRequirements(appId, consentRequirements).GetAwaiter().GetResult();
-
             //so for now i'll just use this dictionary
             _tempConsent[clientIdOrDomain] = true;
         }

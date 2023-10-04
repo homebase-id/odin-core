@@ -15,20 +15,18 @@ namespace Odin.Core.Services.Authorization.Apps
         /// List of circles defining whose members can work with your identity via this app
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
-
+        
         /// <summary>
         /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
         /// </summary>
         public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
-
+        
         /// <summary>
         /// Permissions and drives granted to this app and only this app as used by the Identity Owner
         /// </summary>
         public ExchangeGrant Grant { get; set; }
 
         public string CorsHostName { get; set; }
-
-        public ConsentRequirements ConsentRequirements { get; set; }
 
         public RedactedAppRegistration Redacted()
         {

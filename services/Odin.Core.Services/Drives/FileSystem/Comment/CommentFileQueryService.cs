@@ -39,7 +39,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Comment
             if (!drive.AllowAnonymousReads)
             {
                 var pc = ContextAccessor.GetCurrent().PermissionsContext;
-                var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments) ||
+                var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Comment) ||
                                      pc.HasDrivePermission(driveId, DrivePermission.Read);
 
                 if (!hasPermissions)

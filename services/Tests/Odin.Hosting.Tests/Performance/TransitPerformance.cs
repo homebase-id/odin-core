@@ -276,7 +276,7 @@ namespace Odin.Hosting.Tests.Performance
 
                             AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
                         },
-                        AccessControlList = AccessControlList.OwnerOnly
+                        AccessControlList = AccessControlList.Connected
                     },
                 };
 
@@ -519,7 +519,7 @@ namespace Odin.Hosting.Tests.Performance
 
                             AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
                         },
-                        AccessControlList = AccessControlList.OwnerOnly
+                        AccessControlList = AccessControlList.Connected
                     },
                 };
 

@@ -41,11 +41,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{BC75A940-26CF-43F1-BAA2-846A6BCE52DC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YouAuthClientReferenceImplementation", "Misc\YouAuthClientReferenceImplementation\YouAuthClientReferenceImplementation.csproj", "{4CF10B0B-52CC-4ED3-A240-189935DF4291}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Notarius", "Odin.Notarius\Odin.Notarius.csproj", "{D5A27EF6-2412-43E0-B253-2CAA797EC0C0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.NotariusTests", "Tests\Odin.NotariusTests\Odin.NotariusTests.csproj", "{75E056F3-AC4C-419F-869A-5A1ED298DA9C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.KeyChainTests", "Tests\Odin.KeyChainTests\Odin.KeyChainTests.csproj", "{FEF2E49A-6C56-40FD-8C86-96A205EBF1FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Cli", "Odin.Cli\Odin.Cli.csproj", "{3BDB0866-FD1E-4918-9417-1016CD4DA1E7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -125,6 +128,10 @@ Global
 		{FEF2E49A-6C56-40FD-8C86-96A205EBF1FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FEF2E49A-6C56-40FD-8C86-96A205EBF1FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FEF2E49A-6C56-40FD-8C86-96A205EBF1FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BDB0866-FD1E-4918-9417-1016CD4DA1E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BDB0866-FD1E-4918-9417-1016CD4DA1E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BDB0866-FD1E-4918-9417-1016CD4DA1E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BDB0866-FD1E-4918-9417-1016CD4DA1E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

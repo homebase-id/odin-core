@@ -844,7 +844,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
-                var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var circleDefSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
                 var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
@@ -884,7 +884,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
-                var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var circleDefSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
                 var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
@@ -1114,7 +1114,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 Guid someId = Guid.NewGuid();
                 var dgr1 = new DriveGrantRequest()
