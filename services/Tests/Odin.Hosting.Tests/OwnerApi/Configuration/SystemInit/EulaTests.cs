@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Membership.Circles;
+using Odin.Core.Services.Configuration.Eula;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -31,37 +27,54 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         }
 
         [Test]
-        public async Task CanSignEula()
+        public async Task CanSignAndGetSignatureHistory()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
-            var eulaResponse = await ownerClient.Configuration.IsEulaAgreementRequired();
+            var eulaResponse = await ownerClient.Configuration.IsEulaSignatureRequired();
             Assert.IsTrue(eulaResponse.IsSuccessStatusCode);
             Assert.IsTrue(eulaResponse.Content);
 
-            const string version = "1234";
+            const string version = EulaSystemInfo.RequiredVersion;
+            var signature = Guid.NewGuid().ToByteArray();
             await ownerClient.Configuration.MarkEulaSigned(new MarkEulaSignedRequest()
+            {
+                Version = version,
+                SignatureBytes = signature
+            });
+
+            var eulaResponse2 = await ownerClient.Configuration.IsEulaSignatureRequired();
+            Assert.IsTrue(eulaResponse2.IsSuccessStatusCode);
+            Assert.IsFalse(eulaResponse2.Content);
+
+
+            var getHistoryResponse = await ownerClient.Configuration.GetEulaSignatureHistory();
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+
+            var history = getHistoryResponse.Content;
+            Assert.IsNotNull(history);
+            var eulaSignature = history.SingleOrDefault(s => s.Version == EulaSystemInfo.RequiredVersion);
+            Assert.IsNotNull(eulaSignature);
+            
+            Assert.IsTrue(eulaSignature.SignatureBytes.Length == signature.Length);
+
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            Assert.IsTrue(eulaSignature.SignatureDate < nowMs);
+        }
+
+        [Test]
+        public async Task FailToSignInvalidEulaVersion()
+        {
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+
+            string version = Guid.NewGuid().ToString("N");
+            var markSignedResponse = await ownerClient.Configuration.MarkEulaSigned(new MarkEulaSignedRequest()
             {
                 Version = version,
                 SignatureBytes = Guid.NewGuid().ToByteArray()
             });
-            
-            var eulaResponse2 = await ownerClient.Configuration.IsEulaAgreementRequired();
-            Assert.IsTrue(eulaResponse2.IsSuccessStatusCode);
-            Assert.IsFalse(eulaResponse2.Content);
-        }
 
-        [Test]
-        public void FailOwnerLogin_Without_Eula_Signed()
-        {
-            Assert.Inconclusive("TODO");
+            Assert.IsTrue(markSignedResponse.StatusCode == HttpStatusCode.BadRequest);
         }
-        
-        [Test]
-        public void FailToRenderHome_Without_Eula_Signed()
-        {
-            Assert.Inconclusive("TODO");
-        }
-        
     }
 }

@@ -240,7 +240,6 @@ namespace Odin.Core.Services.Authentication.Owner
 
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.
-        /// Otherwise an <see cref="InvalidTokenException"/> is thrown
         /// </summary>
         /// <param name="tokenId"></param>
         /// <param name="ttlSeconds"></param>
@@ -301,22 +300,6 @@ namespace Odin.Core.Services.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        //
-
-        private async Task EnsureFirstRunOperations(ClientAuthenticationToken token)
-        {
-            var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
-            if (fli == null)
-            {
-                await _tenantConfigService.CreateInitialKeys();
-
-                _firstRunInfoStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
-                {
-                    FirstLoginDate = UnixTimeUtc.Now()
-                });
-            }
-        }
-
         public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
             var context = _httpContextAccessor.HttpContext;
@@ -329,7 +312,7 @@ namespace Odin.Core.Services.Authentication.Owner
             // just below this, we check to see if the token was good.  if not, the call fails.
             odinContext.Caller = new CallerContext(
                 odinId: (OdinId)context.Request.Host.Host,
-                masterKey: null,
+                masterKey: null, //will be set later
                 securityLevel: SecurityGroupType.Owner);
 
             OdinContext ctx = await this.GetDotYouContext(token);
@@ -352,5 +335,22 @@ namespace Odin.Core.Services.Authentication.Owner
 
             return true;
         }
+
+        //
+
+        private async Task EnsureFirstRunOperations(ClientAuthenticationToken token)
+        {
+            var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
+            if (fli == null)
+            {
+                await _tenantConfigService.CreateInitialKeys();
+
+                _firstRunInfoStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
+                {
+                    FirstLoginDate = UnixTimeUtc.Now()
+                });
+            }
+        }
+
     }
 }

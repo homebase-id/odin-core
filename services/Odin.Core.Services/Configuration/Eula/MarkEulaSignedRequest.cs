@@ -1,4 +1,4 @@
-namespace Odin.Core.Services.Configuration;
+namespace Odin.Core.Services.Configuration.Eula;
 
 public class MarkEulaSignedRequest
 {

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration.Eula;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
@@ -55,7 +57,7 @@ public class TenantConfigService
 
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
         _configStorage = storage.CreateSingleKeyValueStorage(Guid.Parse(configContextKey));
-        
+
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
 
@@ -69,24 +71,56 @@ public class TenantConfigService
     public bool IsEulaSignatureRequired()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
-        var info = _configStorage.Get<EulaSignatureInfo>(EulaSignatureInfo.Key);
-        return info == null;
+
+        var info = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey);
+        if (info == null || !info.Any())
+        {
+            return true;
+        }
+
+        var signature = info.SingleOrDefault(signature => signature.Version == EulaSystemInfo.RequiredVersion);
+        return signature == null;
     }
-    
+
+    public string GetRequiredEulaVersion()
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        return Eula.EulaSystemInfo.RequiredVersion;
+    }
+
+    public List<EulaSignature> GetEulaSignatureHistory()
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+        var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+
+        return signatures;
+    }
+
     public void MarkEulaSigned(MarkEulaSignedRequest request)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
+
         Guard.Argument(request, nameof(request)).NotNull();
         Guard.Argument(request.Version, nameof(request.Version)).NotNull().NotEmpty();
-        _configStorage.Upsert(EulaSignatureInfo.Key, new EulaSignatureInfo()
+
+        if (request.Version != EulaSystemInfo.RequiredVersion)
+        {
+            throw new OdinClientException("Invalid Eula version");
+        }
+
+        var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+
+        signatures.Add(new EulaSignature()
         {
             SignatureDate = UnixTimeUtc.Now(),
-            VersionInfo = request.Version
+            Version = request.Version,
+            SignatureBytes = request.SignatureBytes
         });
+
+        _configStorage.Upsert(Eula.EulaSystemInfo.StorageKey, signatures);
     }
-    
+
     public async Task CreateInitialKeys()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -185,15 +219,15 @@ public class TenantConfigService
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
                 cfg.AuthenticatedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
                 break;
-            
+
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanCommentOnAnonymousDrives:
                 cfg.AuthenticatedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
-            
+
             case TenantConfigFlagNames.ConnectedIdentitiesCanReactOnAnonymousDrives:
                 cfg.ConnectedIdentitiesCanReactOnAnonymousDrives = bool.Parse(request.Value);
                 break;
-            
+
             case TenantConfigFlagNames.ConnectedIdentitiesCanCommentOnAnonymousDrives:
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
@@ -305,5 +339,4 @@ public class TenantConfigService
 
         return false;
     }
-    
 }

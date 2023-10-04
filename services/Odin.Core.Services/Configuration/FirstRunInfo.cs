@@ -9,10 +9,3 @@ public class FirstRunInfo
     public Int64 FirstRunDate { get; set; }
 }
 
-
-public class EulaSignatureInfo
-{
-    public static readonly GuidId Key = GuidId.FromString("eula_signature_key");
-    public UnixTimeUtc SignatureDate { get; set; }
-    public string VersionInfo { get; set; }
-}

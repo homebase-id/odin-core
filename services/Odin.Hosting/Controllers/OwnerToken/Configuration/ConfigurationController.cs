@@ -5,6 +5,7 @@ using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Configuration.Eula;
 using Odin.Core.Services.Drives;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
@@ -37,11 +38,24 @@ public class ConfigurationController : Controller
     }
     
     
-
-    [HttpPost("system/iseulasignaturerequired")]
+    [HttpPost("system/IsEulaSignatureRequired")]
     public Task<bool> IsEulaSignatureRequired()
     {
         var result = _tenantConfigService.IsEulaSignatureRequired();
+        return Task.FromResult(result);
+    }
+    
+    [HttpPost("system/GetRequiredEulaVersion")]
+    public Task<string> GetRequiredEulaVersion()
+    {
+        var result = _tenantConfigService.GetRequiredEulaVersion();
+        return Task.FromResult(result);
+    }
+    
+    [HttpPost("system/GetEulaSignatureHistory")]
+    public Task<List<EulaSignature>> GetEulaSignatureHistory()
+    {
+        var result = _tenantConfigService.GetEulaSignatureHistory();
         return Task.FromResult(result);
     }
     
