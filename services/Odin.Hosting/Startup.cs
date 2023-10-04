@@ -222,10 +222,11 @@ namespace Odin.Hosting
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
 
-            services.AddSingleton(new LocalhostWithApiKeyAttribute(
+            services.AddSingleton(new AdminApiRestrictedAttribute(
                 config.Admin.ApiEnabled,
                 config.Admin.ApiKey,
-                config.Admin.ApiKeyHttpHeaderName));
+                config.Admin.ApiKeyHttpHeaderName,
+                config.Admin.ApiPort));
         }
 
         // ConfigureContainer is where you can register things directly
