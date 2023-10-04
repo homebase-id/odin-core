@@ -119,6 +119,16 @@ public class CircleMembershipApiClient
         }
     }
 
+    public async Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.GetCircleDefinitions(includeSystemCircle);
+            return response;
+        }
+    }
+
     public async Task<CircleDefinition> CreateCircle(string name, TargetDrive drive, DrivePermission drivePermission, params int[] permissionKeys)
     {
         return await this.CreateCircle(name, new PermissionSetGrantRequest()
