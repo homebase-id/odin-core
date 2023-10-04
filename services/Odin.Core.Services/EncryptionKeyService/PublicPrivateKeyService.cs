@@ -12,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.EncryptionKeyService
@@ -33,6 +34,8 @@ namespace Odin.Core.Services.EncryptionKeyService
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+        private readonly SingleKeyValueStorage _storage;
+
         public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
             IOdinHttpClientFactory odinHttpClientFactory,
             IMediator mediator)
@@ -41,6 +44,10 @@ namespace Odin.Core.Services.EncryptionKeyService
             _contextAccessor = contextAccessor;
             _odinHttpClientFactory = odinHttpClientFactory;
             _mediator = mediator;
+            
+            const string icrKeyStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
+            _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+
         }
 
         /// <summary>
@@ -50,7 +57,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// <returns></returns>
         public async Task InvalidateRecipientPublicKey(OdinId recipient)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.DomainName));
+            _storage.Delete(GuidId.FromString(recipient.DomainName));
             await Task.CompletedTask;
         }
 
@@ -73,7 +80,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
                 GuidId cacheKey = GuidId.FromString($"{prefix}{recipient.DomainName}");
 
-                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(cacheKey);
+                var cacheItem = _storage.Get<RsaPublicKeyData>(cacheKey);
 
                 if ((cacheItem == null || cacheItem.IsExpired()))
                 {
@@ -93,7 +100,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                         expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
                     };
 
-                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(cacheKey, cacheItem);
+                    _storage.Upsert(cacheKey, cacheItem);
                 }
 
                 if (null == cacheItem && failIfCannotRetrieve)
@@ -333,7 +340,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
+            var existingKeys = _storage.Get<RsaFullKeyListData>(storageKey);
             if (null != existingKeys)
             {
                 throw new OdinSecurityException($"Rsa keys with storage key {storageKey} already exist.");
@@ -344,14 +351,14 @@ namespace Odin.Core.Services.EncryptionKeyService
                 RsaKeyListManagement.DefaultMaxOnlineKeys,
                 RsaKeyListManagement.DefaultHoursOnlineKey);
 
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(storageKey, rsaKeyList);
+            _storage.Upsert(storageKey, rsaKeyList);
 
             return Task.CompletedTask;
         }
 
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
+            var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
 
             if (null != existingKeys)
             {
@@ -363,7 +370,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                 EccKeyListManagement.DefaultMaxOnlineKeys,
                 EccKeyListManagement.DefaultHoursOnlineKey);
 
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(storageKey, eccKeyList);
+            _storage.Upsert(storageKey, eccKeyList);
 
             return Task.CompletedTask;
         }
@@ -376,7 +383,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey)
         {
-            return _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
+            return _storage.Get<RsaFullKeyListData>(storageKey);
         }
 
         private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey)
@@ -387,7 +394,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
         {
-            return _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
+            return _storage.Get<EccFullKeyListData>(storageKey);
         }
 
         private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)

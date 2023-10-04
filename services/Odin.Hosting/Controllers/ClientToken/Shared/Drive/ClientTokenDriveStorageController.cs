@@ -24,12 +24,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class DriveStorageController : DriveStorageControllerBase
+    public class ClientTokenDriveStorageController : DriveStorageControllerBase
     {
-        private readonly ILogger<DriveStorageController> _logger;
+        private readonly ILogger<ClientTokenDriveStorageController> _logger;
 
-        public DriveStorageController(
-            ILogger<DriveStorageController> logger,
+        public ClientTokenDriveStorageController(
+            ILogger<ClientTokenDriveStorageController> logger,
             FileSystemResolver fileSystemResolver,
             ITransitService transitService) :
             base(logger, fileSystemResolver, transitService)

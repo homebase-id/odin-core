@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Drives;
@@ -6,7 +7,7 @@ namespace Odin.Core.Services.Configuration;
 
 public class TenantSettings
 {
-    public static readonly GuidId ConfigKey = GuidId.FromString("tenant_config");
+    public static readonly Guid ConfigKey = Guid.Parse("32078bbb-8773-4371-b9bc-78d83c680e13");
 
     public static TenantSettings Default { get; } = new TenantSettings()
     {

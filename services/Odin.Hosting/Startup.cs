@@ -260,6 +260,13 @@ namespace Odin.Hosting
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
             var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
 
+            // Note 1: see NotificationSocketController
+            // Note 2: UseWebSockets must be before UseLoggingMiddleware
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromMinutes(2)
+            });
+
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
@@ -289,14 +296,6 @@ namespace Odin.Hosting
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();
-
-            var webSocketOptions = new WebSocketOptions
-            {
-                KeepAliveInterval = TimeSpan.FromMinutes(2)
-            };
-
-            // webSocketOptions.AllowedOrigins.Add("https://...");
-            app.UseWebSockets(webSocketOptions); //Note: see NotificationSocketController
 
             app.UseEndpoints(endpoints =>
             {

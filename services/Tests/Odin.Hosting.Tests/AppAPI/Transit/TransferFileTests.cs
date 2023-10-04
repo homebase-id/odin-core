@@ -170,7 +170,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 {
                     FileType = someFiletype,
                     JsonContent = "this is some content",
-                }
+                },
+                AccessControlList = AccessControlList.Connected
             };
 
             var options = new TransitTestUtilsOptions()
@@ -254,7 +255,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 {
                     FileType = someFiletype,
                     JsonContent = "this is some content",
-                }
+                },
+                AccessControlList = AccessControlList.Connected
             };
 
             var options = new TransitTestUtilsOptions()
@@ -307,7 +309,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true, SecurityGroupType.Connected); //security group should be cause that's how we sent it
 
             // recipient server: Should still be in index and marked as deleted
 
@@ -778,7 +780,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1, $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
+                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1,
+                    $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
 
                 var uploadedFile = new ExternalFileIdentifier()
                 {

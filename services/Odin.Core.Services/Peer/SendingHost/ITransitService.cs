@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         Task ProcessOutbox();
 
         /// <summary>
-        /// Notifies the recipients the file with the <param name="globalTransitId"/> must be deleted
+        /// Notifies the recipients the file with the <param name="remoteGlobalTransitIdentifier"/> must be deleted
         /// </summary>
         Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, SendFileOptions sendFileOptions,
             IEnumerable<string> recipients);

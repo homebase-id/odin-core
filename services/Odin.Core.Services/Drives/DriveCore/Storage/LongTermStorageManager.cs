@@ -234,7 +234,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// Removes the contents of the meta file while permanently deletes the payload and thumbnails.  Retains some fields of the metafile and updates the index accordingly
         /// </summary>
         /// <param name="fileId"></param>
-        public Task SoftDelete(Guid fileId)
+        public Task DeleteAttachments(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
             DeletePayload(fileId);

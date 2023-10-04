@@ -70,7 +70,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 }
             };
 
-            var (uploadResult, _) = await frodoOwnerClient.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, metadata, "");
+            var (uploadResult, _, _) = await frodoOwnerClient.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, metadata, "");
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));

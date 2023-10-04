@@ -15,6 +15,7 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Optimization.Cdn;
@@ -40,16 +41,17 @@ public class StaticFileContentService
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly OdinContextAccessor _contextAccessor;
-    private readonly TenantSystemStorage _tenantSystemStorage;
-
+    private readonly SingleKeyValueStorage _staticFileConfigStorage;
     public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem)
     {
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
-        _tenantSystemStorage = tenantSystemStorage;
         _driveManager = driveManager;
         _fileSystem = fileSystem;
+
+        const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
+        _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
@@ -161,7 +163,7 @@ public class StaticFileContentService
 
         File.Move(tempTargetPath, finalTargetPath, true);
         config.ContentType = MediaTypeNames.Application.Json;
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
@@ -171,7 +173,7 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
         
-        var config = _tenantSystemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))
         {
@@ -202,7 +204,7 @@ public class StaticFileContentService
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
     }
 
     public async Task PublishProfileCard(string json)
@@ -225,7 +227,7 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
     }
 
     private GuidId GetConfigKey(string filename)

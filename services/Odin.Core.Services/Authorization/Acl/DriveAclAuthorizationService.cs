@@ -3,17 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
         private readonly OdinContextAccessor _contextAccessor;
+        private readonly CircleNetworkService _circleNetwork;
 
-        public DriveAclAuthorizationService(OdinContextAccessor contextAccessor)
+
+        public DriveAclAuthorizationService(OdinContextAccessor contextAccessor, CircleNetworkService circleNetwork)
         {
             _contextAccessor = contextAccessor;
+            _circleNetwork = circleNetwork;
         }
 
         public Task AssertCallerHasPermission(AccessControlList acl)
@@ -21,6 +26,40 @@ namespace Odin.Core.Services.Authorization.Acl
             ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
 
             return Task.CompletedTask;
+        }
+
+        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl)
+        {
+            //there must be an acl
+            if (acl == null)
+            {
+                return false;
+            }
+            
+            //if file has required circles, see if caller has at least one
+            var requiredCircles = acl.GetRequiredCircles().ToList();
+            if (requiredCircles.Any())
+            {
+                var icr = await _circleNetwork.GetIdentityConnectionRegistration(odinId, true);
+                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants.Select(cg => cg.Value.CircleId.Value)).Any();
+                return hasAtLeastOneCircle;
+            }
+
+            if (acl.GetRequiredIdentities().Any())
+            {
+                return false;
+            }
+
+            switch (acl.RequiredSecurityGroup)
+            {
+                case SecurityGroupType.Anonymous:
+                    return true;
+
+                case SecurityGroupType.Connected:
+                    return (await _circleNetwork.GetIdentityConnectionRegistration(odinId, true)).IsConnected();
+            }
+
+            return false;
         }
 
         public Task<bool> CallerHasPermission(AccessControlList acl)

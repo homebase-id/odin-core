@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
@@ -21,7 +22,17 @@ public class AppTransitQueryApiClient : AppApiClientBase
     {
         _token = token;
     }
-    
+
+    public async Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext(TransitGetSecurityContextRequest request)
+    {
+        var client = CreateAppApiHttpClient(_token);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitAppTransitQuery>(client, _token.SharedSecret);
+            var apiResponse = await svc.GetRemoteDotYouContext(request);
+            return apiResponse;
+        }
+    }
+
     public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(TransitQueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
@@ -31,7 +42,7 @@ public class AppTransitQueryApiClient : AppApiClientBase
             return apiResponse;
         }
     }
-        
+
     public async Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
@@ -41,7 +52,7 @@ public class AppTransitQueryApiClient : AppApiClientBase
             return apiResponse;
         }
     }
-    
+
     public async Task<ApiResponse<QueryBatchResponse>> GetBatch(TransitQueryBatchRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);

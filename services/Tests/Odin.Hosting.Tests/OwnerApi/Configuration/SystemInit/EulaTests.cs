@@ -42,13 +42,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             const string version = "1234";
             await ownerClient.Configuration.MarkEulaSigned(new MarkEulaSignedRequest()
             {
-                Version = version
+                Version = version,
+                SignatureBytes = Guid.NewGuid().ToByteArray()
             });
             
             var eulaResponse2 = await ownerClient.Configuration.IsEulaAgreementRequired();
             Assert.IsTrue(eulaResponse2.IsSuccessStatusCode);
             Assert.IsFalse(eulaResponse2.Content);
-            
         }
 
         [Test]

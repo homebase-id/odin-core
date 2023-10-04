@@ -11,6 +11,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient
@@ -50,6 +51,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _youAuthDomainApiClient = new YouAuthDomainApiClient(ownerApi, identity);
             _ownerConfigurationApiClient = new OwnerConfigurationApiClient(ownerApi, identity);
 
+            TransitQuery = new OwnerTransitQueryApiClient(ownerApi, identity);
+
         }
 
         public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
@@ -69,6 +72,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;
 
         public TransitApiClient Transit => _transitApiClient;
+        
+        public OwnerTransitQueryApiClient TransitQuery { get; }
 
         public YouAuthDomainApiClient YouAuth => _youAuthDomainApiClient;
 
