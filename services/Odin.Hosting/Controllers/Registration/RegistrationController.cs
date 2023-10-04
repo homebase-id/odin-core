@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Util;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Registration
@@ -18,6 +19,27 @@ namespace Odin.Hosting.Controllers.Registration
         public RegistrationController(IIdentityRegistrationService regService)
         {
             _regService = regService;
+        }
+
+        /// <summary>
+        /// Validate domain name
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("is-valid-domain/{domain}")]
+        public IActionResult IsValidDomain(string domain)
+        {
+            return new JsonResult(AsciiDomainNameValidator.TryValidateDomain(domain));
+        }
+
+        /// <summary>
+        /// Gets zone apex of a domain (i.e. the nearest domain with a SOA and NS record)
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("lookup-zone-apex/{domain}")]
+        public async Task<IActionResult> LookupZoneApex(string domain)
+        {
+            var zoneApex = await _regService.LookupZoneApex(domain);
+            return new JsonResult(zoneApex);
         }
 
         /// <summary>
