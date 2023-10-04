@@ -133,4 +133,5 @@ public sealed class YouAuthAuthorizeRequest
 public class YouAuthAuthorizeConsentGiven
 {
     public const string ReturnUrlName = "return_url";
+    public const string ConsentRequirementName = "consent_req";
 }
