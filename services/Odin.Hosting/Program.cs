@@ -182,20 +182,22 @@ namespace Odin.Hosting
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
-                var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
+                var (cert, requireClientCertificate) = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
                     //
-                    // This is an escape hatch so runtime won't log an error
+                    // This is an escape hatch so the runtime won't log an error
                     // when no certificate could be found.
                     //
                     // NOTE:
-                    // When probing for SSLv2 support (which is unsecure and denied in Kestrel),
-                    // the runtime will throw the exception
+                    // When bots are probing for SSLv2 support (which is unsecure and denied in Kestrel),
+                    // the runtime will throw the exception:
+                    //
                     //   System.NotSupportedException:
                     //     The server mode SSL must use a certificate with the associated private key.
-                    // without ever hitting this part of the code.
+                    //
+                    // Without ever hitting this part of the code.
                     //
                     // Reproducible with: $ testssl.sh --serial --protocols <identity-host>
                     //
@@ -208,8 +210,7 @@ namespace Odin.Hosting
                     ServerCertificate = cert
                 };
 
-                // Require client certificate if domain prefix is "capi"
-                if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
+                if (requireClientCertificate)
                 {
                     result.AllowRenegotiation = true;
                     result.ClientCertificateRequired = true;
@@ -222,14 +223,14 @@ namespace Odin.Hosting
 
         //         
 
-        private static async Task<X509Certificate2> ServerCertificateSelector(
+        private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
             IServiceProvider serviceProvider)
         {
             if (string.IsNullOrWhiteSpace(hostName))
             {
-                return null;
+                return (null, false);
             }
 
             string sslRoot, domain;
@@ -237,6 +238,7 @@ namespace Odin.Hosting
             //
             // Look up tenant from host name
             //
+            var requireClientCertificate = false;
             var registry = serviceProvider.GetRequiredService<IIdentityRegistry>();
             var idReg = registry.ResolveIdentityRegistration(hostName, out _);
             if (idReg != null)
@@ -244,6 +246,10 @@ namespace Odin.Hosting
                 var tenantContext = registry.CreateTenantContext(idReg);
                 sslRoot = tenantContext.SslRoot;
                 domain = idReg.PrimaryDomainName;
+
+                // Require client certificate if domain prefix is "capi"
+                requireClientCertificate =
+                    hostName != domain && hostName.StartsWith(DnsConfigurationSet.PrefixCertApi);
             }
             //
             // Not a tenant, is hostName a known system (e.g. provisioning)? 
@@ -258,7 +264,7 @@ namespace Odin.Hosting
             else
             {
                 Log.Debug("Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host", hostName);
-                return null;
+                return (null, false);
             }
 
             var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
@@ -270,7 +276,7 @@ namespace Odin.Hosting
             var certificate = tc.ResolveCertificate(domain);
             if (null != certificate)
             {
-                return certificate;
+                return (certificate, requireClientCertificate);
             }
 
             // 
@@ -292,7 +298,7 @@ namespace Odin.Hosting
                 Log.Error($"No certificate configured for {hostName}");
             }
 
-            return certificate;
+            return (certificate, requireClientCertificate);
         }
 
         //
