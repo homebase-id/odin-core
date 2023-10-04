@@ -91,6 +91,42 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
+    public async Task<string> LookupZoneApex(string domain)
+    {
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return "";
+        }
+
+        var dnsClient = await CreateDnsClient();
+
+        var labels = domain.Split('.');
+        for (var i = 0; i < labels.Length; i++)
+        {
+            var test = string.Join('.', labels.Skip(i));
+
+            var cnameResponse = await dnsClient.QueryAsync(test, QueryType.CNAME);
+            var cnameCount = cnameResponse.Answers.CnameRecords().Count();
+
+            var soaResponse = await dnsClient.QueryAsync(test, QueryType.SOA);
+            var soaCount = soaResponse.Answers.SoaRecords().Count();
+
+            var nsResponse = await dnsClient.QueryAsync(test, QueryType.NS);
+            var nsCount = nsResponse.Answers.NsRecords().Count();
+
+            if (cnameCount == 0 && soaCount > 0 && nsCount > 0)
+            {
+                _logger.LogDebug("LookupZoneApex found zone at {domain}", test);
+                return test;
+            }
+        }
+
+        _logger.LogError("LookupZoneApex found no zone anywhere in {domain}", domain);
+        return "";
+    }
+
+    //
+
     public Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
     {
         return Task.FromResult(_configuration.Registry.ManagedDomainApexes);
