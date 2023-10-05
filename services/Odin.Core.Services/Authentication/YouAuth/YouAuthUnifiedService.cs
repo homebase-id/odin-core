@@ -50,6 +50,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         //TODO: need to talk with Seb about the redirecting loop issue here
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
+            _tempConsent.Remove(clientIdOrDomain);
             return false;
         }
 
