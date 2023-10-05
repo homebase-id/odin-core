@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.YouAuth;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
 
@@ -10,23 +12,23 @@ namespace Odin.Core.Services.Authentication.YouAuth;
 public enum ClientType
 {
     unknown,
-    app, 
+    app,
     domain
 }
 // ReSharper restore InconsistentNaming
 
 public interface IYouAuthUnifiedService
 {
-    Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain, string permissionRequest);
+    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest);
 
     Task<bool> NeedConsent(
-        string tenant, 
-        ClientType clientType, 
-        string clientIdOrDomain, 
+        string tenant,
+        ClientType clientType,
+        string clientIdOrDomain,
         string permissionRequest);
-    
-    Task StoreConsent(string clientIdOrDomain, string permissionRequest);
-    
+
+    Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements);
+
     Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
         ClientType clientType,
         string clientId,
@@ -56,4 +58,3 @@ public sealed class EncryptedTokenExchange
         ClientAuthTokenIv = clientAuthTokenIv;
     }
 }
-

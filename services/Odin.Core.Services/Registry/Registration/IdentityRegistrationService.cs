@@ -91,6 +91,40 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
+    public async Task<string> LookupZoneApex(string domain)
+    {
+        domain = domain.ToLower();
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return "";
+        }
+
+        var dnsClient = await CreateDnsClient();
+
+        var labels = domain.Split('.');
+        for (var i = 0; i < labels.Length; i++)
+        {
+            var test = string.Join('.', labels.Skip(i));
+
+            _logger.LogDebug("LookupZoneApex query SOA on {domain}", test);
+            var response = await dnsClient.QueryAsync(test, QueryType.SOA);
+            foreach (var soa in response.Answers.SoaRecords())
+            {
+                _logger.LogDebug("LookupZoneApex found SOA on {domain}: {SOA}", test, soa);
+                if (soa.DomainName.Value.ToLower() == test + '.')
+                {
+                    _logger.LogDebug("LookupZoneApex zone apex is {domain}", test);
+                    return test;
+                }
+            }
+        }
+
+        _logger.LogError("LookupZoneApex found no zone anywhere in {domain}", domain);
+        return "";
+    }
+
+    //
+
     public Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
     {
         return Task.FromResult(_configuration.Registry.ManagedDomainApexes);

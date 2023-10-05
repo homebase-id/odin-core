@@ -10,7 +10,6 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Membership.CircleMembership;
@@ -78,19 +77,12 @@ namespace Odin.Core.Services.Membership.YouAuth
                 throw new OdinClientException("Domain already registered");
             }
 
-            if (request.ConsentRequirement == ConsentRequirement.Expiring)
-            {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (request.ConsentExpirationDateTime.milliseconds < nowMs)
-                {
-                    throw new OdinClientException("ConsentExpirationDateTime should be in the future");
-                }
-            }
-
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
+            request.ConsentRequirements?.Validate();
+            
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
@@ -100,8 +92,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 CorsHostName = request.CorsHostName,
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 CircleGrants = grants,
-                ConsentRequirement = request.ConsentRequirement,
-                ConsentExpirationDateTime = request.ConsentExpirationDateTime
+                ConsentRequirements = request.ConsentRequirements
             };
 
             this.SaveRegistration(reg);
@@ -162,28 +153,25 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             var reg = await this.GetDomainRegistrationInternal(domain);
 
-            if (null == reg)
+            return reg?.ConsentRequirements?.IsRequired() ?? true;
+        }
+
+        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            consentRequirements.Validate();
+
+            var domainReg = await this.GetDomainRegistrationInternal(domain);
+            if (null == domainReg)
             {
-                return true;
+                throw new OdinClientException("Domain not registered");
             }
 
-            if (reg.ConsentRequirement == ConsentRequirement.Always)
-            {
-                return true;
-            }
+            domainReg.ConsentRequirements = consentRequirements;
 
-            if (reg.ConsentRequirement == ConsentRequirement.Expiring)
-            {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                return reg.ConsentExpirationDateTime.milliseconds > nowMs;
-            }
-
-            if (reg.ConsentRequirement == ConsentRequirement.Never)
-            {
-                return false;
-            }
-
-            return true;
+            this.SaveRegistration(domainReg);
+            ResetPermissionContextCache();
         }
 
         public async Task RevokeDomain(AsciiDomainName domain)

@@ -10,6 +10,10 @@ namespace Odin.Core.Services.Registry.Registration;
 /// </summary>
 public interface IIdentityRegistrationService
 {
+
+
+    Task<string> LookupZoneApex(string domain);
+
     /// <summary>
     /// Returns a list of domains managed by this identity host.
     /// </summary>
