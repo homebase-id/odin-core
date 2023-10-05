@@ -28,7 +28,6 @@ public class RedirectIfNotApexMiddleware
 
     public async Task Invoke(HttpContext context)
     {
-        // non-http needed by certificate creation, so no redirecting!
         if (!context.Request.IsHttps)
         {
             await _next(context);
@@ -54,15 +53,7 @@ public class RedirectIfNotApexMiddleware
             return;
         }
 
-        var hostName = context.Request.Host.Host;
-        if (tenant.Name == hostName)
-        {
-            await _next(context);
-            return;
-        }
-
-        // For now we only fall through to the redirect if prefix label is 'www'
-        if (hostName != $"www.{tenant.Name}")
+        if (tenant.Name == context.Request.Host.Host)
         {
             await _next(context);
             return;
