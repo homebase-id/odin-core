@@ -269,6 +269,7 @@ namespace Odin.Hosting
 
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
+            app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
             bool IsProvisioningSite(HttpContext context)
