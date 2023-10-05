@@ -72,6 +72,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
 
+            _logger.LogDebug("YouAuth: authorizing client_id={client_id}, redirect_uri={redirect_uri}",
+                authorize.ClientType, authorize.RedirectUri);
+
             //
             // Step [040] Logged in?
             // Authentication check and redirect to 'login' is done by controller attribute [AuthorizeValidOwnerToken]
@@ -96,6 +99,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     var appRegisterPage =
                         $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
 
+                    _logger.LogDebug("YouAuth: redirecting to {redirect}", appRegisterPage);
                     return Redirect(appRegisterPage);
                 }
             }
@@ -115,6 +119,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                 var consentPage =
                     $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}?returnUrl={returnUrl}";
+
+                _logger.LogDebug("YouAuth: redirecting to {redirect}", consentPage);
                 return Redirect(consentPage);
             }
 
@@ -153,6 +159,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 Query = queryString.ToUriComponent()
             }.Uri;
 
+            _logger.LogDebug("YouAuth: redirecting to {redirect}", uri.ToString());
             return Redirect(uri.ToString());
         }
 
@@ -209,6 +216,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements);
 
             // Redirect back to authorize
+            _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);
             return Redirect(returnUrl);
         }
 
