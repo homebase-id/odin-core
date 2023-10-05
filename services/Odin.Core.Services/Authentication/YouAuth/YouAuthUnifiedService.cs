@@ -48,6 +48,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (_tempConsent.ContainsKey(clientIdOrDomain))
         {
+            _tempConsent.Remove(clientIdOrDomain);
             return false;
         }
 
