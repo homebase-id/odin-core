@@ -93,6 +93,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<string> LookupZoneApex(string domain)
     {
+        domain = domain.ToLower();
         if (!AsciiDomainNameValidator.TryValidateDomain(domain))
         {
             return "";
@@ -105,19 +106,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             var test = string.Join('.', labels.Skip(i));
 
-            var cnameResponse = await dnsClient.QueryAsync(test, QueryType.CNAME);
-            var cnameCount = cnameResponse.Answers.CnameRecords().Count();
-
-            var soaResponse = await dnsClient.QueryAsync(test, QueryType.SOA);
-            var soaCount = soaResponse.Answers.SoaRecords().Count();
-
-            var nsResponse = await dnsClient.QueryAsync(test, QueryType.NS);
-            var nsCount = nsResponse.Answers.NsRecords().Count();
-
-            if (cnameCount == 0 && soaCount > 0 && nsCount > 0)
+            _logger.LogDebug("LookupZoneApex query SOA on {domain}", test);
+            var response = await dnsClient.QueryAsync(test, QueryType.SOA);
+            foreach (var soa in response.Answers.SoaRecords())
             {
-                _logger.LogDebug("LookupZoneApex found zone at {domain}", test);
-                return test;
+                _logger.LogDebug("LookupZoneApex found SOA on {domain}: {SOA}", test, soa);
+                if (soa.DomainName.Value.ToLower() == test + '.')
+                {
+                    _logger.LogDebug("LookupZoneApex zone apex is {domain}", test);
+                    return test;
+                }
             }
         }
 
