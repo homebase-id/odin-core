@@ -59,12 +59,12 @@ public class RedirectIfNotApexMiddleware
             return;
         }
 
-        // Redirect to identity apes
+        // Redirect to identity apex
         var uriBuilder = new UriBuilder
         {
             Scheme = context.Request.Scheme,
             Host = tenant.Name,
-            Port = context.Request.Host.Port.GetValueOrDefault(-1), // -1 means the port won't be added to the Uri
+            Port = context.Request.Host.Port == 443 ? -1 : context.Request.Host.Port ?? -1,
             Path = context.Request.Path,
             Query = context.Request.QueryString.ToString()
         };
