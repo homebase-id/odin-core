@@ -36,6 +36,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailSender _emailSender;
+    private readonly object _mutex = new();
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -230,7 +231,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     (
                         resolver,
                         record,
-                        VerifyDnsRecord(domain, record, dnsClient, true, 10)
+                        VerifyDnsRecord(domain, record, dnsClient, true, 4)
                     ));
             }
         }
@@ -399,7 +400,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             var dnsClient = await CreateDnsClient(resolver);
             foreach (var record in dnsConfigs)
             {
-                lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true, 10));
+                lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true, 4));
             }
         }
 
@@ -584,7 +585,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 }
             }
 
-            lock (dnsConfig)
+            lock (_mutex)
             {
                 if (recordStatus != DnsConfig.LookupRecordStatus.Success)
                 {
@@ -602,11 +603,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 {
                     queryResult.SuccessCount++;
                 }
-            }
 
-            _logger.LogDebug(
-                "DNS lookup {domain}: {status} ({elapsed}ms using {address})",
-                domain, recordStatus, sw.ElapsedMilliseconds, response.NameServer.Address);
+                _logger.LogDebug("DNS lookup answer {answer}", response.Answers);
+                _logger.LogDebug("DNS lookup result {domain}: {status} ({elapsed}ms using {address})",
+                    domain, recordStatus, sw.ElapsedMilliseconds, response.NameServer.Address);
+            }
         }
 
         var totals = 0;
