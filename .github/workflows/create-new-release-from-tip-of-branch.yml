@@ -48,17 +48,6 @@ jobs:
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
           path: client/apps
 
-      - name: Checkout provisioning-app
-        uses: actions/checkout@v3
-        with:
-          repository: YouFoundation/provisioning-app
-          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          path: client/provisioning-app
-
-      - name: Authenticate to Github packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
-
       - name: Build libs & setup .env
         working-directory: ./client/apps
         run: |
@@ -68,6 +57,8 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
+          touch packages/provisioning-app/.env
+          echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
 
       - name: Build owner-app
         working-directory: ./client/apps
@@ -79,20 +70,16 @@ jobs:
       - name: Build public-app
         working-directory: ./client/apps
         run: |
-
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
 
       - name: Build provisioning-app
-        working-directory: ./client/provisioning-app
+        working-directory: ./client/apps
         run: |
-          npm ci
-          touch .env
-          echo VITE_VERSION=$(date +%s) >> .env
-          npm run build
+          npm run build -w ./packages/provisioning-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
-          mv dist ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
+          mv packages/provisioning-app/dist ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
 
       #
       # Build Docker image
@@ -130,3 +117,5 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"

@@ -26,10 +26,10 @@ namespace Odin.Core.Services.Authorization.Apps
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
 
-        private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
+        private readonly byte[] _appRegistrationDataType = Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
         private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
 
-        private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
+        private readonly byte[] _appClientDataType = Guid.Parse("54e60e2f-4687-449c-83ad-6ae6ff4ba1cf").ToByteArray();
         private readonly ThreeKeyValueStorage _appClientValueStorage;
 
         private readonly OdinContextCache _cache;
@@ -46,11 +46,11 @@ namespace Odin.Core.Services.Authorization.Apps
             _mediator = mediator;
             _icrKeyService = icrKeyService;
 
-            // _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appRegistrationDataType);
-            // _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(_appClientDataType);
-            
-            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
-            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(null);
+            const string appRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
+            _appRegistrationValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appRegContextKey));
+
+            const string appClientContextKey = "fb080b07-0566-4db8-bc0d-daed6b50b104";
+            _appClientValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(appClientContextKey));
 
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
@@ -253,11 +253,13 @@ namespace Odin.Core.Services.Authorization.Apps
                         securityLevel: SecurityGroupType.Owner,
                         youAuthClientContext: new OdinYouAuthClientContext()
                         {
+                            ClientIdOrDomain = appReg.Name,
                             CorsHostName = appReg.CorsHostName,
                             AccessRegistrationId = accessReg.Id
                         })
                 };
 
+                
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
             }

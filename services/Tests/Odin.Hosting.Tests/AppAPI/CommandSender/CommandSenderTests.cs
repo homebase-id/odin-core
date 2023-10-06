@@ -42,7 +42,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
         public async Task CanSendAndReceiveCommand()
         {
             var targetDrive = TargetDrive.NewTargetDrive();
-            int SomeFileType = 1948;
+            int someFileType = 1948;
 
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
 
@@ -78,10 +78,10 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 PayloadIsEncrypted = true,
                 AppData = new()
                 {
-                    FileType = SomeFileType,
+                    FileType = someFileType,
                     JsonContent = "{some:'file content'}",
                 },
-                AccessControlList = AccessControlList.OwnerOnly
+                AccessControlList = AccessControlList.Connected
             };
 
             var options = new TransitTestUtilsOptions()

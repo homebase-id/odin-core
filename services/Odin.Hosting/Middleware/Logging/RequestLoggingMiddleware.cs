@@ -40,36 +40,45 @@ namespace Odin.Hosting.Middleware.Logging
                 return;
             }
             
-            var stopwatch = Stopwatch.StartNew();
-
             var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-            var protocol = context.Request.Protocol;
             var method = context.Request.Method;
 
-            _logger.LogInformation(
-                "{RemoteIp} request starting |> {Protocol} {Method} {Path}",
-                remoteIp,
-                protocol,
-                method, 
-                path
-            );
-
-            // Log request headers
-            if (_logger.IsEnabled(LogLevel.Debug))
+            if (context.WebSockets.IsWebSocketRequest)
             {
-                LogHeaders("Request headers", context.Request.Headers);
+                _logger.LogInformation(
+                    "{RemoteIp} websock handshake {Path}",
+                    remoteIp,
+                    path
+                );
+                await _next(context);
             }
+            else
+            {
+                var stopwatch = Stopwatch.StartNew();
 
-            await _next(context);
+                _logger.LogInformation(
+                    "{RemoteIp} request starting {Method} {Path}",
+                    remoteIp,
+                    method,
+                    path
+                );
 
-            _logger.LogInformation("{RemoteIp} request finished |> {Protocol} {Method} {Path} in {Elapsed}ms {Status}",
-                remoteIp,
-                protocol,
-                method,
-                path,
-                stopwatch.Elapsed.TotalMilliseconds,
-                context.Response.StatusCode
-            );
+                // Log request headers
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    LogHeaders("Request headers", context.Request.Headers);
+                }
+
+                await _next(context);
+
+                _logger.LogInformation("{RemoteIp} request finished {Method} {Path} in {Elapsed}ms {Status}",
+                    remoteIp,
+                    method,
+                    path,
+                    stopwatch.Elapsed.TotalMilliseconds,
+                    context.Response.StatusCode
+                );
+            }
         }
 
         // 

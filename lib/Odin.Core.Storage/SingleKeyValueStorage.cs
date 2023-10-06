@@ -1,3 +1,4 @@
+using System;
 using Dawn;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -7,10 +8,14 @@ namespace Odin.Core.Storage;
 public class SingleKeyValueStorage
 {
     private readonly TableKeyValue _table;
+    private readonly Guid _contextKey;
 
-    public SingleKeyValueStorage(TableKeyValue table)
+    public SingleKeyValueStorage(TableKeyValue table, Guid contextKey)
     {
+        Guard.Argument(contextKey, nameof(contextKey)).Require(k => k != Guid.Empty);
         Guard.Argument(table, nameof(table)).NotNull();
+
+        _contextKey = contextKey;
         _table = table;
     }
 
@@ -18,12 +23,11 @@ public class SingleKeyValueStorage
     /// Gets T by key.  
     /// </summary>
     /// <param name="key">The Id or key of the record to retrieve</param>
-    /// <param name="context">A short string used to separate this data from other usages of the key value store</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(GuidId key, string context = null) where T : class
+    public T Get<T>(Guid key) where T : class
     {
-        var item = _table.Get(key);
+        var item = _table.Get(MakeStorageKey(key));
         if (null == item)
         {
             return null;
@@ -37,14 +41,19 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(GuidId key, T value)
+    public void Upsert<T>(Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _table.Upsert(new KeyValueRecord() { key = key, data = json.ToUtf8ByteArray() });
+        _table.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(GuidId key)
+    public void Delete(Guid key)
     {
-        _table.Delete(key);
+        _table.Delete(MakeStorageKey(key));
+    }
+    
+    private byte[] MakeStorageKey(Guid key)
+    {
+        return ByteArrayUtil.Combine(key.ToByteArray(), _contextKey.ToByteArray());
     }
 }

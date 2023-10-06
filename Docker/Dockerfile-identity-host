@@ -54,4 +54,7 @@ COPY --from=build /build/out/web .
 
 EXPOSE 80
 EXPOSE 443
+
+ENV PATH="/app/cli:${PATH}"
+
 ENTRYPOINT ["dotnet", "Odin.Hosting.dll"]
