@@ -16,8 +16,12 @@ var registrar = new TypeRegistrar(serviceCollection);
 var app = new CommandApp(registrar);
 app.Configure(config =>
 {
-    config.PropagateExceptions();
+    #if DEBUG
+    config.ValidateExamples();
+    #endif
+
     config.SetApplicationName("odin-admin");
+    config.PropagateExceptions();
     config.AddBranch("tenant", c =>
     {
         c.AddCommand<ShowTenantCommand>("show")
@@ -25,15 +29,13 @@ app.Configure(config =>
             .WithExample("tenant", "show", "frodo.dotyou.cloud", "--payload")
             .WithExample("tenant", "show", "/identity-host/data/tenants/130c23d5-e76a-421b-927d-92a22a220b54")
             .WithExample("tenant", "show", "/identity-host/data/tenants/frodo.dotyou.cloud", "--payload");
-
     });
     config.AddBranch("tenants", c =>
     {
         c.AddCommand<ListTenantsCommand>("list")
-            .WithExample("tenants", "list", "--payload", "--tree")
+            .WithExample("tenants", "list", "--payload", "--output", "tree")
             .WithExample("tenants", "list", "/identity-host/data/tenants", "--quiet");
     });
-
 });
 
 try
