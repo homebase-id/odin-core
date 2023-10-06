@@ -604,9 +604,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     queryResult.SuccessCount++;
                 }
 
-                _logger.LogDebug("DNS lookup answer {answer}", response.Answers);
-                _logger.LogDebug("DNS lookup result {domain}: {status} ({elapsed}ms using {address})",
-                    domain, recordStatus, sw.ElapsedMilliseconds, response.NameServer.Address);
+                _logger.LogDebug("DNS lookup {domain} {type} {elapsed}ms @ {address}",
+                    domain, dnsConfig.Type, sw.ElapsedMilliseconds, response.NameServer.Address);
+                _logger.LogDebug("    answer {answer}", string.Join(" ; ", response.Answers));
+                _logger.LogDebug("    result {domain}: {status}", domain, recordStatus);
             }
         }
 
