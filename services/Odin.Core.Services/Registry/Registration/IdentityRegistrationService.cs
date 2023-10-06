@@ -100,7 +100,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return "";
         }
 
-        var dnsClient = await CreateDnsClient();
+        var dnsClient = await CreateDnsClient("8.8.8.8"); // Google DNS
 
         var labels = domain.Split('.');
         for (var i = 0; i < labels.Length; i++)
