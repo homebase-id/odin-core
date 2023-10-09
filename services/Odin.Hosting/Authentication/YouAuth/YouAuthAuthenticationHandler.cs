@@ -142,8 +142,21 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
         {
+
+            if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
+            {
+                if (Boolean.TryParse(values.FirstOrDefault(), out var shouldIgnoreAuth))
+                {
+                    if (shouldIgnoreAuth)
+                    {
+                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                    }
+                }
+            }
+            
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
             var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken);
+    
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
