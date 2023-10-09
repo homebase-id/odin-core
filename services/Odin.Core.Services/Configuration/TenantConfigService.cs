@@ -82,10 +82,13 @@ public class TenantConfigService
         return signature == null;
     }
 
-    public string GetRequiredEulaVersion()
+    public EulaVersionResponse GetRequiredEulaVersion()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        return Eula.EulaSystemInfo.RequiredVersion;
+        return new EulaVersionResponse()
+        {
+            Version = EulaSystemInfo.RequiredVersion
+        };
     }
 
     public List<EulaSignature> GetEulaSignatureHistory()

@@ -10,6 +10,8 @@ using Odin.Core.Services.Drives;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 
+
+
 /// <summary>
 /// Configuration for the owner's system
 /// </summary>
@@ -36,36 +38,36 @@ public class ConfigurationController : Controller
         var result = _tenantConfigService.IsIdentityServerConfigured();
         return Task.FromResult(result);
     }
-    
-    
+
+
     [HttpPost("system/IsEulaSignatureRequired")]
     public Task<bool> IsEulaSignatureRequired()
     {
         var result = _tenantConfigService.IsEulaSignatureRequired();
         return Task.FromResult(result);
     }
-    
+
     [HttpPost("system/GetRequiredEulaVersion")]
-    public Task<string> GetRequiredEulaVersion()
+    public Task<EulaVersionResponse> GetRequiredEulaVersion()
     {
         var result = _tenantConfigService.GetRequiredEulaVersion();
         return Task.FromResult(result);
     }
-    
+
     [HttpPost("system/GetEulaSignatureHistory")]
     public Task<List<EulaSignature>> GetEulaSignatureHistory()
     {
         var result = _tenantConfigService.GetEulaSignatureHistory();
         return Task.FromResult(result);
     }
-    
+
     [HttpPost("system/MarkEulaSigned")]
     public IActionResult MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
     {
-         _tenantConfigService.MarkEulaSigned(request);
-         return Ok();
+        _tenantConfigService.MarkEulaSigned(request);
+        return Ok();
     }
-    
+
     /// <summary>
     /// Ensures all new configuration is setup when a new tenant is configured.
     /// </summary>
@@ -139,7 +141,7 @@ public class ConfigurationController : Controller
         var settings = _tenantConfigService.GetOwnerAppSettings();
         return settings;
     }
-    
+
     /// <summary>
     /// Marks registration for an identity complete
     /// </summary>
@@ -150,5 +152,4 @@ public class ConfigurationController : Controller
         //TODO: how do i finalize from here with teh first run token?
         return await Task.FromResult(Ok());
     }
-    
 }
