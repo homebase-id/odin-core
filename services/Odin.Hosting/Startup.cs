@@ -36,6 +36,7 @@ using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
@@ -178,7 +179,6 @@ namespace Odin.Hosting
                 PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<OdinConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
@@ -221,6 +221,12 @@ namespace Odin.Hosting
                 config.Mailgun.ApiKey,
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
+
+            services.AddSingleton(new AdminApiRestrictedAttribute(
+                config.Admin.ApiEnabled,
+                config.Admin.ApiKey,
+                config.Admin.ApiKeyHttpHeaderName,
+                config.Admin.ApiPort));
         }
 
         // ConfigureContainer is where you can register things directly

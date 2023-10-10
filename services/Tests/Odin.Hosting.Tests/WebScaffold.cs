@@ -137,6 +137,11 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
 
+            Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
+            Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");
+            Environment.SetEnvironmentVariable("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
+            Environment.SetEnvironmentVariable("Admin__ApiPort", "4444");
+
             if (envOverrides != null)
             {
                 foreach (var (key, value) in envOverrides)
