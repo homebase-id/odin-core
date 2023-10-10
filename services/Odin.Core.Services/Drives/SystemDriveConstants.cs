@@ -8,8 +8,8 @@ namespace Odin.Core.Services.Drives;
 /// </summary>
 public static class SystemDriveConstants
 {
-    public static readonly Guid ChannelDriveType = Guid.Parse("c32acb69-9d38-4c90-b37a-8755263ded8c");
-    
+    public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
+        
     public static readonly TargetDrive TransientTempDrive = new()
     {
         Alias = GuidId.FromString("transit_temp_drive"),

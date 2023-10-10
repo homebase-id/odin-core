@@ -62,7 +62,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// </summary>
         protected async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
         {
-            return await _followerService.GetIdentityIFollow(new OdinId(odinId));
+            var result = await _followerService.GetIdentityIFollow(new OdinId(odinId));
+            return result;
         }
 
         /// <summary>
