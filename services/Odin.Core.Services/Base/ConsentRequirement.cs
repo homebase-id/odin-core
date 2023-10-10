@@ -47,10 +47,15 @@ public class ConsentRequirements
 
     public bool IsRequired()
     {
+        if (this.ConsentRequirementType == ConsentRequirementType.Always)
+        {
+            return true;
+        }
+
         if (this.ConsentRequirementType == ConsentRequirementType.Expiring)
         {
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            return this.Expiration.milliseconds > nowMs;
+            return nowMs > this.Expiration.milliseconds;
         }
 
         if (this.ConsentRequirementType == ConsentRequirementType.Never)
