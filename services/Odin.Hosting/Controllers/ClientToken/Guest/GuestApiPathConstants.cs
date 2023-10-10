@@ -1,5 +1,11 @@
 ﻿namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
+    public static class GuestApiQueryConstants
+    {
+        public const string IgnoreAuthCookie = "iac";
+
+    }
+    
     public static class GuestApiPathConstants
     {
         public const string BasePathV1 = "/api/guest/v1";

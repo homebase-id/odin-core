@@ -36,6 +36,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailSender _emailSender;
+    private readonly object _mutex = new();
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -99,7 +100,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return "";
         }
 
-        var dnsClient = await CreateDnsClient();
+        var dnsClient = await CreateDnsClient("8.8.8.8"); // Google DNS
 
         var labels = domain.Split('.');
         for (var i = 0; i < labels.Length; i++)
@@ -230,7 +231,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     (
                         resolver,
                         record,
-                        VerifyDnsRecord(domain, record, dnsClient, true)
+                        VerifyDnsRecord(domain, record, dnsClient, true, 4)
                     ));
             }
         }
@@ -315,6 +316,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.CreateCnameRecords(zoneId, name, record.Value + ".");
             }
+            else if (record.Type == "ALIAS")
+            {
+                // IGNORE
+            }
             else
             {
                 // Sanity
@@ -346,6 +351,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             else if (record.Type == "CNAME")
             {
                 await _dnsRestClient.DeleteCnameRecords(zoneId, name);
+            }
+            else if (record.Type == "ALIAS")
+            {
+                // IGNORE
             }
             else
             {
@@ -379,28 +388,32 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
-        var dnsConfig = await GetDnsConfiguration(domain);
+        var dnsConfigs = await GetDnsConfiguration(domain);
 
         var lookups = new List<Task<bool>>();
-        var dnsClient = await CreateDnsClient();
 
-        foreach (var record in dnsConfig)
+        var resolvers = new List<string>(_configuration.Registry.DnsResolvers);
+        foreach (var resolver in resolvers)
         {
-            lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true));
+            var dnsClient = await CreateDnsClient(resolver);
+            foreach (var record in dnsConfigs)
+            {
+                lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true, 4));
+            }
         }
 
         await Task.WhenAll(lookups);
 
-        foreach (var record in dnsConfig)
+        foreach (var record in dnsConfigs)
         {
             if (record.Status != DnsConfig.LookupRecordStatus.Success)
             {
-                return (false, dnsConfig);
+                return (false, dnsConfigs);
             }
         }
 
         // HURRAH!
-        return (true, dnsConfig);
+        return (true, dnsConfigs);
     }
 
     //
@@ -507,7 +520,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         var options = new LookupClientOptions(nameServerIp)
         {
-            UseCache = false
+            UseCache = false,
+            UseTcpOnly = true
         };
 
         return new LookupClient(options);
@@ -519,7 +533,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         string domain,
         DnsConfig dnsConfig,
         IDnsQuery dnsClient,
-        bool validateConfiguredValue)
+        bool validateConfiguredValue,
+        int iterations)
     {
         var sw = new Stopwatch();
         sw.Start();
@@ -530,45 +545,82 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             domain = dnsConfig.Name + "." + domain;
         }
 
-        List<string> entries;
-        IDnsQueryResponse response;
+        for (var iteration = 0; iteration < iterations; iteration++)
+        {
+            List<string> entries;
+            IDnsQueryResponse response;
 
-        switch (dnsConfig.Type.ToUpper())
-        {
-            case "A":
-            case "ALIAS":
-                response = await dnsClient.QueryAsync(domain, QueryType.A);
-                entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
-                break;
-            case "CNAME":
-                response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
-                entries = response.Answers.CnameRecords()
-                    .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
-                    .ToList();
-                break;
-            default:
-                throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
-        }
-
-        if (entries.Count == 0)
-        {
-            dnsConfig.Status = DnsConfig.LookupRecordStatus.DomainOrRecordNotFound;
-        }
-        else
-        {
-            if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
+            switch (dnsConfig.Type.ToUpper())
             {
-                dnsConfig.Status = DnsConfig.LookupRecordStatus.Success;
+                case "A":
+                case "ALIAS":
+                    response = await dnsClient.QueryAsync(domain, QueryType.A);
+                    entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+                    break;
+                case "CNAME":
+                    response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
+                    entries = response.Answers.CnameRecords()
+                        .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
+                        .ToList();
+                    break;
+                default:
+                    throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
+            }
+
+            var recordStatus = DnsConfig.LookupRecordStatus.Unknown;
+            if (entries.Count == 0)
+            {
+                recordStatus = DnsConfig.LookupRecordStatus.DomainOrRecordNotFound;
             }
             else
             {
-                dnsConfig.Status = DnsConfig.LookupRecordStatus.IncorrectValue;
+                if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
+                {
+                    recordStatus = DnsConfig.LookupRecordStatus.Success;
+                }
+                else
+                {
+                    recordStatus = DnsConfig.LookupRecordStatus.IncorrectValue;
+                }
+            }
+
+            lock (_mutex)
+            {
+                if (recordStatus != DnsConfig.LookupRecordStatus.Success)
+                {
+                    dnsConfig.Status = recordStatus;
+                }
+
+                if (!dnsConfig.QueryResults.TryGetValue(response.NameServer.Address, out var queryResult))
+                {
+                    queryResult = new DnsConfig.QueryResult();
+                    dnsConfig.QueryResults[response.NameServer.Address] = queryResult;
+                }
+
+                queryResult.TotalCount++;
+                if (recordStatus == DnsConfig.LookupRecordStatus.Success)
+                {
+                    queryResult.SuccessCount++;
+                }
+
+                _logger.LogDebug("DNS lookup {domain} {type} {elapsed}ms @ {address}",
+                    domain, dnsConfig.Type, sw.ElapsedMilliseconds, response.NameServer.Address);
+                _logger.LogDebug("    answer {answer}", string.Join(" ; ", response.Answers));
+                _logger.LogDebug("    result {domain}: {status}", domain, recordStatus);
             }
         }
 
-        _logger.LogDebug(
-            "DNS lookup {domain}: {status} ({elapsed}ms using {address})",
-            domain, dnsConfig.Status, sw.ElapsedMilliseconds, response.NameServer.Address);
+        var totals = 0;
+        var successes = 0;
+        foreach (var queryResult in dnsConfig.QueryResults.Values)
+        {
+            totals += queryResult.TotalCount;
+            successes += queryResult.SuccessCount;
+        }
+        if (totals > 0 && successes == totals)
+        {
+            dnsConfig.Status = DnsConfig.LookupRecordStatus.Success;
+        }
 
         return dnsConfig.Status == DnsConfig.LookupRecordStatus.Success;
     }
@@ -657,4 +709,11 @@ public class DnsConfig
     public string Verify { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
     public string Description { get; init; } = "";
     public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
+
+    public class QueryResult
+    {
+        public int TotalCount { get; set; }
+        public int SuccessCount { get; set; }
+    }
+    public Dictionary<string, QueryResult> QueryResults { get; } = new (); // query results per DNS ip address
 }

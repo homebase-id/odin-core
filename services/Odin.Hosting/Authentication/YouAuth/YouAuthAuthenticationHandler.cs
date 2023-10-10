@@ -120,13 +120,13 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleYouAuth(OdinContext odinContext)
         {
+            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
+
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
-
-            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
-
+            
             if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
                 return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext);
@@ -142,8 +142,20 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
         {
+            if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
+            {
+                if (Boolean.TryParse(values.FirstOrDefault(), out var shouldIgnoreAuth))
+                {
+                    if (shouldIgnoreAuth)
+                    {
+                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                    }
+                }
+            }
+            
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
             var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken);
+    
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
@@ -241,7 +253,6 @@ namespace Odin.Hosting.Authentication.YouAuth
                 new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
 
-            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
