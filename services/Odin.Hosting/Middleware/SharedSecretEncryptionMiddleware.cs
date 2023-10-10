@@ -209,7 +209,7 @@ namespace Odin.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
-            if (!context.Request.Query.Any())
+            if (context.Request.Method.ToUpper() == "GET" && !context.Request.Query.Any())
             {
                 return false;
             }
