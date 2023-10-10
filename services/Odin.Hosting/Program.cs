@@ -15,6 +15,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
+using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry;
@@ -107,14 +108,11 @@ namespace Odin.Hosting
                 .Enrich.FromLogContext()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                .Filter.ByExcluding(logEvent => // See SSLv2 support comment below for why we need this (and when to remove)
-                    logEvent.Exception != null &&
-                    logEvent.Exception.GetType() == typeof(NotSupportedException) &&
-                    logEvent.Exception.Message == "The server mode SSL must use a certificate with the associated private key.")
-                .WriteTo.Async(sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme))
-                .WriteTo.Async(sink => sink.RollingFile(
-                    Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: logOutputTemplate));
-
+                .WriteTo.LogLevelModifier(s => s.Async(
+                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme)))
+                .WriteTo.LogLevelModifier(s => s.Async(
+                    sink => sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
+                        outputTemplate: logOutputTemplate)));
             if (services != null)
             {
                 loggerConfig.ReadFrom.Services(services);
