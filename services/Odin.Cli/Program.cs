@@ -3,15 +3,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Cli.Commands.Tenant;
 using Odin.Cli.Infrastructure;
 using Odin.Cli.Commands.Tenants;
+using Odin.Cli.Factories;
 using Odin.Cli.Services;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
+using HttpClientFactory = HttpClientFactoryLite.HttpClientFactory;
 
 // https://spectreconsole.net/cli/
 
 var serviceCollection = new ServiceCollection();
 serviceCollection.AddSingleton<ITenantFileSystem, TenantFileSystem>();
 var registrar = new TypeRegistrar(serviceCollection);
+
+serviceCollection.AddSingleton<IHttpClientFactory, HttpClientFactory>();
+serviceCollection.AddSingleton<ICliHttpClientFactory, CliHttpClientFactory>();
 
 var app = new CommandApp(registrar);
 app.Configure(config =>
@@ -25,7 +31,7 @@ app.Configure(config =>
     config.AddBranch("tenants", c =>
     {
         c.AddCommand<ListTenantsCommand>("list")
-            .WithExample("tenants", "list", "--key", "XXX");
+            .WithExample("tenants", "list", "--api-key", "your-secret-api-key-here");
     });
     config.AddBranch("tenantfs", c =>
     {

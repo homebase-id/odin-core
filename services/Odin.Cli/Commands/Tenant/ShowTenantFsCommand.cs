@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using Odin.Cli.Commands.Base;
-using Odin.Cli.Commands.Tenants;
+using System.Diagnostics.CodeAnalysis;
+using Odin.Cli.Extensions;
 using Odin.Cli.Services;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -8,9 +8,9 @@ using Spectre.Console.Cli;
 namespace Odin.Cli.Commands.Tenant;
 
 [Description("Show tenant")]
-public sealed class ShowTenantFsCommand : BaseCommand<ShowTenantFsCommand.FsSettings>
+public sealed class ShowTenantFsCommand : Command<ShowTenantFsCommand.Settings>
 {
-    public sealed class FsSettings : TenantFsSettings
+    public sealed class Settings : TenantFsSettings
     {
         [Description("Include payload sizes (slow)")]
         [CommandOption("-p|--payload")]
@@ -21,6 +21,8 @@ public sealed class ShowTenantFsCommand : BaseCommand<ShowTenantFsCommand.FsSett
 
     private readonly ITenantFileSystem _tenantFileSystem;
 
+    //
+
     public ShowTenantFsCommand(ITenantFileSystem tenantFileSystem)
     {
         _tenantFileSystem = tenantFileSystem;
@@ -28,12 +30,12 @@ public sealed class ShowTenantFsCommand : BaseCommand<ShowTenantFsCommand.FsSett
 
     //
 
-    protected override int Run(CommandContext context, FsSettings fsSettings)
+    public override int Execute([NotNull] CommandContext context, [NotNull] Settings settings)
     {
         var tenant = _tenantFileSystem.Load(
-            fsSettings.TenantIdOrDomain,
-            fsSettings.IncludePayload,
-            fsSettings.Verbose);
+            settings.TenantIdOrDomain,
+            settings.IncludePayload,
+            settings.Verbose);
 
         var grid = new Grid();
         grid.AddColumn(); // Domain
@@ -46,15 +48,16 @@ public sealed class ShowTenantFsCommand : BaseCommand<ShowTenantFsCommand.FsSett
             new Text("Reg. Size", new Style(Color.Green)).RightJustified(),
             new Text("Payload Size", new Style(Color.Green)).RightJustified());
 
-        var payLoadSize = fsSettings.IncludePayload ? HumanReadableBytes(tenant.PayloadSize) : "-";
+        var payLoadSize = settings.IncludePayload ? tenant.PayloadSize.HumanReadableBytes() : "-";
         grid.AddRow(
             new Text(tenant.Registration.PrimaryDomainName).LeftJustified(),
             new Text(tenant.Registration.Id.ToString()).LeftJustified(),
-            new Text(HumanReadableBytes(tenant.RegistrationSize)).RightJustified(),
+            new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
             new Text(payLoadSize).RightJustified());
 
         AnsiConsole.Write(grid);
 
         return 0;
     }
+
 }

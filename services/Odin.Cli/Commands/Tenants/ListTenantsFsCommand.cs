@@ -1,17 +1,16 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using Odin.Cli.Commands.Base;
+using Odin.Cli.Extensions;
 using Odin.Cli.Services;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Spectre.Console.Rendering;
 
 namespace Odin.Cli.Commands.Tenants;
 
 [Description("List all tenants in root directory")]
-public sealed class ListTenantsFsCommand : BaseCommand<ListTenantsFsCommand.FsSettings>
+public sealed class ListTenantsFsCommand : Command<ListTenantsFsCommand.Settings>
 {
-    public sealed class FsSettings : TenantsFsSettings
+    public sealed class Settings : TenantsFsSettings
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public enum OutputType
@@ -44,30 +43,30 @@ public sealed class ListTenantsFsCommand : BaseCommand<ListTenantsFsCommand.FsSe
 
     //
 
-    protected override int Run(CommandContext context, FsSettings fsSettings)
+    public override int Execute([NotNull] CommandContext context, [NotNull] Settings settings)
     {
-        if (fsSettings.OnlyShowDomains)
+        if (settings.OnlyShowDomains)
         {
-            return Grid(context, fsSettings);
+            return Grid(context, settings);
         }
-        if (fsSettings.Output == FsSettings.OutputType.tree)
+        if (settings.Output == Settings.OutputType.tree)
         {
-            return Tree(context, fsSettings);
+            return Tree(context, settings);
         }
-        return Grid(context, fsSettings);
+        return Grid(context, settings);
     }
 
     //
 
-    private int Grid(CommandContext context, FsSettings fsSettings)
+    private int Grid(CommandContext context, Settings settings)
     {
         var tenants = _tenantFileSystem.LoadAll(
-            fsSettings.TenantRootDir,
-            fsSettings.IncludePayload,
-            fsSettings.Verbose);
+            settings.TenantRootDir,
+            settings.IncludePayload,
+            settings.Verbose);
 
         var grid = new Grid();
-        if (fsSettings.OnlyShowDomains)
+        if (settings.OnlyShowDomains)
         {
             grid.AddColumn(); // Domain
         }
@@ -86,17 +85,17 @@ public sealed class ListTenantsFsCommand : BaseCommand<ListTenantsFsCommand.FsSe
 
         foreach (var tenant in tenants)
         {
-            if (fsSettings.OnlyShowDomains)
+            if (settings.OnlyShowDomains)
             {
                 grid.AddRow(new Text(tenant.Registration.PrimaryDomainName));
             }
             else
             {
-                var payLoadSize = fsSettings.IncludePayload ? HumanReadableBytes(tenant.PayloadSize) : "-";
+                var payLoadSize = settings.IncludePayload ? tenant.PayloadSize.HumanReadableBytes() : "-";
                 grid.AddRow(
                     new Text(tenant.Registration.PrimaryDomainName).LeftJustified(),
                     new Text(tenant.Registration.Id.ToString()).LeftJustified(),
-                    new Text(HumanReadableBytes(tenant.RegistrationSize)).RightJustified(),
+                    new Text(tenant.RegistrationSize.HumanReadableBytes()).RightJustified(),
                     new Text(payLoadSize).RightJustified());
             }
         }
@@ -108,27 +107,27 @@ public sealed class ListTenantsFsCommand : BaseCommand<ListTenantsFsCommand.FsSe
 
     //
 
-    private int Tree(CommandContext context, FsSettings fsSettings)
+    private int Tree(CommandContext context, Settings settings)
     {
         var tenants = _tenantFileSystem.LoadAll(
-            fsSettings.TenantRootDir,
-            fsSettings.IncludePayload,
-            fsSettings.Verbose);
+            settings.TenantRootDir,
+            settings.IncludePayload,
+            settings.Verbose);
 
         var root = new Tree("[yellow]Tenants[/]");
         foreach (var tenant in tenants)
         {
             var t = root.AddNode($"[yellow]{tenant.Registration.PrimaryDomainName}[/]");
             t.AddNode($"[yellow]Id:[/] {tenant.Registration.Id}");
-            t.AddNode($"[yellow]Registration Size:[/] {HumanReadableBytes(tenant.RegistrationSize)}");
+            t.AddNode($"[yellow]Registration Size:[/] {tenant.RegistrationSize.HumanReadableBytes()}");
 
-            if (fsSettings.IncludePayload)
+            if (settings.IncludePayload)
             {
-                var p = t.AddNode($"[yellow]Payload Size:[/] {HumanReadableBytes(tenant.PayloadSize)}");
+                var p = t.AddNode($"[yellow]Payload Size:[/] {tenant.PayloadSize.HumanReadableBytes()}");
                 foreach (var payload in tenant.Payloads)
                 {
                     var s = p.AddNode($"[yellow]{payload.Shard}[/]");
-                    s.AddNode($"[yellow]Size:[/] {HumanReadableBytes(payload.Size)}");
+                    s.AddNode($"[yellow]Size:[/] {payload.Size.HumanReadableBytes()}");
                 }
             }
         }
