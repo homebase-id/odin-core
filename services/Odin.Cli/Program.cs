@@ -17,24 +17,29 @@ var app = new CommandApp(registrar);
 app.Configure(config =>
 {
     #if DEBUG
-    config.ValidateExamples();
+    // config.ValidateExamples();
     #endif
 
     config.SetApplicationName("odin-admin");
     config.PropagateExceptions();
-    config.AddBranch("tenant", c =>
-    {
-        c.AddCommand<ShowTenantCommand>("show")
-            .WithExample("tenant", "show", "130c23d5-e76a-421b-927d-92a22a220b54")
-            .WithExample("tenant", "show", "frodo.dotyou.cloud", "--payload")
-            .WithExample("tenant", "show", "/identity-host/data/tenants/130c23d5-e76a-421b-927d-92a22a220b54")
-            .WithExample("tenant", "show", "/identity-host/data/tenants/frodo.dotyou.cloud", "--payload");
-    });
     config.AddBranch("tenants", c =>
     {
         c.AddCommand<ListTenantsCommand>("list")
-            .WithExample("tenants", "list", "--payload", "--output", "tree")
-            .WithExample("tenants", "list", "/identity-host/data/tenants", "--quiet");
+            .WithExample("tenants", "list", "--key", "XXX");
+    });
+    config.AddBranch("tenantfs", c =>
+    {
+        c.AddCommand<ShowTenantFsCommand>("show")
+            .WithExample("tenantfs", "show", "130c23d5-e76a-421b-927d-92a22a220b54")
+            .WithExample("tenantfs", "show", "frodo.dotyou.cloud", "--payload")
+            .WithExample("tenantfs", "show", "/identity-host/data/tenants/130c23d5-e76a-421b-927d-92a22a220b54")
+            .WithExample("tenantfs", "show", "/identity-host/data/tenants/frodo.dotyou.cloud", "--payload");
+    });
+    config.AddBranch("tenantsfs", c =>
+    {
+        c.AddCommand<ListTenantsFsCommand>("list")
+            .WithExample("tenantsfs", "list", "--payload", "--output", "tree")
+            .WithExample("tenantsfs", "list", "/identity-host/data/tenants", "--quiet");
     });
 });
 

@@ -51,32 +51,32 @@ public abstract class BaseCommand<T> : Command<T> where T : BaseSettings
 
     //
 
-    private static OdinConfiguration LoadConfig(string configFile, bool verbose)
-    {
-        configFile = configFile.Trim();
-        if (configFile == "")
-        {
-            var assemblyLocation = Assembly.GetExecutingAssembly().Location;
-            var directory = Path.GetDirectoryName(assemblyLocation)!;
-            configFile = Path.Combine(directory, "appsettings.production.json");
-        }
-
-        if (verbose)
-        {
-            AnsiConsole.MarkupLine($"Loading config: [underline]{configFile}[/]");
-        }
-
-        if (!File.Exists(configFile))
-        {
-            throw new Exception($"Config file {configFile} does not exist. Please specify --config.");
-        }
-
-        var builder = new ConfigurationBuilder().AddJsonFile(configFile, optional: false, reloadOnChange: false);
-        var configuration = builder.Build();
-
-
-        return new OdinConfiguration(configuration);
-    }
+    // private static OdinConfiguration LoadConfig(string configFile, bool verbose)
+    // {
+    //     configFile = configFile.Trim();
+    //     if (configFile == "")
+    //     {
+    //         var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+    //         var directory = Path.GetDirectoryName(assemblyLocation)!;
+    //         configFile = Path.Combine(directory, "appsettings.production.json");
+    //     }
+    //
+    //     if (verbose)
+    //     {
+    //         AnsiConsole.MarkupLine($"Loading config: [underline]{configFile}[/]");
+    //     }
+    //
+    //     if (!File.Exists(configFile))
+    //     {
+    //         throw new Exception($"Config file {configFile} does not exist. Please specify --config.");
+    //     }
+    //
+    //     var builder = new ConfigurationBuilder().AddJsonFile(configFile, optional: false, reloadOnChange: false);
+    //     var configuration = builder.Build();
+    //
+    //
+    //     return new OdinConfiguration(configuration);
+    // }
 
     //
 
