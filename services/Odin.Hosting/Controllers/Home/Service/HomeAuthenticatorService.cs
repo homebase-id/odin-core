@@ -119,7 +119,12 @@ namespace Odin.Hosting.Controllers.Home.Service
         {
             try
             {
-                _storage.DeleteClient(_contextAccessor.GetCurrent().Caller.YouAuthClientContext.AccessRegistrationId);
+                var ctx = _contextAccessor.GetCurrent().Caller.YouAuthClientContext;
+
+                if (null != ctx)
+                {
+                    _storage.DeleteClient(ctx.AccessRegistrationId);
+                }
             }
             catch
             {
