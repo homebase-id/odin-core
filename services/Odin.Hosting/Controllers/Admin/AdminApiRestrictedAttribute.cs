@@ -3,12 +3,14 @@ using System.Linq;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 
 namespace Odin.Hosting.Controllers.Admin;
 
 public class AdminApiRestrictedAttribute : ActionFilterAttribute
 {
+    private readonly ILogger<AdminApiRestrictedAttribute> _logger;
     private readonly bool _apiEnabled;
     private readonly string _apiKey;
     private readonly string _apiKeyHttpHeaderName;
@@ -16,8 +18,15 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
 
     //
 
-    public AdminApiRestrictedAttribute(bool apiEnabled, string apiKey, string apiKeyHttpHeaderName, int apiPort)
+    public AdminApiRestrictedAttribute(
+        ILogger<AdminApiRestrictedAttribute> logger,
+        bool apiEnabled,
+        string apiKey,
+        string apiKeyHttpHeaderName,
+        int apiPort)
     {
+        _logger = logger;
+
         if (string.IsNullOrEmpty(apiKey))
         {
             throw new OdinSystemException("Empty apiKey");
@@ -34,16 +43,21 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
         _apiKey = apiKey;
         _apiKeyHttpHeaderName = apiKeyHttpHeaderName;
         _apiPort = apiPort;
+
+        _logger.LogDebug("AdminApiRestrictedAttribute ctor");
     }
 
     //
 
     public override void OnActionExecuting(ActionExecutingContext context)
     {
+        _logger.LogDebug("AdminApiRestrictedAttribute OnActionExecuting");
+
         if (context.HttpContext.Connection.LocalPort != _apiPort)
         {
             // Return 404 so we don't inform bad people that there could be something interesting here
             // Strange hack to circumvent creation of a ProblemDetails
+            _logger.LogDebug("AdminApiRestrictedAttribute wrong port: {port}", context.HttpContext.Connection.LocalPort);
             context.Result = new ObjectResult(null) { StatusCode = (int)HttpStatusCode.NotFound };
             return;
         }

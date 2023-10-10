@@ -222,7 +222,8 @@ namespace Odin.Hosting
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
 
-            services.AddSingleton(new AdminApiRestrictedAttribute(
+            services.AddSingleton(sp => new AdminApiRestrictedAttribute(
+                sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
                 config.Admin.ApiEnabled,
                 config.Admin.ApiKey,
                 config.Admin.ApiKeyHttpHeaderName,

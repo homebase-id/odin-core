@@ -50,7 +50,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
         var response = await httpClient.GetAsync("ping");
         if (response.StatusCode != HttpStatusCode.OK)
         {
-            throw new Exception("Bah " + response.StatusCode);
+            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }
         var result = await response.Content.ReadAsStringAsync();
         AnsiConsole.MarkupLine($"[green]pingn:[/] {result}");
