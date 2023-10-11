@@ -279,30 +279,31 @@ namespace Odin.Hosting
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
-            bool IsProvisioningSite(HttpContext context)
-            {
-                var domain = context.RequestServices.GetService<OdinConfiguration>()?.Registry.ProvisioningDomain;
-                return context.Request.Host.Equals(new HostString(domain ?? ""));
-            }
+            // bool IsProvisioningSite(HttpContext context)
+            // {
+            //     var domain = context.RequestServices.GetService<OdinConfiguration>()?.Registry.ProvisioningDomain;
+            //     return context.Request.Host.Equals(new HostString(domain ?? ""));
+            // }
 
-            app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
+            // app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
 
-            app.UseMultiTenancy();
-
-            app.UseDefaultFiles();
-            app.UseCertificateForwarding();
-            app.UseStaticFiles();
-
+            // app.UseMultiTenancy();
+            //
+            // app.UseDefaultFiles();
+            // app.UseCertificateForwarding();
+            // app.UseStaticFiles();
+            //
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+            //
+            // app.UseMiddleware<OdinContextMiddleware>();
+            // app.UseResponseCompression();
+            // app.UseCors();
+            // app.UseApiCors();
+            // app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+            // app.UseMiddleware<StaticFileCachingMiddleware>();
 
-            app.UseMiddleware<OdinContextMiddleware>();
-            app.UseResponseCompression();
-            app.UseCors();
-            app.UseApiCors();
-            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
-            app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();
 
             app.UseEndpoints(endpoints =>
