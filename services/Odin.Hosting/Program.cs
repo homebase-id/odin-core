@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
@@ -161,7 +162,9 @@ namespace Odin.Hosting
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
 
-                            if (odinConfig.Admin.ApiEnabled)
+                            // Setup Admin API specific port
+                            var reservedPorts = odinConfig.Host.IPAddressListenList.Select(x => x.HttpsPort);
+                            if (odinConfig.Admin.ApiEnabled && !reservedPorts.Contains(odinConfig.Admin.ApiPort))
                             {
                                 kestrelOptions.Listen(IPAddress.Any, odinConfig.Admin.ApiPort,
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
