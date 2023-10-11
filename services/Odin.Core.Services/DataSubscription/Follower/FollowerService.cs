@@ -66,7 +66,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
+                var rsaEncryptedPayload =
+                    await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
                 var client = CreateClient((OdinId)request.OdinId);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
@@ -142,10 +143,10 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
+        public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
-            return GetIdentityIFollowInternal(odinId);
+            return await GetIdentityIFollowInternal(odinId);
         }
 
         public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
@@ -338,7 +339,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
-                return null;
+                return Task.FromResult<FollowerDefinition>(null);
             }
 
             if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
