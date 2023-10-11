@@ -227,7 +227,8 @@ namespace Odin.Hosting
                 config.Admin.ApiEnabled,
                 config.Admin.ApiKey,
                 config.Admin.ApiKeyHttpHeaderName,
-                config.Admin.ApiPort));
+                config.Admin.ApiPort,
+                config.Admin.Domain));
         }
 
         // ConfigureContainer is where you can register things directly

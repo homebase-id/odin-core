@@ -15,6 +15,7 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
     private readonly string _apiKey;
     private readonly string _apiKeyHttpHeaderName;
     private readonly int _apiPort;
+    private readonly string _domain;
 
     //
 
@@ -23,7 +24,8 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
         bool apiEnabled,
         string apiKey,
         string apiKeyHttpHeaderName,
-        int apiPort)
+        int apiPort,
+        string domain)
     {
         _logger = logger;
 
@@ -43,6 +45,7 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
         _apiKey = apiKey;
         _apiKeyHttpHeaderName = apiKeyHttpHeaderName;
         _apiPort = apiPort;
+        _domain = domain;
 
         _logger.LogDebug("AdminApiRestrictedAttribute ctor");
     }
@@ -53,11 +56,20 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
     {
         _logger.LogDebug("AdminApiRestrictedAttribute OnActionExecuting");
 
-        if (context.HttpContext.Connection.LocalPort != _apiPort)
+        if (context.HttpContext.Request.Host.Host != _domain)
         {
             // Return 404 so we don't inform bad people that there could be something interesting here
             // Strange hack to circumvent creation of a ProblemDetails
+            _logger.LogDebug("AdminApiRestrictedAttribute wrong domain: {domain}", context.HttpContext.Request.Host.Host);
+            context.Result = new ObjectResult(null) { StatusCode = (int)HttpStatusCode.NotFound };
+            return;
+        }
+
+        if (context.HttpContext.Connection.LocalPort != _apiPort)
+        {
             _logger.LogDebug("AdminApiRestrictedAttribute wrong port: {port}", context.HttpContext.Connection.LocalPort);
+            // Return 404 so we don't inform bad people that there could be something interesting here
+            // Strange hack to circumvent creation of a ProblemDetails
             context.Result = new ObjectResult(null) { StatusCode = (int)HttpStatusCode.NotFound };
             return;
         }
