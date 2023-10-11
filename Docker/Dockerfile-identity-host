@@ -5,14 +5,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
 
-RUN apt-get update -q && \
-    apt-get install -yq \
-    curl \
-    less \
-    netcat \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Silicon:
 # e.g. --build-arg CPU_ARCHITECTURE=x64
 ARG CPU_ARCHITECTURE=set-me-as-a-build-arg
@@ -53,6 +45,14 @@ FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
 RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
 RUN echo "alias l='ls -lah'" >> ~/.bashrc
 RUN echo "alias ll='ls -lh'" >> ~/.bashrc
+
+RUN apt-get update -q && \
+    apt-get install -yq \
+    curl \
+    less \
+    netcat \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/cli
 COPY --from=build /build/out/cli .
