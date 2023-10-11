@@ -347,6 +347,7 @@ namespace Odin.Core.Services.Configuration
             public string ApiKey { get; init; }
             public string ApiKeyHttpHeaderName { get; init; }
             public int ApiPort { get; init; }
+            public string Domain { get; init; }
 
             public AdminSection()
             {
@@ -358,7 +359,8 @@ namespace Odin.Core.Services.Configuration
                 ApiEnabled = config.Required<bool>("Admin:ApiEnabled");
                 ApiKey = config.Required<string>("Admin:ApiKey");
                 ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
-                ApiPort = config.Required<short>("Admin:ApiPort");
+                ApiPort = config.Required<int>("Admin:ApiPort");
+                Domain = config.Required<string>("Admin:Domain");
             }
         }
 

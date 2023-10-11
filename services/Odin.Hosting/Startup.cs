@@ -279,13 +279,15 @@ namespace Odin.Hosting
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
-            bool IsProvisioningSite(HttpContext context)
-            {
-                var domain = context.RequestServices.GetService<OdinConfiguration>()?.Registry.ProvisioningDomain;
-                return context.Request.Host.Equals(new HostString(domain ?? ""));
-            }
+            // Provisioning mapping
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                a => Provisioning.Map(a, env, logger));
 
-            app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
+            // Admin mapping
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Admin.Domain,
+                a => Admin.Map(a, env, logger));
 
             app.UseMultiTenancy();
 

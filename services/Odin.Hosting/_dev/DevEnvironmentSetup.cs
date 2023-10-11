@@ -79,22 +79,43 @@ namespace Odin.Hosting._dev
 
         private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration)
         {
-            string targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Registry.ProvisioningDomain);
-            Directory.CreateDirectory(targetPath);
-
             // Provisioning system
-            try
             {
-                var sourcePaths = GetSourceDomainPath(odinConfiguration.Registry.ProvisioningDomain, odinConfiguration);
-                File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
-                File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
-            }
-            catch (Exception)
-            {
-                // Swallow unless provisioning domain is running on 127.0.0.1
-                if (odinConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Registry.ProvisioningDomain);
+                Directory.CreateDirectory(targetPath);
+                try
                 {
-                    throw;
+                    var sourcePaths = GetSourceDomainPath(odinConfiguration.Registry.ProvisioningDomain, odinConfiguration);
+                    File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
+                    File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+                }
+                catch (Exception)
+                {
+                    // Swallow unless domain is running on 127.0.0.1
+                    if (odinConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            // Admin system
+            {
+                var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Admin.Domain);
+                Directory.CreateDirectory(targetPath);
+                try
+                {
+                    var sourcePaths = GetSourceDomainPath(odinConfiguration.Admin.Domain, odinConfiguration);
+                    File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
+                    File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+                }
+                catch (Exception)
+                {
+                    // Swallow unless domain is running on 127.0.0.1
+                    if (odinConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                    {
+                        throw;
+                    }
                 }
             }
         }

@@ -316,8 +316,7 @@ namespace Odin.Hosting
 
         private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
         {
-            // We only have provisioning system for now...
-            if (hostName == config.Registry.ProvisioningDomain)
+            if (hostName == config.Registry.ProvisioningDomain || hostName == config.Admin.Domain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;
