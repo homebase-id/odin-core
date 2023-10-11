@@ -12,6 +12,7 @@ RUN apt-get update -q && \
     netcat \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
 # Silicon:
 # e.g. --build-arg CPU_ARCHITECTURE=x64
 ARG CPU_ARCHITECTURE=set-me-as-a-build-arg
