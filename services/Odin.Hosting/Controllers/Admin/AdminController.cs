@@ -4,7 +4,7 @@ namespace Odin.Hosting.Controllers.Admin;
 
 [ApiController]
 [Route(AdminApiPathConstants.BasePathV1)]
-// [ServiceFilter(typeof(AdminApiRestrictedAttribute))]
+[ServiceFilter(typeof(AdminApiRestrictedAttribute))]
 public class AdminController : ControllerBase
 {
     [HttpGet("ping")]
