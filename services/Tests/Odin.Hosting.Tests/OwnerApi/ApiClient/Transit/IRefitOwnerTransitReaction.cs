@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface ITransitReactionHttpClientForOwner
+    public interface IRefitOwnerTransitReaction
     {
         private const string RootEndpoint = OwnerApiPathConstants.TransitReactionContentV1;
 

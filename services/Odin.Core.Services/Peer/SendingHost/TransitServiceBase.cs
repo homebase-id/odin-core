@@ -78,10 +78,9 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         }
 
-        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, bool failIfNotConnected = true,
-            FileSystemType? fileSystemType = null)
+        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, failIfNotConnected);
+            var token = await ResolveClientAccessToken(odinId, false);
 
             if (token == null)
             {

@@ -282,7 +282,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var sharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, sharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
                 var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
                 {
@@ -568,7 +568,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
-                var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
+                var transitQueryService = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, ownerSharedSecret);
 
                 //
                 // Test the file matches the original one sent
@@ -1017,7 +1017,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var sharedSecret, FileSystemType.Comment);
             {
-                var svc = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, sharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
                 var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
                 {
@@ -1301,7 +1301,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret, FileSystemType.Comment);
             {
-                var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
+                var transitQueryService = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, ownerSharedSecret);
 
                 //
                 // Test the file matches the original one sent
@@ -1775,7 +1775,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
-                var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
+                var transitQueryService = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, ownerSharedSecret);
 
                 var getTransitDrives = await transitQueryService.GetDrives(new TransitGetDrivesByTypeRequest()
                 {
