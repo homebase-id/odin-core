@@ -3,7 +3,7 @@ name: Bleeding Edge Docker
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [odin-admin-cli]
 
 permissions:
   contents: read
@@ -126,4 +126,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit bleeding_edge -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
