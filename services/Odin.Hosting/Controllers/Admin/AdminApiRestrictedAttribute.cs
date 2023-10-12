@@ -41,21 +41,18 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
         {
             throw new OdinSystemException("Invalid apiPort");
         }
+
         _apiEnabled = apiEnabled;
         _apiKey = apiKey;
         _apiKeyHttpHeaderName = apiKeyHttpHeaderName;
         _apiPort = apiPort;
         _domain = domain;
-
-        _logger.LogDebug("AdminApiRestrictedAttribute ctor");
     }
 
     //
 
     public override void OnActionExecuting(ActionExecutingContext context)
     {
-        _logger.LogDebug("AdminApiRestrictedAttribute OnActionExecuting");
-
         if (context.HttpContext.Request.Host.Host != _domain)
         {
             // Return 404 so we don't inform bad people that there could be something interesting here
@@ -73,14 +70,6 @@ public class AdminApiRestrictedAttribute : ActionFilterAttribute
             context.Result = new ObjectResult(null) { StatusCode = (int)HttpStatusCode.NotFound };
             return;
         }
-
-        // var remoteIp = context.HttpContext.Connection.RemoteIpAddress;
-        // if (remoteIp == null || !IPAddress.IsLoopback(remoteIp))
-        // {
-        //     // Return 404 so we don't inform bad people that there could be something interesting here
-        //     context.Result = new StatusCodeResult((int)HttpStatusCode.NotFound);
-        //     return;
-        // }
 
         if (!_apiEnabled)
         {
