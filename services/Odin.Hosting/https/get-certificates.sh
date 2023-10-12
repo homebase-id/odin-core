@@ -1,7 +1,9 @@
+#!/usr/bin/env bash
+set -e
+
 #  copy certificates from certbot location
 rsync -v -r \
     --copy-links \
-    --checksum \
     --include '*/' \
     --include 'fullchain.pem' \
     --include 'privkey.pem' \
