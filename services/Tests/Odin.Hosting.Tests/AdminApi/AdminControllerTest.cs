@@ -34,12 +34,13 @@ public class AdminControllerTest
         var env = new Dictionary<string, string>
         {
             { "Admin__ApiEnabled", "false" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
         var exception = Assert.ThrowsAsync<HttpRequestException>(() =>
-            apiClient.GetAsync("https://frodo.dotyou.cloud:4444/api/admin/v1/ping"));
+            apiClient.GetAsync("https://admin.dotyou.cloud:4444/api/admin/v1/ping"));
         Assert.That(exception.Message, Contains.Substring("Connection refused"));
     }
 
@@ -51,12 +52,31 @@ public class AdminControllerTest
         var env = new Dictionary<string, string>
         {
             { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiPort", "4444" }
+            { "Admin__ApiPort", "4444" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var response = await apiClient.GetAsync($"https://frodo.dotyou.cloud:443/api/admin/v1/ping");
+        var response = await apiClient.GetAsync($"https://admin.dotyou.cloud:443/api/admin/v1/ping");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    //
+
+    [Test]
+    public async Task PingShouldReturn404IfWrongDomain()
+    {
+        var env = new Dictionary<string, string>
+        {
+            { "Admin__ApiEnabled", "true" },
+            { "Admin__ApiPort", "4444" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
+        };
+        _scaffold.RunBeforeAnyTests(envOverrides: env);
+
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var response = await apiClient.GetAsync($"https://frodo.dotyou.cloud:4444/api/admin/v1/ping");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
@@ -70,13 +90,14 @@ public class AdminControllerTest
             { "Admin__ApiEnabled", "true" },
             { "Admin__ApiKey", "your-secret-api-key-here" },
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" }
+            { "Admin__ApiPort", "4444" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud:4444/api/admin/v1/ping")
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
         {
             Headers = { { "Odin-Admin-Api-Key", "WRONG-KEY" } },
         };
@@ -94,13 +115,14 @@ public class AdminControllerTest
             { "Admin__ApiEnabled", "true" },
             { "Admin__ApiKey", "your-secret-api-key-here" },
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" }
+            { "Admin__ApiPort", "4444" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud:4444/api/admin/v1/ping")
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
         {
             Headers = { { "Odin-Admin-Api-Key", "your-secret-api-key-here" } },
         };
