@@ -16,7 +16,7 @@
 
         public const string DriveV1 = BasePathV1 + "/drive";
         
-        public const string DriveReactionContentV1 = DriveV1 + "/files/reactions";
+        public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
 
         public const string DriveManagementV1 = DriveV1 + "/mgmt";
 
