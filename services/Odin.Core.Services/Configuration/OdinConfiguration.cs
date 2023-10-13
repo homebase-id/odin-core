@@ -157,7 +157,7 @@ namespace Odin.Core.Services.Configuration
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
-                
+
                 InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
             }
 
@@ -182,6 +182,8 @@ namespace Odin.Core.Services.Configuration
 
             public int CacheSlidingExpirationSeconds { get; init; }
 
+            public Guid SystemProcessApiKey { get; set; }
+
             public HostSection()
             {
                 // Mockable support
@@ -194,7 +196,7 @@ namespace Odin.Core.Services.Configuration
 
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
-                
+
                 var sd = config.Required<string>("Host:SystemDataRootPath");
                 SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
@@ -203,6 +205,8 @@ namespace Odin.Core.Services.Configuration
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
+
+                SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
             }
         }
 
@@ -317,7 +321,7 @@ namespace Odin.Core.Services.Configuration
         public class MailgunSection
         {
             public string ApiKey { get; init; }
-            public NameAndEmailAddress DefaultFrom { get; init;  }
+            public NameAndEmailAddress DefaultFrom { get; init; }
             public string EmailDomain { get; init; }
             public bool Enabled { get; init; }
 

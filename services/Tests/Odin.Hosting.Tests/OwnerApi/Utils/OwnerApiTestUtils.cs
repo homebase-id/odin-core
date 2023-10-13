@@ -37,6 +37,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Authentication.Owner;
+using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
@@ -60,8 +61,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
+        public readonly Guid SystemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
+
+        public OwnerApiTestUtils(Guid systemProcessApiKey)
+        {
+            SystemProcessApiKey = systemProcessApiKey;
+        }
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
             SslPolicyErrors sslErrors)
@@ -592,7 +599,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
                 var resp = await transitSvc.ProcessOutbox(batchSize);
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
@@ -914,7 +921,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                         var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _);
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+                            rClient.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
 
                             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);

@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using HttpClientFactoryLite;
 using Odin.Core.Identity;
+using Odin.Core.Services.Configuration;
 using Refit;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -20,10 +21,14 @@ public interface ISystemHttpClient
 public class SystemHttpClient : ISystemHttpClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly OdinConfiguration _config;
+
+    public const string HeaderName = "SY4829";
     
-    public SystemHttpClient(IHttpClientFactory httpClientFactory)
+    public SystemHttpClient(IHttpClientFactory httpClientFactory, OdinConfiguration config)
     {
         _httpClientFactory = httpClientFactory;
+        _config = config;
         _httpClientFactory.Register<SystemHttpClient>(builder => builder
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
@@ -43,9 +48,9 @@ public class SystemHttpClient : ISystemHttpClient
 
         var client = _httpClientFactory.CreateClient<SystemHttpClient>();
         client.BaseAddress = new UriBuilder() { Scheme = "https", Host = odinId }.Uri;
-
-        var token = Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"); //TODO: read from config
-        client.DefaultRequestHeaders.Add("SY4829", token.ToString());
+        
+        var token = _config.Host.SystemProcessApiKey; 
+        client.DefaultRequestHeaders.Add(HeaderName, token.ToString());
 
         return RestService.For<T>(client);
     }
@@ -56,8 +61,9 @@ public class SystemHttpClient : ISystemHttpClient
         
         client.BaseAddress = new UriBuilder() { Scheme = "http", Host = odinId }.Uri;
         //TODO: need to handle the fact this is over http 
-        var token = Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"); //TODO: read from config
-        client.DefaultRequestHeaders.Add("SY4829", token.ToString());
+
+        var token = _config.Host.SystemProcessApiKey; 
+        client.DefaultRequestHeaders.Add(HeaderName, token.ToString());
 
         return RestService.For<T>(client);
     }
