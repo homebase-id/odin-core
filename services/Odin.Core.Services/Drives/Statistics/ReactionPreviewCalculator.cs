@@ -183,10 +183,17 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         }
 
         reactionPreview.Count--;
-        reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
-        reactionPreview.Key = key;
-
-        dict[key] = reactionPreview;
+        
+        if (reactionPreview.Count == 0)
+        {
+            dict.Remove(key);
+        }
+        else
+        {
+            reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+            reactionPreview.Key = key;
+            dict[key] = reactionPreview;
+        }
 
         preview.Reactions = dict;
 
