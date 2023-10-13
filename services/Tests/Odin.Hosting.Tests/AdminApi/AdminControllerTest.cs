@@ -92,7 +92,7 @@ public class AdminControllerTest
 
         // Enable
         {
-            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
+            var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
@@ -106,7 +106,7 @@ public class AdminControllerTest
 
         // Disable
         {
-            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/disable");
+            var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/disable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }
@@ -120,7 +120,7 @@ public class AdminControllerTest
 
         // Enable
         {
-            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
+            var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         }

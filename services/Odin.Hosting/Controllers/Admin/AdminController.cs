@@ -48,7 +48,7 @@ public class AdminController : ControllerBase
 
     //
 
-    [HttpPut("tenants/{domain}/enable")]
+    [HttpPatch("tenants/{domain}/enable")]
     public async Task<ActionResult> EnableTenant(string domain)
     {
         if (!await _tenantAdmin.TenantExists(domain))
@@ -63,7 +63,7 @@ public class AdminController : ControllerBase
 
     //
 
-    [HttpPut("tenants/{domain}/disable")]
+    [HttpPatch("tenants/{domain}/disable")]
     public async Task<ActionResult> ResumeTenant(string domain)
     {
         if (!await _tenantAdmin.TenantExists(domain))
