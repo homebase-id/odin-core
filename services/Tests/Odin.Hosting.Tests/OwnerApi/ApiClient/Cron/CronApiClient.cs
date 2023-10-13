@@ -26,7 +26,7 @@ public class CronApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IFeedDistributionCronClient>(client);
-            client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+            client.DefaultRequestHeaders.Add("SY4829", );
             var resp = await transitSvc.DistributeFiles();
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
