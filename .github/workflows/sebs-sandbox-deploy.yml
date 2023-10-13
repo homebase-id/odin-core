@@ -1,4 +1,4 @@
-name: Bleeding Edge Docker
+name: Sebs Sandbox Deploy
 
 on:
   workflow_dispatch:
