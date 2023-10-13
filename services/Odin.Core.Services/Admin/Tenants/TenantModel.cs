@@ -1,6 +1,6 @@
 using System;
 
-namespace Odin.Hosting.Controllers.Admin;
+namespace Odin.Core.Services.Admin.Tenants;
 
 public class TenantModel
 {

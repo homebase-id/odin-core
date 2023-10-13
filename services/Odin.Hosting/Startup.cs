@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
-using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using DnsClient;
@@ -18,7 +17,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -229,6 +228,8 @@ namespace Odin.Hosting
                 config.Admin.ApiKeyHttpHeaderName,
                 config.Admin.ApiPort,
                 config.Admin.Domain));
+
+            services.AddSingleton<ITenantAdmin, TenantAdmin>();
         }
 
         // ConfigureContainer is where you can register things directly

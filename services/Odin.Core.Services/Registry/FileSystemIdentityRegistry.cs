@@ -277,6 +277,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(reg);
     }
 
+    public async Task<IdentityRegistration> ToggleDisabled(string domain, bool disabled)
+    {
+        var reg = _trie.LookupExactName(domain);
+        if (reg != null && reg.Disabled != disabled)
+        {
+            reg.Disabled = disabled;
+            await SaveRegistrationInternal(reg);
+        }
+        return reg;
+    }
+
     private string GetRegFilePath(Guid registrationId)
     {
         return Path.Combine(_registrationRoot, registrationId.ToString(), "reg.json");

@@ -61,6 +61,11 @@ namespace Odin.Core.Services.Registry
         /// </summary>
         public string PayloadShardKey { get; set; }
 
+        /// <summary>
+        /// Whether the identity is disabled (i.e. paused) or not
+        /// </summary>
+        public bool Disabled { get; set; }
+
         public override string ToString()
         {
             return PrimaryDomainName;

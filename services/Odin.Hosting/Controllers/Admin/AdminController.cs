@@ -1,11 +1,7 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Odin.Core.Services.Registry;
+using Odin.Core.Services.Admin.Tenants;
 
 namespace Odin.Hosting.Controllers.Admin;
 
@@ -14,13 +10,11 @@ namespace Odin.Hosting.Controllers.Admin;
 [ServiceFilter(typeof(AdminApiRestrictedAttribute))]
 public class AdminController : ControllerBase
 {
-    private readonly ILogger<AdminController> _logger;
-    private readonly IIdentityRegistry _identityRegistry;
+    private readonly ITenantAdmin _tenantAdmin;
 
-    public AdminController(ILogger<AdminController> logger, IIdentityRegistry identityRegistry)
+    public AdminController(ITenantAdmin tenantAdmin)
     {
-        _logger = logger;
-        _identityRegistry = identityRegistry;
+        _tenantAdmin = tenantAdmin;
     }
 
     //
@@ -36,9 +30,7 @@ public class AdminController : ControllerBase
     [HttpGet("tenants")]
     public async Task<ActionResult<List<TenantModel>>> GetTenants()
     {
-        var identities = await _identityRegistry.GetList();
-        var result = identities.Results.Select(Map).ToList();
-        return result;
+        return await _tenantAdmin.GetTenants();
     }
 
     //
@@ -46,24 +38,44 @@ public class AdminController : ControllerBase
     [HttpGet("tenants/{domain}")]
     public async Task<ActionResult<TenantModel>> GetTenant(string domain)
     {
-        var identity = await _identityRegistry.Get(domain);
-        if (identity == null)
+        var tenant = await _tenantAdmin.GetTenant(domain);
+        if (tenant == null)
         {
             return NotFound();
         }
-        return Map(identity);
+        return tenant;
     }
 
     //
 
-    private static TenantModel Map(IdentityRegistration identityRegistration)
+    [HttpPut("tenants/{domain}/enable")]
+    public async Task<ActionResult> EnableTenant(string domain)
     {
-        return new TenantModel
+        if (!await _tenantAdmin.TenantExists(domain))
         {
-            Domain = identityRegistration.PrimaryDomainName,
-            Id = identityRegistration.Id
-        };
+            return NotFound();
+        }
+
+        await _tenantAdmin.EnableTenant(domain);
+
+        return Ok();
     }
 
+    //
+
+    [HttpPut("tenants/{domain}/disable")]
+    public async Task<ActionResult> ResumeTenant(string domain)
+    {
+        if (!await _tenantAdmin.TenantExists(domain))
+        {
+            return NotFound();
+        }
+
+        await _tenantAdmin.DisableTenant(domain);
+
+        return Ok();
+    }
+
+    //
 
 }
