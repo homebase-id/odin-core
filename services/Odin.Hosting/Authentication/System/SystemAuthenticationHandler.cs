@@ -43,7 +43,6 @@ namespace Odin.Hosting.Authentication.System
             {
                 var config = Context.RequestServices.GetRequiredService<OdinConfiguration>();
                 
-                // if (token == Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"))
                 if (token == config.Host.SystemProcessApiKey)
                 {
                     string domain = "system.domain";

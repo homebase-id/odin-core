@@ -45,7 +45,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _ownerApi.SystemProcessApiKey.ToString());
             var resp = await transitSvc.ProcessOutbox(batchSize);
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }

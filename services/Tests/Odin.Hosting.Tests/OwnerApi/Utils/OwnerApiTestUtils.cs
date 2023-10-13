@@ -61,13 +61,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
-        private readonly Guid _systemApiKey;
+        public readonly Guid SystemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
-        public OwnerApiTestUtils(Guid systemApiKey)
+        public OwnerApiTestUtils(Guid systemProcessApiKey)
         {
-            _systemApiKey = systemApiKey;
+            SystemProcessApiKey = systemProcessApiKey;
         }
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
@@ -599,7 +599,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _systemApiKey.ToString());
+                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
                 var resp = await transitSvc.ProcessOutbox(batchSize);
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
@@ -921,7 +921,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                         var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _);
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            rClient.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _systemApiKey.ToString());
+                            rClient.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
 
                             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);

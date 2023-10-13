@@ -17,11 +17,11 @@ public class CronApiClient
     private readonly OwnerApiTestUtils _ownerApi;
     private readonly Guid _systemApiKey;
 
-    public CronApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity, Guid systemApiKey)
+    public CronApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
     {
         _ownerApi = ownerApi;
         _identity = identity;
-        _systemApiKey = systemApiKey;
+        _systemApiKey = ownerApi.SystemProcessApiKey;
     }
 
     public async Task DistributeFeedFiles()

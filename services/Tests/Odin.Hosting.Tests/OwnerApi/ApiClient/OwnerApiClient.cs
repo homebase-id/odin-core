@@ -35,10 +35,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
         private readonly OwnerConfigurationApiClient _ownerConfigurationApiClient;
 
-        public OwnerApiClient()
-        {
-            
-        }
         public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity, Guid? systemApiKey = null)
         {
             _ownerApi = ownerApi;
@@ -49,7 +45,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _transitApiClient = new TransitApiClient(ownerApi, identity);
             _driveApiClient = new DriveApiClient(ownerApi, identity);
             _ownerFollowerApiClient = new OwnerFollowerApiClient(ownerApi, identity);
-            _cronApiClient = new CronApiClient(ownerApi, identity, systemApiKey.GetValueOrDefault());
+            _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
             _publicPrivateKey = new PublicPrivateKeyApiClient(ownerApi, identity);
             _circleMembershipApiClient = new CircleMembershipApiClient(ownerApi, identity);

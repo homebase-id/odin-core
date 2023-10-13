@@ -41,7 +41,7 @@ namespace Odin.Hosting.Tests
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
         
-        public Guid SystemApiKey = Guid.NewGuid();
+        public Guid SystemProcessApiKey = Guid.NewGuid();
         
         static WebScaffold()
         {
@@ -75,7 +75,7 @@ namespace Odin.Hosting.Tests
         {
             this._folder = folder;
             this._uniqueSubPath = Guid.NewGuid().ToString();
-            _oldOwnerApi = new OwnerApiTestUtils(SystemApiKey);
+            _oldOwnerApi = new OwnerApiTestUtils(SystemProcessApiKey);
         }
 
         public static HttpClient CreateHttpClient<T>()
@@ -112,7 +112,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
-            Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemApiKey.ToString());
+            Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
