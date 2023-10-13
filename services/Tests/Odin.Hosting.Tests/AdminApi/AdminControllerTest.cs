@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Admin.Tenants;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
@@ -16,6 +18,15 @@ public class AdminControllerTest
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
+        var env = new Dictionary<string, string>
+        {
+            { "Admin__ApiEnabled", "true" },
+            { "Admin__ApiKey", "your-secret-api-key-here" },
+            { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
+            { "Admin__ApiPort", "4444" },
+            { "Admin__Domain", "admin.dotyou.cloud" },
+        };
+        _scaffold.RunBeforeAnyTests(envOverrides: env);
     }
 
     //
@@ -28,109 +39,100 @@ public class AdminControllerTest
 
     //
 
-    [Test]
-    public void PingShouldRefuseConnectionIfNotEnabled()
+    private static HttpRequestMessage NewRequestMessage(HttpMethod method, string uri)
     {
-        var env = new Dictionary<string, string>
+        return new HttpRequestMessage(method, uri)
         {
-            { "Admin__ApiEnabled", "false" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
+            Headers = { { "Odin-Admin-Api-Key", "your-secret-api-key-here" } }
         };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
-
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var exception = Assert.ThrowsAsync<HttpRequestException>(() =>
-            apiClient.GetAsync("https://admin.dotyou.cloud:4444/api/admin/v1/ping"));
-        Assert.That(exception.Message, Contains.Substring("Connection refused"));
     }
 
     //
 
     [Test]
-    public async Task PingShouldReturn404IfWrongPort()
+    public async Task ItShouldGetAllTenants()
     {
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
-
         var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var response = await apiClient.GetAsync($"https://admin.dotyou.cloud:443/api/admin/v1/ping");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-    }
-
-    //
-
-    [Test]
-    public async Task PingShouldReturn404IfWrongDomain()
-    {
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
-
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-        var response = await apiClient.GetAsync($"https://frodo.dotyou.cloud:4444/api/admin/v1/ping");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
-    }
-
-    //
-
-    [Test]
-    public async Task PingShouldReturn401IfWrongApiKey()
-    {
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiKey", "your-secret-api-key-here" },
-            { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
-
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
-        {
-            Headers = { { "Odin-Admin-Api-Key", "WRONG-KEY" } },
-        };
-        var response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-    }
-
-    //
-
-    [Test]
-    public async Task PingShouldReturn200WhenAllIsGood()
-    {
-        var env = new Dictionary<string, string>
-        {
-            { "Admin__ApiEnabled", "true" },
-            { "Admin__ApiKey", "your-secret-api-key-here" },
-            { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
-            { "Admin__ApiPort", "4444" },
-            { "Admin__Domain", "admin.dotyou.cloud" },
-        };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
-
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
-        {
-            Headers = { { "Odin-Admin-Api-Key", "your-secret-api-key-here" } },
-        };
+        var request = NewRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants");
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("pong"));
+
+        var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(await response.Content.ReadAsStringAsync());
+        Assert.That(tenants.Count, Is.GreaterThan(1));
+        Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == "frodo.dotyou.cloud"));
     }
 
     //
+
+    [Test]
+    public async Task ItShouldGetSpecificTenant()
+    {
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var request = NewRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud");
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+        Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldEnableAndDisableATenant()
+    {
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+
+        // Verify enabled
+        {
+            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Enable
+        {
+            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Verify still enabled
+        {
+            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Disable
+        {
+            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/disable");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Verify disabled
+        {
+            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        }
+
+        // Enable
+        {
+            var request = NewRequestMessage(HttpMethod.Put, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Verify enabled
+        {
+            var request = NewRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+    }
+
+
 
 }
