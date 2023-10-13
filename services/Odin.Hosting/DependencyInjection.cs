@@ -132,7 +132,9 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>();
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionDeletedNotification>>()
+                .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 

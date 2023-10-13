@@ -16,7 +16,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
 {
-    public class TransitReactionContentOwnerTests
+    public class TransitReactionContentOwnerTestsConnectedReactions
     {
         private WebScaffold _scaffold;
 
@@ -33,12 +33,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
         {
             _scaffold.RunAfterAnyTests();
         }
-
+        
         [Test]
         public async Task ConnectedIdentity_CanSendAndGetAllReactions_OverTransit_ForPublicChannel_WithNoCircles()
         {
             const string reactionContent = ":cake:";
-            
+
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var pippinChannelDrive = new TargetDrive()
             {
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             // Pippin uploads a post
             //
             var uploadedContent = "I'm Hungry!";
-            var uploadResult = await UploadToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
+            var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
 
             //
             // Sam adds reaction from Sam's feed to Pippin's channel
@@ -143,8 +143,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             // Pippin uploads a post
             //
             var uploadedContent = "I'm Hungry!";
-            var uploadResult = await UploadToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
+            var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
 
+            
             //
             // Sam adds reaction from Sam's feed to Pippin's channel
             //
@@ -164,7 +165,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             Assert.IsTrue(theReaction!.ReactionContent == reactionContent);
 
             // now delete it
-            await samOwnerClient.Transit.DeleteReactionContent(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
+            await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
 
             var shouldBeDeletedResponse = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
             {
@@ -200,7 +201,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             return Task.CompletedTask;
         }
 
-        private async Task<UploadResult> UploadToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true)
+        private async Task<UploadResult> UploadUnencryptedContentToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true,
+            AccessControlList acl = null)
         {
             var fileMetadata = new UploadFileMetadata()
             {
@@ -215,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = acl ?? AccessControlList.Connected
             };
 
             return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata);
