@@ -94,12 +94,12 @@ public class TransitApiClient
         }
     }
 
-    public async Task DeleteReactionContent(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
+    public async Task<ApiResponse<HttpContent>> DeleteReaction(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
+            var response = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new DeleteReactionRequestByGlobalTransitId()
@@ -108,6 +108,8 @@ public class TransitApiClient
                     File = file
                 }
             });
+
+            return response;
         }
     }
 
