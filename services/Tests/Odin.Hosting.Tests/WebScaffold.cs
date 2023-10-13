@@ -75,7 +75,7 @@ namespace Odin.Hosting.Tests
         {
             this._folder = folder;
             this._uniqueSubPath = Guid.NewGuid().ToString();
-            _oldOwnerApi = new OwnerApiTestUtils();
+            _oldOwnerApi = new OwnerApiTestUtils(SystemApiKey);
         }
 
         public static HttpClient CreateHttpClient<T>()
