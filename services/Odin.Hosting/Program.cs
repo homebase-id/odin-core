@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -159,6 +161,14 @@ namespace Odin.Hosting
                                 kestrelOptions.Listen(ip, address.HttpsPort,
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
+
+                            // Admin API
+                            var reservedHttpsPorts = odinConfig.Host.IPAddressListenList.Select(x => x.HttpsPort);
+                            if (odinConfig.Admin.ApiEnabled && !reservedHttpsPorts.Contains(odinConfig.Admin.ApiPort))
+                            {
+                                kestrelOptions.Listen(IPAddress.Any, odinConfig.Admin.ApiPort,
+                                    options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
+                            }
                         })
                         .UseStartup<Startup>();
                 });
@@ -306,8 +316,7 @@ namespace Odin.Hosting
 
         private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
         {
-            // We only have provisioning system for now...
-            if (hostName == config.Registry.ProvisioningDomain)
+            if (hostName == config.Registry.ProvisioningDomain || hostName == config.Admin.Domain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;

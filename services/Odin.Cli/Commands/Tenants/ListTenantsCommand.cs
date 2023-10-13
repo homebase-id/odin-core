@@ -1,17 +1,17 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using Odin.Cli.Commands.Base;
-using Odin.Cli.Services;
+using Odin.Cli.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Spectre.Console.Rendering;
 
 namespace Odin.Cli.Commands.Tenants;
 
 [Description("List all tenants in root directory")]
-public sealed class ListTenantsCommand : BaseCommand<ListTenantsCommand.Settings>
+public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Settings>
 {
-    public sealed class Settings : TenantsSettings
+    public sealed class Settings : ApiSettings
     {
         [SuppressMessage("ReSharper", "InconsistentNaming")]
         public enum OutputType
@@ -35,108 +35,30 @@ public sealed class ListTenantsCommand : BaseCommand<ListTenantsCommand.Settings
 
     //
 
-    private readonly ITenantFileSystem _tenantFileSystem;
+    private readonly ICliHttpClientFactory _cliHttpClientFactory;
 
-    public ListTenantsCommand(ITenantFileSystem tenantFileSystem)
+    public ListTenantsCommand(ICliHttpClientFactory cliHttpClientFactory)
     {
-        _tenantFileSystem = tenantFileSystem;
+        _cliHttpClientFactory = cliHttpClientFactory;
     }
 
     //
 
-    protected override int Run(CommandContext context, Settings settings)
+    public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
-        if (settings.OnlyShowDomains)
+        var httpClient = _cliHttpClientFactory.Create(settings.IdentityHost, settings.ApiKeyHeader, settings.ApiKey);
+        var response = await httpClient.GetAsync("ping");
+        if (response.StatusCode != HttpStatusCode.OK)
         {
-            return Grid(context, settings);
+            throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }
-        if (settings.Output == Settings.OutputType.tree)
-        {
-            return Tree(context, settings);
-        }
-        return  Grid(context, settings);
-    }
-
-    //
-
-    private int Grid(CommandContext context, Settings settings)
-    {
-        var tenants = _tenantFileSystem.LoadAll(
-            settings.TenantRootDir,
-            settings.IncludePayload,
-            settings.Verbose);
-
-        var grid = new Grid();
-        if (settings.OnlyShowDomains)
-        {
-            grid.AddColumn(); // Domain
-        }
-        else
-        {
-            grid.AddColumn(); // Domain
-            grid.AddColumn(); // Id
-            grid.AddColumn(); // Registration Size
-            grid.AddColumn(); // Payload Size
-            grid.AddRow(
-                new Text("Domain", new Style(Color.Green)).LeftJustified(),
-                new Text("Id", new Style(Color.Green)).LeftJustified(),
-                new Text("Reg. Size", new Style(Color.Green)).RightJustified(),
-                new Text("Payload Size", new Style(Color.Green)).RightJustified());
-        }
-
-        foreach (var tenant in tenants)
-        {
-            if (settings.OnlyShowDomains)
-            {
-                grid.AddRow(new Text(tenant.Registration.PrimaryDomainName));
-            }
-            else
-            {
-                var payLoadSize = settings.IncludePayload ? HumanReadableBytes(tenant.PayloadSize) : "-";
-                grid.AddRow(
-                    new Text(tenant.Registration.PrimaryDomainName).LeftJustified(),
-                    new Text(tenant.Registration.Id.ToString()).LeftJustified(),
-                    new Text(HumanReadableBytes(tenant.RegistrationSize)).RightJustified(),
-                    new Text(payLoadSize).RightJustified());
-            }
-        }
-        AnsiConsole.Write(grid);
-
+        var result = await response.Content.ReadAsStringAsync();
+        AnsiConsole.MarkupLine($"[green]pingn:[/] {result}");
         return 0;
     }
 
-
     //
 
-    private int Tree(CommandContext context, Settings settings)
-    {
-        var tenants = _tenantFileSystem.LoadAll(
-            settings.TenantRootDir,
-            settings.IncludePayload,
-            settings.Verbose);
-
-        var root = new Tree("[yellow]Tenants[/]");
-        foreach (var tenant in tenants)
-        {
-            var t = root.AddNode($"[yellow]{tenant.Registration.PrimaryDomainName}[/]");
-            t.AddNode($"[yellow]Id:[/] {tenant.Registration.Id}");
-            t.AddNode($"[yellow]Registration Size:[/] {HumanReadableBytes(tenant.RegistrationSize)}");
-
-            if (settings.IncludePayload)
-            {
-                var p = t.AddNode($"[yellow]Payload Size:[/] {HumanReadableBytes(tenant.PayloadSize)}");
-                foreach (var payload in tenant.Payloads)
-                {
-                    var s = p.AddNode($"[yellow]{payload.Shard}[/]");
-                    s.AddNode($"[yellow]Size:[/] {HumanReadableBytes(payload.Size)}");
-                }
-            }
-        }
-
-        AnsiConsole.Write(root);
-
-        return 0;
-    }
 
 }
 

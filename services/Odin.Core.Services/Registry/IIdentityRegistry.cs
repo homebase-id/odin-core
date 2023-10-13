@@ -66,5 +66,10 @@ namespace Odin.Core.Services.Registry
         /// Returns the registration status for the identity
         /// </summary>
         Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken);
+
+        /// <summary>
+        /// Toggles disabled on/off
+        /// </summary>
+        Task<IdentityRegistration> ToggleDisabled(string domain, bool disabled);
     }
 }

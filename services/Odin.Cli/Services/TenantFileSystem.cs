@@ -5,15 +5,15 @@ using Spectre.Console;
 
 namespace Odin.Cli.Services;
 
-public interface ITenantFileSystem: IBaseService
+public interface ITenantFileSystem : IBaseService
 {
-    TenantDetails Load(string tenantDomainOrId,  bool includePayload, bool verbose);
+    TenantDetails Load(string tenantDomainOrId, bool includePayload, bool verbose);
     List<TenantDetails> LoadAll(string tenantRootPath, bool includePayload, bool verbose);
 }
 
 public class TenantFileSystem : BaseService, ITenantFileSystem
 {
-    public TenantDetails Load(string tenantDomainOrId,  bool includePayload, bool verbose)
+    public TenantDetails Load(string tenantDomainOrId, bool includePayload, bool verbose)
     {
         var tenantRootPath = Path.GetDirectoryName(tenantDomainOrId);
         if (string.IsNullOrWhiteSpace(tenantRootPath))
