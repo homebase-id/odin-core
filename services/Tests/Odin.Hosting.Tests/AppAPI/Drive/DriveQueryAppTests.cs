@@ -336,8 +336,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 //TODO: How to test this with a fileId?
             }
         }
-
-
+        
         [Test]
         public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
@@ -397,11 +396,5 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             }
         }
 
-
-        // [Test]
-        // [Ignore("need to complete the app-circles feature first as this requires adding new drives after an app is registered")]
-        // public async Task CanQueryBatchCollectionAcrossDrives()
-        // {
-        // }
     }
 }

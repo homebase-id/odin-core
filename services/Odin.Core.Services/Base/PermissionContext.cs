@@ -148,6 +148,17 @@ namespace Odin.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
+        public bool HasDriveId(TargetDrive drive, out Guid? driveId)
+        {
+            if (null == drive)
+            {
+                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
+            }
+
+            driveId = GetDriveIdInternal(drive);
+            return driveId.HasValue;
+        }
+
         public Guid GetDriveId(TargetDrive drive)
         {
             if (null == drive)
@@ -155,18 +166,29 @@ namespace Odin.Core.Services.Base
                 throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
             }
 
+            var driveId = GetDriveIdInternal(drive);
+
+            if (driveId.HasValue)
+            {
+                return driveId.Value;
+            }
+
+            throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+        }
+
+        private Guid? GetDriveIdInternal(TargetDrive drive)
+        {
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];
                 var driveId = group.GetDriveId(drive);
                 if (driveId.HasValue)
                 {
-                    //TODO: log key as source of permission.
                     return driveId.Value;
                 }
             }
 
-            throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+            return null;
         }
 
         public TargetDrive GetTargetDrive(Guid driveId)

@@ -235,7 +235,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             };
         }
 
-        private void AddCacheHeader()
+        protected void AddCacheHeader()
         {
             if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
             {

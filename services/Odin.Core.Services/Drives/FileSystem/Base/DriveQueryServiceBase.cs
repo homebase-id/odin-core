@@ -89,7 +89,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
         {
             AssertCanReadDrive(driveId);
 
@@ -102,7 +102,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
-                ExcludePreviewThumbnail = true
+                ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
             var results = await this.GetBatch(driveId, qp, options);
@@ -116,21 +116,36 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 throw new OdinClientException("The Names of Queries must be unique", OdinClientErrorCode.InvalidQuery);
             }
-            
-            foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
-            {
-                AssertCanReadDrive(driveId);
-            }
+
+            var permissionContext = ContextAccessor.GetCurrent().PermissionsContext;
 
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
-                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptionsRequest.ToQueryBatchResultOptions());
+                var targetDrive = query.QueryParams.TargetDrive;
 
-                var response = QueryBatchResponse.FromResult(result);
-                response.Name = query.Name;
-                collection.Results.Add(response);
+                var canReadDrive = permissionContext.HasDriveId(targetDrive, out var driveIdValue) &&
+                                   permissionContext.HasDrivePermission(driveIdValue.GetValueOrDefault(), DrivePermission.Read);
+
+                if (canReadDrive)
+                {
+                    var driveId = driveIdValue.GetValueOrDefault();
+                    var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
+                    {
+                        IncludeJsonContent = true,
+                        ExcludePreviewThumbnail = false
+                    };
+
+                    var result = await this.GetBatch(driveId, query.QueryParams, options);
+
+                    var response = QueryBatchResponse.FromResult(result);
+                    response.Name = query.Name;
+                    collection.Results.Add(response);
+                }
+                else
+                {
+                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name));
+                }
             }
 
             return collection;
