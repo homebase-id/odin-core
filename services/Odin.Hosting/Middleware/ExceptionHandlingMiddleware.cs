@@ -148,9 +148,10 @@ namespace Odin.Hosting.Middleware
         {
             switch (ex)
             {
-                case OperationCanceledException:
-                case IOException when ex.Message == "The client reset the request stream.":
                 case ConnectionResetException:
+                case IOException when ex.Message == "The client reset the request stream.":
+                case IOException when ex.Message == "The request stream was aborted.":
+                case OperationCanceledException:
                     return true;
                 default:
                     return false;
