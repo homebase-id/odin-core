@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dawn;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 
@@ -21,6 +22,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
             this.UploadedThumbnails = new List<ImageDataHeader>();
+            this.UploadedPayloads = new List<PayloadDescriptor>();
         }
 
 
@@ -29,13 +31,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         public InternalDriveFileId InternalFile { get; init; }
 
         public bool IsUpdateOperation { get; init; }
-        
-        public bool HasPayload { get; set; }
+
+        public bool HasPayload => UploadedPayloads?.Any() ?? false;
+
+        public List<PayloadDescriptor> UploadedPayloads { get; set; }
 
         /// <summary>
-        /// A lit of thumbnails sent in the stream
+        /// A list of thumbnails sent in the stream
         /// </summary>
         public List<ImageDataHeader> UploadedThumbnails { get; }
-
     }
 }

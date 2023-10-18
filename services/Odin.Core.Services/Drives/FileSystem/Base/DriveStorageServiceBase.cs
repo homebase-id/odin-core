@@ -268,6 +268,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return Guid.Empty;
         }
 
+        public string GetPayloadFileExtension(string key)
+        {
+            string extenstion = $"-{key}.payload";
+            return extenstion;
+        }
+        
         public string GetThumbnailFileExtension(int width, int height)
         {
             //TODO: move this down into the long term storage manager

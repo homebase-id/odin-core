@@ -229,7 +229,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            //enforce ACL at the last possible moment before shipping the file out of the identty
+            //enforce ACL at the last possible moment before shipping the file out of the identity
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
 
 
@@ -321,11 +321,20 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 if (options.SendContents.HasFlag(SendContents.Payload))
                 {
-                    var payloadStream = metadata.AppData.ContentIsComplete
-                        ? Stream.Null
-                        : await fs.Storage.GetPayloadStream(file, null);
-                    var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
-                    additionalStreamParts.Add(payload);
+                    foreach (var payload in redactedMetadata.AppData?.Payloads ?? new List<ImageDataHeader>())
+                    {
+
+                        
+
+
+                        var payloadStream = metadata.AppData.ContentIsComplete
+                            ? Stream.Null
+                            : await fs.Storage.GetPayloadStream(file, null);
+                        
+                        var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary",
+                            Enum.GetName(MultipartHostTransferParts.Payload));
+                        additionalStreamParts.Add(payload);
+                    }
                 }
 
                 if (options.SendContents.HasFlag(SendContents.Thumbnails))

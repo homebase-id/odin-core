@@ -1,9 +1,14 @@
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
-public class PayloadHeader
+/// <summary>
+/// Defines a payload
+/// </summary>
+public class PayloadDescriptor
 {
     /// <summary>
     /// A text value specified by the app to define the payload
     /// </summary>
     public string Key { get; set; }
+
+    public uint BytesWritten { get; set; }
 }

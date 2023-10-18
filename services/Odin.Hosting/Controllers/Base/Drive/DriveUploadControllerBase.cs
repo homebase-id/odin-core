@@ -56,17 +56,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Missing Payload section", OdinClientErrorCode.InvalidPayload);
             }
 
-            if(null != section)
+            if (null != section)
             {
                 AssertIsPart(section, MultipartUploadParts.Payload);
                 await driveUploadService.AddPayload(section!.Body);
             }
-            
+
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
-                AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
+                AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
                 await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
@@ -101,7 +101,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             while (null != section)
             {
                 //TODO: parse payload or thumbnail
-                AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
+                AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
                 await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
@@ -123,9 +123,52 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
-        private protected void AssertIsValidThumbnailPart(MultipartSection section, MultipartUploadParts expectedPart, out FileMultipartSection fileSection,
+        private protected bool IsPayloadPart(MultipartSection section)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartUploadParts.Payload;
+        }
+
+        private protected bool IsThumbnail(MultipartSection section)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartUploadParts.Thumbnail;
+        }
+
+
+        private protected void AssertIsPayloadPart(MultipartSection section , out FileMultipartSection fileSection,
+            out string payloadKey)
+        {
+
+            var expectedPart = MultipartUploadParts.Payload;
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidPayloadName);
+            }
+
+            fileSection = section.AsFileSection();
+            var filename = fileSection?.FileName;
+            if (string.IsNullOrEmpty(filename) || string.IsNullOrWhiteSpace(filename))
+            {
+                throw new OdinClientException("Payloads must include filename with no spaces. i.e. ('image_data' is valid where as 'image data' is not)",
+                    OdinClientErrorCode.InvalidPayload);
+            }
+
+            payloadKey = filename;
+        }
+
+        private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
             out int width, out int height)
         {
+            var expectedPart = MultipartUploadParts.Thumbnail;
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
                 throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);

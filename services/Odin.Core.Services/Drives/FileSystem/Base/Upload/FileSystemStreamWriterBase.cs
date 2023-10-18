@@ -93,11 +93,20 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
-
-    public virtual async Task AddPayload(Stream data)
+    public virtual async Task AddPayload(string key, Stream data)
     {
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Payload.ToString(), data);
-        Package.HasPayload = bytesWritten > 0;
+        if (Package.UploadedPayloads.Any(p => string.Equals(key, p.Key, StringComparison.InvariantCultureIgnoreCase)))
+        {
+            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
+        }
+
+        string extenstion = FileSystem.Storage.GetPayloadFileExtension(key);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+        Package.UploadedPayloads.Add(new PayloadDescriptor()
+        {
+            Key = key,
+            BytesWritten = bytesWritten
+        });
     }
 
     public virtual async Task AddThumbnail(int width, int height, string contentType, Stream data)
@@ -178,9 +187,7 @@ public abstract class FileSystemStreamWriterBase
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata);
         }
-
-        // _uploadLock.ReleaseLock(metadata.File);
-
+        
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package);
 
         var uploadResult = new UploadResult()
