@@ -47,30 +47,36 @@ namespace Odin.Hosting.Controllers.Base.Drive
             await driveUploadService.AddMetadata(section!.Body);
 
             //
-            section = await reader.ReadNextSectionAsync();
+
+            //TODO: todd removed with multi-part payload; as this is not required; i think
+            // section = await reader.ReadNextSectionAsync();
 
             //backwards compat
-            bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
-            if (section == null && requirePayloadSection)
-            {
-                throw new OdinClientException("Missing Payload section", OdinClientErrorCode.InvalidPayload);
-            }
-
-            if (null != section)
-            {
-                AssertIsPart(section, MultipartUploadParts.Payload);
-                await driveUploadService.AddPayload(section!.Body);
-            }
+            // bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
+            // if (section == null && requirePayloadSection)
+            // {
+            //     throw new OdinClientException("Missing Payload section", OdinClientErrorCode.InvalidPayload);
+            // }
 
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
-                AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
-                await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                if (IsPayloadPart(section))
+                {
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
+                    await driveUploadService.AddPayload(payloadKey, fileSection.FileStream);
+                }
+
+                if (IsThumbnail(section))
+                {
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
+                    await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                }
+
                 section = await reader.ReadNextSectionAsync();
             }
-
+            
             var status = await driveUploadService.FinalizeUpload();
             return status;
         }

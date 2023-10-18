@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -227,12 +226,13 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var results = _fileSystem.Query.GetModified(driveId, qp, options);
             return results;
         }
-        
+
         public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var results = _fileSystem.Query.GetBatchCollection(request);
             return results;
         }
+
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
@@ -362,8 +362,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             if (metadata.PayloadIsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                    stateItem.TransferInstructionSet.FileSystemType, stateItem.TransferInstructionSet.TransferFileType);
+                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet);
 
                 return true;
             }
@@ -378,9 +377,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 if (hasStorageKey)
                 {
                     //S1205
-                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                        stateItem.TransferInstructionSet.FileSystemType,
-                        stateItem.TransferInstructionSet.TransferFileType);
+                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet);
                     return true;
                 }
 
@@ -401,15 +398,6 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return decryptedKeyHeader;
         }
 
-        private async Task<FileMetadata> LoadMetadataFromTemp(InternalDriveFileId file)
-        {
-            var metadataStream = await _fileSystem.Storage.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
-            var json = await new StreamReader(metadataStream).ReadToEndAsync();
-            metadataStream.Close();
-
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-            return metadata;
-        }
 
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
@@ -427,6 +415,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 FileId = stateItem.TempFile.FileId,
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+                ContentsProvided = stateItem.TransferInstructionSet.ContentsProvided,
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 

@@ -25,6 +25,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             };
 
             this.AppData = new AppFileMetaData();
+            this.Payloads = new List<PayloadDescriptor>();
         }
 
         public FileMetadata(InternalDriveFileId file)
@@ -83,6 +84,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         
         public AppFileMetaData AppData { get; set; }
 
+        public List<PayloadDescriptor> Payloads { get; set; }
+        
         public Guid? VersionTag { get; set; }
     }
 }

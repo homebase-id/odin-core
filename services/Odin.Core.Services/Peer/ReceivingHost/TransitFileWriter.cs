@@ -13,6 +13,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost.Incoming;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer.ReceivingHost
@@ -37,10 +38,13 @@ namespace Odin.Core.Services.Peer.ReceivingHost
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
-            OdinId sender,
-            FileSystemType fileSystemType,
-            TransferFileType transferFileType)
+            OdinId sender, EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet)
         {
+
+            var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
+            var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
+            var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
+            
             var metadataStream = await fs.Storage.GetTempStreamForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
@@ -62,36 +66,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
-                var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
-
-                if (null == referencedFs)
-                {
-                    //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
-                }
-
-                //
-                // Issue - the caller cannot see the ACL because it's only shown to the
-                // owner, so we need to forceIncludeServerMetadata
-                //
-
-                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
-                    metadata.ReferencedFile.GlobalTransitId, forceIncludeServerMetadata: true);
-
-                if (null == referencedFile)
-                {
-                    //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
-                }
-
-
-                //S2040
-                if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
-                {
-                    throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
-                }
-
-                targetAcl = referencedFile.ServerMetadata.AccessControlList;
+                targetAcl = await ResetAclForComment(fileSystemType, metadata);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -110,12 +85,50 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                     break;
 
                 case TransferFileType.Normal:
-                    await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata);
+                    await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided);
                     break;
 
                 default:
                     throw new OdinClientException("Invalid TransferFileType", OdinClientErrorCode.InvalidTransferFileType);
             }
+        }
+
+        private async Task<AccessControlList> ResetAclForComment(FileSystemType fileSystemType, FileMetadata metadata)
+        {
+            AccessControlList targetAcl;
+
+            var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+
+            if (null == referencedFs)
+            {
+                //TODO file does not exist or some other issue - need clarity on what is happening here
+                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+            }
+
+            //
+            // Issue - the caller cannot see the ACL because it's only shown to the
+            // owner, so we need to forceIncludeServerMetadata
+            //
+
+            var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
+                metadata.ReferencedFile.GlobalTransitId, forceIncludeServerMetadata: true);
+
+            if (null == referencedFile)
+            {
+                //TODO file does not exist or some other issue - need clarity on what is happening here
+                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+            }
+
+
+            //S2040
+            if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
+            {
+                throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
+            }
+
+            targetAcl = referencedFile.ServerMetadata.AccessControlList;
+
+            return targetAcl;
         }
 
         public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item)
@@ -137,7 +150,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
+            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayload: false, ignoreThumbnail: false);
             await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
@@ -145,8 +158,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata)
+            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided)
         {
+            var expectPayloads = contentsProvided.HasFlag(SendContents.Payload);
+            var expectThumbnails = contentsProvided.HasFlag(SendContents.Thumbnails);
+
             //TODO: should we lock on the id of the global transit id or client unique id?
 
             var targetDriveId = tempFile.DriveId;
@@ -157,7 +173,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
                 //
-                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
+                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
                 return;
             }
 
@@ -177,7 +193,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
                     return;
                 }
 
@@ -224,7 +240,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
                     return;
                 }
 
@@ -239,7 +255,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 };
 
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
                 return;
             }
 
@@ -254,7 +270,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
                     return;
                 }
 

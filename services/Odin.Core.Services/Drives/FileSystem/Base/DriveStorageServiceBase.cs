@@ -18,6 +18,7 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Serilog;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
@@ -273,7 +274,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             string extenstion = $"-{key}.payload";
             return extenstion;
         }
-        
+
         public string GetThumbnailFileExtension(int width, int height)
         {
             //TODO: move this down into the long term storage manager
@@ -337,9 +338,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return header;
         }
 
-        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, FileChunk chunk)
+        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
             this.AssertCanReadDrive(file.DriveId);
+
+            // backwards compat - for files that were created before multi-payload support
+            bool getDefaultPayload = string.IsNullOrEmpty(key);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
 
@@ -349,6 +353,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return Stream.Null;
             }
 
+            if (!getDefaultPayload)
+            {
+                var hasKey = header.FileMetadata.Payloads.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+                if (!hasKey)
+                {
+                    return Stream.Null;
+                }
+            }
+
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, chunk);
@@ -356,6 +369,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             return Stream.Null;
+        }
+
+        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, FileChunk chunk)
+        {
+            return await GetPayloadStream(file, "", chunk);
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)
@@ -374,7 +392,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             AssertCanWriteToDrive(file.DriveId);
 
             var existingHeader = await this.GetServerFileHeader(file);
-            
+
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
@@ -423,10 +441,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return result;
         }
 
-        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+            bool? ignorePayload, bool? ignoreThumbnail)
         {
-            const string payloadExtension = "payload";
-
             AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
@@ -435,26 +452,27 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
 
-            //HACK: Note: It's possible for a transfer only include the header (excluding thumbnails and payloads)
-            //in the case of TransitOptions.SendOptions only having the HeaderFlag
-            //
-            if (metadata.AppData.ContentIsComplete == false)
+            //HACK: To the transit system sending the file header and not the payload or thumbnails (via SendContents)
+            // ignorePayload and expectThumbnailOverride allow it to tell us what to expect.
+
+            bool metadataSaysThisFileHasPayloads = metadata.AppData.ContentIsComplete == false;
+
+            if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
-                try
+                //TODO: update payload size to be a sum of all payloads
+                foreach (var descriptor in metadata.Payloads)
                 {
                     //Note: it's just as performant to directly get the file length as it is to perform File.Exists
+                    var payloadExtension = this.GetPayloadFileExtension(descriptor.Key);
                     string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
-                    metadata.PayloadSize = new FileInfo(sourceFile).Length;
+                    metadata.PayloadSize += new FileInfo(sourceFile).Length;
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
-                }
-                catch
-                {
-                    //HACK:  It's possible for a transfer only include the header (excluding thumbnails and payloads)
-                    //in the case of TransitOptions.SendOptions only having the HeaderFlag
                 }
             }
 
-            if (metadata.AppData.AdditionalThumbnails != null)
+            var metadataSaysThisFileHasThumbnails = metadata.AppData.AdditionalThumbnails != null;
+
+            if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
             {
                 foreach (var thumb in metadata.AppData.AdditionalThumbnails)
                 {
@@ -499,7 +517,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata)
         {
-            const string payloadExtension = "payload";
             AssertCanWriteToDrive(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
@@ -531,9 +548,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (newMetadata.AppData.ContentIsComplete == false)
             {
-                string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
-                newMetadata.PayloadSize = new FileInfo(sourceFile).Length;
-                await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
+                foreach (var descriptor in newMetadata.Payloads)
+                {
+                    //Note: it's just as performant to directly get the file length as it is to perform File.Exists
+                    var payloadExtension = this.GetPayloadFileExtension(descriptor.Key);
+                    string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
+                    newMetadata.PayloadSize += new FileInfo(sourceFile).Length;
+
+                    await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
+                }
             }
 
             //TODO: clean up old payload if it was removed?
@@ -612,6 +635,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //update the existing file metadata with new attachments data
             if (existingServerHeader.FileMetadata.AppData.ContentIsComplete == false)
             {
+                //TODO: update payload size to be a sum of all payloads
+
                 string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
                 existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
                 await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFilePath);
@@ -686,8 +711,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOneDrivePermission(targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
-            
+            ContextAccessor.GetCurrent().PermissionsContext
+                .AssertHasAtLeastOneDrivePermission(targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
+
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);

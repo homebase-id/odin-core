@@ -47,7 +47,8 @@ namespace Odin.Core.Services.Peer.SendingHost
             CircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAclAuthorizationService) : base(odinHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAclAuthorizationService) : base(
+            odinHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -92,12 +93,11 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         // 
 
-        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
-            KeyHeader keyHeaderToBeEncrypted,
+        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
             TransferFileType transferFileType,
-            FileSystemType fileSystemType)
+            FileSystemType fileSystemType, TransitOptions transitOptions)
         {
             var sharedSecret = clientAccessToken.SharedSecret;
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -108,6 +108,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
+                ContentsProvided = transitOptions.SendContents,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
@@ -232,7 +233,6 @@ namespace Odin.Core.Services.Peer.SendingHost
             //enforce ACL at the last possible moment before shipping the file out of the identity
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
 
-
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
@@ -267,6 +267,9 @@ namespace Odin.Core.Services.Peer.SendingHost
                         OutboxItem = outboxItem
                     };
                 }
+                
+                var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
+                var shouldSendThumbnails = options.SendContents.HasFlag(SendContents.Thumbnails);
 
                 var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
@@ -292,25 +295,27 @@ namespace Odin.Core.Services.Peer.SendingHost
                     };
                 }
 
-                var metadata = header.FileMetadata;
+                var sourceMetadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
                 //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
-                    //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
+                    //TODO: here I am removing the file and drive id from the stream but we need
+                    // to resolve this by moving the file information to the server header
                     File = InternalDriveFileId.Redacted(),
-                    Created = metadata.Created,
-                    Updated = metadata.Updated,
-                    AppData = metadata.AppData,
-                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                    ContentType = metadata.ContentType,
-                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(metadata.GlobalTransitId.GetValueOrDefault()),
-                    ReactionPreview = metadata.ReactionPreview,
+                    Created = sourceMetadata.Created,
+                    Updated = sourceMetadata.Updated,
+                    AppData = sourceMetadata.AppData,
+                    PayloadIsEncrypted = sourceMetadata.PayloadIsEncrypted,
+                    ContentType = sourceMetadata.ContentType,
+                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
+                    ReactionPreview = sourceMetadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
-                    ReferencedFile = metadata.ReferencedFile,
-                    VersionTag = metadata.VersionTag
+                    ReferencedFile = sourceMetadata.ReferencedFile,
+                    VersionTag = sourceMetadata.VersionTag,
+                    Payloads = sourceMetadata.Payloads
                 };
 
                 var json = OdinSystemSerializer.Serialize(redactedMetadata);
@@ -319,25 +324,19 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 var additionalStreamParts = new List<StreamPart>();
 
-                if (options.SendContents.HasFlag(SendContents.Payload))
+                if (shouldSendPayload)
                 {
-                    foreach (var payload in redactedMetadata.AppData?.Payloads ?? new List<ImageDataHeader>())
+                    foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
                     {
+                        var payloadKey = descriptor.Key;
+                        var payloadStream = sourceMetadata.AppData.ContentIsComplete ? Stream.Null : await fs.Storage.GetPayloadStream(file, payloadKey, null);
 
-                        
-
-
-                        var payloadStream = metadata.AppData.ContentIsComplete
-                            ? Stream.Null
-                            : await fs.Storage.GetPayloadStream(file, null);
-                        
-                        var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary",
-                            Enum.GetName(MultipartHostTransferParts.Payload));
+                        var payload = new StreamPart(payloadStream, payloadKey, "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
                         additionalStreamParts.Add(payload);
                     }
                 }
 
-                if (options.SendContents.HasFlag(SendContents.Thumbnails))
+                if (shouldSendThumbnails)
                 {
                     foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
@@ -446,7 +445,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                             clientAuthToken,
                             targetDrive,
                             sendFileOptions.TransferFileType,
-                            sendFileOptions.FileSystemType)
+                            sendFileOptions.FileSystemType,
+                            options)
                     });
                 }
                 catch (Exception)
@@ -519,15 +519,15 @@ namespace Odin.Core.Services.Peer.SendingHost
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
 
-                        
+
                         case TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientDoesNotHavePermissionToFileAcl;
                             break;
-                        
+
                         case TransferFailureReason.FileDoesNotAllowDistribution:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
-                        
+
                         case TransferFailureReason.RecipientServerReturnedAccessDenied:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientReturnedAccessDenied;
 

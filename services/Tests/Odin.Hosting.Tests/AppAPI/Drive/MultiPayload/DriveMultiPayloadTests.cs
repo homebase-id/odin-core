@@ -64,4 +64,22 @@ public class DriveMultiPayloadTests
         //Note - i think this i actually required by the client ot just send the whole thing
         Assert.Inconclusive("TODO");
     }
+
+    [Test]
+    public void PayloadSizeIsSumOfAllPayloads()
+    {
+        Assert.Inconclusive("TODO: firstly, determine if bishwa or stef use this field");
+    }
+    
+    [Test]
+    public void GetPayloadReturns_NotFound_WhenKeyDoesNotExist()
+    {
+        Assert.Inconclusive("TODO");
+    }
+    
+    [Test]
+    public void FailIfPayloadKeyIncludesInvalidChars()
+    {
+        Assert.Inconclusive("TODO: determine what is a valid key?  maybe just? [a-z][A-Z]-");
+    }
 }
