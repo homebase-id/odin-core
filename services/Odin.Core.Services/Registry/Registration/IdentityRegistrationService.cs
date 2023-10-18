@@ -507,7 +507,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         if (resolverAddressOrHostName == "")
         {
-            return new LookupClient();
+            return new LookupClient(new LookupClientOptions
+            {
+                UseCache = false,
+                UseTcpOnly = true
+            });
         }
 
         if (IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
