@@ -48,8 +48,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
             var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
-            //overwrite them to ensure the updated timestamp is set
-
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
@@ -64,7 +62,50 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
+                var request = new QueryBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptionsRequest = resultOptions
+                };
+
+                var response = await svc.GetBatch(request);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+            }
+        }
+        
+                [Test]
+        public async Task ShouldNotReturnSecuredFile_QueryBatch_2()
+        {
+            var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload 2");
+
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            {
+                var qp = new FileQueryParams()
+                {
+                    TargetDrive = targetDrive,
+                    TagsMatchAtLeastOne = new List<Guid>() { tag }
+                };
+
+                var resultOptions = new QueryBatchResultOptionsRequest()
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = false
+                };
+
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
@@ -82,7 +123,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         }
 
         [Test]
-        // [Ignore("invalid test until we support file updates")]
         public async Task ShouldNotReturnSecuredFile_QueryModified()
         {
             var identity = TestIdentities.Samwise;
@@ -101,7 +141,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
 
                 var qp = new FileQueryParams()
                 {
@@ -155,7 +195,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
@@ -192,7 +232,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     IncludeMetadataHeader = true
                 };
 
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
@@ -248,7 +288,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
