@@ -291,6 +291,18 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
+        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file)
+        {
+            var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
+
+            if (null == header)
+            {
+                return false;
+            }
+
+            return await _driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList);
+        }
+        
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
@@ -315,20 +327,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;
-        }
-
-        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
-        {
-            var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
-
-            if (null == header)
-            {
-                return null;
-            }
-
-            await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
-
-            return header;
         }
 
         public async Task<Stream> GetPayloadStream(InternalDriveFileId file, FileChunk chunk)
@@ -477,6 +475,20 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
         }
 
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
+        {
+            var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
+
+            if (null == header)
+            {
+                return null;
+            }
+
+            await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+
+            return header;
+        }
+        
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
             ServerMetadata serverMetadata)
         {

@@ -8,11 +8,11 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
-using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -45,8 +45,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var targetDrive = TargetDrive.NewTargetDrive();
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
@@ -78,18 +78,30 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
-        
-                [Test]
-        public async Task ShouldNotReturnSecuredFile_QueryBatch_2()
+
+        [Test]
+        public async Task ShouldNotReturnSecuredFile_QueryBatch_WhenSecuredWithCircle()
         {
             var identity = TestIdentities.Samwise;
-            Guid tag = Guid.NewGuid();
+            var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
 
+            var tag = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
-            var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload 2");
+
+            await ownerApiClient.Drive.CreateDrive(targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var circle = await ownerApiClient.Membership.CreateCircle("Security Circle", targetDrive, DrivePermission.None);
+            var circleSecuredAcl = new AccessControlList()
+            {
+                CircleIdList = new List<Guid>()
+                {
+                    circle.Id
+                },
+                RequiredSecurityGroup = SecurityGroupType.Connected
+            };
+            
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
+            var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl, "payload 2");
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
@@ -130,14 +142,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var targetDrive = TargetDrive.NewTargetDrive();
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
             securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag,
-                SecurityGroupType.Connected, "payload", versionTag: securedFileUploadContext.UploadResult.NewVersionTag);
+                AccessControlList.Connected, "payload", versionTag: securedFileUploadContext.UploadResult.NewVersionTag);
             anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag,
-                SecurityGroupType.Anonymous, "payload", versionTag: anonymousFileUploadContext.UploadResult.NewVersionTag);
+                AccessControlList.Anonymous, "payload", versionTag: anonymousFileUploadContext.UploadResult.NewVersionTag);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
@@ -343,7 +355,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         }
 
         private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag,
-            SecurityGroupType requiredSecurityGroup, string payload, Guid? versionTag = null)
+            AccessControlList acl, string payload, Guid? versionTag = null)
         {
             var instructionSet = new UploadInstructionSet()
             {
@@ -371,10 +383,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     UserDate = new UnixTimeUtc(0),
                     Tags = new List<Guid>() { tag }
                 },
-                AccessControlList = new AccessControlList()
-                {
-                    RequiredSecurityGroup = requiredSecurityGroup
-                }
+                AccessControlList = acl
             };
 
             return await _scaffold.OldOwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
