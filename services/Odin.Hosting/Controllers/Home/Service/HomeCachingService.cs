@@ -7,7 +7,6 @@ using LazyCache;
 using LazyCache.Providers;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Primitives;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
@@ -21,7 +20,7 @@ namespace Odin.Hosting.Controllers.Home.Service
     public class HomeCachingService : INotificationHandler<IDriveNotification>, INotificationHandler<DriveDefinitionAddedNotification>
     {
 #if DEBUG
-        public static int CacheMiss = 0;
+        public static int CacheMiss;
 #endif
         private readonly OdinContextAccessor _contextAccessor;
         private readonly FileSystemHttpRequestResolver _fsResolver;
@@ -34,8 +33,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
 
-        private IAppCache _cache;
-        private readonly CancellationTokenSource _expiryTokenSource = new();
+        private IAppCache? _cache;
 
         public HomeCachingService(DriveManager driveManager, OdinConfiguration config, OdinContextAccessor contextAccessor, FileSystemHttpRequestResolver fsResolver)
         {
@@ -127,6 +125,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                         ExpirationScanFrequency = TimeSpan.FromMinutes(2),
                         // SizeLimit = ???
                     }));
+            
             _cache = new CachingService(provider);
         }
 
