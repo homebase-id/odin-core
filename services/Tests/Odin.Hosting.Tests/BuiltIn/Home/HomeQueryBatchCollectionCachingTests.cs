@@ -140,7 +140,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
         public async Task CanInvalidateCache()
         {
             var identity = TestIdentities.Pippin;
-            var anonClient = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
+            var anonClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
 
             var drives = await UploadData(identity);
@@ -172,8 +172,6 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
         public async Task CanInvalidateCache_ByAddingFileToChannel()
         {
             var identity = TestIdentities.Pippin;
-            var anonClient = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
-            var svc = RestService.For<IRefitHomeDriveQuery>(anonClient);
 
             var drives = await UploadData(identity);
 
@@ -187,10 +185,10 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             Assert.IsTrue(HomeCachingService.CacheMiss == 1, "cache misses should not have changed.");
 
             //
-            // Upload new file to channel
+            // Add a new channel
             //
-            await UploadStandardRandomFileHeadersUsingOwnerApi(identity, drives[0], AccessControlList.Anonymous);
-            
+            await UploadStandardRandomFileHeadersUsingOwnerApi(identity, drives[0], AccessControlList.Anonymous, HomeCachingService.ChannelFileType);
+
             await QueryData(identity, drives.ToArray());
             Assert.IsTrue(HomeCachingService.CacheMiss == 2, "cache miss should have increased");
 
@@ -198,7 +196,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomFileHeadersUsingOwnerApi(TestIdentity identity,
-            TargetDrive targetDrive, AccessControlList acl = null)
+            TargetDrive targetDrive, AccessControlList acl = null, int fileType = HomeCachingService.PostFileType)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
@@ -208,7 +206,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 AllowDistribution = false,
                 AppData = new()
                 {
-                    FileType = HomeCachingService.PostFileType,
+                    FileType = fileType,
                     JsonContent = $"Some json content {Guid.NewGuid()}",
                     ContentIsComplete = true,
                     UniqueId = Guid.NewGuid(),
@@ -248,8 +246,6 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
 
         private async Task QueryData(TestIdentity identity, params TargetDrive[] drives)
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
-
             var sections = drives.Select(d => new CollectionQueryParamSection()
             {
                 Name = d.ToKey().ToBase64(),

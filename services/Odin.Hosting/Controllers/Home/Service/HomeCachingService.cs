@@ -65,8 +65,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 SlidingExpiration = TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
             };
-
-            policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
+            
             return await _cache.GetOrAddAsync(key, queryBatchCollection, policy);
         }
 
@@ -116,8 +115,6 @@ namespace Odin.Hosting.Controllers.Home.Service
         public void Invalidate()
         {
             //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
-            // _expiryTokenSource.Cancel();
-
             InitializeCache();
         }
 

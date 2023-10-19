@@ -84,7 +84,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<HomeCachingService>()
                 .AsSelf()
-                .As<INotificationHandler<IDriveNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
