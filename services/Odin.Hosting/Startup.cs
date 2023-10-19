@@ -198,7 +198,7 @@ namespace Odin.Hosting
             });
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<ILookupClient>(new LookupClient());
+            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
                 sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),

@@ -68,8 +68,8 @@ namespace Odin.Hosting.Controllers.Registration
         {
             // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             
-            var resolved = await _regService.ExternalDnsResolverRecordLookup(domain);
-            return new JsonResult(resolved.Success);
+            var (resolved, _) = await _regService.GetExternalDomainDnsStatus(domain);
+            return new JsonResult(resolved);
         }
         
         /// <summary>
@@ -201,7 +201,7 @@ namespace Odin.Hosting.Controllers.Registration
             //     );
             // }
             
-            var (success, dnsConfig) = await _regService.GetOwnDomainDnsStatus(domain);
+            var (success, dnsConfig) = await _regService.GetAuthorativeDomainDnsStatus(domain);
             if (!includeAlias)
             {
                 dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -244,18 +244,17 @@ namespace Odin.Hosting.Controllers.Registration
             if (!await _regService.IsValidInvitationCode(identity.InvitationCode))
             {
                 throw new BadRequestException(message: "Invalid or expired Invitation Code");
-
             }
 
             //
-            // Check that our new domain has propagated to other dns resolvers
+            // Check that our new domain can be looked up using authorative nameservers
             //
-            var resolved = await _regService.ExternalDnsResolverRecordLookup(domain);
-            if (!resolved.Success)
+            var (resolved, _) = await _regService.GetAuthorativeDomainDnsStatus(domain);
+            if (!resolved)
             {
                 return Problem(
                     statusCode: StatusCodes.Status409Conflict,
-                    title: "DNS records were not found by all configured external dns resolvers. Try later."
+                    title: "DNS records were not found by all authorative name servers. Try later."
                 );
             }
             
