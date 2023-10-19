@@ -156,7 +156,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Domain = domain,
             Value = dns.ApexAliasRecord,
             Verify = dns.ApexARecord,
-            Description = "Apex CNAME with flattening"
+            Description = "Apex flattened CNAME / ALIAS / ANAME"
         });
 
         // CNAME WWW
@@ -548,7 +548,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
         }
 
-        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms : {answer}",
+        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms: {answer}",
             domain,
             dnsConfig.Type,
             response.NameServer.Address,

@@ -86,7 +86,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
             }
             else
             {
-                _logger.LogDebug("Authoritative DNS Server for {domain}: {authoritativeServer}",
+                _logger.LogDebug("Authoritative DNS Server for {domain} is {authoritativeServer}",
                     domain, authoritativeServer);
             }
         }
