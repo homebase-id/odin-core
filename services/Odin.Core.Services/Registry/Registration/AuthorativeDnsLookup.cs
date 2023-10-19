@@ -24,9 +24,10 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
 
     //
 
-    public async Task<string?> Lookup(string domain)
+    public async Task<string> Lookup(string domain)
     {
         var authoritativeServer = RootServer;
+        _logger.LogDebug("Starting look up of authorative nameserver for {domain}", domain);
 
         try
         {
@@ -49,6 +50,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 {
                     throw new AuthorativeDnsLookupException($"DNS query failed: {response.ErrorMessage}");
                 }
+
                 var nsRecord = response.Authorities.NsRecords().FirstOrDefault();
                 if (nsRecord == null)
                 {
@@ -65,14 +67,16 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 {
                     throw new AuthorativeDnsLookupException($"DNS query failed: {response.ErrorMessage}");
                 }
+
                 var soaRecord = response.Answers.SoaRecords().FirstOrDefault();
                 if (soaRecord == null)
                 {
                     // Did not find a SOA record here, get out
                     break;
                 }
-                authoritativeServer = soaRecord.MName.ToString()!;
-            }
+
+                authoritativeServer = soaRecord.MName.ToString()?.TrimEnd('.') ?? "";
+            } // end for
 
             if (authoritativeServer == RootServer)
             {
@@ -86,10 +90,16 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         }
         catch (DnsResponseException e)
         {
-            throw new AuthorativeDnsLookupException(e.Message, e);
+            _logger.LogDebug("DNS lookup failed: {error}", e.Message);
+            authoritativeServer = "";
+        }
+        catch (AuthorativeDnsLookupException e)
+        {
+            _logger.LogDebug("DNS lookup failed: {error}", e.Message);
+            authoritativeServer = "";
         }
 
-        return authoritativeServer == RootServer ? null : authoritativeServer.TrimEnd('.');
+        return authoritativeServer == RootServer ? "" : authoritativeServer;
     }
 
     //
@@ -112,7 +122,6 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
 
         return new LookupClient(options);
     }
-
 }
 
 //

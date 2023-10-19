@@ -1,7 +1,4 @@
-using System;
-using System.Linq;
 using System.Threading.Tasks;
-using DnsClient;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -12,7 +9,8 @@ namespace Odin.Core.Services.Tests.Registry.Registration;
 public class AuthorativeDnsLookupTest
 {
     [Test]
-    [TestCase(".", "a.root-servers.net")]
+    [TestCase("", "")]
+    [TestCase(".", "")]
     [TestCase("com", "a.gtld-servers.net")]
     [TestCase("dk", "b.nic.dk")]
     [TestCase("example.com", "ns.icann.org")]
@@ -33,6 +31,8 @@ public class AuthorativeDnsLookupTest
     [TestCase("dns.id.pub", "ns1.id.pub")]
     [TestCase("dominion.id", "ns1.id.pub")]
     [TestCase("admin.dominion.id", "ns1.id.pub")]
+    [TestCase("not a domain", "")]
+    [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "")]
     public async Task ItShouldLookupTheAuthorativeNameServer(string domain, string expectedAuthorityNameserver)
     {
         var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
@@ -40,14 +40,6 @@ public class AuthorativeDnsLookupTest
         var result = await lookup.Lookup(domain);
 
         Assert.That(result, Is.EqualTo(expectedAuthorityNameserver));
-    }
-
-    [Test]
-    public void ItShouldThrowOnBadDomain()
-    {
-        var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
-        var lookup = new AuthorativeDnsLookup(loggerMock.Object);
-        Assert.ThrowsAsync<AuthorativeDnsLookupException>(async () => await lookup.Lookup("not a domain"));
     }
 
 }
