@@ -37,9 +37,32 @@ public class AuthorativeDnsLookupTest
     {
         var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
         var lookup = new AuthorativeDnsLookup(loggerMock.Object);
-        var result = await lookup.Lookup(domain);
+        var result = await lookup.LookupNameServer(domain);
 
         Assert.That(result, Is.EqualTo(expectedAuthorityNameserver));
     }
+
+    //
+
+    [Test]
+    [TestCase("", "")]
+    [TestCase(".", "")]
+    [TestCase("com", "com")]
+    [TestCase("example.com", "example.com")]
+    [TestCase("www.example.com", "example.com")]
+    [TestCase("foo.bar.baz.www.example.com", "example.com")]
+    [TestCase("yagni.dk", "yagni.dk")]
+    [TestCase("www.yagni.dk", "yagni.dk")]
+    [TestCase("not a domain", "")]
+    [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "")]
+    public async Task ItShouldLookupZoneApexForTheDomain(string domain, string expectedZoneApex)
+    {
+        var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
+        var lookup = new AuthorativeDnsLookup(loggerMock.Object);
+        var result = await lookup.LookupZoneApex(domain);
+
+        Assert.That(result, Is.EqualTo(expectedZoneApex));
+    }
+
 
 }

@@ -24,10 +24,10 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
 
     //
 
-    public async Task<string> Lookup(string domain)
+    public async Task<string> LookupNameServer(string domain)
     {
         var authoritativeServer = RootServer;
-        _logger.LogDebug("Starting look up of authorative nameserver for {domain}", domain);
+        _logger.LogDebug("Beginning look up of authorative nameserver for {domain}", domain);
 
         try
         {
@@ -100,6 +100,41 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         }
 
         return authoritativeServer == RootServer ? "" : authoritativeServer;
+    }
+
+    //
+
+    public async Task<string> LookupZoneApex(string domain)
+    {
+        _logger.LogDebug("Beginning look up of zone apex for {domain}", domain);
+
+        var labels = domain.Split('.');
+        for (var i = 0; i < labels.Length; i++)
+        {
+            var subdomain = string.Join('.', labels.Skip(i));
+            var authorativeServer = await LookupNameServer(domain);
+            if (string.IsNullOrEmpty(authorativeServer))
+            {
+                _logger.LogDebug("LookupZoneApex did not find an authorative server for {domain}", subdomain);
+                return "";
+            }
+
+            _logger.LogDebug("LookupZoneApex query SOA on {domain}", subdomain);
+            var dnsClient = await CreateDnsClient(authorativeServer);
+
+            var response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
+            foreach (var soa in response.Answers.SoaRecords())
+            {
+                _logger.LogDebug("LookupZoneApex found SOA on {domain}: {SOA}", subdomain, soa);
+                if (soa.DomainName.Value.ToLower() == subdomain + '.')
+                {
+                    _logger.LogDebug("LookupZoneApex zone apex is {domain}", subdomain);
+                    return subdomain;
+                }
+            }
+        }
+        _logger.LogError("LookupZoneApex found no zone anywhere in {domain}", domain);
+        return "";
     }
 
     //
