@@ -1,24 +1,30 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
+using System.Runtime.Caching;
+using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Mediator;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Serilog;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
-    public abstract class DriveQueryServiceBase : RequirePermissionsBase
+    public abstract class DriveQueryServiceBase : RequirePermissionsBase, INotificationHandler<IDriveNotification>
     {
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
-
+        private readonly CacheItemPolicy _defaultPolicy = new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(10) };
+        private MemoryCache _cache;
 
         protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
@@ -27,6 +33,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             DriveManager = driveManager;
             _driveDatabaseHost = driveDatabaseHost;
             _storage = storage;
+
+            InitializeCache();
         }
 
         protected override DriveManager DriveManager { get; }
@@ -71,15 +79,24 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
+                //TODO: perhaps let the developer manage the cache key
+                var k1 = OdinSystemSerializer.Serialize(qp);
+                var k2 = OdinSystemSerializer.Serialize(options);
+                var key = (k1 + k2).ToLower();
+
+                if (_cache.Contains(key))
+                {
+                    return (QueryBatchResult)_cache.Get(key);
+                }
+
                 var queryTime = UnixTimeUtcUnique.Now();
                 var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
 
-
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
-                return new QueryBatchResult()
+                var result = new QueryBatchResult()
                 {
                     QueryTime = queryTime.uniqueTime,
                     IncludeMetadataHeader = options.IncludeJsonContent,
@@ -87,6 +104,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows
                 };
+
+                _cache.Set(key, result, _defaultPolicy);
+                return result;
             }
 
             throw new NoValidIndexClientException(driveId);
@@ -263,6 +283,25 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             throw new NoValidIndexClientException(driveId);
+        }
+
+        /// <summary>
+        /// Called automatically any time a file changes (deleted, added, modified)
+        /// </summary>
+        public Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
+        {
+            InitializeCache();
+            return Task.CompletedTask;
+        }
+
+        private void InitializeCache()
+        {
+            _cache = new MemoryCache("qb", new NameValueCollection
+            {
+                { "cacheMemoryLimitMegabytes", "1" },
+                { "physicalMemoryLimitPercentage", "1" },
+                { "pollingInterval", "00:02:00" }
+            });
         }
     }
 }

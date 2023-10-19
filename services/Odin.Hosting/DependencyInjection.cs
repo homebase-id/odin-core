@@ -107,7 +107,11 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileAttachmentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveQueryService>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
             //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
