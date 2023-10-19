@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Acl;
@@ -131,6 +130,31 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             };
         }
 
+        public async Task<HostTransitResponse> Delete(DeleteFeedFileMetadataRequest request)
+        {
+            await _followerService.AssertTenantFollowsTheCaller();
+            using (new FeedDriveSecurityContext(_contextAccessor))
+            {
+                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var fileId = await this.ResolveInternalFile(request.FileId);
+                if (null == fileId)
+                {
+                    //TODO: what's the right status code here
+                    return new HostTransitResponse()
+                    {
+                        Code = TransitResponseCode.AcceptedDirectWrite
+                    };
+                }
+
+                await _fileSystem.Storage.RemoveFeedDriveFile(fileId.Value);
+
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.AcceptedDirectWrite
+                };
+            }
+        }
+
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
@@ -138,26 +162,6 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         {
             var (_, fileId) = await _fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
             return fileId;
-        }
-    }
-
-    public class FeedDriveSecurityContext : IDisposable
-    {
-        private readonly SecurityGroupType _prevSecurityGroupType;
-        private readonly OdinContextAccessor _odinContextAccessor;
-
-        public FeedDriveSecurityContext(OdinContextAccessor odinContextAccessor)
-        {
-            _odinContextAccessor = odinContextAccessor;
-            _prevSecurityGroupType = _odinContextAccessor.GetCurrent().Caller.SecurityLevel;
-
-            _odinContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
-            // _dotYouContextAccessor.GetCurrent().SetPermissionContext();
-        }
-
-        public void Dispose()
-        {
-            _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }
