@@ -48,7 +48,8 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 var response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
                 if (response.HasError)
                 {
-                    throw new AuthorativeDnsLookupException($"DNS query failed: {response.ErrorMessage}");
+                    _logger.LogDebug("Glue query returned {error} for {domain}", response.ErrorMessage, subdomain);
+                    break;
                 }
 
                 var nsRecord = response.Authorities.NsRecords().FirstOrDefault();
@@ -65,7 +66,8 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
                 if (response.HasError)
                 {
-                    throw new AuthorativeDnsLookupException($"DNS query failed: {response.ErrorMessage}");
+                    _logger.LogDebug("SOA query returned {error} for {domain}", response.ErrorMessage, subdomain);
+                    break;
                 }
 
                 var soaRecord = response.Answers.SoaRecords().FirstOrDefault();

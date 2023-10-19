@@ -36,7 +36,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailSender _emailSender;
-    private readonly object _mutex = new();
+    private readonly IAuthorativeDnsLookup _authorativeDnsLookup;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -44,7 +44,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         OdinConfiguration configuration,
         IDnsRestClient dnsRestClient,
         IHttpClientFactory httpClientFactory,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        IAuthorativeDnsLookup authorativeDnsLookup)
     {
         _logger = logger;
         _configuration = configuration;
@@ -52,6 +53,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
         _emailSender = emailSender;
+        _authorativeDnsLookup = authorativeDnsLookup;
 
         RegisterHttpClient();
     }
@@ -100,28 +102,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return "";
         }
 
-        var dnsClient = await CreateDnsClient("8.8.8.8"); // Google DNS
+        var result = await _authorativeDnsLookup.LookupZoneApex(domain);
 
-        var labels = domain.Split('.');
-        for (var i = 0; i < labels.Length; i++)
-        {
-            var test = string.Join('.', labels.Skip(i));
-
-            _logger.LogDebug("LookupZoneApex query SOA on {domain}", test);
-            var response = await dnsClient.QueryAsync(test, QueryType.SOA);
-            foreach (var soa in response.Answers.SoaRecords())
-            {
-                _logger.LogDebug("LookupZoneApex found SOA on {domain}: {SOA}", test, soa);
-                if (soa.DomainName.Value.ToLower() == test + '.')
-                {
-                    _logger.LogDebug("LookupZoneApex zone apex is {domain}", test);
-                    return test;
-                }
-            }
-        }
-
-        _logger.LogError("LookupZoneApex found no zone anywhere in {domain}", domain);
-        return "";
+        return result;
     }
 
     //
@@ -210,47 +193,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         });
 
         return Task.FromResult(result);
-    }
-
-    //
-
-    // bash: dig @1.1.1.1 example.com
-    public async Task<ExternalDnsResolverLookupResult> ExternalDnsResolverRecordLookup(string domain)
-    {
-        var result = new ExternalDnsResolverLookupResult();
-
-        var lookups = new List<(string, DnsConfig, Task<bool>)>();
-
-        foreach (var resolver in _configuration.Registry.DnsResolvers)
-        {
-            var dnsConfig = await GetDnsConfiguration(domain);
-            var dnsClient = await CreateDnsClient(resolver);
-            foreach (var record in dnsConfig)
-            {
-                lookups.Add(
-                    (
-                        resolver,
-                        record,
-                        VerifyDnsRecord(domain, record, dnsClient, true, 4)
-                    ));
-            }
-        }
-
-        await Task.WhenAll(lookups.Select(x => x.Item3));
-
-        foreach (var lookup in lookups)
-        {
-            result.Statuses.Add(new ExternalDnsResolverLookupResult.ResolverStatus
-            {
-                ResolverIp = lookup.Item1,
-                Domain = lookup.Item2.Domain,
-                Success = lookup.Item2.Status == DnsConfig.LookupRecordStatus.Success
-            });
-        }
-
-        result.Success = result.Statuses.All(x => x.Success);
-
-        return result;
     }
 
     //
@@ -384,25 +326,65 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetOwnDomainDnsStatus(string domain)
+    public async Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         var dnsConfigs = await GetDnsConfiguration(domain);
+        var authorativeServer = await _authorativeDnsLookup.LookupNameServer(domain);
+        if (string.IsNullOrEmpty(authorativeServer))
+        {
+            foreach (var record in dnsConfigs)
+            {
+                record.Status = DnsConfig.LookupRecordStatus.NoAuthorativeNameServer;
+            }
+            return (false, dnsConfigs);
+        }
 
-        var lookups = new List<Task<bool>>();
+        var dnsClient = await CreateDnsClient(authorativeServer);
+        foreach (var record in dnsConfigs)
+        {
+            var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
+            record.QueryResults[authorativeServer] = recordStatus;
+            if (record.Status is DnsConfig.LookupRecordStatus.Unknown or not DnsConfig.LookupRecordStatus.Success)
+            {
+                record.Status = recordStatus;
+            }
+        }
 
+        foreach (var record in dnsConfigs)
+        {
+            if (record.Status != DnsConfig.LookupRecordStatus.Success)
+            {
+                return (false, dnsConfigs);
+            }
+        }
+
+        // HURRAH!
+        return (true, dnsConfigs);
+    }
+
+    //
+
+    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain)
+    {
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+
+        var dnsConfigs = await GetDnsConfiguration(domain);
         var resolvers = new List<string>(_configuration.Registry.DnsResolvers);
         foreach (var resolver in resolvers)
         {
             var dnsClient = await CreateDnsClient(resolver);
             foreach (var record in dnsConfigs)
             {
-                lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true, 4));
+                var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
+                record.QueryResults[resolver] = recordStatus;
+                if (record.Status is DnsConfig.LookupRecordStatus.Unknown or not DnsConfig.LookupRecordStatus.Success)
+                {
+                    record.Status = recordStatus;
+                }
             }
         }
-
-        await Task.WhenAll(lookups);
 
         foreach (var record in dnsConfigs)
         {
@@ -510,7 +492,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return new LookupClient(new LookupClientOptions
             {
                 UseCache = false,
-                UseTcpOnly = true
             });
         }
 
@@ -525,7 +506,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var options = new LookupClientOptions(nameServerIp)
         {
             UseCache = false,
-            UseTcpOnly = true
         };
 
         return new LookupClient(options);
@@ -533,12 +513,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    private async Task<bool> VerifyDnsRecord(
+    private async Task<DnsConfig.LookupRecordStatus> VerifyDnsRecord(
         string domain,
         DnsConfig dnsConfig,
         IDnsQuery dnsClient,
-        bool validateConfiguredValue,
-        int iterations)
+        bool validateConfiguredValue)
     {
         var sw = new Stopwatch();
         sw.Start();
@@ -549,84 +528,42 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             domain = dnsConfig.Name + "." + domain;
         }
 
-        for (var iteration = 0; iteration < iterations; iteration++)
+        List<string> entries;
+        IDnsQueryResponse response;
+
+        switch (dnsConfig.Type.ToUpper())
         {
-            List<string> entries;
-            IDnsQueryResponse response;
-
-            switch (dnsConfig.Type.ToUpper())
-            {
-                case "A":
-                case "ALIAS":
-                    response = await dnsClient.QueryAsync(domain, QueryType.A);
-                    entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
-                    break;
-                case "CNAME":
-                    response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
-                    entries = response.Answers.CnameRecords()
-                        .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
-                        .ToList();
-                    break;
-                default:
-                    throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
-            }
-
-            var recordStatus = DnsConfig.LookupRecordStatus.Unknown;
-            if (entries.Count == 0)
-            {
-                recordStatus = DnsConfig.LookupRecordStatus.DomainOrRecordNotFound;
-            }
-            else
-            {
-                if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
-                {
-                    recordStatus = DnsConfig.LookupRecordStatus.Success;
-                }
-                else
-                {
-                    recordStatus = DnsConfig.LookupRecordStatus.IncorrectValue;
-                }
-            }
-
-            lock (_mutex)
-            {
-                if (recordStatus != DnsConfig.LookupRecordStatus.Success)
-                {
-                    dnsConfig.Status = recordStatus;
-                }
-
-                if (!dnsConfig.QueryResults.TryGetValue(response.NameServer.Address, out var queryResult))
-                {
-                    queryResult = new DnsConfig.QueryResult();
-                    dnsConfig.QueryResults[response.NameServer.Address] = queryResult;
-                }
-
-                queryResult.TotalCount++;
-                if (recordStatus == DnsConfig.LookupRecordStatus.Success)
-                {
-                    queryResult.SuccessCount++;
-                }
-
-                _logger.LogDebug("DNS lookup {domain} {type} {elapsed}ms @ {address}",
-                    domain, dnsConfig.Type, sw.ElapsedMilliseconds, response.NameServer.Address);
-                _logger.LogDebug("    answer {answer}", string.Join(" ; ", response.Answers));
-                _logger.LogDebug("    result {domain}: {status}", domain, recordStatus);
-            }
+            case "A":
+            case "ALIAS":
+                response = await dnsClient.QueryAsync(domain, QueryType.A);
+                entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+                break;
+            case "CNAME":
+                response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
+                entries = response.Answers.CnameRecords()
+                    .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
+                    .ToList();
+                break;
+            default:
+                throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
         }
 
-        var totals = 0;
-        var successes = 0;
-        foreach (var queryResult in dnsConfig.QueryResults.Values)
-        {
-            totals += queryResult.TotalCount;
-            successes += queryResult.SuccessCount;
-        }
-        if (totals > 0 && successes == totals)
-        {
-            dnsConfig.Status = DnsConfig.LookupRecordStatus.Success;
-        }
+        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms : {answer}",
+            domain,
+            dnsConfig.Type,
+            response.NameServer.Address,
+            sw.ElapsedMilliseconds,
+            string.Join(" ; ", response.Answers));
 
-        return dnsConfig.Status == DnsConfig.LookupRecordStatus.Success;
+        if (entries.Count == 0)
+        {
+            return DnsConfig.LookupRecordStatus.DomainOrRecordNotFound;
+        }
+        if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
+        {
+            return DnsConfig.LookupRecordStatus.Success;
+        }
+        return DnsConfig.LookupRecordStatus.IncorrectValue;
     }
 
     //
@@ -704,6 +641,7 @@ public class DnsConfig
         Success, // domain found, correct value returned
         DomainOrRecordNotFound, // domain not found, retry later
         IncorrectValue, // domain found, but DNS value is incorrect
+        NoAuthorativeNameServer // No authorative name server found
     }
 
     public string Type { get; init; } = ""; // e.g. "CNAME"
@@ -714,10 +652,5 @@ public class DnsConfig
     public string Description { get; init; } = "";
     public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
 
-    public class QueryResult
-    {
-        public int TotalCount { get; set; }
-        public int SuccessCount { get; set; }
-    }
-    public Dictionary<string, QueryResult> QueryResults { get; } = new (); // query results per DNS ip address
+    public Dictionary<string, LookupRecordStatus> QueryResults { get; } = new (); // query results per DNS ip address
 }

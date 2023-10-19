@@ -6,7 +6,7 @@ namespace Odin.Core.Services.Registry.Registration;
 public interface IAuthorativeDnsLookup
 {
     /// <summary>
-    /// Try to lookup authorative nameserver for a domain.
+    /// Try to lookup nearest authorative nameserver for a domain.
     /// Looking up the root (.) will return "".
     /// Note that this bypasses all caches and is slow. Do not use for performance sensitive queries.
     /// </summary>

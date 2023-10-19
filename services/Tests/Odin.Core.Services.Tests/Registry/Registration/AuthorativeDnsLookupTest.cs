@@ -8,13 +8,14 @@ namespace Odin.Core.Services.Tests.Registry.Registration;
 
 public class AuthorativeDnsLookupTest
 {
-    [Test]
+    [Test, Explicit]
     [TestCase("", "")]
     [TestCase(".", "")]
     [TestCase("com", "a.gtld-servers.net")]
     [TestCase("dk", "b.nic.dk")]
     [TestCase("example.com", "ns.icann.org")]
     [TestCase("www.example.com", "ns.icann.org")]
+    [TestCase("aslikdjaslidjsakldj.example.com", "ns.icann.org")]
     [TestCase("foo.bar.baz.www.example.com", "ns.icann.org")]
     [TestCase("sebbarg.dk", "ns1.sebbarg.dk")]
     [TestCase("www.sebbarg.dk", "ns1.sebbarg.dk")]
@@ -44,15 +45,18 @@ public class AuthorativeDnsLookupTest
 
     //
 
-    [Test]
+    [Test, Explicit]
     [TestCase("", "")]
     [TestCase(".", "")]
     [TestCase("com", "com")]
     [TestCase("example.com", "example.com")]
     [TestCase("www.example.com", "example.com")]
+    [TestCase("aslikdjaslidjsakldj.example.com", "example.com")]
     [TestCase("foo.bar.baz.www.example.com", "example.com")]
     [TestCase("yagni.dk", "yagni.dk")]
     [TestCase("www.yagni.dk", "yagni.dk")]
+    [TestCase("sebbarg.net", "sebbarg.net")]
+    [TestCase("foo.sebbarg.net", "sebbarg.net")]
     [TestCase("not a domain", "")]
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "")]
     public async Task ItShouldLookupZoneApexForTheDomain(string domain, string expectedZoneApex)
@@ -64,5 +68,6 @@ public class AuthorativeDnsLookupTest
         Assert.That(result, Is.EqualTo(expectedZoneApex));
     }
 
+    //
 
 }
