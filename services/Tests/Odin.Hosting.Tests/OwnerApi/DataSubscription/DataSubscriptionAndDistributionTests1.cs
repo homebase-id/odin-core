@@ -1033,12 +1033,12 @@ public class DataSubscriptionAndDistributionTests1
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
-        
+
         //All should have the file
         await AssertFeedDriveHasFile(samOwnerClient, qp, uploadedContent, uploadResult);
         await AssertFeedDriveHasFile(pippinOwnerClient, qp, uploadedContent, uploadResult);
         await AssertFeedDriveHasFile(merryOwnerClient, qp, uploadedContent, uploadResult);
-        
+
         //All done
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
@@ -1108,6 +1108,11 @@ public class DataSubscriptionAndDistributionTests1
         // The Frodo deletes the file
         //
         await frodoOwnerClient.Drive.DeleteFile(uploadResult.File);
+
+        // Validate Frodo no longer has it
+        var getDeletedFileResponse = await frodoOwnerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadResult.File);
+        Assert.IsTrue(getDeletedFileResponse.IsSuccessStatusCode);
+        Assert.IsTrue(getDeletedFileResponse.Content.FileState == FileState.Deleted, "frodo's file should be marked deleted");
 
         // TODO: is this needed for deleted files?
         // Process the outbox since we're sending an encrypted file
