@@ -281,6 +281,9 @@ namespace Odin.Hosting
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
+            // app.UseHsts(); // SEB:TODO will hsts break something?
+            app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
+
             // Provisioning mapping
             app.MapWhen(
                 context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
@@ -307,7 +310,6 @@ namespace Odin.Hosting
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
-            app.UseHttpsRedirection();
 
             app.UseEndpoints(endpoints =>
             {

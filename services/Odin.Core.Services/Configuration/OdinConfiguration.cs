@@ -208,6 +208,8 @@ namespace Odin.Core.Services.Configuration
 
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
             }
+
+            public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
         }
 
         public class ListenEntry

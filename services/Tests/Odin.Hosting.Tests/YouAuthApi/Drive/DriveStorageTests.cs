@@ -42,7 +42,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
 
                 var getHeaderResponse = await svc.GetFileHeader(
                     new ExternalFileIdentifier()
@@ -63,7 +63,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var svc = RestService.For<IRefitGuestDriveQuery>(client);
 
                 var getPayloadStreamResponse = await svc.GetPayload(
                     new GetPayloadRequest()

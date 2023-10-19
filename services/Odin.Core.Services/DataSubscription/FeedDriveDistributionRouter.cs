@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
@@ -21,6 +22,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Serilog;
 
 namespace Odin.Core.Services.DataSubscription
 {
@@ -85,7 +87,7 @@ namespace Odin.Core.Services.DataSubscription
                     }
                     else
                     {
-                        await this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
+                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
                     }
                 }
                 else
@@ -93,7 +95,7 @@ namespace Odin.Core.Services.DataSubscription
                     // If this is the reaction preview being updated due to an incoming comment or reaction
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
-                        await this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
+                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
                     }
                 }
 
@@ -101,7 +103,7 @@ namespace Odin.Core.Services.DataSubscription
             }
         }
 
-        private async Task EnqueueFileMetadataForDistributionUsingFeedEndpoint(IDriveNotification notification)
+        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification)
         {
             var item = new ReactionPreviewDistributionItem()
             {
@@ -172,22 +174,42 @@ namespace Odin.Core.Services.DataSubscription
 
         public async Task DistributeQueuedMetadataItems()
         {
-            async Task<(FeedDistributionOutboxRecord record, bool success)> SendFile(FeedDistributionOutboxRecord record)
+            async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(FeedDistributionOutboxRecord record)
             {
                 var distroItem = OdinSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
                 var recipient = (OdinId)record.recipient;
-                bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
-                    {
-                        FileId = record.fileId,
-                        DriveId = record.driveId
-                    },
-                    distroItem.FileSystemType,
-                    recipient);
-                return (record, success);
+                if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded or DriveNotificationType.FileModified)
+                {
+                    bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                        {
+                            FileId = record.fileId,
+                            DriveId = record.driveId
+                        },
+                        distroItem.FileSystemType,
+                        recipient);
+
+                    return (record, success);
+                }
+
+                if (distroItem.DriveNotificationType == DriveNotificationType.FileDeleted)
+                {
+                    var success = await _feedDistributorService.DeleteFile(new InternalDriveFileId()
+                        {
+                            FileId = record.fileId,
+                            DriveId = record.driveId
+                        },
+                        distroItem.FileSystemType,
+                        recipient);
+                    return (record, success);
+                }
+
+                //Note: not throwing exception so we dont block other-valid feed items from being sent
+                Log.Warning($"Unhandled Notification Type {distroItem.DriveNotificationType}");
+                return (record, false);
             }
 
             var batch = _tenantSystemStorage.Feedbox.Pop(_odinConfiguration.Feed.DistributionBatchSize);
-            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(SendFile));
+            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
             await Task.WhenAll(tasks);
 
             var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();

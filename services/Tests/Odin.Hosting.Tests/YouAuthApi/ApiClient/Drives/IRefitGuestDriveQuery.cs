@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IDriveTestHttpClientForYouAuth
+    public interface IRefitGuestDriveQuery
     {
         private const string RootEndpoint = GuestApiPathConstants.DriveV1;
         
