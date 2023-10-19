@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;

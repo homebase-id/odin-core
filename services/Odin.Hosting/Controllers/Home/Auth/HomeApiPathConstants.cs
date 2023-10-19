@@ -6,6 +6,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
     {
         private const string BasePathV1 = GuestApiPathConstants.BuiltIn +"/home";
         public const string AuthV1 = BasePathV1 + "/auth";
+        public const string DataV1 = BasePathV1 + "/data";
+        public const string CacheableV1 = DataV1 + "/cacheable";
         
         public const string HandleAuthorizationCodeCallbackMethodName = "auth-code-callback";
         public const string IsAuthenticatedMethodName = "is-authenticated";

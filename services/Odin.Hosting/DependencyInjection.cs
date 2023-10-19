@@ -82,6 +82,12 @@ namespace Odin.Hosting
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
+            cb.RegisterType<HomeCachingService>()
+                .AsSelf()
+                .As<INotificationHandler<IDriveNotification>>()
+                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+                .SingleInstance();
+
             cb.RegisterType<HomeAuthenticatorService>()
                 .AsSelf()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()

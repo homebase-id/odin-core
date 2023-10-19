@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
 
 namespace Odin.Hosting.Controllers.Base;
@@ -25,6 +26,14 @@ public abstract class OdinControllerBase : ControllerBase
             FileId = file.FileId,
             DriveId = OdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
+    }
+    
+    protected void AddGuestApiCacheHeader()
+    {
+        if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
+        {
+            this.Response.Headers.Add("Cache-Control", "max-age=3600");
+        }
     }
     
     /// <summary>
