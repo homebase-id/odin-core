@@ -30,7 +30,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(OdinContext odinContext, FileSystemType fileSystemType,
+    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(odinContext, nameof(odinContext)).NotNull();
@@ -62,7 +62,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(OdinContext odinContext,
+    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(odinContext, nameof(odinContext)).NotNull();

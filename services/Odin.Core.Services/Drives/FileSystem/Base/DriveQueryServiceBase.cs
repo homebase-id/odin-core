@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Serilog;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
@@ -16,6 +18,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
     {
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
+
 
         protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
@@ -45,7 +48,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, o);
+                    await queryManager.GetModifiedCore(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, o);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, o);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -69,7 +72,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
@@ -184,19 +187,28 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     FileId = fileId
                 };
 
-                var serverFileHeader = await _storage.GetServerFileHeader(file);
-                var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
-                if (!options.IncludeJsonContent)
+                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
+                if (!hasPermissionToFile)
                 {
-                    header.FileMetadata.AppData.JsonContent = string.Empty;
+                    Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
                 }
-
-                if (options.ExcludePreviewThumbnail)
+                else
                 {
-                    header.FileMetadata.AppData.PreviewThumbnail = null;
-                }
+                    var serverFileHeader = await _storage.GetServerFileHeader(file);
 
-                results.Add(header);
+                    var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
+                    if (!options.IncludeJsonContent)
+                    {
+                        header.FileMetadata.AppData.JsonContent = string.Empty;
+                    }
+
+                    if (options.ExcludePreviewThumbnail)
+                    {
+                        header.FileMetadata.AppData.PreviewThumbnail = null;
+                    }
+
+                    results.Add(header);
+                }
             }
 
             return results;
@@ -231,7 +243,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
-                var (_, fileIdList, _) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (_, fileIdList, _) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
