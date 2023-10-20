@@ -145,7 +145,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.StatusCode == HttpStatusCode.Forbidden);
             }
@@ -309,7 +309,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true, SecurityGroupType.Connected); //security group should be cause that's how we sent it
+            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true,
+                SecurityGroupType.Connected); //security group should be cause that's how we sent it
 
             // recipient server: Should still be in index and marked as deleted
 
@@ -445,7 +446,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)),
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
@@ -723,13 +724,14 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
+            const string payloadKey = "aa";
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)),
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
@@ -781,13 +783,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(queryBatchResponse.Content);
                 Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1,
                     $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
-
+                var theFile = queryBatchResponse.Content.SearchResults.Single();
                 var uploadedFile = new ExternalFileIdentifier()
                 {
                     TargetDrive = recipientContext.TargetDrive,
-                    FileId = queryBatchResponse.Content.SearchResults.Single().FileId
+                    FileId = theFile.FileId
                 };
-
+                
                 var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
@@ -830,7 +832,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { Key = payloadKey, File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

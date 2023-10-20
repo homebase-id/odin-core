@@ -50,17 +50,17 @@ public class DrivePayloadTests
         var uploadedContentResult = await UploadStandardFileToChannel(ownerClient, frodoChannelDrive, uploadedContent, uploadedPayload);
 
         //Test whole payload is there
-        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File);
+        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, key, uploadedContentResult.File);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
         Assert.IsTrue(payloadContent == uploadedPayload);
 
         var deleteResult = await ownerClient.Drive.DeletePayload(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsTrue(deleteResult.NewVersionTag != uploadedContentResult.NewVersionTag);
-        
+
         //validate the payload is gone
-        var getDeletedPayloadResponse = await ownerClient.Drive.GetPayloadRaw(FileSystemType.Standard, uploadedContentResult.File);
+        var getDeletedPayloadResponse = await ownerClient.Drive.GetPayloadRaw(FileSystemType.Standard, key, uploadedContentResult.File);
         Assert.IsTrue(getDeletedPayloadResponse.StatusCode == HttpStatusCode.NotFound);
-        
+
         //even tho the payload is gone, we should still be able to get the header and it should be updated
         var getHeaderResponse = await ownerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
@@ -90,7 +90,7 @@ public class DrivePayloadTests
         var uploadedContentResult = await UploadStandardFileToChannel(ownerClient, frodoChannelDrive, uploadedContent, uploadedPayload);
 
         //Test whole payload is there
-        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File);
+        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, key, uploadedContentResult.File);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
         Assert.IsTrue(payloadContent == uploadedPayload);
 
@@ -134,7 +134,7 @@ public class DrivePayloadTests
         var uploadedContentResult = await UploadStandardFileToChannel(ownerClient, frodoChannelDrive, uploadedContent, uploadedPayload);
 
         //Test whole payload is there
-        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File);
+        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, key, uploadedContentResult.File);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
         Assert.IsTrue(payloadContent == uploadedPayload);
 

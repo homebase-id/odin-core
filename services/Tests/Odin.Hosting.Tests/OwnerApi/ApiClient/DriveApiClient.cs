@@ -175,7 +175,7 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 
@@ -186,7 +186,8 @@ public class DriveApiClient
                 //     throw new Exception("You sent a thumbnail but didnt specify it in your file data");
                 // }
 
-                parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(), thumbnail.ContentType,
+                    Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -206,7 +207,8 @@ public class DriveApiClient
         }
     }
 
-    public async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive,
+    public async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadEncryptedFile(
+        FileSystemType fileSystemType, TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
@@ -262,7 +264,7 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
@@ -305,12 +307,12 @@ public class DriveApiClient
         }
     }
 
-    public async Task<HttpContent> GetPayload(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
+    public async Task<HttpContent> GetPayload(FileSystemType fileSystemType, ExternalFileIdentifier file, string key = "", FileChunk chunk = null)
     {
-        return (await GetPayloadRaw(fileSystemType, file, chunk)).Content;
+        return (await GetPayloadRaw(fileSystemType, file, key, chunk)).Content;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
+    public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, string key = "", FileChunk chunk = null)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -319,7 +321,8 @@ public class DriveApiClient
             return await svc.GetPayloadPost(new GetPayloadRequest()
             {
                 File = file,
-                Chunk = chunk
+                Chunk = chunk,
+                Key = key
             });
         }
     }
@@ -411,7 +414,7 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 
@@ -486,7 +489,7 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)

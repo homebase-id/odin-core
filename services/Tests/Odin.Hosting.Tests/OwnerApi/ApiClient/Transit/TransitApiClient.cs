@@ -205,7 +205,7 @@ public class TransitApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 
@@ -285,7 +285,7 @@ public class TransitApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)

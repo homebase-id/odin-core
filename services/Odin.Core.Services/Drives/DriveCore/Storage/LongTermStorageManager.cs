@@ -58,9 +58,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
-        public Task DeletePayload(Guid fileId)
+        public Task DeletePayload(Guid fileId, string key)
         {
-            string path = GetFilenameAndPath(fileId, FilePart.Payload);
+            string path = GetPayloadFilePath(fileId, key);
             if (File.Exists(path))
             {
                 File.Delete(path);
@@ -69,17 +69,32 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        public Task DeleteFilePart(Guid fileId, FilePart filePart)
+        public Task DeleteAllPayloads(Guid fileId)
         {
-            string path = GetFilenameAndPath(fileId, filePart);
-            File.Delete(path);
+            string path = GetPayloadPath(fileId);
+            var seekPath = this.GetFilename(fileId, "*", FilePart.Payload);
+            string dir = GetFilePath(fileId, FilePart.Thumb);
+
+            if (Directory.Exists(dir))
+            {
+                var payloads = Directory.GetFiles(dir, seekPath);
+                foreach (var payload in payloads)
+                {
+                    File.Delete(payload);
+                }
+            }
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
             return Task.CompletedTask;
         }
-        
 
         public Int64 GetPayloadDiskUsage(Guid fileId)
         {
-            string payloadFilePath = GetPayloadFilePath(fileId);
+            string payloadFilePath = GetPayloadPath(fileId);
             if (!Directory.Exists(payloadFilePath))
             {
                 return 0;
@@ -96,14 +111,23 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return usage;
         }
 
-
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
+            return GetChunkedStream(path, chunk);
+        }
 
+        public Task<Stream> GetPayloadStream(Guid fileId, string key, FileChunk chunk = null)
+        {
+            var path = GetPayloadFilePath(fileId, key);
+            return GetChunkedStream(path, chunk);
+        }
+
+        public Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
+        {
             if (!File.Exists(path))
             {
                 return Task.FromResult(Stream.Null);
@@ -136,6 +160,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
             return Task.FromResult((Stream)fileStream);
         }
+
 
         /// <summary>
         /// Gets a read stream of the thumbnail
@@ -219,7 +244,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task HardDelete(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
-            DeletePayload(fileId);
+            DeleteAllPayloads(fileId);
 
             string metadata = GetFilenameAndPath(fileId, FilePart.Header);
             if (File.Exists(metadata))
@@ -237,17 +262,16 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteAttachments(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
-            DeletePayload(fileId);
+            DeleteAllPayloads(fileId);
             return Task.CompletedTask;
         }
 
         /// <summary>
         /// Moves the specified <param name="sourcePath"></param> to long term storage.
         /// </summary>
-        public Task MovePayloadToLongTerm(Guid targetFileId, string sourcePath)
+        public Task MovePayloadToLongTerm(Guid targetFileId, string key, string sourcePath)
         {
-            FilePart part = FilePart.Payload;
-            var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
+            var dest = GetPayloadFilePath(targetFileId, key, ensureExists: true);
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
 
             File.Move(sourcePath, dest, true);
@@ -353,16 +377,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return thumbnailPath;
         }
 
-        private string GetPayloadFilePath(Guid fileId)
-        {
-            return this.GetFilePath(fileId, FilePart.Payload);
-        }
-
-        private string GetHeaderFilePath(Guid fileId)
-        {
-            return this.GetFilePath(fileId, FilePart.Header);
-        }
-
         private string GetFilePath(Guid fileId, FilePart filePart, bool ensureExists = false)
         {
             string path = filePart is FilePart.Payload or FilePart.Thumb ? _drive.GetLongTermPayloadStoragePath() : _drive.GetLongTermHeaderStoragePath();
@@ -399,6 +413,17 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         {
             string dir = GetFilePath(fileId, part, ensureDirectoryExists);
             return Path.Combine(dir, GetFilename(fileId, string.Empty, part));
+        }
+
+        private string GetPayloadPath(Guid fileId, bool ensureExists = false)
+        {
+            return this.GetFilePath(fileId, FilePart.Payload, ensureExists);
+        }
+
+        private string GetPayloadFilePath(Guid fileId, string key, bool ensureExists = false)
+        {
+            var extension = DriveFileUtility.GetPayloadFileExtension(key);
+            return Path.Combine(GetPayloadPath(fileId, ensureExists), $"{fileId.ToString()}{extension}");
         }
 
         private string GetTempFilePath(Guid fileId, FilePart part, string suffix, bool ensureExists = false)

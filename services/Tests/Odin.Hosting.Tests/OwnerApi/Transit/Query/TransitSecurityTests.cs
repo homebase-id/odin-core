@@ -191,7 +191,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     var response = await transitSvc.Upload(
             //         new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
             //         new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-            //         new StreamPart(originalPayloadCipherBytes, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+            //         new StreamPart(originalPayloadCipherBytes, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
             //         new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
             //             Enum.GetName(MultipartUploadParts.Thumbnail)));
             //

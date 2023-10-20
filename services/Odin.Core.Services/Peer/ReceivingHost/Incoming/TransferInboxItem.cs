@@ -49,6 +49,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
         public TransferFileType TransferFileType { get; set; }
         
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
-
+        
+        public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
     }
 }

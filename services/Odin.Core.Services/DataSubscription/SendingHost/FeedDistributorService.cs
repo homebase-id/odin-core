@@ -24,6 +24,41 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             _driveAcl = driveAcl;
         }
 
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
+        {
+            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var header = await fs.Storage.GetServerFileHeader(file);
+
+            if (null == header)
+            {
+                //TODO: need log more info here
+                return false;
+            }
+
+            var authorized = await _driveAcl.IdentityHasPermission(recipient,
+                header.ServerMetadata.AccessControlList);
+            
+            if (!authorized)
+            {
+                //TODO: need more info here
+                return false;
+            }
+
+            var request = new DeleteFeedFileMetadataRequest()
+            {
+                FileId = new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = SystemDriveConstants.FeedDrive
+                }
+            };
+            
+            var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            var httpResponse = await client.DeleteFeedMetadata(request);
+
+            return IsSuccess(httpResponse);
+        }
+        
         public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(file);

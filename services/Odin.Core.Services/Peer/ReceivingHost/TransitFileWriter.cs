@@ -38,13 +38,13 @@ namespace Odin.Core.Services.Peer.ReceivingHost
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
-            OdinId sender, EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet)
+            OdinId sender,
+            EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet)
         {
-
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
-            
+
             var metadataStream = await fs.Storage.GetTempStreamForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
@@ -160,8 +160,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided)
         {
-            var expectPayloads = contentsProvided.HasFlag(SendContents.Payload);
-            var expectThumbnails = contentsProvided.HasFlag(SendContents.Thumbnails);
+            var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
+            var ignoreThumbnails = contentsProvided.HasFlag(SendContents.Thumbnails) == false;
 
             //TODO: should we lock on the id of the global transit id or client unique id?
 
@@ -173,7 +173,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
                 //
-                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
+                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, ignoreThumbnails);
                 return;
             }
 
@@ -193,7 +193,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, ignoreThumbnails);
                     return;
                 }
 
@@ -225,7 +225,9 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata,
+                    ignorePayload: true,
+                    ignoreThumbnail: true);
                 return;
             }
 
@@ -240,7 +242,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, ignoreThumbnails);
                     return;
                 }
 
@@ -255,7 +257,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 };
 
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, ignoreThumbnails);
                 return;
             }
 
@@ -270,7 +272,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, expectPayloads, expectThumbnails);
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, ignoreThumbnails);
                     return;
                 }
 
@@ -286,7 +288,9 @@ namespace Odin.Core.Services.Peer.ReceivingHost
 
                 metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata,
+                    ignorePayload: false,
+                    ignoreThumbnail: false);
                 return;
             }
 

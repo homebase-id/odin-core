@@ -70,7 +70,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, false);
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
@@ -95,7 +95,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 targetFile: targetFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                serverMetadata: serverMetadata,
+                ignorePayload: false,
+                ignoreThumbnail: false);
 
             return;
         }
@@ -151,7 +153,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
 
-            VersionTag = uploadDescriptor.FileMetadata.VersionTag
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag,
+            
+            Payloads = package.UploadedPayloads
         };
 
         return Task.FromResult(metadata);

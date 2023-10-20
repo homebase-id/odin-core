@@ -6,4 +6,5 @@ public class GetPayloadRequest
 {
     public ExternalFileIdentifier File { get; set; }
     public FileChunk Chunk { get; set; }
+    public string Key { get; set; }
 }

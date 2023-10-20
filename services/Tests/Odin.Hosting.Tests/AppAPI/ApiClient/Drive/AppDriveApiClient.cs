@@ -202,7 +202,7 @@ public class AppDriveApiClient : AppApiClientBase
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnails?.Any() ?? false)
@@ -432,7 +432,7 @@ public class AppDriveApiClient : AppApiClientBase
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(payloadStream, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnails?.Any() ?? false)

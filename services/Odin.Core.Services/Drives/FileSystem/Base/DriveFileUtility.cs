@@ -8,7 +8,7 @@ using Odin.Core.Services.Peer.Encryption;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base;
 
-public static class Utility
+public static class DriveFileUtility
 {
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -61,7 +61,8 @@ public static class Utility
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority,
-            FileByteCount = header.ServerMetadata.FileByteCount
+            FileByteCount = header.ServerMetadata.FileByteCount,
+            Payloads = header.FileMetadata.Payloads
         };
 
         //add additional info
@@ -123,5 +124,11 @@ public static class Utility
         }
 
         return nextSizeUp;
+    }
+
+    public static string GetPayloadFileExtension(string key)
+    {
+        string extenstion = $"-{key?.ToLower()}.payload";
+        return extenstion;
     }
 }

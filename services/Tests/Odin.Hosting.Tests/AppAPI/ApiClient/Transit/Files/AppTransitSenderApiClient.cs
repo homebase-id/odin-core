@@ -72,7 +72,7 @@ public class AppTransitSenderApiClient: AppApiClientBase
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 

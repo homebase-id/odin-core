@@ -53,7 +53,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, false);
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
@@ -74,7 +74,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                serverMetadata: serverMetadata,
+                ignorePayload:false,
+                ignoreThumbnail:false);
 
             return;
         }
@@ -128,7 +130,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
 
-            VersionTag = uploadDescriptor.FileMetadata.VersionTag
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag,
+            
+            Payloads = package.UploadedPayloads
         };
 
         return Task.FromResult(metadata);

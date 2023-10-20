@@ -100,13 +100,16 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
         }
 
-        string extenstion = FileSystem.Storage.GetPayloadFileExtension(key);
+        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
-        Package.UploadedPayloads.Add(new PayloadDescriptor()
+        if(bytesWritten>0)
         {
-            Key = key,
-            BytesWritten = bytesWritten
-        });
+            Package.UploadedPayloads.Add(new PayloadDescriptor()
+            {
+                Key = key,
+                BytesWritten = bytesWritten
+            });
+        }
     }
 
     public virtual async Task AddThumbnail(int width, int height, string contentType, Stream data)

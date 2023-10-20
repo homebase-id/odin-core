@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
@@ -69,7 +70,7 @@ namespace Odin.Hosting.Controllers.Peer
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
                 var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-               
+
                 //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
                 //S0100
@@ -155,7 +156,7 @@ namespace Odin.Hosting.Controllers.Peer
             {
                 return false;
             }
-            
+
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part))
             {
                 throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
@@ -170,7 +171,7 @@ namespace Odin.Hosting.Controllers.Peer
             {
                 return false;
             }
-            
+
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part))
             {
                 throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
@@ -212,12 +213,12 @@ namespace Odin.Hosting.Controllers.Peer
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
-            string extension = _fileSystem.Storage.GetPayloadFileExtension(payloadKey);
+            string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Payload, extension,
                 fileSection.FileStream);
-            
+
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -232,7 +233,7 @@ namespace Odin.Hosting.Controllers.Peer
             string extension = _fileSystem.Storage.GetThumbnailFileExtension(width, height);
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension,
                 fileSection.FileStream);
-            
+
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?

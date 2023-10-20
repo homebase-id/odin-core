@@ -288,7 +288,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
             var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
-            var thumbnail = Utility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
+            var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
             {
                 return (null, default, null, null);
@@ -413,9 +413,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 InstructionType = TransferInstructionType.SaveFile,
                 DriveId = stateItem.TempFile.DriveId,
                 FileId = stateItem.TempFile.FileId,
-                FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
-                TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
-                ContentsProvided = stateItem.TransferInstructionSet.ContentsProvided,
+                TransferInstructionSet = stateItem.TransferInstructionSet,
+                
+                // FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
+                // TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+                // ContentsProvided = stateItem.TransferInstructionSet.ContentsProvided,
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 

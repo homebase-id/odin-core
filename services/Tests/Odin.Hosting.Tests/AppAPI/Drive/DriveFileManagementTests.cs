@@ -88,13 +88,14 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
+            const string payloadKey = "xx";
             var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -144,7 +145,12 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId } });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
+                {
+                    Key = payloadKey,
+                    File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }
+                });
+
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

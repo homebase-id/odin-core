@@ -29,7 +29,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             ILogger logger,
             FileSystemResolver fileSystemResolver,
             ITransitService transitService
-            )
+        )
         {
             _fileSystemResolver = fileSystemResolver;
             _transitService = transitService;
@@ -62,7 +62,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var payload = await fs.Storage.GetPayloadStream(file, request.Chunk);
+            var payload = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -77,7 +77,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
             if (null != request.Chunk)
             {
                 var to = request.Chunk.Start + request.Chunk.Length - 1;
-                HttpContext.Response.Headers.Add("Content-Range", new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, header.FileMetadata.PayloadSize), header.FileMetadata.PayloadSize).ToString());
+                HttpContext.Response.Headers.Add("Content-Range",
+                    new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, header.FileMetadata.PayloadSize), header.FileMetadata.PayloadSize)
+                        .ToString());
             }
 
             AddCacheHeader();
@@ -124,8 +126,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             AddCacheHeader();
 
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
-                    ? "application/octet-stream"
-                    : thumbHeader.ContentType);
+                ? "application/octet-stream"
+                : thumbHeader.ContentType);
 
             return result;
         }
