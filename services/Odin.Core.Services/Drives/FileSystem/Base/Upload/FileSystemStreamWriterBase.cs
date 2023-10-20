@@ -102,7 +102,7 @@ public abstract class FileSystemStreamWriterBase
 
         string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
-        if(bytesWritten>0)
+        if (bytesWritten > 0)
         {
             Package.UploadedPayloads.Add(new PayloadDescriptor()
             {
@@ -190,7 +190,7 @@ public abstract class FileSystemStreamWriterBase
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata);
         }
-        
+
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package);
 
         var uploadResult = new UploadResult()

@@ -135,10 +135,22 @@ public class DriveApiClient
         }
     }
 
+    public async Task<UploadResult> UploadNewFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        TestPayload payload = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        return await this.UploadFile(fileSystemType, targetDrive, fileMetadata,
+            payloadData: payload?.Data ?? "",
+            payloadKey: payload?.Key ?? "",
+            overwriteFileId: null,
+            thumbnail: null);
+    }
+
     public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
         Guid? overwriteFileId = null,
-        ImageDataContent thumbnail = null)
+        ImageDataContent thumbnail = null,
+        string payloadKey = "")
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -175,17 +187,12 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), payloadKey, "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
             {
-                // if (!fileMetadata.AppData.AdditionalThumbnails.Any(t => t.PixelHeight == thumbnail.PixelHeight && t.PixelWidth == thumbnail.PixelWidth))
-                // {
-                //     throw new Exception("You sent a thumbnail but didnt specify it in your file data");
-                // }
-
                 parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(), thumbnail.ContentType,
                     Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
@@ -312,7 +319,8 @@ public class DriveApiClient
         return (await GetPayloadRaw(fileSystemType, file, key, chunk)).Content;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, string key = "", FileChunk chunk = null)
+    public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, string key = "",
+        FileChunk chunk = null)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -342,7 +350,7 @@ public class DriveApiClient
         }
     }
 
-    public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file)
+    public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file, string key)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -351,7 +359,8 @@ public class DriveApiClient
             // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.DeletePayload(new DeletePayloadRequest()
             {
-                File = file
+                File = file,
+                Key = key
             });
 
             return apiResponse.Content;

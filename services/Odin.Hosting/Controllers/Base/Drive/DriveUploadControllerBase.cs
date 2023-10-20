@@ -164,7 +164,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var filename = fileSection?.FileName;
             if (string.IsNullOrEmpty(filename) || string.IsNullOrWhiteSpace(filename))
             {
-                throw new OdinClientException("Payloads must include filename with no spaces. i.e. ('image_data' is valid where as 'image data' is not)",
+                throw new OdinClientException("Payloads must include filename in the multi-part upload.  It must have no spaces. i.e. ('image_data' is valid where as 'image data' is not).  This will be the payload key used when you retrieve the payload.",
                     OdinClientErrorCode.InvalidPayload);
             }
 
