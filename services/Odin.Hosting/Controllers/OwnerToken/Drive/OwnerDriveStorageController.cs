@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] string key)
         {
             FileChunk chunk = null;
             if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
@@ -114,6 +114,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }

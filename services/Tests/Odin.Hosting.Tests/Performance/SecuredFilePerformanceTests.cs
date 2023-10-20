@@ -130,7 +130,7 @@ namespace Odin.Hosting.Tests.Performance
 
 
             // var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1 });
+            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY});
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
             // System.Threading.Thread.Sleep(2000);
@@ -143,7 +143,7 @@ namespace Odin.Hosting.Tests.Performance
                 sw.Restart();
 
                 // var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-                var payload1Response = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1 });
+                var payload1Response = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY });
                 // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
                 Assert.IsTrue(payload1Response.IsSuccessStatusCode);
                 Assert.IsNotNull(payload1Response.Content);
@@ -236,7 +236,7 @@ namespace Odin.Hosting.Tests.Performance
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)),
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
@@ -304,7 +304,7 @@ namespace Odin.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile });
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

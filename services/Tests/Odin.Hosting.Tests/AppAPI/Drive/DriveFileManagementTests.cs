@@ -278,7 +278,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
 
                 //there should not be a payload
-                var getPayloadResponse = await svc.GetPayloadAsPost(new GetPayloadRequest() { File = fileToDelete });
+                var getPayloadResponse = await svc.GetPayloadAsPost(new GetPayloadRequest() { File = fileToDelete, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }

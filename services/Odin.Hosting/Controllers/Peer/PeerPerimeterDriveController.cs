@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.Peer
         {
             var perimeterService = GetPerimeterService();
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
-                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Chunk);
+                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Key, request.Chunk);
 
             if (payload == Stream.Null)
             {

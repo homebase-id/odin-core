@@ -290,7 +290,7 @@ namespace Odin.Hosting.Tests.Performance
                         Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                         Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary",
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(),
                         thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
@@ -531,7 +531,7 @@ namespace Odin.Hosting.Tests.Performance
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
@@ -599,7 +599,7 @@ namespace Odin.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile});
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY});
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

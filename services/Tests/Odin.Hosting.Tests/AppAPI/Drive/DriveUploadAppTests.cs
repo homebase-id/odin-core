@@ -88,7 +88,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -138,7 +138,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 //get the payload and decrypt, then compare
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
-                    { File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId } });
+                {
+                    File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId },
+                    Key = WebScaffold.PAYLOAD_KEY
+                });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -219,7 +222,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.False(response.IsSuccessStatusCode);
             }

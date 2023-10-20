@@ -11,6 +11,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -19,6 +20,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -145,7 +147,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.StatusCode == HttpStatusCode.Forbidden);
             }
@@ -329,13 +331,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
         // {
         //     Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
         // }
-
+        
         [Test(Description = "")]
         public async Task CanSendTransferAndRecipientCanGetFilesByTag_SendNowAwaitResponse()
         {
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
-
+            
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
             var senderContext =
@@ -446,7 +448,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)),
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
@@ -544,7 +546,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

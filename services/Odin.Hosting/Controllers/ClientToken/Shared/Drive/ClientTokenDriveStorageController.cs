@@ -13,6 +13,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Quartz.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -79,7 +80,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key,
+            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = null;
             if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
@@ -102,7 +105,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             }
             else if (chunkStart.HasValue)
             {
-
                 chunk = new FileChunk()
                 {
                     Start = chunkStart.GetValueOrDefault(),
@@ -122,6 +124,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }

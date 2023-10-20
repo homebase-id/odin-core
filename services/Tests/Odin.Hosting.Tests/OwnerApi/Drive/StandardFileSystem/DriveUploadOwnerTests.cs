@@ -85,8 +85,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var clientFileHeader = await frodoOwnerClient.Drive.GetFileHeader(
                 FileSystemType.Standard,
                 new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }
-                );
-            
+            );
+
             Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
             Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
@@ -183,11 +183,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
             }
@@ -269,9 +270,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -316,10 +319,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
                 Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
 
@@ -328,7 +334,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile});
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -445,11 +451,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.CannotOverwriteNonExistentFile);
 
@@ -510,7 +517,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -596,7 +603,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 //
                 // This should fail because we tried to reuse a uid1
@@ -604,7 +611,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
             }
@@ -656,7 +664,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -710,11 +718,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
             }
@@ -760,7 +769,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);

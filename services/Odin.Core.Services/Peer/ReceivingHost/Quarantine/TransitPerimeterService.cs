@@ -254,7 +254,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
         }
 
         public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(
-            TargetDrive targetDrive, Guid fileId, FileChunk chunk)
+            TargetDrive targetDrive, Guid fileId, string key, FileChunk chunk)
         {
             var file = new InternalDriveFileId()
             {
@@ -270,7 +270,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _fileSystem.Storage.GetPayloadStream(file, chunk);
+            var payload = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
 
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
@@ -414,7 +414,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 DriveId = stateItem.TempFile.DriveId,
                 FileId = stateItem.TempFile.FileId,
                 TransferInstructionSet = stateItem.TransferInstructionSet,
-                
+
                 // FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 // TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 // ContentsProvided = stateItem.TransferInstructionSet.ContentsProvided,

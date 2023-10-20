@@ -79,7 +79,8 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(FileSystemType fileSystemType, List<CollectionQueryParamSection> querySections)
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(FileSystemType fileSystemType,
+        List<CollectionQueryParamSection> querySections)
     {
         var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
@@ -94,7 +95,7 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    
+
     public async Task<ApiResponse<UploadResult>> UpdateMetadataRaw(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         Guid? overwriteFileId = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
@@ -102,7 +103,7 @@ public class AppDriveApiClient : AppApiClientBase
         var (_, response) = await this.UploadUnEncryptedMetadataInternal(fileSystemType, targetDrive, fileMetadata, overwriteFileId: overwriteFileId);
         return response;
     }
-    
+
     public async Task<UploadResult> UpdateMetadata(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         Guid? overwriteFileId = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
@@ -308,7 +309,8 @@ public class AppDriveApiClient : AppApiClientBase
             var thumbnailResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
             {
                 File = file,
-                Chunk = chunk
+                Chunk = chunk,
+                Key = WebScaffold.PAYLOAD_KEY
             });
 
             return thumbnailResponse;
@@ -456,7 +458,8 @@ public class AppDriveApiClient : AppApiClientBase
         return RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, _token.SharedSecret);
     }
 
-    public async Task<DeleteAttachmentsResult> DeleteThumbnail(ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType = FileSystemType.Standard)
+    public async Task<DeleteAttachmentsResult> DeleteThumbnail(ExternalFileIdentifier file, int width, int height,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fileSystemType);
         {

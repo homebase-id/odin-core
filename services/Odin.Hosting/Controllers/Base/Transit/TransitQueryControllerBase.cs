@@ -9,7 +9,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
-    using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {
@@ -24,7 +24,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             _transitQueryService = transitQueryService;
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> GetBatchCollection([FromBody] TransitQueryBatchCollectionRequest request)
@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return result;
         }
 
-            
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("modified")]
         public async Task<QueryModifiedResponse> GetModified([FromBody] TransitQueryModifiedRequest request)
@@ -61,9 +61,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
-        { 
+        {
             var fst = base.GetFileSystemResolver().GetFileSystemType();
-            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
+            SharedSecretEncryptedFileHeader result =
+                await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
 
             if (null == result)
             {
@@ -85,9 +86,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
+        public async Task<IActionResult> GetPayloadStream([FromBody] TransitGetPayloadRequest request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File, request.Chunk, GetFileSystemResolver().GetFileSystemType());
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId,
+                request.File, request.Key, request.Chunk, GetFileSystemResolver().GetFileSystemType());
 
             if (payload == Stream.Null)
             {
@@ -115,7 +117,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
             var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
-                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height, GetFileSystemResolver().GetFileSystemType());
+                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height,
+                    GetFileSystemResolver().GetFileSystemType());
 
             if (thumb == Stream.Null)
             {

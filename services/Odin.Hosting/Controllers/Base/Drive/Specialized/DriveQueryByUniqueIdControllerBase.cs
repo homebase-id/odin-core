@@ -39,6 +39,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayloadStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = null;
@@ -87,6 +88,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }

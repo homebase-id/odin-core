@@ -363,7 +363,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 // 
                 if (payloadContent != null)
                 {
-                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile });
+                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY});
                     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                     Assert.That(payloadResponse.Content, Is.Not.Null);
 

@@ -108,14 +108,15 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string
-        decryptedContentType, Stream payload)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
-        FileChunk chunk, FileSystemType fileSystemType)
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)>
+        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
+            string key,
+            FileChunk chunk, FileSystemType fileSystemType)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Chunk = chunk });
+        var response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk });
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -288,7 +289,7 @@ public class TransitQueryService
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            if(response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values))
+            if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values))
             {
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
@@ -296,7 +297,7 @@ public class TransitQueryService
                     _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
                 }
             }
-            
+
             throw new OdinSecurityException("Remote server returned 403");
         }
 

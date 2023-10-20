@@ -228,11 +228,17 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
-            if (!header.FileMetadata.AppData.ContentIsComplete) //there should be a payload
+            if (!header.FileMetadata.AppData.ContentIsComplete) //all payloads should exist
             {
-                //check for payload
-                string payload = GetFilenameAndPath(fileId, FilePart.Payload);
-                return File.Exists(payload);
+                //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
+                foreach (var d in header.FileMetadata.Payloads)
+                {
+                    var payloadFilePath = GetPayloadFilePath(fileId, d.Key);
+                    if (!File.Exists(payloadFilePath))
+                    {
+                        return false;
+                    }
+                }
             }
 
             return true;
