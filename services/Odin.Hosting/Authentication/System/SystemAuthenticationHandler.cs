@@ -61,13 +61,12 @@ namespace Odin.Hosting.Authentication.System
                         securityLevel: SecurityGroupType.System);
 
                     var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers });
-                    var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-
-
+                    var grantKeyStoreKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+                    
                     var systemPermissions = new Dictionary<string, PermissionGroup>()
                     {
                         {
-                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, sharedSecret, null)
+                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, grantKeyStoreKey, null)
                         }
                     };
 
