@@ -415,9 +415,9 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 FileId = stateItem.TempFile.FileId,
                 TransferInstructionSet = stateItem.TransferInstructionSet,
 
-                // FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
-                // TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
-                // ContentsProvided = stateItem.TransferInstructionSet.ContentsProvided,
+                FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
+                TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 

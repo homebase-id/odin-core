@@ -310,7 +310,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent), "", "application/x-binary",
+                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent), WebScaffold.PAYLOAD_KEY, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     additionalThumbnailContent ?? Array.Empty<StreamPart>());
 

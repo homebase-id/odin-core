@@ -72,8 +72,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteAllPayloads(Guid fileId)
         {
             string path = GetPayloadPath(fileId);
-            var seekPath = this.GetFilename(fileId, "*", FilePart.Payload);
-            string dir = GetFilePath(fileId, FilePart.Thumb);
+            var seekPath = this.GetFilename(fileId, "-*", FilePart.Payload);
+            string dir = GetFilePath(fileId, FilePart.Payload);
 
             if (Directory.Exists(dir))
             {
@@ -82,11 +82,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 {
                     File.Delete(payload);
                 }
-            }
-
-            if (File.Exists(path))
-            {
-                File.Delete(path);
             }
 
             return Task.CompletedTask;

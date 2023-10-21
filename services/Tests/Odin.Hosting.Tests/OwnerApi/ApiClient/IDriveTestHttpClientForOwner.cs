@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
-        Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] thumbnail);
+        Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] parts);
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);

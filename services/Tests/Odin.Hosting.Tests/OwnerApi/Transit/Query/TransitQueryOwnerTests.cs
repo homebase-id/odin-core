@@ -412,7 +412,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(originalPayloadCipherBytes, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(originalPayloadCipherBytes, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
@@ -610,10 +610,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was sent to the recipient via transit, test it
                 // has the decrypted data content type
                 // can be decrypted using the owner shared secret encrypted key header
-                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitExternalFileIdentifier()
+                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitGetPayloadRequest()
                 {
                     OdinId = recipient.OdinId,
-                    File = uploadedFile
+                    File = uploadedFile,
+                    Key = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.That(getTransitPayloadResponse.IsSuccessStatusCode, Is.True);
@@ -898,7 +899,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
+                    new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -1166,7 +1167,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
@@ -1343,10 +1344,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was sent to the recipient via transit, test it
                 // has the decrypted data content type
                 // can be decrypted using the owner shared secret encrypted key header
-                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitExternalFileIdentifier()
+                var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitGetPayloadRequest()
                 {
                     OdinId = recipient.OdinId,
-                    File = uploadedFile
+                    File = uploadedFile,
+                    Key = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.That(getTransitPayloadResponse.IsSuccessStatusCode, Is.True);
@@ -1672,7 +1674,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(originalPayloadCipherBytes, "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(originalPayloadCipherBytes, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 

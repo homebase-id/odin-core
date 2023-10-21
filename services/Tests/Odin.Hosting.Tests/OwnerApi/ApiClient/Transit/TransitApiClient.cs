@@ -205,7 +205,7 @@ public class TransitApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "", "application/x-binary",
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary",
                     Enum.GetName(MultipartUploadParts.Payload))
             };
 
@@ -285,7 +285,8 @@ public class TransitApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), "", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
@@ -300,15 +301,15 @@ public class TransitApiClient
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
             var transitResult = response.Content;
-            
 
-            foreach(var recipient in recipients)
+
+            foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
                 bool wasDelivered = status == TransferStatus.DeliveredToInbox || status == TransferStatus.DeliveredToTargetDrive;
                 Assert.IsTrue(wasDelivered, $"failed to deliver to {recipient}; status was {status}");
             }
-            
+
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
             Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
@@ -339,20 +340,22 @@ public class TransitApiClient
             Assert.IsTrue(response.IsSuccessStatusCode);
         }
     }
-    
-    
+
+
     //Query
 
-    public async Task<ApiResponse<HttpContent>> GetPayloadOverTransit(OdinId remoteIdentity, ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> GetPayloadOverTransit(OdinId remoteIdentity, ExternalFileIdentifier file, string key = WebScaffold.PAYLOAD_KEY,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-            var response = await svc.GetPayload(new TransitExternalFileIdentifier()
+            var response = await svc.GetPayload(new TransitGetPayloadRequest()
             {
                 OdinId = remoteIdentity,
-                File = file
+                File = file,
+                Key = key
             });
 
             return response;

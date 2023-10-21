@@ -72,7 +72,8 @@ public class DataSubscriptionAndDistributionTests2
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
+        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
+            allowSubscriptions: true);
 
         //
         // Frodo creates a circle named Mordor and puts Sam in it
@@ -121,7 +122,8 @@ public class DataSubscriptionAndDistributionTests2
     }
 
     [Test]
-    public async Task EncryptedFile_UploadedByTheOwner_IsOnlyDistributedTo_ConnectedFollowers_WithAccessInFileAcl_Of_A_SingleCircle_And_Deleted_When_Owner_Deletes_File()
+    public async Task
+        EncryptedFile_UploadedByTheOwner_IsOnlyDistributedTo_ConnectedFollowers_WithAccessInFileAcl_Of_A_SingleCircle_And_Deleted_When_Owner_Deletes_File()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
@@ -149,9 +151,10 @@ public class DataSubscriptionAndDistributionTests2
 
         var x = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
+        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
+            allowSubscriptions: true);
         var x2 = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
-      
+
         //
         // Frodo creates a circle named Mordor and puts Sam in it
         //
@@ -201,15 +204,16 @@ public class DataSubscriptionAndDistributionTests2
 
     private async Task AssertPayloadIs404(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.NotFound);
     }
-    
+
     private async Task AssertFeedDriveHasHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
     {
         var qp = new FileQueryParams()
@@ -228,10 +232,11 @@ public class DataSubscriptionAndDistributionTests2
 
     private async Task AssertCanGetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult, string encryptedPayloadContent64)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
@@ -255,10 +260,11 @@ public class DataSubscriptionAndDistributionTests2
 
     private async Task AssertCan_Not_GetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.Forbidden);
@@ -273,9 +279,9 @@ public class DataSubscriptionAndDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c=>c.FileState== FileState.Deleted));
+        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
-    
+
     private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(
         OwnerApiClient client,
         TargetDrive targetDrive,

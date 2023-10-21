@@ -349,7 +349,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 if (!getDefaultPayload)
                 {
-                    var hasKey = header.FileMetadata.Payloads.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+                    var hasKey = header.FileMetadata.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false;
                     if (!hasKey)
                     {
                         return Stream.Null;
@@ -514,7 +514,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
                     newMetadata.PayloadSize += new FileInfo(sourceFile).Length;
 
-                    await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key,  sourceFile);
+                    await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFile);
                 }
             }
 

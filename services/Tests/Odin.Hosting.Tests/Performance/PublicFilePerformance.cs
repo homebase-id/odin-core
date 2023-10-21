@@ -359,7 +359,7 @@ namespace Odin.Hosting.Tests.Performance
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                         Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent),
-                        "", "application/x-binary",
+                        WebScaffold.PAYLOAD_KEY, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     additionalThumbnailContent ?? Array.Empty<StreamPart>());
 
