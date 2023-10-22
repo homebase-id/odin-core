@@ -42,7 +42,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
@@ -81,7 +81,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
 
             try
             {

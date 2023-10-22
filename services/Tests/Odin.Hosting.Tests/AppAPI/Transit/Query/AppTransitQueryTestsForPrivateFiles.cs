@@ -274,10 +274,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                File = randomFile.uploadResult.File
+                File = randomFile.uploadResult.File,
+                Key = WebScaffold.PAYLOAD_KEY
             });
 
             Assert.IsTrue(response.IsSuccessStatusCode);
@@ -339,13 +340,15 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Alias = Guid.NewGuid(),
                 Type = driveType
             };
-            
+
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive1GrantedViaCircle);
 
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
-            var remoteDrive2AnonymousDrive = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive allow anonymous=true", "", allowAnonymousReads: true);
-            var remoteDrive3NeverGrantedToMerry = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: false);
+            var remoteDrive2AnonymousDrive = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive allow anonymous=true", "", allowAnonymousReads: true);
+            var remoteDrive3NeverGrantedToMerry = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive 2", "", allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -365,7 +368,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1GrantedViaCircle));
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2AnonymousDrive.TargetDriveInfo));
-            
+
             Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3NeverGrantedToMerry.TargetDriveInfo));
 
             await _scaffold.Scenarios.DisconnectHobbits();
@@ -424,7 +427,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
                 payloadData: payload ?? "",
-                thumbnail: thumbnail);
+                thumbnail: thumbnail,
+                payloadKey: payload == null ? "" : WebScaffold.PAYLOAD_KEY);
             return (result, fileMetadata);
         }
 

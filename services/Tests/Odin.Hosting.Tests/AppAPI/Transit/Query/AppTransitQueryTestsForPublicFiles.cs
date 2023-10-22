@@ -223,10 +223,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             // Pippin uploads file
             var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, uploadedPayload);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                File = randomFile.uploadResult.File
+                File = randomFile.uploadResult.File,
+                Key = WebScaffold.PAYLOAD_KEY
             });
 
             Assert.IsTrue(response.IsSuccessStatusCode);
@@ -276,9 +277,12 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var driveType = Guid.NewGuid();
-            var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1", "", allowAnonymousReads: true);
-            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: true);
-            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 3 - no anonymous reads", "",
+            var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1",
+                "", allowAnonymousReads: true);
+            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2",
+                "", allowAnonymousReads: true);
+            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive 3 - no anonymous reads", "",
                 allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
@@ -355,7 +359,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
                 payloadData: payload ?? "",
-                thumbnail: thumbnail);
+                thumbnail: thumbnail,
+                payloadKey: payload == null ? "" : WebScaffold.PAYLOAD_KEY);
             return (result, fileMetadata);
         }
 
@@ -380,7 +385,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, file.TargetDrive, fileMetadata, overwriteFileId: file.FileId);
-            
+
             var modifiedFile = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
             return (result, modifiedFile.FileMetadata);
         }

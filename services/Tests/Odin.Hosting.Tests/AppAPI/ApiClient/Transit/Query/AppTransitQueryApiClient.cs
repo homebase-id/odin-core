@@ -74,12 +74,12 @@ public class AppTransitQueryApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayload(TransitExternalFileIdentifier file, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> GetPayload(TransitGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppTransitQuery>(client, _token.SharedSecret);
-            var apiResponse = await svc.GetPayload(file);
+            var apiResponse = await svc.GetPayload(request);
             return apiResponse;
         }
     }
