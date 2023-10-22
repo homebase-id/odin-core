@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            AddCacheHeader();
+            AddGuestApiCacheHeader();
 
             return new JsonResult(result);
         }
@@ -82,7 +82,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                         .ToString());
             }
 
-            AddCacheHeader();
+            AddGuestApiCacheHeader();
 
             var result = new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted
                 ? "application/octet-stream"
@@ -123,7 +123,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64,
                 encryptedKeyHeader64);
 
-            AddCacheHeader();
+            AddGuestApiCacheHeader();
 
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
                 ? "application/octet-stream"
@@ -235,14 +235,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 NewVersionTag = await fs.Storage.DeletePayload(file, request.Key)
             };
-        }
-
-        protected void AddCacheHeader()
-        {
-            if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
-            {
-                this.Response.Headers.Add("Cache-Control", "max-age=3600");
-            }
         }
     }
 }

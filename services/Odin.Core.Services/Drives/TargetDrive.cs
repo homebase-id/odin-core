@@ -31,6 +31,16 @@ public class TargetDrive : IEquatable<TargetDrive>
             Type = Guid.NewGuid()
         };
     }
+    
+    public static TargetDrive NewTargetDrive(Guid type)
+    {
+        return new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = type
+        };
+    }
+
 
     public static bool operator ==(TargetDrive d1, TargetDrive d2)
     {

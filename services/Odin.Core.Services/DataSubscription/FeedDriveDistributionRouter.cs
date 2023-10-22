@@ -11,6 +11,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.DataSubscription.SendingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -119,8 +120,11 @@ namespace Odin.Core.Services.DataSubscription
             }
             else
             {
-                await EnqueueFollowers(notification, item);
-                EnqueueCronJob();
+                using(new FeedDriveSecurityContext(_contextAccessor))
+                {
+                    await EnqueueFollowers(notification, item);
+                    EnqueueCronJob();
+                }
             }
         }
 

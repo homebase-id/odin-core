@@ -134,7 +134,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             //a follower is allowed to read their own configuration
             if (odinId != _contextAccessor.GetCurrent().Caller.OdinId)
             {
-                _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+                _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
             }
 
             return await GetFollowerInternal(odinId);
@@ -145,13 +145,13 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
             return await GetIdentityIFollowInternal(odinId);
         }
 
         public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
             var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
 
@@ -169,7 +169,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
             if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
             {
@@ -191,7 +191,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
 
@@ -209,7 +209,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
             var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
             var result = new CursoredResult<string>()
@@ -222,7 +222,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
             var drive = await _driveManager.GetDrive(driveAlias, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)

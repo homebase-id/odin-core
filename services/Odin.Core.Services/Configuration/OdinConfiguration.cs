@@ -206,10 +206,13 @@ namespace Odin.Core.Services.Configuration
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
 
+                HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
+
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
             }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
+            public int HomePageCachingExpirationSeconds { get; set; }
         }
 
         public class ListenEntry

@@ -8,6 +8,7 @@ using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
@@ -20,6 +21,7 @@ using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Time;
+using Serilog;
 using PermissionSet = Odin.Core.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Core.Services.Membership.Connections
@@ -642,15 +644,36 @@ namespace Odin.Core.Services.Membership.Connections
                                 enabledCircles.Add(appCg.CircleId);
                             }
 
-                            grants.Add(kvp.Key, new ExchangeGrant()
+                            if (grants.ContainsKey(kvp.Key))
                             {
-                                Created = 0,
-                                Modified = 0,
-                                IsRevoked = false, //TODO
-                                KeyStoreKeyEncryptedDriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
-                                MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
-                                PermissionSet = appCg.PermissionSet
-                            });
+                                //TODO: figuring out a production issue
+                                if (grants.TryGetValue(kvp.Key, out var v))
+                                {
+                                    var existingKeyJson = OdinSystemSerializer.Serialize(v.Redacted());
+                                    var newKeyJson = OdinSystemSerializer.Serialize(appCg);
+                                    var message = $"Key with value [{kvp.Key} already exists in grants.]";
+                                    message += $"\n Existing key has [{existingKeyJson}]";
+                                    message += $"\n appGrant Key [{newKeyJson}]";
+                                    
+                                    Log.Warning(message);    
+                                }
+                                else
+                                {
+                                    Log.Warning($"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
+                                }
+                            }
+                            else
+                            {
+                                grants.Add(kvp.Key, new ExchangeGrant()
+                                {
+                                    Created = 0,
+                                    Modified = 0,
+                                    IsRevoked = false, //TODO
+                                    KeyStoreKeyEncryptedDriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
+                                    MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
+                                    PermissionSet = appCg.PermissionSet
+                                });
+                            }
                         }
                     }
                 }
