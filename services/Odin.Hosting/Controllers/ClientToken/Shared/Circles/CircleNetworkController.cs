@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted()).ToList()
             };
         }
     }

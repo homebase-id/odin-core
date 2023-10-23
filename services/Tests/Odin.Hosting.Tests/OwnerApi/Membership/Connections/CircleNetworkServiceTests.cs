@@ -292,18 +292,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
                     $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
-
-                //
-                // Validate the contact data sent by frodo was set on his ICR on sam's identity
-                //
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Name == frodo.ContactData.Name);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.ImageId == frodo.ContactData.ImageId);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
@@ -342,18 +336,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse =
-                    await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
+                    await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
                     $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-
-                //
-                // Validate the contact data sent by sam was set on his ICR on frodo's identity
-                //
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Name == sam.ContactData.Name);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.ImageId == sam.ContactData.ImageId);
 
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
@@ -852,7 +840,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
                     $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
@@ -892,7 +880,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-                var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
+                var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
                 Assert.IsTrue(getSamInfoResponse.IsSuccessStatusCode,
                     $"Failed to get status for {sam.Identity}.  Status code was {getSamInfoResponse.StatusCode}");

@@ -39,10 +39,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         }
 
         [HttpPost("status")]
-        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
+        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)request.OdinId);
-            return result?.Redacted(omitContactData);
+            return result?.Redacted();
         }
 
         [HttpPost("connected")]
@@ -53,7 +53,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted()).ToList()
             };
         }
         
@@ -65,7 +65,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
-                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+                Results = result.Results.Select(p => p.Redacted()).ToList()
             };
         }
 

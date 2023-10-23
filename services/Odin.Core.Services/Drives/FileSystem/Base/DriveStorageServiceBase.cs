@@ -293,6 +293,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file)
         {
+            var canReadDrive = ContextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(file.DriveId, DrivePermission.Read);
+
+            if (!canReadDrive)
+            {
+                return false;
+            }
+            
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
 
             if (null == header)

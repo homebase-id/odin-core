@@ -33,12 +33,12 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
         Task<ApiResponse<bool>> Disconnect([Body] OdinIdRequest request);
 
         [Post(root_path + "/status")]
-        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] OdinIdRequest request, bool omitContactData = true);
+        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] OdinIdRequest request);
 
         [Post(root_path + "/connected")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize);
 
         [Post(root_path + "/blocked")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize);
     }
 }

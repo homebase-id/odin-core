@@ -75,7 +75,7 @@ namespace Odin.Core.Services.Membership.Connections
         /// Returns the minimal info needed for external systems using this data.
         /// </summary>
         /// <returns></returns>
-        public RedactedIdentityConnectionRegistration Redacted(bool omitContactData = true)
+        public RedactedIdentityConnectionRegistration Redacted()
         {
             return new RedactedIdentityConnectionRegistration()
             {
@@ -83,7 +83,6 @@ namespace Odin.Core.Services.Membership.Connections
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
-                OriginalContactData = omitContactData ? null : this.OriginalContactData,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }
@@ -102,7 +101,6 @@ namespace Odin.Core.Services.Membership.Connections
 
         public long Created { get; set; }
         public long LastUpdated { get; set; }
-        public ContactRequestData OriginalContactData { get; set; }
         
     }
 }
