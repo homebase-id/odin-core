@@ -16,6 +16,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 
 namespace Odin.Hosting.Authentication.System
 {
@@ -25,7 +26,7 @@ namespace Odin.Hosting.Authentication.System
     public class SystemAuthenticationHandler : AuthenticationHandler<SystemAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         public SystemAuthenticationHandler(IOptionsMonitor<SystemAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, ISystemClock clock)
+            UrlEncoder encoder, ISystemClock clock, OdinConfiguration config)
             : base(options, logger, encoder, clock)
         {
         }
@@ -40,9 +41,9 @@ namespace Odin.Hosting.Authentication.System
         {
             if (GetToken(out var token))
             {
-                //TODO: change to read from configuration or use certificate?
-                //TODO: include IP address checking so this can only be called by a whitelist
-                if (token == Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"))
+                var config = Context.RequestServices.GetRequiredService<OdinConfiguration>();
+                
+                if (token == config.Host.SystemProcessApiKey)
                 {
                     string domain = "system.domain";
                     var claims = new List<Claim>()
@@ -60,13 +61,12 @@ namespace Odin.Hosting.Authentication.System
                         securityLevel: SecurityGroupType.System);
 
                     var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers });
-                    var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-
-
+                    var grantKeyStoreKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+                    
                     var systemPermissions = new Dictionary<string, PermissionGroup>()
                     {
                         {
-                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, sharedSecret, null)
+                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, grantKeyStoreKey, null)
                         }
                     };
 

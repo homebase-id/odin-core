@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -148,12 +150,14 @@ namespace Odin.Hosting.Middleware
         {
             switch (ex)
             {
-                case OperationCanceledException:
-                case IOException when ex.Message == "The client reset the request stream.":
                 case ConnectionResetException:
+                case IOException when ex.Message == "The client reset the request stream.":
+                case IOException when ex.Message == "The request stream was aborted.":
+                case OperationCanceledException:
+                case WebSocketException when ex.Message == "The remote party closed the WebSocket connection without completing the close handshake.":
                     return true;
                 default:
-                    return false;
+                    return ex is AggregateException aex && aex.InnerExceptions.All(IsCancellationException);
             }
         }
     }

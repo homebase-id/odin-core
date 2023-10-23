@@ -26,37 +26,32 @@ public class RedirectIfNotApexMiddleware
 
     //
 
-    public async Task Invoke(HttpContext context)
+    public Task Invoke(HttpContext context)
     {
         if (!context.Request.IsHttps)
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         if (context.Connection.ClientCertificate != null)
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         if (context.Request.Method != "GET")
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         var tenant = _tenantProvider.GetCurrentTenant();
         if (tenant == null)
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         if (tenant.Name == context.Request.Host.Host)
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         // Redirect to identity apex
@@ -68,8 +63,10 @@ public class RedirectIfNotApexMiddleware
             Path = context.Request.Path,
             Query = context.Request.QueryString.ToString()
         };
+
         var redirectUrl = uriBuilder.ToString();
         _logger.LogDebug("Redirecting to {URL}", redirectUrl);
         context.Response.Redirect(redirectUrl);
+        return Task.CompletedTask;
     }
 }

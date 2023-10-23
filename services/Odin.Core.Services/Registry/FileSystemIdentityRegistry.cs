@@ -390,6 +390,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             Log.Warning("InitializeCertificate took too long to complete and the http request was cancelled");
         }
+        catch (HttpRequestException e)
+        {
+            // This can happen if a new identity gets created, but the DNS server the backed uses does not yet
+            // know the domain
+            Log.Warning("InitializeCertificate: {error}. Will retry on next request to the domain.", e.Message);
+        }
     }
 
     private void RegisterCertificateInitializerHttpClient()

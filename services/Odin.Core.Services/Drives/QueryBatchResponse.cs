@@ -12,13 +12,18 @@ public class QueryBatchResponse
     public string Name { get; set; }
 
     /// <summary>
+    /// When true, the targetDrive queried for this section was not accessible due to permissions or did not exist
+    /// </summary>
+    public bool InvalidDrive { get; set; }
+
+    /// <summary>
     /// Indicates when this result was generated
     /// </summary>
     public Int64 QueryTime { get; set; }
-    
+
     public bool IncludeMetadataHeader { get; set; }
     public string CursorState { get; set; }
-    
+
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     public static QueryBatchResponse FromResult(QueryBatchResult batch)
@@ -28,9 +33,19 @@ public class QueryBatchResponse
             QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             CursorState = batch.Cursor.ToState(),
-            SearchResults = batch.SearchResults
+            SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>()
         };
 
         return response;
+    }
+
+    public static QueryBatchResponse FromInvalidDrive(string name)
+    {
+        return new QueryBatchResponse()
+        {
+            Name = name,
+            InvalidDrive = true,
+            SearchResults = new List<SharedSecretEncryptedFileHeader>()
+        };
     }
 }

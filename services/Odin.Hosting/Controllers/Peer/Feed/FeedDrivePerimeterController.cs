@@ -17,7 +17,6 @@ namespace Odin.Hosting.Controllers.Peer.Feed
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.FeedV1)]
-    [Route("")]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
     public class FeedDrivePerimeterController : OdinControllerBase
     {
@@ -41,6 +40,12 @@ namespace Odin.Hosting.Controllers.Peer.Feed
             return await perimeterService.AcceptUpdatedFileMetadata(payload);
         }
 
+        [HttpPost("delete")]
+        public async Task<HostTransitResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
+        {
+            var perimeterService = GetPerimeterService();
+            return await perimeterService.Delete(payload);
+        }
 
         private FeedDistributionPerimeterService GetPerimeterService()
         {

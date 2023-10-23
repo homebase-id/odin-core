@@ -198,7 +198,7 @@ namespace Odin.Hosting
             });
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<ILookupClient>(new LookupClient());
+            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
                 sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
@@ -281,6 +281,9 @@ namespace Odin.Hosting
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
+            // app.UseHsts(); // SEB:TODO will hsts break something?
+            app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
+
             // Provisioning mapping
             app.MapWhen(
                 context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
@@ -307,7 +310,6 @@ namespace Odin.Hosting
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
-            app.UseHttpsRedirection();
 
             app.UseEndpoints(endpoints =>
             {

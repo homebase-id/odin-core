@@ -79,6 +79,21 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(FileSystemType fileSystemType, List<CollectionQueryParamSection> querySections)
+    {
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
+        {
+            var svc = CreateDriveService(client);
+
+            var response = await svc.QueryBatchCollection(new QueryBatchCollectionRequest()
+            {
+                Queries = querySections
+            });
+
+            return response;
+        }
+    }
+
     
     public async Task<ApiResponse<UploadResult>> UpdateMetadataRaw(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         Guid? overwriteFileId = null,

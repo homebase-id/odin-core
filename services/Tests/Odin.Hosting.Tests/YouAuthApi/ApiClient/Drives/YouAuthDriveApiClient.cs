@@ -127,9 +127,9 @@ public class YouAuthDriveApiClient
         client.BaseAddress = new Uri($"https://{this._identity.OdinId}");
         return client;    }
 
-    private IDriveTestHttpClientForYouAuth CreateDriveService(HttpClient client)
+    private IRefitGuestDriveQuery CreateDriveService(HttpClient client)
     {
-        return RefitCreator.RestServiceFor<IDriveTestHttpClientForYouAuth>(client, _token.SharedSecret);
+        return RefitCreator.RestServiceFor<IRefitGuestDriveQuery>(client, _token.SharedSecret);
     }
     
 }

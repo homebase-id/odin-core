@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [odin-admin-cli]
+    branches: [authorative-dns]
 
 permissions:
   contents: read
