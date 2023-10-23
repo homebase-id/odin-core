@@ -274,7 +274,7 @@ namespace Odin.Hosting
             //
             else
             {
-                Log.Debug("Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host", hostName);
+                Log.Verbose("Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host", hostName);
                 return (null, false);
             }
 
