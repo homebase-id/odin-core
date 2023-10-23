@@ -146,6 +146,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(_trie.LookupExactName(domain) != null);
     }
 
+    public async Task<bool> CanAddNewRegistration(string domain)
+    {
+        if (!_trie.IsDomainUniqueInHierarchy(domain))
+        {
+            return false;
+        }
+
+        var registration = await Get(domain);
+        return registration == null;
+    }
+
     public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
     {
         string GetNextShard()
