@@ -25,7 +25,6 @@ public static class OdinTestAssertions
         Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
         Assert.IsTrue(fileHeader.FileMetadata.Created == default);
         Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.ContentType));
         Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
         Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == null);
         Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);

@@ -292,7 +292,6 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
             {
@@ -317,7 +316,6 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()

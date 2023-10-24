@@ -239,7 +239,6 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
@@ -342,7 +341,6 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
@@ -444,7 +442,6 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
@@ -570,7 +567,6 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
@@ -712,7 +708,6 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = true,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
@@ -1175,7 +1170,6 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
             {
@@ -1198,7 +1192,6 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
             {
@@ -1220,7 +1213,6 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()

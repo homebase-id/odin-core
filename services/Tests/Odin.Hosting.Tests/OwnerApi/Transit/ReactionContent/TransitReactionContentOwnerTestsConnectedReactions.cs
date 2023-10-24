@@ -207,7 +207,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                ContentType = "application/json",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -229,7 +228,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                ContentType = "application/json",
                 PayloadIsEncrypted = false,
 
                 //indicates the file about which this file is giving feed back

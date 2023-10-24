@@ -16,7 +16,6 @@ public static class NotificationTestUtils
         var encryptedJsonContents = keyHeader.EncryptDataAesAsStream(jsonContents);
         var fileMetadata = new UploadFileMetadata()
         {
-            ContentType = "application/json",
             AllowDistribution = true,
             PayloadIsEncrypted = true,
             AppData = new()

@@ -45,7 +45,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -105,7 +104,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             const int archivalStatus = 1;
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -164,7 +162,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -228,7 +225,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -252,7 +248,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata_not_archived = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -270,7 +265,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata_archived = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -329,7 +323,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
-                Assert.IsTrue(theFileResult.FileMetadata.ContentType == uploadFileMetadata_archived.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(theFileResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -344,7 +337,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()

@@ -201,7 +201,6 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()

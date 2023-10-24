@@ -412,7 +412,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -440,7 +439,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {

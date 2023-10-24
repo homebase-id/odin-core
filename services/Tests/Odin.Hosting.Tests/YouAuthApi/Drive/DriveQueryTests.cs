@@ -271,7 +271,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.UploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.UploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.UploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.UploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -323,7 +322,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -370,7 +368,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 VersionTag = versionTag,

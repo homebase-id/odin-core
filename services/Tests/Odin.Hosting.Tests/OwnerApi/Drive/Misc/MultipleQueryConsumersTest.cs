@@ -39,7 +39,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var standardFile = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 PayloadIsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
@@ -57,7 +56,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var commentFile = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,

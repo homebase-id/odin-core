@@ -18,10 +18,6 @@ public class ClientFileMetadata
 
     public Int64 Updated { get; set; }
     
-    
-    [Obsolete("replace per payload")]
-    public string ContentType { get; set; }
-
     /// <summary>
     /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
     /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)

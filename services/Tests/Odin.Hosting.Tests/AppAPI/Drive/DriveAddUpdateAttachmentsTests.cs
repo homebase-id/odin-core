@@ -213,7 +213,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()

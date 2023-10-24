@@ -59,7 +59,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var metadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 PayloadIsEncrypted = true,
                 AllowDistribution = false,
                 AppData = new()
@@ -90,7 +89,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
             Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-            Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(metadata.ContentType));
             CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, metadata.AppData.Tags);
             Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(metadata.AppData.JsonContent));
             Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(metadata.AppData.ContentIsComplete));
@@ -161,7 +159,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -239,7 +236,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -302,7 +298,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
+                
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
@@ -430,7 +426,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -495,7 +490,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -582,7 +576,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -643,7 +636,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -696,7 +688,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         VersionTag = secondFileUploadResult.NewVersionTag,
@@ -748,7 +739,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()

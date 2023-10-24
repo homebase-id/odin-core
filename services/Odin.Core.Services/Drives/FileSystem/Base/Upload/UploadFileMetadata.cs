@@ -12,9 +12,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         }
 
         public Guid? VersionTag { get; set; }
-        
-        [Obsolete("replace per payload")]
-        public string ContentType { get; set; }
 
         /// <summary>
         /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all

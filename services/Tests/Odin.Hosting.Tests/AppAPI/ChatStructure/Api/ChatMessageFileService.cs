@@ -160,7 +160,6 @@ public class ChatMessageFileService
         // when you deserialize the message, you should do so from JsonContent
         var fileMetadata = new UploadFileMetadata()
         {
-            ContentType = "application/json",
             AllowDistribution = true,
             PayloadIsEncrypted = false,
             AppData = new()

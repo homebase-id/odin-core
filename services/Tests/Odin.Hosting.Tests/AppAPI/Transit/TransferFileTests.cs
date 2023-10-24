@@ -116,7 +116,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    ContentType = "application/json",
                     AllowDistribution = true,
                     AppData = new()
                     {
@@ -167,7 +166,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,
@@ -252,7 +250,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,
@@ -416,7 +413,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    ContentType = "application/json",
                     AllowDistribution = true,
                     AppData = new()
                     {
@@ -514,7 +510,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
+                
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
@@ -700,7 +696,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    ContentType = "application/json",
                     AllowDistribution = true,
                     AppData = new()
                     {
@@ -802,7 +797,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
+                
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));

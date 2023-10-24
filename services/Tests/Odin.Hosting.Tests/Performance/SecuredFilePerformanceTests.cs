@@ -206,7 +206,6 @@ namespace Odin.Hosting.Tests.Performance
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
-                        ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
                         AppData = new()
@@ -272,7 +271,6 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));

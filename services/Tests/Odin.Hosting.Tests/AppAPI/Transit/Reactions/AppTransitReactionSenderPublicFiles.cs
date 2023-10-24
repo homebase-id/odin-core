@@ -190,7 +190,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var commentFileMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -250,7 +249,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var commentFileMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -352,7 +350,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -379,7 +376,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {

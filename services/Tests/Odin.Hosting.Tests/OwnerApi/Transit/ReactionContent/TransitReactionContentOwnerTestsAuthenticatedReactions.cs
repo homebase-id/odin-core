@@ -139,7 +139,6 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
             {

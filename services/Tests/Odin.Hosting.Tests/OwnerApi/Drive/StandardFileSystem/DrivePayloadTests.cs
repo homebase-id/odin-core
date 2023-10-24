@@ -171,7 +171,6 @@ public class DrivePayloadTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
             {

@@ -137,7 +137,6 @@ public class TransitBadCATDetectionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "plain/text",
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,
@@ -165,7 +164,6 @@ public class TransitBadCATDetectionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "plain/text",
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,

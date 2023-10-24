@@ -86,7 +86,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 PayloadIsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()

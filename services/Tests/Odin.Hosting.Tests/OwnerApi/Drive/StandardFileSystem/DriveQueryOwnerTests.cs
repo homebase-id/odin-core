@@ -49,7 +49,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -112,7 +111,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -189,7 +187,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -204,7 +201,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -267,7 +263,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             TargetDrive file1TargetDrive = TargetDrive.NewTargetDrive();
             var file1Metadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -309,7 +304,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var file2Metadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -397,7 +391,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             TargetDrive file1TargetDrive = TargetDrive.NewTargetDrive();
             var file1Metadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
@@ -439,7 +432,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var file2Metadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()

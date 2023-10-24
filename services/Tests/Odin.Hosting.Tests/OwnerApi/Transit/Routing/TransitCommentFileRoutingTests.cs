@@ -506,7 +506,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
                 PayloadIsEncrypted = encrypted,
 
                 //indicates the file about which this file is giving feed back
@@ -645,7 +644,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
                 PayloadIsEncrypted = encrypted,
                 AppData = new()
                 {
