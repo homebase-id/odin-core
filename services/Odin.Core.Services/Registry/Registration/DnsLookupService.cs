@@ -144,7 +144,7 @@ public class DnsLookupService : IDnsLookupService
         var dnsClient = await CreateDnsClient(authorativeServer);
         foreach (var record in dnsConfigs)
         {
-            var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
+            var recordStatus = await VerifyDnsRecord(domain, record, dnsClient);
             record.QueryResults[authorativeServer] = recordStatus;
             if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
             {
@@ -177,7 +177,7 @@ public class DnsLookupService : IDnsLookupService
             var dnsClient = await CreateDnsClient(resolver);
             foreach (var record in dnsConfigs)
             {
-                var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
+                var recordStatus = await VerifyDnsRecord(domain, record, dnsClient);
                 record.QueryResults[resolver] = recordStatus;
                 if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
                 {
@@ -252,11 +252,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<DnsLookupRecordStatus> VerifyDnsRecord(
-        string domain,
-        DnsConfig dnsConfig,
-        IDnsQuery dnsClient,
-        bool validateConfiguredValue)
+    private async Task<DnsLookupRecordStatus> VerifyDnsRecord(string domain, DnsConfig dnsConfig, IDnsQuery dnsClient)
     {
         var sw = new Stopwatch();
         sw.Start();
@@ -298,7 +294,7 @@ public class DnsLookupService : IDnsLookupService
         {
             return DnsLookupRecordStatus.DomainOrRecordNotFound;
         }
-        if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
+        if (entries.Contains(dnsConfig.Verify))
         {
             return DnsLookupRecordStatus.Success;
         }
