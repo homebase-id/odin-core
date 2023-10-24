@@ -5,7 +5,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive.MultiPayload;
 
 public class DriveMultiPayloadTests
 {
-
     private WebScaffold _scaffold;
 
     [OneTimeSetUp]
@@ -27,19 +26,19 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void DeletingFileDeletesAllPayloadsAndThumbnails()
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void PayloadMustIncludeAPayloadKeyAsMultipartUpload()
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void CanUploadPayloadOrThumbnailsInAnyOrder()
     {
@@ -51,13 +50,13 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void TransitSendsMultiplePayloads_When_SentViaTransitSender()
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void TransitDistributesUpdatesWhenAtLeastOnePayloadIsChanged()
     {
@@ -70,19 +69,19 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO: firstly, determine if bishwa or stef use this field");
     }
-    
+
     [Test]
     public void GetPayloadReturns_NotFound_WhenKeyDoesNotExist()
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void CanGetPayloadByKey()
     {
         Assert.Inconclusive("TODO");
     }
-    
+
     [Test]
     public void CanGetDefaultPayload_withEmptyKey()
     {
@@ -93,5 +92,32 @@ public class DriveMultiPayloadTests
     public void FailIfPayloadKeyIncludesInvalidChars()
     {
         Assert.Inconclusive("TODO: determine what is a valid key?  maybe just? [a-z][A-Z]-");
+    }
+
+    [Test]
+    public void FailWhenInvalidContentTypeSpecified()
+    {
+        Assert.Inconclusive("TODO");
+    }
+
+    [Test]
+    public void GetPayloadByKeyIncludesCorrectHeaders()
+    {
+        // HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, ps.Key);
+        // HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, ps.ContentType);
+        Assert.Inconclusive("TODO");
+    }
+    
+    [Test]
+    public void ClientFileMetadataIncludesPayloadDescriptors()
+    {
+        // ClientFileMetadata.Payloads 
+        Assert.Inconclusive("TODO");
+    }
+
+    [Test]
+    public void FailsWhenInvalidPayloadKeyOrContentTypeIsSetOnAnyPayloads()
+    {
+        Assert.Inconclusive("TODO");
     }
 }

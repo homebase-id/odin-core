@@ -81,7 +81,6 @@ public static class DriveFileUtility
             Created = fileMetadata.Created,
             Updated = fileMetadata.Updated,
             AppData = fileMetadata.AppData,
-            ContentType = fileMetadata.ContentType,
             GlobalTransitId = fileMetadata.GlobalTransitId,
             PayloadSize = fileMetadata.PayloadSize,
             OriginalRecipientList = fileMetadata.OriginalRecipientList,
@@ -89,6 +88,7 @@ public static class DriveFileUtility
             SenderOdinId = fileMetadata.SenderOdinId,
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
+            Payloads = fileMetadata.Payloads,
             VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
         };
         return clientFile;

@@ -65,15 +65,15 @@ namespace Odin.Hosting.Controllers.Base.Transit
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             await driveUploadService.AddMetadata(section!.Body);
-            
+
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
-                    await driveUploadService.AddPayload(payloadKey, fileSection.FileStream);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await driveUploadService.AddPayload(payloadKey, contentType, fileSection.FileStream);
                 }
 
                 if (IsThumbnail(section))

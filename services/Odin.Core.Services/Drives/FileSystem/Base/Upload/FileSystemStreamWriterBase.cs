@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
+using Org.BouncyCastle.Tls;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -93,7 +94,7 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
-    public virtual async Task AddPayload(string key, Stream data)
+    public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
         if (Package.UploadedPayloads.Any(p => string.Equals(key, p.Key, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -107,6 +108,7 @@ public abstract class FileSystemStreamWriterBase
             Package.UploadedPayloads.Add(new PayloadDescriptor()
             {
                 Key = key,
+                ContentType = contentType,
                 BytesWritten = bytesWritten
             });
         }
@@ -345,9 +347,13 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
-        if (string.IsNullOrEmpty(metadata.ContentType) || string.IsNullOrWhiteSpace(metadata.ContentType))
+        if (metadata.Payloads?.Any() ?? false)
         {
-            throw new OdinClientException("ContentType is required", OdinClientErrorCode.InvalidFile);
+            var hasInvalidPayloads = metadata.Payloads.Any(pd => !pd.IsValid());
+            if (hasInvalidPayloads)
+            {
+                throw new OdinClientException("One or more payload descriptors is invalid", OdinClientErrorCode.InvalidFile);
+            }
         }
 
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);

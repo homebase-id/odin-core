@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Odin.Core.Services.Optimization.Cdn;
 
 /// <summary>
@@ -18,7 +21,13 @@ public class SectionResultOptions
     /// <summary>
     /// If true, the payload of each file will be included.
     /// </summary>
+    [Obsolete("See Payload Keys property")]
     public bool IncludePayload { get; set; }
+
+    /// <summary>
+    /// If included, the payloads of the given keys will be included
+    /// </summary>
+    public List<string> PayloadKeys { get; set; }
 
     /// <summary>
     /// If true, the preview thumbnail will not be included in the f    ile

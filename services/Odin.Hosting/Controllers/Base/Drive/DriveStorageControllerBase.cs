@@ -62,8 +62,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var payload = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
-            if (payload == Stream.Null)
+            var ps = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
+            if (ps == null)
             {
                 return NotFound();
             }
@@ -72,7 +72,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, ps.Key);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, ps.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             if (null != request.Chunk)
             {
@@ -84,9 +85,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             AddGuestApiCacheHeader();
 
-            var result = new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted
-                ? "application/octet-stream"
-                : header.FileMetadata.ContentType);
+            var result = new FileStreamResult(ps.Stream, ps.ContentType);
 
             return result;
         }

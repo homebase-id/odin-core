@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -13,5 +14,8 @@ public class StaticFile
     /// <summary>
     /// Base64 encoded byte array of the payload
     /// </summary>
+    [Obsolete("now see Payloads Prop")]
     public byte[] Payload { get; set; }
+
+    public Dictionary<PayloadDescriptor, byte[]> Payloads { get; set; }
 }

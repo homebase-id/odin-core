@@ -42,6 +42,7 @@ public class StaticFileContentService
     private readonly TenantContext _tenantContext;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
+
     public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem)
     {
@@ -108,7 +109,6 @@ public class StaticFileContentService
 
             foreach (var fileHeader in filteredHeaders)
             {
-                byte[] payload = null;
                 var thumbnails = new List<ImageDataContent>();
                 var internalFileId = new InternalDriveFileId()
                 {
@@ -134,17 +134,21 @@ public class StaticFileContentService
                     }
                 }
 
-                if (section.ResultOptions.IncludePayload)
+                var payloads = new Dictionary<PayloadDescriptor, byte[]>();
+                if (section.ResultOptions.PayloadKeys?.Any() ?? false)
                 {
-                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId, null);
-                    payload = payloadStream.ToByteArray();
+                    foreach (var pd in fileHeader.Payloads)
+                    {
+                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
+                        payloads.Add(pd, ps.Stream.ToByteArray());
+                    }
                 }
 
                 sectionOutput.Files.Add(new StaticFile()
                 {
                     Header = fileHeader,
                     AdditionalThumbnails = thumbnails,
-                    Payload = payload
+                    Payloads = payloads
                 });
             }
 
@@ -172,7 +176,7 @@ public class StaticFileContentService
     {
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
-        
+
         var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))

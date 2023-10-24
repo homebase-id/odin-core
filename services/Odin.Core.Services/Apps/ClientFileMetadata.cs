@@ -18,6 +18,8 @@ public class ClientFileMetadata
 
     public Int64 Updated { get; set; }
     
+    
+    [Obsolete("replace per payload")]
     public string ContentType { get; set; }
 
     /// <summary>
@@ -47,4 +49,5 @@ public class ClientFileMetadata
     public ReactionSummary ReactionPreview { get; set; }
     
     public Guid VersionTag { get; set; }
+    public List<PayloadDescriptor> Payloads { get; set; }
 }

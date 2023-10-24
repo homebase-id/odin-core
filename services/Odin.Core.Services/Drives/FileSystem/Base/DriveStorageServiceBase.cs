@@ -19,6 +19,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
+
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase : RequirePermissionsBase
@@ -329,43 +330,32 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
-        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
+        public async Task<PayloadStream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
             this.AssertCanReadDrive(file.DriveId);
-
-            // backwards compat - for files that were created before multi-payload support
-            bool getDefaultPayload = string.IsNullOrEmpty(key);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
 
             var header = await this.GetServerFileHeader(file);
             if (header == null)
             {
-                return Stream.Null;
+                return null;
             }
-
 
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
-                if (!getDefaultPayload)
+                var item = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+
+                if (item == null)
                 {
-                    var hasKey = header.FileMetadata.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false;
-                    if (!hasKey)
-                    {
-                        return Stream.Null;
-                    }
+                    return null;
                 }
 
                 var stream = await GetLongTermStorageManager(file.DriveId).GetPayloadStream(file.FileId, key, chunk);
-                return stream;
+                return new PayloadStream(item.Key, item.ContentType, stream);
             }
 
-            return Stream.Null;
-        }
-
-        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, FileChunk chunk)
-        {
-            return await GetPayloadStream(file, "", chunk);
+            return null;
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)

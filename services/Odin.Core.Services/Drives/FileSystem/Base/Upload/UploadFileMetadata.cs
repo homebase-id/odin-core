@@ -13,6 +13,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
         public Guid? VersionTag { get; set; }
         
+        [Obsolete("replace per payload")]
         public string ContentType { get; set; }
 
         /// <summary>

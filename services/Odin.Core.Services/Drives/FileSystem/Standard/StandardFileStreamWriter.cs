@@ -103,7 +103,6 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         {
             File = package.InternalFile,
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
-            ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             //Note: this intentionally does not map ReferenceToFile; this can only be done through the comment system
             // ReferencedFile = null,

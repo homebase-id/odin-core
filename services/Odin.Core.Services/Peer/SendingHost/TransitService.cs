@@ -79,7 +79,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                 // ClientAccessTokenSource = tokenSource,
                 FileSystemType = fileSystemType
             };
-    
+
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
                 //send now
@@ -267,7 +267,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                         OutboxItem = outboxItem
                     };
                 }
-                
+
                 var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
                 var shouldSendThumbnails = options.SendContents.HasFlag(SendContents.Thumbnails);
 
@@ -308,7 +308,6 @@ namespace Odin.Core.Services.Peer.SendingHost
                     Updated = sourceMetadata.Updated,
                     AppData = sourceMetadata.AppData,
                     PayloadIsEncrypted = sourceMetadata.PayloadIsEncrypted,
-                    ContentType = sourceMetadata.ContentType,
                     GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = sourceMetadata.ReactionPreview,
                     SenderOdinId = string.Empty,
@@ -329,9 +328,16 @@ namespace Odin.Core.Services.Peer.SendingHost
                     foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
                     {
                         var payloadKey = descriptor.Key;
-                        var payloadStream = sourceMetadata.AppData.ContentIsComplete ? Stream.Null : await fs.Storage.GetPayloadStream(file, payloadKey, null);
 
-                        var payload = new StreamPart(payloadStream, payloadKey, "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                        Stream payloadStream = Stream.Null;
+                        string contentType = "application/unknown";
+                        if (sourceMetadata.AppData.ContentIsComplete == false)
+                        {
+                           var p =  await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                           payloadStream = p.Stream;
+                        }
+
+                        var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
                         additionalStreamParts.Add(payload);
                     }
                 }

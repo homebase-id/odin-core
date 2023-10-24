@@ -127,8 +127,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
                 ? Guid.NewGuid()
                 : null,
-            ContentType = uploadDescriptor.FileMetadata.ContentType,
-
+            
             ReferencedFile = uploadDescriptor.FileMetadata.ReferencedFile,
 
             //TODO: need an automapper *sigh

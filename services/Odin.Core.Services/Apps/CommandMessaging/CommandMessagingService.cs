@@ -48,7 +48,6 @@ public class CommandMessagingService
         var keyHeader = KeyHeader.NewRandom16();
         var fileMetadata = new FileMetadata(internalFile)
         {
-            ContentType = "application/json",
             GlobalTransitId = null,
             Created = UnixTimeUtc.Now().milliseconds,
             OriginalRecipientList = null,

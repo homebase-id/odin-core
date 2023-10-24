@@ -270,9 +270,9 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
+            var ps = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
 
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, ps.ContentType, ps.Stream);
         }
 
         public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(

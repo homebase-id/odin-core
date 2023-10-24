@@ -64,8 +64,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 if (IsPayloadPart(section))
                 {
-                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
-                    await driveUploadService.AddPayload(payloadKey, fileSection.FileStream);
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await driveUploadService.AddPayload(payloadKey, contentType, fileSection.FileStream);
                 }
 
                 if (IsThumbnail(section))
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 section = await reader.ReadNextSectionAsync();
             }
-            
+
             var status = await driveUploadService.FinalizeUpload();
             return status;
         }
@@ -148,12 +148,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             return part == MultipartUploadParts.Thumbnail;
         }
-
-
-        private protected void AssertIsPayloadPart(MultipartSection section , out FileMultipartSection fileSection,
-            out string payloadKey)
+        
+        private protected void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection,
+            out string payloadKey, out string contentType)
         {
-
             var expectedPart = MultipartUploadParts.Payload;
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
@@ -161,14 +159,22 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             fileSection = section.AsFileSection();
-            var filename = fileSection?.FileName;
-            if (string.IsNullOrEmpty(filename) || string.IsNullOrWhiteSpace(filename))
+
+            contentType = section.ContentType;
+            if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
             {
-                throw new OdinClientException("Payloads must include filename in the multi-part upload.  It must have no spaces. i.e. ('image_data' is valid where as 'image data' is not).  This will be the payload key used when you retrieve the payload.",
+                throw new OdinClientException(
+                    "Payloads must include a valid contentType in the multi-part upload.",
                     OdinClientErrorCode.InvalidPayload);
             }
 
-            payloadKey = filename;
+            payloadKey = fileSection?.FileName;
+            if (string.IsNullOrEmpty(payloadKey) || string.IsNullOrWhiteSpace(payloadKey))
+            {
+                throw new OdinClientException(
+                    "Payloads must include filename in the multi-part upload.  It must have no spaces. i.e. ('image_data' is valid where as 'image data' is not).  This will be the payload key used when you retrieve the payload.",
+                    OdinClientErrorCode.InvalidPayload);
+            }
         }
 
         private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
