@@ -195,19 +195,32 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 else
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file);
-
-                    var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
-                    if (!options.IncludeJsonContent)
+                    var isEncrypted = serverFileHeader.FileMetadata.PayloadIsEncrypted;
+                    var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
+                    
+                    //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;  
+                    if (shouldReceiveFile)
                     {
-                        header.FileMetadata.AppData.JsonContent = string.Empty;
-                    }
+                        var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
+                        if (!options.IncludeJsonContent)
+                        {
+                            header.FileMetadata.AppData.JsonContent = string.Empty;
+                        }
 
-                    if (options.ExcludePreviewThumbnail)
+                        if (options.ExcludePreviewThumbnail)
+                        {
+                            header.FileMetadata.AppData.PreviewThumbnail = null;
+                        }
+
+                        results.Add(header);
+                    }
+                    else
                     {
-                        header.FileMetadata.AppData.PreviewThumbnail = null;
+                        Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search " +
+                                  $"index with (isPayloadEncrypted: {serverFileHeader.FileMetadata.PayloadIsEncrypted}) but does not have the " +
+                                  $"storage key to decrypt the file {file}.");
                     }
-
-                    results.Add(header);
                 }
             }
 

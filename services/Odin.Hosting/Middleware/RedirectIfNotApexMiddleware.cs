@@ -65,7 +65,7 @@ public class RedirectIfNotApexMiddleware
         };
 
         var redirectUrl = uriBuilder.ToString();
-        _logger.LogDebug("Redirecting to {URL}", redirectUrl);
+        _logger.LogTrace("Redirecting to {URL}", redirectUrl);
         context.Response.Redirect(redirectUrl);
         return Task.CompletedTask;
     }

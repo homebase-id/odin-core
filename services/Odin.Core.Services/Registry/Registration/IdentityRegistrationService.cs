@@ -205,10 +205,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         AsciiDomainNameValidator.AssertValidDomain(domain);
         await AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        var identity = await _registry.Get(domain);
-        if (identity != null)
+        // Identity already exists or domain path clash?
+        if (false == await _registry.CanAddNewRegistration(domain))
         {
-            // Identity already exists
             return false;
         }
 
@@ -314,14 +313,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
-        var identity = await _registry.Get(domain);
-        if (identity != null)
-        {
-            // Identity already exists
-            return false;
-        }
-
-        return true;
+        // Identity already exists or domain path clash?
+        return await _registry.CanAddNewRegistration(domain);
     }
 
     //
