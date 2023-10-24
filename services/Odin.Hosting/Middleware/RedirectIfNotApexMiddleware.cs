@@ -38,7 +38,7 @@ public class RedirectIfNotApexMiddleware
             return _next(context);
         }
 
-        if (context.Request.Method != "GET")
+        if (!HttpMethods.IsGet(context.Request.Method))
         {
             return _next(context);
         }
