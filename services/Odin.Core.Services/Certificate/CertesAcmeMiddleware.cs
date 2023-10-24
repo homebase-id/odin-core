@@ -9,32 +9,31 @@ namespace Odin.Core.Services.Certificate;
 public sealed class CertesAcmeMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IAcmeHttp01TokenCache _cache;
 
-    public CertesAcmeMiddleware(RequestDelegate next)
+    public CertesAcmeMiddleware(RequestDelegate next, IAcmeHttp01TokenCache cache)
     {
         _next = next;
+        _cache = cache;
     }
 
     //
 
-    public async Task InvokeAsync(HttpContext context, IAcmeHttp01TokenCache cache)
+    public Task Invoke(HttpContext context)
     {
-        var method = context.Request.Method;
         var path = context.Request.Path.Value ?? "";
 
         // Quickly bail if request is not acme-challenge related
-        if (!HttpMethods.IsGet(method) || !path.StartsWith("/.well-known/acme-challenge/"))
+        if (!HttpMethods.IsGet(context.Request.Method) || !path.StartsWith("/.well-known/acme-challenge/"))
         {
-            await _next(context);
-            return;
+            return _next(context);
         }
 
         // Handy for testing connectivity
         if (path == "/.well-known/acme-challenge/ping")
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
-            await context.Response.WriteAsync("pong");
-            return;
+            return context.Response.WriteAsync("pong");
         }
 
         // Respond to challenge
@@ -42,22 +41,15 @@ public sealed class CertesAcmeMiddleware
         if (match.Success)
         {
             var token = match.Groups[1].Value;
-            if (cache.TryGet(token, out var keyAuth))
+            if (_cache.TryGet(token, out var keyAuth))
             {
                 context.Response.StatusCode = StatusCodes.Status200OK;
-                await context.Response.WriteAsync(keyAuth);
+                return context.Response.WriteAsync(keyAuth);
             }
-            else
-            {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                await context.Response.WriteAsync($"Not found: {token}");
-            }
-            return;
         }
 
-        // These were not the droids you were looking for...
         context.Response.StatusCode = StatusCodes.Status404NotFound;
-        await context.Response.WriteAsync("Not found");
+        return context.Response.WriteAsync("Not found");
     }
 
     //

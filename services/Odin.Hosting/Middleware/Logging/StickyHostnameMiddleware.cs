@@ -19,10 +19,10 @@ namespace Odin.Hosting.Middleware.Logging
 
         //
 
-        public async Task Invoke(HttpContext context)
+        public Task Invoke(HttpContext context)
         {
             _stickyHostname.Hostname = context.Request.Host.Host;
-            await _next(context);
+            return _next(context);
         }
         
     }
