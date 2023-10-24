@@ -38,7 +38,7 @@ public class RedirectIfNotApexMiddleware
             return _next(context);
         }
 
-        if (context.Request.Method != "GET")
+        if (!HttpMethods.IsGet(context.Request.Method))
         {
             return _next(context);
         }
@@ -65,7 +65,7 @@ public class RedirectIfNotApexMiddleware
         };
 
         var redirectUrl = uriBuilder.ToString();
-        _logger.LogDebug("Redirecting to {URL}", redirectUrl);
+        _logger.LogTrace("Redirecting to {URL}", redirectUrl);
         context.Response.Redirect(redirectUrl);
         return Task.CompletedTask;
     }

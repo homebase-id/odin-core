@@ -74,8 +74,7 @@ namespace Odin.Core.Trie
         /// </summary>
         /// <param name="asciiName">domain name to check</param>
         /// <returns></returns>
-        // This should probably be private (but then I can't unit test)
-        private bool IsDomainUniqueInHierarchy(string asciiName)
+        private bool InternalIsDomainUniqueInHierarchy(string asciiName)
         {
             AsciiDomainNameValidator.AssertValidDomain(asciiName); // Throws an exception if not OK
 
@@ -262,14 +261,25 @@ namespace Odin.Core.Trie
             }
         }
 
-
+        public bool IsDomainUniqueInHierarchy(string asciiName)
+        {
+            _rwLock.EnterWriteLock();
+            try
+            {
+                return InternalIsDomainUniqueInHierarchy(asciiName);
+            }
+            finally
+            {
+                _rwLock.ExitWriteLock();
+            }
+        }
 
         public void AddDomain(string asciiName, T Key)
         {
             _rwLock.EnterWriteLock();
             try
             {
-                if (IsDomainUniqueInHierarchy(asciiName) == false)
+                if (InternalIsDomainUniqueInHierarchy(asciiName) == false)
                 {
                     throw new DomainHierarchyNotUniqueException();
                 }
@@ -332,7 +342,7 @@ namespace Odin.Core.Trie
 
             try
             {
-                if (IsDomainUniqueInHierarchy(asciiName) == true)
+                if (InternalIsDomainUniqueInHierarchy(asciiName) == true)
                 {
                     throw new Exception("Trying to remove a domain which is not found in the Trie");
                 }

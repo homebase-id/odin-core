@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -17,9 +14,6 @@ using Odin.Core.Services.Dns;
 using Odin.Core.Services.Email;
 using Odin.Core.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
-
-// Managed Domain: DNS records are managed by e.g. an ISP
-// Own Domain: DNS records are managed by end user
 
 namespace Odin.Core.Services.Registry.Registration;
 
@@ -36,7 +30,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailSender _emailSender;
-    private readonly IAuthorativeDnsLookup _authorativeDnsLookup;
+    private readonly IDnsLookupService _dnsLookupService;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -45,7 +39,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IDnsRestClient dnsRestClient,
         IHttpClientFactory httpClientFactory,
         IEmailSender emailSender,
-        IAuthorativeDnsLookup authorativeDnsLookup)
+        IDnsLookupService dnsLookupService)
     {
         _logger = logger;
         _configuration = configuration;
@@ -53,7 +47,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
         _emailSender = emailSender;
-        _authorativeDnsLookup = authorativeDnsLookup;
+        _dnsLookupService = dnsLookupService;
 
         RegisterHttpClient();
     }
@@ -94,17 +88,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<string> LookupZoneApex(string domain)
+    public Task<string> LookupZoneApex(string domain)
     {
-        domain = domain.ToLower();
-        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
-        {
-            return "";
-        }
-
-        var result = await _authorativeDnsLookup.LookupZoneApex(domain);
-
-        return result;
+        return _dnsLookupService.LookupZoneApex(domain);
     }
 
     //
@@ -118,82 +104,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<List<DnsConfig>> GetDnsConfiguration(string domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
-        var dns = _configuration.Registry.DnsConfigurationSet;
-
-        var result = new List<DnsConfig>();
-
-        // Sanity #1
-        if (string.IsNullOrWhiteSpace(dns.ApexARecord))
-        {
-            throw new OdinSystemException("Missing apex A record. Check config.");
-        }
-
-        // Sanity #2
-        if (string.IsNullOrWhiteSpace(dns.ApexAliasRecord))
-        {
-            throw new OdinSystemException("Missing apex alias record. Check config.");
-        }
-        AsciiDomainNameValidator.AssertValidDomain(dns.ApexAliasRecord);
-
-        // Apex A records
-        result.Add(new DnsConfig
-        {
-            Type = "A",
-            Name = "",
-            Domain = domain,
-            Value = dns.ApexARecord,
-            Verify = dns.ApexARecord,
-            Description = "A Record"
-        });
-
-        // ALIAS Apex (if DNS provider supports ALIAS/ANAME/CNAME flattening, e.g. clouldflare)
-        result.Add(new DnsConfig
-        {
-            Type = "ALIAS",
-            Name = "",
-            Domain = domain,
-            Value = dns.ApexAliasRecord,
-            Verify = dns.ApexARecord,
-            Description = "Apex flattened CNAME / ALIAS / ANAME"
-        });
-
-        // CNAME WWW
-        result.Add(new DnsConfig
-        {
-            Type = "CNAME",
-            Name = DnsConfigurationSet.PrefixWww,
-            Domain = $"{DnsConfigurationSet.PrefixWww}.{domain}",
-            Value = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
-            Verify = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
-            Description = "WWW CNAME"
-        });
-
-        // CNAME CAPI
-        result.Add(new DnsConfig
-        {
-            Type = "CNAME",
-            Name = DnsConfigurationSet.PrefixCertApi,
-            Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
-            Value = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
-            Verify = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
-            Description = "CAPI CNAME"
-        });
-
-        // CNAME FILE
-        result.Add(new DnsConfig
-        {
-            Type = "CNAME",
-            Name = DnsConfigurationSet.PrefixFile,
-            Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
-            Value = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
-            Verify = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
-            Description = "FILE CNAME"
-        });
-
-        return Task.FromResult(result);
+        return Task.FromResult(_dnsLookupService.GetDnsConfiguration(domain));
     }
+
+    //
 
     //
     // Managed Domain
@@ -203,37 +117,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         var domain = prefix + "." + apex;
         AsciiDomainNameValidator.AssertValidDomain(domain);
-        await AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        var identity = await _registry.Get(domain);
-        if (identity != null)
-        {
-            // Identity already exists
-            return false;
-        }
-
-        var dnsClient = await CreateDnsClient(_configuration.Registry.PowerDnsHostAddress);
-        var dnsConfig = await GetDnsConfiguration(domain);
-
-        var recordTypes = new[] { QueryType.A, QueryType.CNAME, QueryType.SOA, QueryType.AAAA };
-
-        if (await DnsRecordsOfTypeExists(domain, recordTypes, dnsClient))
+        // Identity already exists or domain path clash?
+        if (false == await _registry.CanAddNewRegistration(domain))
         {
             return false;
         }
 
-        foreach (var record in dnsConfig)
-        {
-            if (record.Name != "")
-            {
-                if (await DnsRecordsOfTypeExists(record.Name + "." + domain, recordTypes, dnsClient))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        return await _dnsLookupService.IsManagedDomainAvailable(prefix, apex);
     }
 
     //
@@ -242,9 +133,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         var domain = prefix + "." + apex;
         AsciiDomainNameValidator.AssertValidDomain(domain);
-        await AssertManagedDomainApexAndPrefix(prefix, apex);
+        _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        var dnsConfig = await GetDnsConfiguration(domain);
+        var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
         foreach (var record in dnsConfig)
@@ -276,11 +167,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         var domain = prefix + "." + apex;
         AsciiDomainNameValidator.AssertValidDomain(domain);
-        await AssertManagedDomainApexAndPrefix(prefix, apex);
+        _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
         await _registry.DeleteRegistration(domain);
 
-        var dnsConfig = await GetDnsConfiguration(domain);
+        var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
         foreach (var record in dnsConfig)
@@ -314,88 +205,22 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
-        var identity = await _registry.Get(domain);
-        if (identity != null)
-        {
-            // Identity already exists
-            return false;
-        }
-
-        return true;
+        // Identity already exists or domain path clash?
+        return await _registry.CanAddNewRegistration(domain);
     }
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
-        var dnsConfigs = await GetDnsConfiguration(domain);
-        var authorativeServer = await _authorativeDnsLookup.LookupNameServer(domain);
-        if (string.IsNullOrEmpty(authorativeServer))
-        {
-            foreach (var record in dnsConfigs)
-            {
-                record.Status = DnsConfig.LookupRecordStatus.NoAuthorativeNameServer;
-            }
-            return (false, dnsConfigs);
-        }
-
-        var dnsClient = await CreateDnsClient(authorativeServer);
-        foreach (var record in dnsConfigs)
-        {
-            var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
-            record.QueryResults[authorativeServer] = recordStatus;
-            if (record.Status is DnsConfig.LookupRecordStatus.Unknown or not DnsConfig.LookupRecordStatus.Success)
-            {
-                record.Status = recordStatus;
-            }
-        }
-
-        foreach (var record in dnsConfigs)
-        {
-            if (record.Status != DnsConfig.LookupRecordStatus.Success)
-            {
-                return (false, dnsConfigs);
-            }
-        }
-
-        // HURRAH!
-        return (true, dnsConfigs);
+        return _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
     }
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
-        var dnsConfigs = await GetDnsConfiguration(domain);
-        var resolvers = new List<string>(_configuration.Registry.DnsResolvers);
-        foreach (var resolver in resolvers)
-        {
-            var dnsClient = await CreateDnsClient(resolver);
-            foreach (var record in dnsConfigs)
-            {
-                var recordStatus = await VerifyDnsRecord(domain, record, dnsClient, true);
-                record.QueryResults[resolver] = recordStatus;
-                if (record.Status is DnsConfig.LookupRecordStatus.Unknown or not DnsConfig.LookupRecordStatus.Success)
-                {
-                    record.Status = recordStatus;
-                }
-            }
-        }
-
-        foreach (var record in dnsConfigs)
-        {
-            if (record.Status != DnsConfig.LookupRecordStatus.Success)
-            {
-                return (false, dnsConfigs);
-            }
-        }
-
-        // HURRAH!
-        return (true, dnsConfigs);
+        return _dnsLookupService.GetExternalDomainDnsStatus(domain);
     }
 
     //
@@ -481,127 +306,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         await _emailSender.SendAsync(envelope);
     }
 
-    //        
-
-    private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")
-    {
-        // SEB:TODO this should be injected into ctor as a factory instead (remember to disable caching!)
-
-        if (resolverAddressOrHostName == "")
-        {
-            return new LookupClient(new LookupClientOptions
-            {
-                UseCache = false,
-            });
-        }
-
-        if (IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
-        {
-            return new LookupClient(nameServerIp);
-        }
-
-        var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
-        nameServerIp = ips.First();
-
-        var options = new LookupClientOptions(nameServerIp)
-        {
-            UseCache = false,
-        };
-
-        return new LookupClient(options);
-    }
-
-    //
-
-    private async Task<DnsConfig.LookupRecordStatus> VerifyDnsRecord(
-        string domain,
-        DnsConfig dnsConfig,
-        IDnsQuery dnsClient,
-        bool validateConfiguredValue)
-    {
-        var sw = new Stopwatch();
-        sw.Start();
-
-        domain = domain.Trim();
-        if (dnsConfig.Name != "")
-        {
-            domain = dnsConfig.Name + "." + domain;
-        }
-
-        List<string> entries;
-        IDnsQueryResponse response;
-
-        switch (dnsConfig.Type.ToUpper())
-        {
-            case "A":
-            case "ALIAS":
-                response = await dnsClient.QueryAsync(domain, QueryType.A);
-                entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
-                break;
-            case "CNAME":
-                response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
-                entries = response.Answers.CnameRecords()
-                    .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
-                    .ToList();
-                break;
-            default:
-                throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
-        }
-
-        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms: {answer}",
-            domain,
-            dnsConfig.Type,
-            response.NameServer.Address,
-            sw.ElapsedMilliseconds,
-            string.Join(" ; ", response.Answers));
-
-        if (entries.Count == 0)
-        {
-            return DnsConfig.LookupRecordStatus.DomainOrRecordNotFound;
-        }
-        if (!validateConfiguredValue || entries.Contains(dnsConfig.Verify))
-        {
-            return DnsConfig.LookupRecordStatus.Success;
-        }
-        return DnsConfig.LookupRecordStatus.IncorrectValue;
-    }
-
-    //
-
-    private async Task AssertManagedDomainApexAndPrefix(string prefix, string apex)
-    {
-        var managedApexes = await GetManagedDomainApexes();
-        var managedApex = managedApexes.Find(x => x.Apex == apex);
-
-        if (managedApex == null)
-        {
-            throw new OdinSystemException($"Managed domain apex {apex} does not belong here");
-        }
-
-        var labelCount = prefix.Count(x => x == '.') + 1;
-        if (managedApex.PrefixLabels.Count != labelCount)
-        {
-            throw new OdinSystemException(
-                $"Managed domain prefix {prefix} has incorret label count. Expected:{managedApex.PrefixLabels.Count}, was:{labelCount},  ");
-        }
-    }
-
-    //
-
-    private async Task<bool> DnsRecordsOfTypeExists(string domain, QueryType[] recordTypes, ILookupClient dnsClient)
-    {
-        foreach (var recordType in recordTypes)
-        {
-            var response = await dnsClient.QueryAsync(domain, recordType);
-            if (response.Answers.Count > 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     //
 
     private void RegisterHttpClient()
@@ -633,24 +337,3 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
 }
 
-public class DnsConfig
-{
-    public enum LookupRecordStatus
-    {
-        Unknown,
-        Success, // domain found, correct value returned
-        DomainOrRecordNotFound, // domain not found, retry later
-        IncorrectValue, // domain found, but DNS value is incorrect
-        NoAuthorativeNameServer // No authorative name server found
-    }
-
-    public string Type { get; init; } = ""; // e.g. "CNAME"
-    public string Name { get; init; } = ""; // e.g. "www" or ""
-    public string Domain { get; init; } = ""; // e.g. "www.example.com" or "example.com"
-    public string Value { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
-    public string Verify { get; init; } = ""; // e.g. "example.com" or "127.0.0.1"
-    public string Description { get; init; } = "";
-    public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
-
-    public Dictionary<string, LookupRecordStatus> QueryResults { get; } = new (); // query results per DNS ip address
-}
