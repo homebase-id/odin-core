@@ -120,4 +120,10 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO");
     }
+    
+    [Test]
+    public void FileMetadataPayloadsListIsUpdatedWhenPayloadIsDeleted()
+    {
+        Assert.Inconclusive("TODO");
+    }
 }

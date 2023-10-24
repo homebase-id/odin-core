@@ -16,7 +16,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
-using Odin.Core.Util;
 
 namespace Odin.Core.Services.Optimization.Cdn;
 
@@ -134,13 +133,18 @@ public class StaticFileContentService
                     }
                 }
 
-                var payloads = new Dictionary<PayloadDescriptor, byte[]>();
+                var payloads = new List<PayloadStaticFileResponse>();
                 if (section.ResultOptions.PayloadKeys?.Any() ?? false)
                 {
                     foreach (var pd in fileHeader.Payloads)
                     {
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
-                        payloads.Add(pd, ps.Stream.ToByteArray());
+                        payloads.Add(new PayloadStaticFileResponse()
+                        {
+                            Key = ps.Key,
+                            ContentType = ps.ContentType,
+                            Data = ps.Stream.ToByteArray().ToBase64()
+                        });
                     }
                 }
 

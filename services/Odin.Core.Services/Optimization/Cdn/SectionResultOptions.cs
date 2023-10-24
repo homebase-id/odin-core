@@ -17,12 +17,7 @@ public class SectionResultOptions
     /// If true, the metadata.JsonContent field will be included in each file
     /// </summary>
     public bool IncludeJsonContent { get; set; }
-
-    /// <summary>
-    /// If true, the payload of each file will be included.
-    /// </summary>
-    [Obsolete("See Payload Keys property")]
-    public bool IncludePayload { get; set; }
+    
 
     /// <summary>
     /// If included, the payloads of the given keys will be included

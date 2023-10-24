@@ -12,7 +12,7 @@ public class PayloadDescriptor
 
     public string ContentType { get; set; }
 
-    public uint BytesWritten { get; set; }
+    public long BytesWritten { get; set; }
 
     public bool IsValid()
     {
@@ -21,3 +21,4 @@ public class PayloadDescriptor
         return hasValidKey && hasValidContentType;
     }
 }
+

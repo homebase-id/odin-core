@@ -266,12 +266,22 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 
             if (header == null)
             {
-                return (null, default, null, null);
+                return (null, default, null, Stream.Null);
+            }
+
+            if (!(header.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
+            {
+                return (null, default, null, Stream.Null);
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
             var ps = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
 
+            if (null == ps)
+            {
+                throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
+            }
+            
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, ps.ContentType, ps.Stream);
         }
 

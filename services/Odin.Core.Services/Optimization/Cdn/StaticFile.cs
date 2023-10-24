@@ -11,11 +11,20 @@ public class StaticFile
 
     public IEnumerable<ImageDataContent> AdditionalThumbnails { get; set; }
 
+    public List<PayloadStaticFileResponse> Payloads { get; set; }
+}
+
+public class PayloadStaticFileResponse
+{
+    /// <summary>
+    /// A text value specified by the app to define the payload
+    /// </summary>
+    public string Key { get; set; }
+
+    public string ContentType { get; set; }
+    
     /// <summary>
     /// Base64 encoded byte array of the payload
     /// </summary>
-    [Obsolete("now see Payloads Prop")]
-    public byte[] Payload { get; set; }
-
-    public Dictionary<PayloadDescriptor, byte[]> Payloads { get; set; }
+    public string Data { get; set; }
 }
