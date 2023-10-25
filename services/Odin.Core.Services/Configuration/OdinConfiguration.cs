@@ -93,6 +93,8 @@ namespace Odin.Core.Services.Configuration
                 {
                     throw new OdinSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
                 }
+
+                MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
             }
 
             public int DistributionBatchSize { get; init; }
@@ -102,6 +104,8 @@ namespace Odin.Core.Services.Configuration
             /// recipients; This should be false in high traffic environments
             /// </summary>
             public bool InstantDistribution { get; init; }
+
+            public int MaxCommentsInPreview { get; init; }
         }
 
         /// <summary>

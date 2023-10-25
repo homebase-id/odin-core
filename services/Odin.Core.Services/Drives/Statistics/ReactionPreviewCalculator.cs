@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.Statistics;
 
@@ -21,11 +20,13 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
+    private readonly OdinConfiguration _config;
 
-    public ReactionPreviewCalculator(OdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver)
+    public ReactionPreviewCalculator(OdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver, OdinConfiguration config)
     {
         _contextAccessor = contextAccessor;
         _fileSystemResolver = fileSystemResolver;
+        _config = config;
     }
 
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -33,13 +34,21 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         //TODO: handle encrypted content?
 
         var updatedFileHeader = notification.ServerFileHeader;
-        if (updatedFileHeader?.FileMetadata?.ReferencedFile == null)
+
+        var referencedFile = updatedFileHeader?.FileMetadata?.ReferencedFile;
+
+        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+        {
+            referencedFile = ((DriveFileDeletedNotification)notification).PreviousServerFileHeader.FileMetadata.ReferencedFile;
+        }
+
+        if (referencedFile == null)
         {
             return;
         }
 
         //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
-        var (fs, _) = _fileSystemResolver.ResolveFileSystem(updatedFileHeader.FileMetadata.ReferencedFile).GetAwaiter().GetResult();
+        var (fs, _) = _fileSystemResolver.ResolveFileSystem(referencedFile).GetAwaiter().GetResult();
         if (null == fs)
         {
             //TODO: consider if we log this or just ignore it
@@ -52,7 +61,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         //     FileId = fileId
         // };
 
-        var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
+        // var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
         var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(referencedFile.TargetDrive);
         var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
         var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
@@ -83,9 +92,14 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview)
     {
-        targetFileReactionPreview.TotalCommentCount--;
+        if(targetFileReactionPreview.TotalCommentCount>0)
+        {
+            targetFileReactionPreview.TotalCommentCount--;
+        }
+        
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+
         if (idx > -1)
         {
             targetFileReactionPreview.Comments.RemoveAt(idx);
@@ -117,7 +131,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;
 
-        if (targetFileReactionPreview.Comments.Count > 3) //TODO: add to config
+        if (targetFileReactionPreview.Comments.Count > _config.Feed.MaxCommentsInPreview) //TODO: add to config
         {
             return;
         }
@@ -183,7 +197,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         }
 
         reactionPreview.Count--;
-        
+
         if (reactionPreview.Count == 0)
         {
             dict.Remove(key);
@@ -217,7 +231,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         {
             preview.Reactions.Clear();
         }
-        
+
         fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
     }
