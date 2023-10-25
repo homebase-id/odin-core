@@ -41,7 +41,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
@@ -53,7 +54,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
@@ -77,7 +79,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult =
+                await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                    payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
@@ -89,7 +93,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
@@ -101,7 +105,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             Assert.IsNotNull(blogPostHeaderWith1Comment);
             Assert.IsTrue(blogPostHeaderWith1Comment.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-            
+
             //
             // Now delete the comment
             //
@@ -128,7 +132,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
@@ -140,7 +145,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey:WebScaffold.PAYLOAD_KEY);
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             try
             {
