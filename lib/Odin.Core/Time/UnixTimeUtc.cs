@@ -126,7 +126,7 @@ namespace Odin.Core.Time
 
         public DateTime ToDateTime()
         {
-            DateTime unixEpoch = DateTime.MinValue;
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             DateTime dateTime = unixEpoch.AddMilliseconds(this.milliseconds);
             return dateTime;
         }

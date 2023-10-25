@@ -138,14 +138,17 @@ public static class DriveFileUtility
         return extenstion;
     }
 
-    public static bool TryParseLastModifiedHeader(HttpResponseHeaders headers, out UnixTimeUtc? lastModified)
+    public static bool TryParseLastModifiedHeader(HttpContentHeaders headers, out UnixTimeUtc? lastModified)
     {
-        var lastModifiedValue = headers.GetValues(HttpHeaderConstants.LastModified).SingleOrDefault();
-
-        if (lastModifiedValue != null && DateTime.TryParse(lastModifiedValue, out var lastModifiedDateTime))
+        if (headers?.TryGetValues(HttpHeaderConstants.LastModified, out var values) ?? false)
         {
-            lastModified = UnixTimeUtc.FromDateTime(lastModifiedDateTime);
-            return true;
+            var lastModifiedValue = values.FirstOrDefault();
+
+            if (lastModifiedValue != null && DateTime.TryParse(lastModifiedValue, out var lastModifiedDateTime))
+            {
+                lastModified = UnixTimeUtc.FromDateTime(lastModifiedDateTime);
+                return true;
+            }
         }
 
         lastModified = null;

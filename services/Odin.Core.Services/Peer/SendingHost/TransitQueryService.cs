@@ -132,7 +132,7 @@ public class TransitQueryService
         var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
-        if (!DriveFileUtility.TryParseLastModifiedHeader(response.Headers, out var lastModified))
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
             Log.Warning($"Could not parse last modified for payload (key:{key}) with fileId: {file}");
         }
@@ -180,7 +180,7 @@ public class TransitQueryService
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
-        if (!DriveFileUtility.TryParseLastModifiedHeader(response.Headers, out var lastModified))
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
             Log.Warning($"Could not parse last modified for thumbnail (w:{width}x h:{height}) with fileId: {file}");
         }
