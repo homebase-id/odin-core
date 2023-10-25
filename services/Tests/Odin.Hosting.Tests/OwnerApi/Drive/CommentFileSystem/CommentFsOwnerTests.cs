@@ -70,7 +70,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var blogMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
@@ -83,7 +82,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             var commentMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
