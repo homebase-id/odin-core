@@ -20,12 +20,13 @@ public class IdentityRegistrationServiceTest
     private readonly Mock<IDnsRestClient> _dnsRestClient = new();
     private readonly Mock<IHttpClientFactory> _httpClientFactory = new();
     private readonly Mock<IEmailSender> _emailSender = new();
-    private readonly IAuthorativeDnsLookup _authorativeDnsLookup =
-        new AuthorativeDnsLookup(new Mock<ILogger<AuthorativeDnsLookup>>().Object);
-    private readonly OdinConfiguration _configuration = new();
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {
+        var authorativeDnsLookup = new AuthorativeDnsLookup(new Mock<ILogger<AuthorativeDnsLookup>>().Object);
+        var dnsLookupService = new DnsLookupService(
+            new Mock<ILogger<DnsLookupService>>().Object, configuration, authorativeDnsLookup);
+
         return new IdentityRegistrationService(
             _loggerMock.Object,
             _registry.Object,
@@ -33,7 +34,7 @@ public class IdentityRegistrationServiceTest
             _dnsRestClient.Object,
             _httpClientFactory.Object,
             _emailSender.Object,
-            _authorativeDnsLookup);
+            dnsLookupService);
     }
 
     //
@@ -47,22 +48,22 @@ public class IdentityRegistrationServiceTest
     //
 
     [Test, Explicit]
-    [TestCase("example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.IncorrectValue, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.IncorrectValue, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("foo.bar.www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("yagni.dk", Resolver.Authorative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsConfig.LookupRecordStatus.Success, DnsConfig.LookupRecordStatus.Success)]
-    [TestCase("example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.IncorrectValue, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.IncorrectValue, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("foo.bar.www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound, DnsConfig.LookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("yagni.dk", Resolver.External, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsConfig.LookupRecordStatus.Success, DnsConfig.LookupRecordStatus.Success)]
+    [TestCase("example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("foo.bar.www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("yagni.dk", Resolver.Authorative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.Success)]
+    [TestCase("example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("foo.bar.www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.DomainOrRecordNotFound)]
+    [TestCase("yagni.dk", Resolver.External, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.Success)]
     public async Task ItShouldGetAuthorativeDnsStatus(
         string domain,
         Resolver resolver,
         string apexARecord,
         string apexAliasRecord,
         bool success,
-        DnsConfig.LookupRecordStatus apexRecordStatus,
-        DnsConfig.LookupRecordStatus cnameRecordStatus)
+        DnsLookupRecordStatus apexRecordStatus,
+        DnsLookupRecordStatus cnameRecordStatus)
     {
         var (resolved, dnsConfigs) = await GetDnsStatus(resolver, domain, apexARecord, apexAliasRecord);
         Assert.That(resolved, Is.EqualTo(success));

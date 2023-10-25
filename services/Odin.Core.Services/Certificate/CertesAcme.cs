@@ -54,9 +54,14 @@ public sealed class CertesAcme : ICertesAcme
     public async Task<AcmeAccount> CreateAccount(string contactEmail)
     {
         _logger.LogDebug("Creating account for {contactEmail}", contactEmail);
-        
+        var sw = Stopwatch.StartNew();
+
         var acme = new AcmeContext(_directoryUri);
         await acme.NewAccount(contactEmail, true);
+
+        _logger.LogDebug("Created account for {contactEmail} in {Elapsed}s",
+            contactEmail, sw.ElapsedMilliseconds / 1000.0);
+
         return new AcmeAccount { AccounKeyPem = acme.AccountKey.ToPem() };
     }
     

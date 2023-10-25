@@ -22,7 +22,7 @@ namespace Odin.Hosting.Middleware.Logging
 
         //
 
-        public async Task Invoke(HttpContext context)
+        public Task Invoke(HttpContext context)
         {
             var correlationId = context.Request.Headers[_correlationIdHeader].FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(correlationId))
@@ -31,7 +31,7 @@ namespace Odin.Hosting.Middleware.Logging
             }
             context.Response.Headers[_correlationIdHeader] = _correlationContext.Id;
 
-            await _next(context);
+            return _next(context);
         }
     }
 }
