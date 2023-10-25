@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -16,7 +17,9 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Time;
 using Refit;
+using Serilog;
 
 namespace Odin.Core.Services.Peer.SendingHost;
 
@@ -108,19 +111,19 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)>
-        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
-            string key,
-            FileChunk chunk, FileSystemType fileSystemType)
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted,
+        PayloadStream payloadStream)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
+        string key, FileChunk chunk, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
+        permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk });
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, Stream.Null);
+            return (null, default, null);
         }
 
         HandleInvalidTransitResponse(odinId, response);
@@ -129,24 +132,31 @@ public class TransitQueryService
         var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.Headers, out var lastModified))
+        {
+            Log.Warning($"Could not parse last modified for payload (key:{key}) with fileId: {file}");
+        }
+
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (payloadIsEncrypted)
         {
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader =
-                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader);
         }
         else
         {
             ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
         }
 
-        var stream = await response!.Content!.ReadAsStreamAsync();
-
-        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
+        var stream = await response.Content!.ReadAsStreamAsync();
+        var payloadStream = new PayloadStream(key, decryptedContentType, lastModified.GetValueOrDefault(UnixTimeUtc.Now()), stream);
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)>
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified,
+            Stream thumbnail)>
         GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
@@ -162,13 +172,18 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, Stream.Null);
+            return (null, default, null, null, Stream.Null);
         }
 
         HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
+
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.Headers, out var lastModified))
+        {
+            Log.Warning($"Could not parse last modified for thumbnail (w:{width}x h:{height}) with fileId: {file}");
+        }
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (payloadIsEncrypted)
@@ -185,7 +200,7 @@ public class TransitQueryService
 
         var stream = await response!.Content!.ReadAsStreamAsync();
 
-        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, stream);
     }
 
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)

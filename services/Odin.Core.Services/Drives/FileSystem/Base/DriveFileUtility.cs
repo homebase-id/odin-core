@@ -1,10 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Microsoft.Extensions.Primitives;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Time;
+using Refit;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base;
 
@@ -130,5 +136,24 @@ public static class DriveFileUtility
     {
         string extenstion = $"-{key?.ToLower()}.payload";
         return extenstion;
+    }
+
+    public static bool TryParseLastModifiedHeader(HttpResponseHeaders headers, out UnixTimeUtc? lastModified)
+    {
+        var lastModifiedValue = headers.GetValues(HttpHeaderConstants.LastModified).SingleOrDefault();
+
+        if (lastModifiedValue != null && DateTime.TryParse(lastModifiedValue, out var lastModifiedDateTime))
+        {
+            lastModified = UnixTimeUtc.FromDateTime(lastModifiedDateTime);
+            return true;
+        }
+
+        lastModified = null;
+        return false;
+    }
+
+    public static string GetLastModifiedHeaderValue(UnixTimeUtc? lastModified)
+    {
+        return lastModified.GetValueOrDefault().ToDateTime().ToString("R");
     }
 }

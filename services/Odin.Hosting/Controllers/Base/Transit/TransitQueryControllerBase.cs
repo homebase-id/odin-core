@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Swashbuckle.AspNetCore.Annotations;
@@ -88,18 +89,20 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitGetPayloadRequest request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId,
+            var (encryptedKeyHeader, payloadIsEncrypted, payloadStream) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId,
                 request.File, request.Key, request.Chunk, GetFileSystemResolver().GetFileSystemType());
 
-            if (payload == Stream.Null)
+            if (payloadStream == null)
             {
                 return NotFound();
             }
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
 
         /// <summary>
@@ -116,7 +119,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, thumb) =
                 await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height,
                     GetFileSystemResolver().GetFileSystemType());
 
@@ -127,6 +130,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
         }

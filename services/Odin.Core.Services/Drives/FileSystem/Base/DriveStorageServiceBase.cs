@@ -184,7 +184,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<(Stream stream, ImageDataHeader thumbnail )> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
+        public async Task<(Stream stream, ImageDataHeader thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
             bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
@@ -334,8 +334,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             this.AssertCanReadDrive(file.DriveId);
 
-            //Note: calling to get the file header so we can ensure the caller can read this file
-
+            //Note: calling to get the file header will also
+            //ensure the caller can touch this file.
             var header = await this.GetServerFileHeader(file);
             if (header == null)
             {
@@ -344,15 +344,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
-                var item = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+                var descriptor = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
 
-                if (item == null)
+                if (descriptor == null)
                 {
                     return null;
                 }
 
                 var stream = await GetLongTermStorageManager(file.DriveId).GetPayloadStream(file.FileId, key, chunk);
-                return new PayloadStream(item.Key, item.ContentType, stream);
+                return new PayloadStream(descriptor, stream);
             }
 
             return null;

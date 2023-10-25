@@ -126,4 +126,17 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO");
     }
+    
+    [Test]
+    public void PayloadLastModifiedTimeUpdatedWhenPayloadChanges()
+    {
+        Assert.Inconclusive("TODO");
+    }
+
+    [Test]
+    public void ThumbnailLastModifiedTimeUpdatedWhenThumbnailChanges()
+    {
+        Assert.Inconclusive("TODO");
+
+    }
 }

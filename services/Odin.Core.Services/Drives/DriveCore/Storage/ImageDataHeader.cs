@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
@@ -13,11 +14,18 @@ public class ImageDataHeader: IEquatable<ImageDataHeader>
     /// </summary>
     public string ContentType { get; set; }
 
+    public UnixTimeUtc LastModified { get; set; }
+    
     public string GetFilename()
     {
         return $"{this.PixelWidth}x{this.PixelHeight}";
     }
 
+    public string GetLastModifiedHttpHeaderValue()
+    {
+        return LastModified.ToDateTime().ToString("R");
+    }
+    
     public bool Equals(ImageDataHeader other)
     {
         if (ReferenceEquals(null, other)) return false;

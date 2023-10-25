@@ -253,8 +253,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(
-            TargetDrive targetDrive, Guid fileId, string key, FileChunk chunk)
+        public async Task<(string encryptedKeyHeader64, bool PayloadIsEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive, Guid fileId,
+            string key, FileChunk chunk)
         {
             var file = new InternalDriveFileId()
             {
@@ -266,12 +266,12 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 
             if (header == null)
             {
-                return (null, default, null, Stream.Null);
+                return (null, default, null);
             }
 
             if (!(header.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
             {
-                return (null, default, null, Stream.Null);
+                return (null, default, null);
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
@@ -281,12 +281,12 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             {
                 throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
             }
-            
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, ps.ContentType, ps.Stream);
+
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, ps);
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(
-            TargetDrive targetDrive, Guid fileId, int height, int width)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)>
+            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
         {
             var file = new InternalDriveFileId()
             {
@@ -301,11 +301,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
             {
-                return (null, default, null, null);
+                return (null, default, null, null, null);
             }
 
             var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumbnail.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)

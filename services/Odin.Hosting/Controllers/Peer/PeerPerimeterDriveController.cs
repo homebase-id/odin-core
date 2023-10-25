@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
@@ -41,15 +42,15 @@ namespace Odin.Hosting.Controllers.Peer
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
         }
-        
-        
+
+
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var perimeterService = GetPerimeterService();
             return await perimeterService.QueryBatchCollection(request);
         }
-        
+
         [HttpPost("querymodified")]
         public async Task<QueryModifiedResponse> QueryModified(QueryModifiedRequest request)
         {
@@ -57,7 +58,7 @@ namespace Odin.Hosting.Controllers.Peer
             var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions);
             return QueryModifiedResponse.FromResult(result);
         }
-            
+
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
@@ -91,18 +92,19 @@ namespace Odin.Hosting.Controllers.Peer
         public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
+            var (encryptedKeyHeader64, payloadIsEncrypted, payloadStream) =
                 await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Key, request.Chunk);
 
-            if (payload == Stream.Null)
+            if (payloadStream == null)
             {
                 return NotFound();
             }
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
 
         /// <summary>
@@ -116,7 +118,7 @@ namespace Odin.Hosting.Controllers.Peer
         {
             var perimeterService = GetPerimeterService();
 
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, thumb) =
+            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, lastModified, thumb) =
                 await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
             if (thumb == Stream.Null)
@@ -127,6 +129,7 @@ namespace Odin.Hosting.Controllers.Peer
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified); 
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 

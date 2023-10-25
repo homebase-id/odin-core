@@ -128,6 +128,7 @@ public class StaticFileContentService
                             PixelHeight = thumbnailHeader.PixelHeight,
                             PixelWidth = thumbnailHeader.PixelWidth,
                             ContentType = thumbnailHeader.ContentType,
+                            LastModified = thumbnailHeader.LastModified,
                             Content = thumbnailStream.ToByteArray()
                         });
                     }

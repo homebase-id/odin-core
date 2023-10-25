@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Time;
 using Org.BouncyCastle.Tls;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
@@ -109,6 +110,7 @@ public abstract class FileSystemStreamWriterBase
             {
                 Key = key,
                 ContentType = contentType,
+                LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten
             });
         }
@@ -126,7 +128,8 @@ public abstract class FileSystemStreamWriterBase
         {
             PixelHeight = height,
             PixelWidth = width,
-            ContentType = contentType
+            ContentType = contentType,
+            LastModified = UnixTimeUtc.Now()
         });
     }
 
@@ -285,6 +288,14 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
 
+        if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
+        {
+            foreach (var t in metadata.AppData.AdditionalThumbnails)
+            {
+                t.LastModified = UnixTimeUtc.Now();
+            }
+        }
+        
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -389,6 +400,7 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("The number of additional thumbnails in your appData section does not match the number of thumbnails uploaded.",
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
+            
 
             if (metadata.PayloadIsEncrypted)
             {

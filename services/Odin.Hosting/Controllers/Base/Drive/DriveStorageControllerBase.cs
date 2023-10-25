@@ -10,6 +10,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Authentication.YouAuth;
@@ -62,8 +63,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var ps = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
-            if (ps == null)
+            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
+            if (payloadStream == null)
             {
                 return NotFound();
             }
@@ -72,9 +73,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, ps.Key);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, ps.ContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+
             if (null != request.Chunk)
             {
                 var to = request.Chunk.Start + request.Chunk.Length - 1;
@@ -85,7 +88,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             AddGuestApiCacheHeader();
 
-            var result = new FileStreamResult(ps.Stream, ps.ContentType);
+            var result = new FileStreamResult(payloadStream.Stream, payloadStream.ContentType);
 
             return result;
         }
@@ -99,9 +102,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var (thumbPayload, thumbHeader) =
-                await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height,
-                    request.DirectMatchOnly);
+            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
             if (thumbPayload == Stream.Null)
             {
                 return NotFound();
@@ -116,11 +117,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Missing header", OdinClientErrorCode.UnknownId);
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted,
-                header.FileMetadata!.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.LastModified = thumbHeader.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                encryptedKeyHeader64);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
             AddGuestApiCacheHeader();
 
