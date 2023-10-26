@@ -1,6 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Util;
 
 namespace Odin.Core.Services.Registry.Registration;
 
@@ -32,6 +33,8 @@ public class DnsConfigurationSet
         WwwCnameTarget = wwwCnameTarget;
         CApiCnameTarget = cApiCnameTarget;
         FileCnameTarget = fileCnameTarget;
+
+        AsciiDomainNameValidator.AssertValidDomain(ApexAliasRecord);
     }
 
     //
