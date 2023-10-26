@@ -73,7 +73,6 @@ public class DnsLookupService : IDnsLookupService
             Name = "",
             Domain = domain,
             Value = dns.ApexARecord,
-            Verify = dns.ApexARecord,
             Description = "A Record"
         });
 
@@ -84,7 +83,6 @@ public class DnsLookupService : IDnsLookupService
             Name = "",
             Domain = domain,
             Value = dns.ApexAliasRecord,
-            Verify = dns.ApexARecord,
             Description = "Apex flattened CNAME / ALIAS / ANAME"
         });
 
@@ -95,7 +93,6 @@ public class DnsLookupService : IDnsLookupService
             Name = DnsConfigurationSet.PrefixWww,
             Domain = $"{DnsConfigurationSet.PrefixWww}.{domain}",
             Value = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
-            Verify = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
             Description = "WWW CNAME"
         });
 
@@ -106,7 +103,6 @@ public class DnsLookupService : IDnsLookupService
             Name = DnsConfigurationSet.PrefixCertApi,
             Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
             Value = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
-            Verify = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
             Description = "CAPI CNAME"
         });
 
@@ -117,7 +113,6 @@ public class DnsLookupService : IDnsLookupService
             Name = DnsConfigurationSet.PrefixFile,
             Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
             Value = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
-            Verify = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
             Description = "FILE CNAME"
         });
 
@@ -144,24 +139,13 @@ public class DnsLookupService : IDnsLookupService
         var dnsClient = await CreateDnsClient(authorativeServer);
         foreach (var record in dnsConfigs)
         {
-            var recordStatus = await VerifyDnsRecord(domain, record, dnsClient);
+            var recordStatus = await VerifyDnsRecord(domain, record.Name, record.Type, record.Value, dnsClient);
             record.QueryResults[authorativeServer] = recordStatus;
-            if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
-            {
-                record.Status = recordStatus;
-            }
+            record.Status = recordStatus;
         }
 
-        foreach (var record in dnsConfigs)
-        {
-            if (record.Status != DnsLookupRecordStatus.Success)
-            {
-                return (false, dnsConfigs);
-            }
-        }
-
-        // HURRAH!
-        return (true, dnsConfigs);
+        var result = AreDnsLookupsSuccessful(dnsConfigs);
+        return (result, dnsConfigs);
     }
 
     //
@@ -177,7 +161,7 @@ public class DnsLookupService : IDnsLookupService
             var dnsClient = await CreateDnsClient(resolver);
             foreach (var record in dnsConfigs)
             {
-                var recordStatus = await VerifyDnsRecord(domain, record, dnsClient);
+                var recordStatus = await VerifyDnsRecord(domain, record.Name, record.Type, record.Value, dnsClient);
                 record.QueryResults[resolver] = recordStatus;
                 if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
                 {
@@ -186,16 +170,27 @@ public class DnsLookupService : IDnsLookupService
             }
         }
 
-        foreach (var record in dnsConfigs)
+        var result = AreDnsLookupsSuccessful(dnsConfigs);
+        return (result, dnsConfigs);
+    }
+
+    //
+
+    private static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
+    {
+        // Only one of records A or ALIAS need to be successful
+        if (dnsConfigs.Count(x => (x.Type is "A" or "ALIAS") && x.Status == DnsLookupRecordStatus.Success) < 1)
         {
-            if (record.Status != DnsLookupRecordStatus.Success)
-            {
-                return (false, dnsConfigs);
-            }
+            return false;
         }
 
-        // HURRAH!
-        return (true, dnsConfigs);
+        // All CNAME records must be successful
+        if (dnsConfigs.Where(x => x.Type == "CNAME").Any(record => record.Status != DnsLookupRecordStatus.Success))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     //
@@ -252,53 +247,91 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<DnsLookupRecordStatus> VerifyDnsRecord(string domain, DnsConfig dnsConfig, IDnsQuery dnsClient)
+    private async Task<DnsLookupRecordStatus> VerifyDnsRecord(
+        string domain,
+        string label,
+        string type,
+        string expectedValue,
+        IDnsQuery dnsClient)
     {
+        var result = DnsLookupRecordStatus.Unknown;
+
         var sw = new Stopwatch();
         sw.Start();
 
-        domain = domain.Trim();
-        if (dnsConfig.Name != "")
+        domain = domain.Trim().ToLower();
+        label = label.Trim().ToLower();
+        if (label != "")
         {
-            domain = dnsConfig.Name + "." + domain;
+            domain = label + "." + domain;
         }
 
-        List<string> entries;
-        IDnsQueryResponse response;
-
-        switch (dnsConfig.Type.ToUpper())
+        // Bail if any AAAA records on domain
+        var recordType = QueryType.AAAA;
+        var response = await dnsClient.QueryAsync(domain, recordType);
+        if (response.Answers.AaaaRecords().Any())
         {
-            case "A":
-            case "ALIAS":
-                response = await dnsClient.QueryAsync(domain, QueryType.A);
-                entries = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
-                break;
-            case "CNAME":
-                response = await dnsClient.QueryAsync(domain, QueryType.CNAME);
-                entries = response.Answers.CnameRecords()
-                    .Select(x => x.CanonicalName.ToString()!.TrimEnd('.'))
-                    .ToList();
-                break;
-            default:
-                throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");
+            result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
+        }
+        else
+        {
+            List<string> records;
+            switch (type)
+            {
+                case "A":
+                    recordType = QueryType.A;
+                    response = await dnsClient.QueryAsync(domain, recordType);
+                    records = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+                    result = VerifyDnsValue(records, expectedValue);
+                    break;
+
+                case "ALIAS":
+                case "CNAME":
+                    recordType = QueryType.CNAME;
+                    response = await dnsClient.QueryAsync(domain, recordType);
+                    records = response.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList();
+                    result = VerifyDnsValue(records, expectedValue);
+                    break;
+
+                default:
+                    throw new OdinSystemException($"Record type not supported: {type}");
+            }
         }
 
-        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms: {answer}",
+        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms, result:{result}, answer:{answer}",
             domain,
-            dnsConfig.Type,
+            recordType,
             response.NameServer.Address,
             sw.ElapsedMilliseconds,
+            result,
             string.Join(" ; ", response.Answers));
 
-        if (entries.Count == 0)
+        // Sanity
+        if (result == DnsLookupRecordStatus.Unknown)
+        {
+            _logger.LogError("Unexpected result '{result}'. Your logic is faulty!", result);
+        }
+
+        return result;
+    }
+
+    //
+
+    private static DnsLookupRecordStatus VerifyDnsValue(IReadOnlyCollection<string> records, string expectedValue)
+    {
+        if (records.Count < 1)
         {
             return DnsLookupRecordStatus.DomainOrRecordNotFound;
         }
-        if (entries.Contains(dnsConfig.Verify))
+        if (records.Count > 1)
         {
-            return DnsLookupRecordStatus.Success;
+            return DnsLookupRecordStatus.MultipleRecordsNotSupported;
         }
-        return DnsLookupRecordStatus.IncorrectValue;
+        if (records.First() != expectedValue)
+        {
+            return DnsLookupRecordStatus.IncorrectValue;
+        }
+        return DnsLookupRecordStatus.Success;
     }
 
     //
@@ -325,6 +358,7 @@ public class DnsLookupService : IDnsLookupService
         {
             return new LookupClient(new LookupClientOptions
             {
+                Recursion = false,
                 UseCache = false,
             });
         }
@@ -339,6 +373,7 @@ public class DnsLookupService : IDnsLookupService
 
         var options = new LookupClientOptions(nameServerIp)
         {
+            Recursion = false,
             UseCache = false,
         };
 
