@@ -206,7 +206,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         // Identity already exists or domain path clash?
-        return await _registry.CanAddNewRegistration(domain);
+        if (false == await _registry.CanAddNewRegistration(domain))
+        {
+            return false;
+        }
+
+        // We can only create new domain if we can find a zone apex
+        var zoneApex = await _dnsLookupService.LookupZoneApex(domain);
+        return !string.IsNullOrEmpty(zoneApex);
     }
 
     //
