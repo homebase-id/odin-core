@@ -116,7 +116,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task<bool> IsManagedDomainAvailable(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return false;
+        }
 
         // Identity already exists or domain path clash?
         if (false == await _registry.CanAddNewRegistration(domain))
@@ -203,7 +207,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> IsOwnDomainAvailable(string domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return false;
+        }
 
         // Identity already exists or domain path clash?
         if (false == await _registry.CanAddNewRegistration(domain))
