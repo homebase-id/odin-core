@@ -117,12 +117,15 @@ namespace Odin.Core.Services.Certificate
         {
             try
             {
-                var (isDnsRecordOk, _) = await _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
-                if (!isDnsRecordOk)
+                if (sans != null) // don't verify system domains (e.g. provisioning, admin, etc)
                 {
-                    _logger.LogWarning(
-                        "Cannot create certifice for {domain}. One or more DNS records are no longer correct.", domain);
-                    return null;
+                    var (isDnsRecordOk, _) = await _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+                    if (!isDnsRecordOk)
+                    {
+                        _logger.LogWarning(
+                            "Cannot create certifice for {domain}. One or more DNS records are no longer correct.", domain);
+                        return null;
+                    }
                 }
 
                 var account = await LoadAccount();
