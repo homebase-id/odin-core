@@ -119,7 +119,7 @@ public abstract class AttachmentStreamWriterBase
         }
 
         // Check header.FileMetadata.AppData.ContentIsComplete
-        // Check header.FileMetadata.AppData.AdditionalThumbnails
+        // Check header.FileMetadata.Thumbnails
 
         // if (package.HasPayload)
         // {

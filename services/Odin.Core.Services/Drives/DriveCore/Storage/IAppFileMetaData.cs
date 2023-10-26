@@ -53,9 +53,5 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public ImageDataContent PreviewThumbnail { get; set; }
 
-        /// <summary>
-        /// Set of thumbnails for this file in addition to the <see cref="PreviewThumbnail"/>
-        /// </summary>
-        public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
     }
 }

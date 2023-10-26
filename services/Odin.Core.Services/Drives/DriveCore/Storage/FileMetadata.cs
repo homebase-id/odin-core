@@ -79,6 +79,11 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public List<PayloadDescriptor> Payloads { get; set; }
         
+        /// <summary>
+        /// Set of thumbnails for this file in addition to the Appdata.PreviewThumbnail
+        /// </summary>
+        public IEnumerable<ImageDataHeader> Thumbnails { get; set; }
+
         public Guid? VersionTag { get; set; }
     }
 }

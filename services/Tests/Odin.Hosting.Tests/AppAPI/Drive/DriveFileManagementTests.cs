@@ -198,7 +198,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             AppTransitTestUtilsContext ctx = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(TestIdentities.Frodo, fileMetadata, options);
 
-            Assert.IsNotNull(ctx.UploadFileMetadata.AppData.AdditionalThumbnails.SingleOrDefault());
+            Assert.IsNotNull(ctx.Thumbnails.SingleOrDefault());
             var appContext = ctx.TestAppContext;
             var fileToDelete = ctx.UploadedFile;
 
@@ -263,9 +263,9 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
-
+                
                 //there should not be a thumbnail
-                var thumb = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
+                var thumb = ctx.Thumbnails.FirstOrDefault();
                 var getThumbnailResponse = await svc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = fileToDelete,

@@ -191,7 +191,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-            var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
+            var thumbs = header?.FileMetadata?.Thumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
                 return (Stream.Null, null);
@@ -229,7 +229,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-            var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
+            var thumbs = header?.FileMetadata?.Thumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
                 return Guid.Empty;
@@ -239,8 +239,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (null != directMatchingThumb)
             {
                 // Update the metadata 
-                var updatedThumbs = header.FileMetadata.AppData.AdditionalThumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
-                header.FileMetadata.AppData.AdditionalThumbnails = updatedThumbs;
+                var updatedThumbs = header.FileMetadata.Thumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
+                header.FileMetadata.Thumbnails = updatedThumbs;
                 await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
                 await this.UpdateActiveFileHeader(file, header);
             }
@@ -427,11 +427,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
 
-            var metadataSaysThisFileHasThumbnails = metadata.AppData.AdditionalThumbnails != null;
+            var metadataSaysThisFileHasThumbnails = metadata.Thumbnails != null;
 
             if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
             {
-                foreach (var thumb in metadata.AppData.AdditionalThumbnails)
+                foreach (var thumb in metadata.Thumbnails)
                 {
                     var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
                     var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
@@ -509,11 +509,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             //TODO: clean up old payload if it was removed?
-            var metadataSaysThisFileHasThumbnails = newMetadata.AppData.AdditionalThumbnails != null;
+            var metadataSaysThisFileHasThumbnails = newMetadata.Thumbnails != null;
 
             if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
             {
-                var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+                var thumbs = newMetadata.Thumbnails?.ToList() ?? new List<ImageDataHeader>();
                 await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
                 foreach (var thumb in thumbs)
                 {
@@ -566,7 +566,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
-            var existingThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+            var existingThumbnails = existingServerHeader.FileMetadata.Thumbnails?.ToList() ?? new List<ImageDataHeader>();
             await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
             foreach (var thumb in incomingThumbnails ?? new List<ImageDataHeader>())
@@ -582,7 +582,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
 
-            existingServerHeader.FileMetadata.AppData.AdditionalThumbnails = existingThumbnails;
+            existingServerHeader.FileMetadata.Thumbnails = existingThumbnails;
 
             //update the existing file metadata with new attachments data
             if (existingServerHeader.FileMetadata.AppData.ContentIsComplete == false)
@@ -638,7 +638,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
 
-            newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
+            newMetadata.Thumbnails = existingServerHeader.FileMetadata.Thumbnails;
             newMetadata.AppData.ContentIsComplete = existingServerHeader.FileMetadata.AppData.ContentIsComplete;
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;

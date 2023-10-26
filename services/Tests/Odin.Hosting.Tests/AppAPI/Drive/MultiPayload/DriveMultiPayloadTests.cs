@@ -132,11 +132,23 @@ public class DriveMultiPayloadTests
     {
         Assert.Inconclusive("TODO");
     }
+    
+    [Test]
+    public void MetadataIsUpdatedWhenPayloadIsDeleted()
+    {
+        Assert.Inconclusive("TODO");
+    }
 
     [Test]
     public void ThumbnailLastModifiedTimeUpdatedWhenThumbnailChanges()
     {
         Assert.Inconclusive("TODO");
-
+    }
+    
+    [Test]
+    public void ThumbnailsAreAutomaticallyDetectedDuringUpload()
+    {
+        // read from Thumbnails on ClientFileHeader instead fo AppData
+        Assert.Inconclusive("TODO");
     }
 }

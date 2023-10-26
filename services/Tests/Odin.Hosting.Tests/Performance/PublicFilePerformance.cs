@@ -336,8 +336,7 @@ namespace Odin.Hosting.Tests.Performance
                             JsonContent = jsonContent,
                             FileType = fileType,
                             DataType = dataType,
-                            PreviewThumbnail = previewThumbnail,
-                            AdditionalThumbnails = additionalThumbs
+                            PreviewThumbnail = previewThumbnail
                         },
                         AccessControlList = new AccessControlList()
                             { RequiredSecurityGroup = SecurityGroupType.Anonymous }
@@ -414,7 +413,7 @@ namespace Odin.Hosting.Tests.Performance
                     descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() ==
+                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() ==
                               (additionalThumbs?.Count ?? 0));
 
                 //
@@ -436,8 +435,8 @@ namespace Odin.Hosting.Tests.Performance
 
                 if (null != additionalThumbs)
                 {
-                    // var descriptorList = descriptor.FileMetadata.AppData.AdditionalThumbnails.ToList();
-                    var clientFileHeaderList = clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.ToList();
+                    // var descriptorList = descriptor.FileMetadata.Thumbnails.ToList();
+                    var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
 
                     //there should be the same number of thumbnails on the server as we sent; order should match
                     for (int i = 0; i < additionalThumbs.Count - 1; i++)

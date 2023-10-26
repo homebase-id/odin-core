@@ -26,6 +26,5 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         
         public ImageDataContent PreviewThumbnail { get; set; }
         
-        public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
     }
 }   

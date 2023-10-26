@@ -187,7 +187,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             var tasks = new List<Task<SendResult>>();
             var results = new List<SendResult>();
 
-            tasks.AddRange(items.Select(SendAsync));
+            tasks.AddRange(items.Select(SendFileAsync));
 
             await Task.WhenAll(tasks);
 
@@ -222,7 +222,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             return results;
         }
 
-        private async Task<SendResult> SendAsync(TransitOutboxItem outboxItem)
+        private async Task<SendResult> SendFileAsync(TransitOutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -314,7 +314,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                     OriginalRecipientList = null,
                     ReferencedFile = sourceMetadata.ReferencedFile,
                     VersionTag = sourceMetadata.VersionTag,
-                    Payloads = sourceMetadata.Payloads
+                    Payloads = sourceMetadata.Payloads,
+                    Thumbnails = sourceMetadata.Thumbnails
                 };
 
                 var json = OdinSystemSerializer.Serialize(redactedMetadata);
@@ -333,8 +334,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                         string contentType = "application/unknown";
                         if (sourceMetadata.AppData.ContentIsComplete == false)
                         {
-                           var p =  await fs.Storage.GetPayloadStream(file, payloadKey, null);
-                           payloadStream = p.Stream;
+                            var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                            payloadStream = p.Stream;
                         }
 
                         var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -344,7 +345,7 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 if (shouldSendThumbnails)
                 {
-                    foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                    foreach (var thumb in redactedMetadata.Thumbnails ?? new List<ImageDataHeader>())
                     {
                         var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                         additionalStreamParts.Add(new StreamPart(thumbStream, thumbHeader.GetFilename(), thumbHeader.ContentType,

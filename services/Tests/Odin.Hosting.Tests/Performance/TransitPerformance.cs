@@ -28,7 +28,6 @@ using Refit;
 
 namespace Odin.Hosting.Tests.Performance
 {
-
     public class TransitPerformanceTests
     {
         private const int FileType = 844;
@@ -59,9 +58,9 @@ namespace Odin.Hosting.Tests.Performance
          * 2023-03-12
          *
             TaskPerformanceTest_Transit
-                Duration: 21.5 sec
+      Duration: 21.5 sec
 
-            Standard Output: 
+            Standard Output:
                 Threads   : 12
                 Iterations: 300
                 Time      : 18748ms
@@ -76,9 +75,9 @@ namespace Odin.Hosting.Tests.Performance
                 DB Opened 14, Closed 0
 
             TaskPerformanceTest_Transit
-               Duration: 26.2 sec
+      Duration: 26.2 sec
 
-              Standard Output: 
+              Standard Output:
                 2023-05-06 Host [SEMIBEASTII]
                 Threads   : 12
                 Iterations: 300
@@ -94,10 +93,10 @@ namespace Odin.Hosting.Tests.Performance
                 Bandwidth : 115,000 bytes / second
 
         No change after DB cache
-             TaskPerformanceTest_Transit
-               Duration: 23.9 sec
+TaskPerformanceTest_Transit
+  Duration: 23.9 sec
 
-              Standard Output: 
+              Standard Output:
                 2023-06-01 Host [SEMIBEASTII]
                 Threads   : 12
                 Iterations: 300
@@ -271,9 +270,7 @@ namespace Odin.Hosting.Tests.Performance
                                 PixelWidth = 100,
                                 ContentType = "image/png",
                                 Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
-                            },
-
-                            AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
+                            }
                         },
                         AccessControlList = AccessControlList.Connected
                     },
@@ -376,7 +373,7 @@ namespace Odin.Hosting.Tests.Performance
                 // Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
                 // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
                 //
-                // Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
+                // Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
                 //
                 //
                 // //
@@ -403,8 +400,8 @@ namespace Odin.Hosting.Tests.Performance
                 // // Validate additional thumbnails
                 // //
                 //
-                // var descriptorList = descriptor.FileMetadata.AppData.AdditionalThumbnails.ToList();
-                // var clientFileHeaderList = clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.ToList();
+                // var descriptorList = descriptor.FileMetadata.Thumbnails.ToList();
+                // var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
                 //
                 // //validate thumbnail 1
                 // Assert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);
@@ -494,6 +491,7 @@ namespace Odin.Hosting.Tests.Performance
                 };
                 var thumbnail2CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes400);
 
+                var expectedThumbnails = new List<ImageDataHeader> { thumbnail1, thumbnail2 };
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
@@ -513,9 +511,7 @@ namespace Odin.Hosting.Tests.Performance
                                 PixelWidth = 100,
                                 ContentType = "image/png",
                                 Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
-                            },
-
-                            AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
+                            }
                         },
                         AccessControlList = AccessControlList.Connected
                     },
@@ -530,8 +526,10 @@ namespace Odin.Hosting.Tests.Performance
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -568,7 +566,7 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
@@ -585,19 +583,22 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
                 Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
+                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
 
 
                 //
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY});
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -617,13 +618,12 @@ namespace Odin.Hosting.Tests.Performance
                 // Validate additional thumbnails
                 //
 
-                var descriptorList = descriptor.FileMetadata.AppData.AdditionalThumbnails.ToList();
-                var clientFileHeaderList = clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.ToList();
+                var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
 
                 //validate thumbnail 1
-                Assert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);
-                Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
-                Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
+                Assert.IsTrue(expectedThumbnails[0].ContentType == clientFileHeaderList[0].ContentType);
+                Assert.IsTrue(expectedThumbnails[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
+                Assert.IsTrue(expectedThumbnails[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
                 var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {
@@ -638,9 +638,9 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
 
                 //validate thumbnail 2
-                Assert.IsTrue(descriptorList[1].ContentType == clientFileHeaderList[1].ContentType);
-                Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
-                Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
+                Assert.IsTrue(expectedThumbnails[1].ContentType == clientFileHeaderList[1].ContentType);
+                Assert.IsTrue(expectedThumbnails[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
+                Assert.IsTrue(expectedThumbnails[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
                 var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {

@@ -388,8 +388,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = encryptedJsonContent64,
-                        AdditionalThumbnails = new[] { thumbnail1 }
+                        JsonContent = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1136,8 +1135,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = json,
-                        AdditionalThumbnails = new[] { thumbnail1 }
+                        JsonContent = json
                     },
                     PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1637,8 +1635,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = encryptedJsonContent64,
-                        AdditionalThumbnails = new[] { thumbnail1 }
+                        JsonContent = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }

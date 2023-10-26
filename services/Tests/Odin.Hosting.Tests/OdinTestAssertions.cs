@@ -31,7 +31,7 @@ public static class OdinTestAssertions
 
         Assert.IsNotNull(fileHeader.FileMetadata.AppData);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.ContentIsComplete == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.AdditionalThumbnails == default);
+        Assert.IsTrue(fileHeader.FileMetadata.Thumbnails == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);

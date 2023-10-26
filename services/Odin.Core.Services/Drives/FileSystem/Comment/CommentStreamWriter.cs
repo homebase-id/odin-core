@@ -141,7 +141,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
-                AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
                 //Hijack the groupId by setting it to referenced file
@@ -154,7 +153,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
             
-            Payloads = package.UploadedPayloads
+            Payloads = package.UploadedPayloads,
+            Thumbnails = package.UploadedThumbnails
         };
 
         return Task.FromResult(metadata);

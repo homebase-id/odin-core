@@ -63,13 +63,12 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret));
             }
-            
+
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
-            
+
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
-            
         }
 
         public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext, FileSystemType fileSystemType = FileSystemType.Standard)
@@ -150,7 +149,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
-                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
 
                 fileMetadata.PayloadIsEncrypted = true;
@@ -245,6 +243,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     TestAppContext = senderAppContext,
                     UploadResult = transferResult,
                     GlobalTransitId = transferResult.GlobalTransitId,
+                    Thumbnails = thumbnailsAdded
                 };
             }
         }
@@ -282,7 +281,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
-                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
 
                 fileMetadata.PayloadIsEncrypted = true;

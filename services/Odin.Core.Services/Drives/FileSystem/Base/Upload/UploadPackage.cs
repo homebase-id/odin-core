@@ -34,7 +34,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
         public bool HasPayload => UploadedPayloads?.Any() ?? false;
 
-        public List<PayloadDescriptor> UploadedPayloads { get; set; }
+        public List<PayloadDescriptor> UploadedPayloads { get; }
 
         /// <summary>
         /// A list of thumbnails sent in the stream

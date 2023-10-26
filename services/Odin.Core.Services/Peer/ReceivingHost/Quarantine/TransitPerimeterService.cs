@@ -297,7 +297,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
+            var thumbs = header.FileMetadata.Thumbnails?.ToList();
             var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
             {

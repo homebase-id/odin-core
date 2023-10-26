@@ -288,9 +288,9 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
 
-        if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
+        if (metadata.Thumbnails?.Any() ?? false)
         {
-            foreach (var t in metadata.AppData.AdditionalThumbnails)
+            foreach (var t in metadata.Thumbnails)
             {
                 t.LastModified = UnixTimeUtc.Now();
             }
@@ -318,7 +318,7 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
 
-        if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
+        if (metadata.Thumbnails?.Any() ?? false)
         {
             throw new OdinClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
                 OdinClientErrorCode.MalformedMetadata);
@@ -393,14 +393,6 @@ public abstract class FileSystemStreamWriterBase
             {
                 throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
             }
-
-            if ((metadata.AppData.AdditionalThumbnails?.Count() ?? 0) != (package.UploadedThumbnails?.Count() ?? 0))
-            {
-                //TODO: technically we could just detect the thumbnails instead of making the user specify AdditionalThumbnails
-                throw new OdinClientException("The number of additional thumbnails in your appData section does not match the number of thumbnails uploaded.",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
-            
 
             if (metadata.PayloadIsEncrypted)
             {

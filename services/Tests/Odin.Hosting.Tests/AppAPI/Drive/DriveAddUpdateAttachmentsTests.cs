@@ -91,8 +91,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == deleteThumbnailResult.NewVersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() ==
-                          originalFile.FileMetadata.AppData.AdditionalThumbnails.Count() - 1);
+            Assert.IsTrue(updatedHeader.FileMetadata.Thumbnails.Count() ==
+                          originalFile.FileMetadata.Thumbnails.Count() - 1);
 
             var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight,
                 directMatchOnly: true);
@@ -145,13 +145,13 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == uploadAttachmentsResult.NewVersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == finalThumbnailList.Count(),
-                $"Count was {updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count()} but should be {finalThumbnailList.Count()} ");
+            Assert.IsTrue(updatedHeader.FileMetadata.Thumbnails.Count() == finalThumbnailList.Count(),
+                $"Count was {updatedHeader.FileMetadata.Thumbnails.Count()} but should be {finalThumbnailList.Count()} ");
 
-            var missing = updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Except(finalThumbnailList);
+            var missing = updatedHeader.FileMetadata.Thumbnails.Except(finalThumbnailList);
             Assert.IsFalse(missing.Any());
 
-            foreach (var thumb in updatedHeader.FileMetadata.AppData.AdditionalThumbnails)
+            foreach (var thumb in updatedHeader.FileMetadata.Thumbnails)
             {
                 var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumb.PixelWidth, thumb.PixelHeight);
                 Assert.IsTrue(getThumbResponse.IsSuccessStatusCode);
@@ -221,7 +221,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     JsonContent = "some content",
                     FileType = 101,
                     GroupId = default,
-                    AdditionalThumbnails = thumbnails
                 },
                 AccessControlList = AccessControlList.OwnerOnly
             };
@@ -231,7 +230,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var getHeaderResponse = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(getHeaderResponse.FileMetadata.AppData.AdditionalThumbnails.Count() == thumbnails.Count(), "Missing one or more thumbnails");
+            Assert.IsTrue(getHeaderResponse.FileMetadata.Thumbnails.Count() == thumbnails.Count(), "Missing one or more thumbnails");
             return (uploadResult, thumbnails);
         }
     }

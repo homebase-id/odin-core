@@ -419,7 +419,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     JsonContent = $"some json content {Guid.NewGuid()}",
                     ContentIsComplete = payload == null,
                     UniqueId = Guid.NewGuid(),
-                    AdditionalThumbnails = thumbnail == null ? default : new[] { thumbnail }
                 },
                 AccessControlList = AccessControlList.Connected
             };

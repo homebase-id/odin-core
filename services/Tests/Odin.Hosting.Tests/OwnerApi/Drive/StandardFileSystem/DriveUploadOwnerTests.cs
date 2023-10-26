@@ -250,9 +250,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                                 PixelWidth = 100,
                                 ContentType = "image/png",
                                 Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
-                            },
-
-                            AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
+                            }
                         }
                     },
                 };
@@ -323,7 +321,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
+                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
 
 
                 //
@@ -353,8 +351,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 // Validate additional thumbnails
                 //
 
-                var descriptorList = descriptor.FileMetadata.AppData.AdditionalThumbnails.ToList();
-                var clientFileHeaderList = clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.ToList();
+                var descriptorList = new List<ImageDataHeader>() { thumbnail1, thumbnail2 };
+
+                var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
 
                 //validate thumbnail 1
                 Assert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);

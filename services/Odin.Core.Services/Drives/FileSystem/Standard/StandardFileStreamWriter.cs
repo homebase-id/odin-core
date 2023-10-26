@@ -121,8 +121,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
 
-                PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
-                AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
+                PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail
             },
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
@@ -131,7 +130,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
             
-            Payloads = package.UploadedPayloads
+            Payloads = package.UploadedPayloads,
+            Thumbnails = package.UploadedThumbnails
         };
 
         return Task.FromResult(metadata);

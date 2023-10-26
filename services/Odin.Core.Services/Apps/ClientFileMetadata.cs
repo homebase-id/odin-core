@@ -46,4 +46,7 @@ public class ClientFileMetadata
     
     public Guid VersionTag { get; set; }
     public List<PayloadDescriptor> Payloads { get; set; }
+    
+    public IEnumerable<ImageDataHeader> Thumbnails { get; set; }
+
 }
