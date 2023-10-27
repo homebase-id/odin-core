@@ -142,7 +142,6 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = default,
                 GroupId = default,

@@ -212,7 +212,6 @@ namespace Odin.Hosting.Tests.Performance
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = false,
                             JsonContent = OdinSystemSerializer.Serialize(new { content = jsonContent }),
                             PreviewThumbnail = new ImageDataContent()
                             {
@@ -272,7 +271,7 @@ namespace Odin.Hosting.Tests.Performance
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);

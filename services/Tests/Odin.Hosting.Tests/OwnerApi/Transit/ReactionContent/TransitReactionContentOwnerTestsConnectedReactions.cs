@@ -210,7 +210,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
                     JsonContent = uploadedContent,
                     FileType = default,
                     GroupId = default,
@@ -235,7 +234,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
 
                 AppData = new()
                 {
-                    ContentIsComplete = true,
                     JsonContent = commentContent,
                     FileType = default,
                     GroupId = default,

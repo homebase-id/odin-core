@@ -243,7 +243,6 @@ public class DataSubscriptionAndDistributionTests1
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
@@ -345,7 +344,6 @@ public class DataSubscriptionAndDistributionTests1
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
@@ -446,7 +444,6 @@ public class DataSubscriptionAndDistributionTests1
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
@@ -571,7 +568,6 @@ public class DataSubscriptionAndDistributionTests1
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
@@ -712,7 +708,6 @@ public class DataSubscriptionAndDistributionTests1
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
@@ -1173,7 +1168,6 @@ public class DataSubscriptionAndDistributionTests1
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
@@ -1195,7 +1189,6 @@ public class DataSubscriptionAndDistributionTests1
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
@@ -1217,7 +1210,6 @@ public class DataSubscriptionAndDistributionTests1
             VersionTag = versionTag,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = fileType,
                 GroupId = default,

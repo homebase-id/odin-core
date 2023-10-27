@@ -255,18 +255,17 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
 
-            //TODO: lookup payload by key
+            var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? -1;
 
-            if (header.FileMetadata.AppData.ContentIsComplete == false)
+            if (descriptorIndex == -1)
             {
-                header.FileMetadata.AppData.ContentIsComplete = true;
-                await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId, key);
-                await UpdateActiveFileHeader(file, header);
-                return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
-                // down. but in reality we should return it
+                return Guid.Empty;
             }
 
-            return Guid.Empty;
+            await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId, key);
+            header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
+            await UpdateActiveFileHeader(file, header);
+            return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
         }
 
         public string GetThumbnailFileExtension(int width, int height)
@@ -342,20 +341,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            if (header.FileMetadata.AppData.ContentIsComplete == false)
+            var descriptor = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+
+            if (descriptor == null)
             {
-                var descriptor = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
-
-                if (descriptor == null)
-                {
-                    return null;
-                }
-
-                var stream = await GetLongTermStorageManager(file.DriveId).GetPayloadStream(file.FileId, key, chunk);
-                return new PayloadStream(descriptor, stream);
+                return null;
             }
 
-            return null;
+            var stream = await GetLongTermStorageManager(file.DriveId).GetPayloadStream(file.FileId, key, chunk);
+            return new PayloadStream(descriptor, stream);
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)
@@ -412,7 +406,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //HACK: To the transit system sending the file header and not the payload or thumbnails (via SendContents)
             // ignorePayload and ignoreThumbnail allow it to tell us what to expect.
 
-            bool metadataSaysThisFileHasPayloads = metadata.AppData.ContentIsComplete == false;
+            bool metadataSaysThisFileHasPayloads = metadata.Payloads?.Any() ?? false;
 
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
@@ -493,7 +487,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //HACK: To support the transit system sending the file header and not the payload or thumbnails (via SendContents)
             // ignorePayload and ignoreThumbnail allow it to tell us what to expect.
 
-            bool metadataSaysThisFileHasPayloads = newMetadata.AppData.ContentIsComplete == false;
+            bool metadataSaysThisFileHasPayloads = newMetadata.Payloads?.Any() ?? false;
 
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
@@ -585,7 +579,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata.Thumbnails = existingThumbnails;
 
             //update the existing file metadata with new attachments data
-            if (existingServerHeader.FileMetadata.AppData.ContentIsComplete == false)
+            if (existingServerHeader.FileMetadata.Payloads?.Any() ?? false)
             {
                 //TODO: update payload size to be a sum of all payloads
 
@@ -639,7 +633,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
 
             newMetadata.Thumbnails = existingServerHeader.FileMetadata.Thumbnails;
-            newMetadata.AppData.ContentIsComplete = existingServerHeader.FileMetadata.AppData.ContentIsComplete;
+            newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 

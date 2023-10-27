@@ -139,7 +139,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 

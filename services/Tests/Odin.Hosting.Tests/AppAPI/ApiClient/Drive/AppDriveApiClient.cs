@@ -194,7 +194,7 @@ public class AppDriveApiClient : AppApiClientBase
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            if (fileMetadata.AppData.ContentIsComplete == false)
+            if (!string.IsNullOrEmpty(payloadData))
             {
                 encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
             }
@@ -427,7 +427,6 @@ public class AppDriveApiClient : AppApiClientBase
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
             var payloadStream = new MemoryStream(payloadData.ToUtf8ByteArray());
-            fileMetadata.AppData.ContentIsComplete = payloadStream.Length == 0;
 
             // var bytesUploaded = instructionStream.Length + fileDescriptorCipher.Length + payloadData.Length;
             List<StreamPart> parts = new()

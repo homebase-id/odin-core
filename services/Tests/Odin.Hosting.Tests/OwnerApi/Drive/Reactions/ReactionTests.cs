@@ -169,7 +169,6 @@ public class ReactionTests
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = default,
                 GroupId = default,
@@ -193,7 +192,6 @@ public class ReactionTests
 
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = commentContent,
                 FileType = default,
                 GroupId = default,

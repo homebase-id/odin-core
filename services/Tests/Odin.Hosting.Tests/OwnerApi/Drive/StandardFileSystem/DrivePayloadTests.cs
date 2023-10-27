@@ -69,7 +69,7 @@ public class DrivePayloadTests
         //even tho the payload is gone, we should still be able to get the header and it should be updated
         var getHeaderResponse = await ownerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-        Assert.IsTrue(getHeaderResponse.Content.FileMetadata.AppData.ContentIsComplete);
+        Assert.IsTrue(getHeaderResponse.Content.FileMetadata.Payloads.Count == 0);
     }
 
     [Test]
@@ -174,7 +174,6 @@ public class DrivePayloadTests
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = false,
                 JsonContent = uploadedContent,
                 FileType = 200,
                 GroupId = default,

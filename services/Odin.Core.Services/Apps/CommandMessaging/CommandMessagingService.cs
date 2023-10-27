@@ -56,8 +56,7 @@ public class CommandMessagingService
             {
                 FileType = ReservedFileTypes.CommandMessage,
                 JsonContent = OdinSystemSerializer.Serialize(msg),
-                DataType = command.Code,
-                ContentIsComplete = true
+                DataType = command.Code
             }
         };
 

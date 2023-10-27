@@ -260,13 +260,9 @@ public class DriveApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
+            
 
-            if (fileMetadata.AppData.ContentIsComplete && payloadData.Length > 0)
-            {
-                Assert.Inconclusive("ContentIsComplete is marked false but a payload was provided in the unit test");
-            }
-
-            if (fileMetadata.AppData.ContentIsComplete == false)
+            if (!string.IsNullOrEmpty(payloadData))
             {
                 encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
             }
@@ -493,7 +489,7 @@ public class DriveApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            if (fileMetadata.AppData.ContentIsComplete == false)
+            if (!string.IsNullOrEmpty(payloadData))
             {
                 encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
             }

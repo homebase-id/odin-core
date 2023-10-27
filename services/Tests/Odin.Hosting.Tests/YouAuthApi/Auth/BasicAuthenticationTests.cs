@@ -89,7 +89,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
                 AllowDistribution = true,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
                     JsonContent = jsonContent,
                     FileType = 101,
                     DataType = 202,

@@ -49,8 +49,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1,
-                    ContentIsComplete = true
+                    JsonContent = content1
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
@@ -89,8 +88,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1,
-                    ContentIsComplete = true
+                    JsonContent = content1
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
@@ -105,7 +103,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //update the content; indicate the payload changed
             fileMetadata.AppData.JsonContent = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
-            fileMetadata.AppData.ContentIsComplete = false;
 
             var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
 
@@ -116,7 +113,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.ContentIsComplete == firstHeader.FileMetadata.AppData.ContentIsComplete);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
         }
         
         // 

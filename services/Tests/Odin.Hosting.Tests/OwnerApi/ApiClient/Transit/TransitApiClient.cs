@@ -277,7 +277,7 @@ public class TransitApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            if (fileMetadata.AppData.ContentIsComplete == false)
+            if (!string.IsNullOrEmpty(payloadData))
             {
                 encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
             }

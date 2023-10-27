@@ -120,7 +120,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {
@@ -417,7 +416,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {
@@ -512,7 +510,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -699,7 +697,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {
@@ -798,7 +795,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);

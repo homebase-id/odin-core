@@ -65,7 +65,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
@@ -92,7 +91,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, metadata.AppData.Tags);
             Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(metadata.AppData.JsonContent));
-            Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(metadata.AppData.ContentIsComplete));
+            Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 0);
 
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
             Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -165,7 +164,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = true,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         },
                         AccessControlList = new() { RequiredSecurityGroup = SecurityGroupType.Anonymous }
@@ -242,7 +240,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = false,
                             JsonContent = OdinSystemSerializer.Serialize(new { content = "some content" }),
 
                             PreviewThumbnail = new ImageDataContent()
@@ -300,7 +297,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -431,7 +428,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = false,
                             JsonContent = "some content"
                         }
                     },
@@ -496,7 +492,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             UniqueId = Guid.NewGuid(),
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = false,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         }
                     },
@@ -580,8 +575,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            UniqueId = uid1, // Here we try to reuse the uniqueId associated with first upload
-                            ContentIsComplete = false,
+                            UniqueId = uid1,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
@@ -641,7 +635,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         AppData = new()
                         {
                             UniqueId = uid2,
-                            ContentIsComplete = false,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
@@ -693,8 +686,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         VersionTag = secondFileUploadResult.NewVersionTag,
                         AppData = new()
                         {
-                            UniqueId = uid1, //here we try to reuse the uniqueId associated with first upload
-                            ContentIsComplete = false,
+                            UniqueId = uid1,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },
@@ -744,7 +736,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         AppData = new()
                         {
                             UniqueId = uniqueId,
-                            ContentIsComplete = false,
                             JsonContent = OdinSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },

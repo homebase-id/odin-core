@@ -21,9 +21,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         
         public UnixTimeUtc? UserDate { get; set; }
 
-        [Obsolete("removing this field soon'ish")]
-        public bool ContentIsComplete { get; set; }
-        
         public string JsonContent { get; set; }
         
         public ImageDataContent PreviewThumbnail { get; set; }

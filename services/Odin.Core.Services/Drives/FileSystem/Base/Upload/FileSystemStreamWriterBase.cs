@@ -384,16 +384,6 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            if (metadata.AppData.ContentIsComplete && package.HasPayload)
-            {
-                throw new OdinClientException("Content is marked complete in metadata but there is also a payload", OdinClientErrorCode.InvalidPayload);
-            }
-
-            if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
-            {
-                throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
-            }
-
             if (metadata.PayloadIsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)

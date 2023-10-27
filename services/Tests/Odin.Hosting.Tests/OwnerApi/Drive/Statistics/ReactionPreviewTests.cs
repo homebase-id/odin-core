@@ -59,7 +59,6 @@ public class ReactionPreviewTests
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 1" }),
                 FileType = 909,
                 DataType = 202,
@@ -77,7 +76,6 @@ public class ReactionPreviewTests
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 2" }),
                 FileType = 909,
                 DataType = 202,
@@ -95,7 +93,6 @@ public class ReactionPreviewTests
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 3" }),
                 FileType = 909,
                 DataType = 202,
@@ -126,7 +123,6 @@ public class ReactionPreviewTests
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = 200,
                 GroupId = default,

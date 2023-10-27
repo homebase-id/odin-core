@@ -32,11 +32,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         UnixTimeUtc? UserDate { get; set; }
 
         /// <summary>
-        /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)
-        /// </summary>
-        bool ContentIsComplete { get; set; }
-
-        /// <summary>
         /// This is not searchable but rather available to be returned
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>

@@ -122,7 +122,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
@@ -219,7 +218,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -387,7 +386,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,
@@ -485,7 +483,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -589,7 +587,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 CollectionAssert.AreEquivalent(transitClientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(transitClientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(transitClientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(transitClientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -740,7 +738,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
@@ -827,7 +824,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
@@ -870,7 +866,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = false,
@@ -967,7 +962,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
@@ -1080,7 +1075,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
@@ -1134,7 +1128,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = json
                     },
                     PayloadIsEncrypted = false,
@@ -1232,7 +1225,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
@@ -1315,7 +1308,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 CollectionAssert.AreEquivalent(transitClientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(transitClientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(transitClientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.That(transitClientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -1441,7 +1434,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
@@ -1485,7 +1477,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
@@ -1575,7 +1566,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
@@ -1634,7 +1624,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
                         JsonContent = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,

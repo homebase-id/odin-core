@@ -195,7 +195,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 {
                     FileType = 777,
                     JsonContent = "This is a Comment",
-                    ContentIsComplete = true,
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -255,7 +254,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 {
                     FileType = 777,
                     JsonContent = "This is a Comment",
-                    ContentIsComplete = true,
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -355,7 +353,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 {
                     FileType = 777,
                     JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = payload == null,
                     UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -379,8 +376,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended",
-                    ContentIsComplete = true
+                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended"
                 },
                 VersionTag = header.FileMetadata.VersionTag,
                 AccessControlList = AccessControlList.Anonymous

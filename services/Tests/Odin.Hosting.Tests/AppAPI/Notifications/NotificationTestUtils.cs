@@ -20,7 +20,6 @@ public static class NotificationTestUtils
             PayloadIsEncrypted = true,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(encryptedJsonContents),
                 FileType = 150
             },

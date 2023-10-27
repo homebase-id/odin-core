@@ -164,7 +164,6 @@ public class ChatMessageFileService
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(message),
                 FileType = ChatMessage.FileType,
                 GroupId = message.ConversationId,

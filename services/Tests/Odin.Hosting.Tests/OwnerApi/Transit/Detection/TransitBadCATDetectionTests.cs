@@ -140,8 +140,7 @@ public class TransitBadCATDetectionTests
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,
-                JsonContent = headerContent,
-                ContentIsComplete = false
+                JsonContent = headerContent
             },
             PayloadIsEncrypted = false,
             AccessControlList = AccessControlList.Connected
@@ -167,8 +166,7 @@ public class TransitBadCATDetectionTests
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,
-                JsonContent = headerContent,
-                ContentIsComplete = false
+                JsonContent = headerContent
             },
             PayloadIsEncrypted = false,
             AccessControlList = AccessControlList.Anonymous

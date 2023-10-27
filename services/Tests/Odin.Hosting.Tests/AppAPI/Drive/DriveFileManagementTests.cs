@@ -75,7 +75,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
@@ -128,8 +127,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
-
+                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
@@ -263,7 +261,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
-                
+
                 //there should not be a thumbnail
                 var thumb = ctx.Thumbnails.FirstOrDefault();
                 var getThumbnailResponse = await svc.GetThumbnailAsPost(new GetThumbnailRequest()

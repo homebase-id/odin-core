@@ -326,7 +326,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
@@ -373,7 +372,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 VersionTag = versionTag,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,

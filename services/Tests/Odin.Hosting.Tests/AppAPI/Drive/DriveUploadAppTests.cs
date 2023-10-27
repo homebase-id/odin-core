@@ -69,7 +69,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = false,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
@@ -117,10 +116,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -197,7 +196,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = true,
                         JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     },
                     AccessControlList = new AccessControlList()
@@ -244,7 +242,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "some data" }),
                     UniqueId = firstUniqueId
                 }
@@ -291,7 +288,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    ContentIsComplete = true,
                     JsonContent = OdinSystemSerializer.Serialize(new { message = "this is content in a second file that reuses a uniqueId" }),
                     UniqueId = firstUniqueId
                 }

@@ -107,7 +107,6 @@ public class ConversationDefinitionService
             AppData = new UploadAppFileMetaData()
             {
                 UniqueId = convo.Id,
-                ContentIsComplete = true,
                 JsonContent = OdinSystemSerializer.Serialize(convo),
                 FileType = ChatConversation.ConversationDefinitionFileType,
                 DataType = 0,

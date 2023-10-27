@@ -156,7 +156,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 payloadData = options?.PayloadData ?? payloadData;
                 if (payloadData.Length > 0)
                 {
-                    fileMetadata.AppData.ContentIsComplete = false;
                 }
 
                 var descriptor = new UploadFileDescriptor()
@@ -287,7 +286,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                 if (payloadData.Length > 0)
                 {
-                    fileMetadata.AppData.ContentIsComplete = false;
                 }
 
                 var descriptor = new UploadFileDescriptor()

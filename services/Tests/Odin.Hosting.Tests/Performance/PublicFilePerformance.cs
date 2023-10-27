@@ -38,12 +38,12 @@ namespace Odin.Hosting.Tests.Performance
 
         /*
          * File size is : 78,981 bytes
-         * 
+         *
 
-             TaskPerformanceTest
-               Duration: 32.2 sec
+    TaskPerformanceTest
+      Duration: 32.2 sec
 
-              Standard Output: 
+              Standard Output:
                 2023-05-06 Host [SEMIBEASTII]
                 Threads   : 12
                 Iterations: 10,000
@@ -59,10 +59,10 @@ namespace Odin.Hosting.Tests.Performance
                 Bandwidth : 304,830,000 bytes / second
 
         After database caching:
-                TaskPerformanceTest
-                Duration: 28.4 sec
+TaskPerformanceTest
+  Duration: 28.4 sec
 
-                Standard Output: 
+                Standard Output:
                 2023-06-01 Host [SEMIBEASTII]
                 Threads   : 12
                 Iterations: 10,000
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Tests.Performance
                 RSA Keys Created 5, Keys Expired 0
                 DB Opened 12, Closed 0
                 Bandwidth : 343,317,000 bytes / second
-    
+
          */
         [Test]
         public async Task TaskPerformanceTest()
@@ -181,8 +181,7 @@ namespace Odin.Hosting.Tests.Performance
 
                 ResultOptions = new SectionResultOptions()
                 {
-
-                    PayloadKeys = new List<string>(){WebScaffold.PAYLOAD_KEY},
+                    PayloadKeys = new List<string>() { WebScaffold.PAYLOAD_KEY },
                     ExcludePreviewThumbnail = false,
                     IncludeAdditionalThumbnails = true,
                     IncludeJsonContent = true
@@ -333,7 +332,6 @@ namespace Odin.Hosting.Tests.Performance
                         AppData = new()
                         {
                             Tags = tags,
-                            ContentIsComplete = payloadContent == null,
                             JsonContent = jsonContent,
                             FileType = fileType,
                             DataType = dataType,
@@ -388,13 +386,13 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags,
                     descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent,
                     Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete,
-                    Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+
+                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -422,7 +420,7 @@ namespace Odin.Hosting.Tests.Performance
                 // 
                 if (payloadContent != null)
                 {
-                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY});
+                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                     Assert.That(payloadResponse.Content, Is.Not.Null);
 

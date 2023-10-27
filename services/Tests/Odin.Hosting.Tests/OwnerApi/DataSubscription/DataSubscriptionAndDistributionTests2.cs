@@ -295,7 +295,6 @@ public class DataSubscriptionAndDistributionTests2
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = string.IsNullOrEmpty(payloadContent),
                 JsonContent = headerContent,
                 GroupId = default,
                 Tags = default
@@ -320,7 +319,6 @@ public class DataSubscriptionAndDistributionTests2
             VersionTag = versionTag,
             AppData = new()
             {
-                ContentIsComplete = true,
                 JsonContent = uploadedContent,
                 FileType = fileType,
                 GroupId = default,

@@ -332,11 +332,10 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                         Stream payloadStream = Stream.Null;
                         string contentType = "application/unknown";
-                        if (sourceMetadata.AppData.ContentIsComplete == false)
-                        {
-                            var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
-                            payloadStream = p.Stream;
-                        }
+
+                        //TODO: consider what happens if the payload has been delete from disk
+                        var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                        payloadStream = p.Stream;
 
                         var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
                         additionalStreamParts.Add(payload);

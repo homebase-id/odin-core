@@ -218,7 +218,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 PayloadIsEncrypted = encrypted,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
                     JsonContent = uploadedContent,
                     FileType = default,
                     GroupId = default,

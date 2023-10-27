@@ -217,7 +217,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
                     JsonContent = "some content",
                     FileType = 101,
                     GroupId = default,
