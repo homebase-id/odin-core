@@ -7,14 +7,11 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Hosting.Controllers;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
 {
     /// <summary>
     /// The interface for storing files
