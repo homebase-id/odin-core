@@ -341,7 +341,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                if (payloadContent?.Any() ?? false)
+                {
+                    Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                }
+                else
+                {
+                    Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 0);
+                }
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);

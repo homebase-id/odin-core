@@ -392,7 +392,15 @@ TaskPerformanceTest
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent,
                     Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                if (payloadContent?.Any() ?? false)
+                {
+                    Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                }
+                else
+                {
+                    Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 0);
+
+                }
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
