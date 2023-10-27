@@ -151,4 +151,10 @@ public class DriveMultiPayloadTests
         // read from Thumbnails on ClientFileHeader instead fo AppData
         Assert.Inconclusive("TODO");
     }
+    
+    [Test]
+    public void MetadataLastModifiedDateIsUpdatedWhenPayloadAddedUpdatedOrRemoved()
+    {
+        Assert.Inconclusive("TODO");
+    }
 }
