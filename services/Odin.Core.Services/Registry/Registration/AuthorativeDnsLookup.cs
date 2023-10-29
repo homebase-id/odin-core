@@ -124,105 +124,48 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
     //
 
     private async Task<List<string>> LookUpGlueRecords(
-        IEnumerable<string> resolvers,
+        IReadOnlyCollection<string> resolvers,
         string domain,
         DnsQueryOptions dnsQueryOptions)
     {
-        using var cts = new CancellationTokenSource();
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions);
 
-        var queries = new List<Task<IDnsQueryResponse>>();
-        foreach (var resolver in resolvers)
+        var result = response?.Authorities.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
+        if (result?.Count > 0)
         {
-            _logger.LogTrace("Querying {resolver} for {domain} glue", resolver, domain);
-            var query = _dnsClient.Query(resolver, domain, QueryType.SOA, dnsQueryOptions, cts.Token);
-            queries.Add(query);
+            _logger.LogDebug("{resolver} found glue for {domain}: {glue}",
+                response!.NameServer, domain, string.Join(" ; ", result));
+        }
+        else
+        {
+            _logger.LogDebug("{resolvers} found no glue for {domain}",
+                string.Join(',', resolvers), domain);
         }
 
-        while (queries.Count > 0 && !cts.IsCancellationRequested)
-        {
-            var completedQuery = await Task.WhenAny(queries);
-            queries.Remove(completedQuery);
-
-            var response = await completedQuery;
-            if (response.HasError)
-            {
-                switch (response.Header.ResponseCode)
-                {
-                    case DnsHeaderResponseCode.NotExistentDomain:
-                        _logger.LogTrace("Glue query returned {error} for {domain} from {server}",
-                            response.ErrorMessage, domain, response.NameServer);
-                        break;
-                    default:
-                        _logger.LogDebug("Glue query returned {error} for {domain} from {server}",
-                            response.ErrorMessage, domain, response.NameServer);
-                        break;
-                }
-                continue;
-            }
-
-            var result = response.Authorities.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
-            if (result.Any())
-            {
-                _logger.LogTrace("{resolver} found glue for {domain}: {glue}", response.NameServer, domain, string.Join(" ; ", result));
-            }
-            else
-            {
-                _logger.LogTrace("{resolver} found no glue for {domain}", response.NameServer, domain);
-            }
-
-            cts.Cancel();
-            return result;
-        }
-
-        return new List<string>();
+        return result ?? new List<string>();;
     }
 
     //
 
     private async Task<(string authorativeDomain, string authorativeNameServer)> LookUpAuthoratives(
-        List<string> resolvers,
+        IReadOnlyCollection<string> resolvers,
         string domain,
         DnsQueryOptions dnsQueryOptions)
     {
         var authorativeDomain = "";
         var authorativeNameServer = "";
 
-        using var cts = new CancellationTokenSource();
-
-        var queries = new List<Task<IDnsQueryResponse>>();
-        foreach (var resolver in resolvers)
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions);
+        var soa = response?.Answers.SoaRecords().FirstOrDefault();
+        if (soa == null)
         {
-            _logger.LogTrace("Querying {resolver} for {domain} SOA", resolver, domain);
-            var query = _dnsClient.Query(resolver, domain, QueryType.SOA, dnsQueryOptions, cts.Token);
-            queries.Add(query);
+            _logger.LogDebug("{resolvers} found no SOA for {domain}", string.Join(',', resolvers), domain);
         }
-
-        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        else
         {
-            var completedQuery = await Task.WhenAny(queries);
-            queries.Remove(completedQuery);
-
-            var response = await completedQuery;
-            if (response.HasError)
-            {
-                _logger.LogDebug("SOA query returned {error} for {domain} from {server}",
-                    response.ErrorMessage, domain, response.NameServer);
-                continue;
-            }
-
-            var soa = response.Answers.SoaRecords().FirstOrDefault();
-            if (soa == null)
-            {
-                // Did not find a SOA record here, get out
-                _logger.LogTrace("{resolver} found no soa for {domain}", response.NameServer, domain);
-            }
-            else
-            {
-                authorativeDomain = soa.DomainName.ToString()?.TrimEnd('.') ?? "";
-                authorativeNameServer = soa.MName.ToString()?.TrimEnd('.') ?? "";
-            }
-
-            cts.Cancel();
+            _logger.LogDebug("{resolver} found SOA for {domain}: {soa}", response!.NameServer, domain, soa);
+            authorativeDomain = soa.DomainName.ToString()?.TrimEnd('.') ?? "";
+            authorativeNameServer = soa.MName.ToString()?.TrimEnd('.') ?? "";
         }
         return (authorativeDomain, authorativeNameServer);
     }
@@ -230,48 +173,22 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
     //
 
     private async Task<List<string>> LookUpNameServers(
-        IEnumerable<string> resolvers,
+        IReadOnlyCollection<string> resolvers,
         string domain,
         DnsQueryOptions dnsQueryOptions)
     {
-        using var cts = new CancellationTokenSource();
-
-        var queries = new List<Task<IDnsQueryResponse>>();
-        foreach (var resolver in resolvers)
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.NS, dnsQueryOptions);
+        var result = response?.Answers.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
+        if (result?.Count > 0)
         {
-            _logger.LogTrace("Querying {resolver} for {domain} NS", resolver, domain);
-            var query = _dnsClient.Query(resolver, domain, QueryType.NS, dnsQueryOptions, cts.Token);
-            queries.Add(query);
+            _logger.LogDebug("{resolver} found NS for {domain}: {nameservers}", response!.NameServer, domain,
+                string.Join(" ; ", result));
         }
-
-        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        else
         {
-            var completedQuery = await Task.WhenAny(queries);
-            queries.Remove(completedQuery);
-
-            var response = await completedQuery;
-            if (response.HasError)
-            {
-                _logger.LogDebug("NS query returned {error} for {domain} from {server}",
-                    response.ErrorMessage, domain, response.NameServer);
-                continue;
-            }
-
-            var result = response.Answers.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
-            if (result.Any())
-            {
-                _logger.LogTrace("{resolver} found NS for {domain}: {glue}", response.NameServer, domain, string.Join(" ; ", result));
-            }
-            else
-            {
-                _logger.LogTrace("{resolver} found no NS for {domain}", response.NameServer, domain);
-            }
-
-            cts.Cancel();
-            return result;
+            _logger.LogDebug("{resolvers} found no NS for {domain}", string.Join(',', resolvers), domain);
         }
-
-        return new List<string>();
+        return result ?? new List<string>();;
     }
 
     //

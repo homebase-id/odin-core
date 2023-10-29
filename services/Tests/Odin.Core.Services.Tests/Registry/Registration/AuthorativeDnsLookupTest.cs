@@ -61,7 +61,6 @@ public class AuthorativeDnsLookupTest
     {
         var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
         var lookup = new AuthorativeDnsLookup(loggerMock.Object, new LookupClient());
-        // var result = await lookup.LookupNameServers(domain);
         var result = await lookup.LookupDomainAuthority(domain);
         Assert.That(result.Exception, Is.Null);
         Assert.That(result.AuthorativeDomain, Is.EqualTo(expectedAuthorityDomain));

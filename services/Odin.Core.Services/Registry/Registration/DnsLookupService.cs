@@ -147,7 +147,7 @@ public class DnsLookupService : IDnsLookupService
         foreach (var record in dnsConfigs)
         {
             var recordStatus = await VerifyDnsRecord(
-                authority.AuthorativeNameServer,
+                authority.NameServers,
                 queryOptions,
                 domain,
                 record.Name,
@@ -180,7 +180,7 @@ public class DnsLookupService : IDnsLookupService
             foreach (var record in dnsConfigs)
             {
                 var recordStatus = await VerifyDnsRecord(
-                    resolver,
+                    new [] {resolver},
                     queryOptions,
                     domain,
                     record.Name,
@@ -273,7 +273,7 @@ public class DnsLookupService : IDnsLookupService
     //
 
     private async Task<DnsLookupRecordStatus> VerifyDnsRecord(
-        string resolver,
+        IReadOnlyCollection<string> resolvers,
         DnsQueryOptions options,
         string domain,
         string label,
@@ -294,8 +294,8 @@ public class DnsLookupService : IDnsLookupService
 
         // Bail if any AAAA records on domain
         var recordType = QueryType.AAAA;
-        var response = await _dnsClient.Query(resolver, domain, recordType, options);
-        if (response.Answers.AaaaRecords().Any())
+        var response = await _dnsClient.Query(resolvers, domain, recordType, options);
+        if (response?.Answers.AaaaRecords().Any() == true)
         {
             result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
         }
@@ -306,16 +306,16 @@ public class DnsLookupService : IDnsLookupService
             {
                 case "A":
                     recordType = QueryType.A;
-                    response = await _dnsClient.Query(resolver, domain, recordType, options);
-                    records = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options);
+                    records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;
 
                 case "ALIAS":
                 case "CNAME":
                     recordType = QueryType.CNAME;
-                    response = await _dnsClient.Query(resolver, domain, recordType, options);
-                    records = response.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList();
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options);
+                    records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;
 
@@ -327,10 +327,10 @@ public class DnsLookupService : IDnsLookupService
         _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms, result:{result}, answer:{answer}",
             domain,
             recordType,
-            response.NameServer.Address,
+            response?.NameServer.Address ?? string.Join(',', resolvers),
             sw.ElapsedMilliseconds,
             result,
-            string.Join(" ; ", response.Answers));
+            response?.Answers.Count > 0 ? string.Join(" ; ", response.Answers) : "");
 
         // Sanity
         if (result == DnsLookupRecordStatus.Unknown)
