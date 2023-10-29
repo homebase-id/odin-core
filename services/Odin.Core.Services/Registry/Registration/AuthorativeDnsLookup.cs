@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Registry.Registration;
@@ -12,22 +15,64 @@ namespace Odin.Core.Services.Registry.Registration;
 
 public class AuthorativeDnsLookup : IAuthorativeDnsLookup
 {
-    public string RootServer { get; set; } = "a.root-servers.net"; // https://www.iana.org/domains/root/servers
     private readonly ILogger<AuthorativeDnsLookup> _logger;
+    private readonly ILookupClient _dnsClient;
 
     //
 
-    public AuthorativeDnsLookup(ILogger<AuthorativeDnsLookup> logger)
+    public AuthorativeDnsLookup(ILogger<AuthorativeDnsLookup> logger, ILookupClient dnsClient)
     {
         _logger = logger;
+        _dnsClient = dnsClient;
     }
 
     //
 
-    public async Task<string> LookupNameServer(string domain)
+    public async Task<IAuthorativeDnsLookupResult> LookupRootAuthority()
     {
-        var authoritativeServer = RootServer;
-        _logger.LogDebug("Beginning look up of authorative nameserver for {domain}", domain);
+        _logger.LogTrace("Beginning look up of root servers");
+
+        var result = new AuthorativeDnsLookupResult();
+
+        var response = await _dnsClient.QueryAsync(".", QueryType.SOA);
+        if (response.HasError)
+        {
+            throw new AuthorativeDnsLookupException($"Error getting root servers (soa): {response.ErrorMessage}");
+        }
+        var soa = response.Answers.SoaRecords().First();
+        result.AuthorativeDomain = soa.DomainName.ToString()?.TrimEnd('.') ?? "";
+        result.AuthorativeNameServer = soa.MName.ToString()?.TrimEnd('.') ?? "";
+
+        response = await _dnsClient.QueryAsync(".", QueryType.NS);
+        if (response.HasError)
+        {
+            throw new AuthorativeDnsLookupException($"Error getting root servers (ns): {response.ErrorMessage}");
+        }
+        result.NameServers = response.Answers.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
+
+        return result;
+    }
+
+    //
+
+    public async Task<IAuthorativeDnsLookupResult> LookupDomainAuthority(string domain)
+    {
+        var authoratives = new AuthorativeDnsLookupResult();
+
+        _logger.LogDebug("Beginning look up of authorative records for {domain}", domain);
+
+        var roots = await LookupRootAuthority();
+        if (domain.Trim('.') == "") // looking up root?
+        {
+            return roots;
+        }
+
+        var nameServers = roots.NameServers;
+        var dnsQueryOptions = new DnsQueryOptions
+        {
+            Recursion = false,
+            UseCache = false,
+        };
 
         try
         {
@@ -40,68 +85,193 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 // Advance domain, e.g. "com" => "example.com"
                 subdomain = labels[idx] + (string.IsNullOrEmpty(subdomain) ? "" : ".") + subdomain;
 
-                _logger.LogDebug("Querying {authoritativeServer} for {domain}", authoritativeServer, subdomain);
-
-                var dnsClient = await CreateDnsClient(authoritativeServer);
-
-                // Get glue NS SOA record
-                var response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
-                if (response.HasError)
+                nameServers = await LookUpGlueRecords(nameServers, subdomain, dnsQueryOptions);
+                if (!nameServers.Any())
                 {
-                    _logger.LogDebug("Glue query returned {error} for {domain}", response.ErrorMessage, subdomain);
+                    // Did not find any glue here, get out
                     break;
                 }
 
-                var nsRecord = response.Authorities.NsRecords().FirstOrDefault();
-                if (nsRecord == null)
-                {
-                    // Did not find a NS record here, get out
-                    break;
-                }
-
-                var nsdname = nsRecord.NSDName.ToString()!;
-                dnsClient = await CreateDnsClient(nsdname);
-
-                // Get SOA record
-                response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
-                if (response.HasError)
-                {
-                    _logger.LogDebug("SOA query returned {error} for {domain}", response.ErrorMessage, subdomain);
-                    break;
-                }
-
-                var soaRecord = response.Answers.SoaRecords().FirstOrDefault();
-                if (soaRecord == null)
+                authoratives.NameServers = new List<string>(nameServers);
+                var (authorativeDomain, authorativeNameServer) = await LookUpAuthoratives(nameServers, subdomain, dnsQueryOptions);
+                if (authorativeDomain == "" || authorativeNameServer == "")
                 {
                     // Did not find a SOA record here, get out
                     break;
                 }
 
-                authoritativeServer = soaRecord.MName.ToString()?.TrimEnd('.') ?? "";
+                authoratives.AuthorativeDomain = authorativeDomain;
+                authoratives.AuthorativeNameServer = authorativeNameServer;
+                authoratives.NameServers = await LookUpNameServers(nameServers, authorativeDomain, dnsQueryOptions);
+
             } // end for
 
-            if (authoritativeServer == RootServer)
+            _logger.LogDebug("Authorative for {domain}: AuthorativeDomain={AuthorativeDomain}, AuthorativeNameServer={AuthorativeNameServer}, NameServers={NameServers}",
+                domain,
+                authoratives.AuthorativeDomain,
+                authoratives.AuthorativeNameServer,
+                string.Join(',', authoratives.NameServers));
+
+            return authoratives;
+        }
+        catch (Exception e)
+        {
+            _logger.LogDebug("DNS lookup failed: {error}", e.Message);
+            return new AuthorativeDnsLookupResult(e);
+        }
+    }
+
+    //
+
+    private async Task<List<string>> LookUpGlueRecords(
+        IEnumerable<string> resolvers,
+        string domain,
+        DnsQueryOptions dnsQueryOptions)
+    {
+        using var cts = new CancellationTokenSource();
+
+        var queries = new List<Task<IDnsQueryResponse>>();
+        foreach (var resolver in resolvers)
+        {
+            _logger.LogTrace("Querying {resolver} for {domain} glue", resolver, domain);
+            var query = _dnsClient.Query(resolver, domain, QueryType.SOA, dnsQueryOptions, cts.Token);
+            queries.Add(query);
+        }
+
+        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        {
+            var completedQuery = await Task.WhenAny(queries);
+            queries.Remove(completedQuery);
+
+            var response = await completedQuery;
+            if (response.HasError)
             {
-                _logger.LogDebug("No authoritative NS records found for {domain}", domain);
+                switch (response.Header.ResponseCode)
+                {
+                    case DnsHeaderResponseCode.NotExistentDomain:
+                        _logger.LogTrace("Glue query returned {error} for {domain} from {server}",
+                            response.ErrorMessage, domain, response.NameServer);
+                        break;
+                    default:
+                        _logger.LogDebug("Glue query returned {error} for {domain} from {server}",
+                            response.ErrorMessage, domain, response.NameServer);
+                        break;
+                }
+                continue;
+            }
+
+            var result = response.Authorities.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
+            if (result.Any())
+            {
+                _logger.LogTrace("{resolver} found glue for {domain}: {glue}", response.NameServer, domain, string.Join(" ; ", result));
             }
             else
             {
-                _logger.LogDebug("Authoritative DNS Server for {domain} is {authoritativeServer}",
-                    domain, authoritativeServer);
+                _logger.LogTrace("{resolver} found no glue for {domain}", response.NameServer, domain);
             }
-        }
-        catch (DnsResponseException e)
-        {
-            _logger.LogDebug("DNS lookup failed: {error}", e.Message);
-            authoritativeServer = "";
-        }
-        catch (AuthorativeDnsLookupException e)
-        {
-            _logger.LogDebug("DNS lookup failed: {error}", e.Message);
-            authoritativeServer = "";
+
+            cts.Cancel();
+            return result;
         }
 
-        return authoritativeServer == RootServer ? "" : authoritativeServer;
+        return new List<string>();
+    }
+
+    //
+
+    private async Task<(string authorativeDomain, string authorativeNameServer)> LookUpAuthoratives(
+        List<string> resolvers,
+        string domain,
+        DnsQueryOptions dnsQueryOptions)
+    {
+        var authorativeDomain = "";
+        var authorativeNameServer = "";
+
+        using var cts = new CancellationTokenSource();
+
+        var queries = new List<Task<IDnsQueryResponse>>();
+        foreach (var resolver in resolvers)
+        {
+            _logger.LogTrace("Querying {resolver} for {domain} SOA", resolver, domain);
+            var query = _dnsClient.Query(resolver, domain, QueryType.SOA, dnsQueryOptions, cts.Token);
+            queries.Add(query);
+        }
+
+        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        {
+            var completedQuery = await Task.WhenAny(queries);
+            queries.Remove(completedQuery);
+
+            var response = await completedQuery;
+            if (response.HasError)
+            {
+                _logger.LogDebug("SOA query returned {error} for {domain} from {server}",
+                    response.ErrorMessage, domain, response.NameServer);
+                continue;
+            }
+
+            var soa = response.Answers.SoaRecords().FirstOrDefault();
+            if (soa == null)
+            {
+                // Did not find a SOA record here, get out
+                _logger.LogTrace("{resolver} found no soa for {domain}", response.NameServer, domain);
+            }
+            else
+            {
+                authorativeDomain = soa.DomainName.ToString()?.TrimEnd('.') ?? "";
+                authorativeNameServer = soa.MName.ToString()?.TrimEnd('.') ?? "";
+            }
+
+            cts.Cancel();
+        }
+        return (authorativeDomain, authorativeNameServer);
+    }
+
+    //
+
+    private async Task<List<string>> LookUpNameServers(
+        IEnumerable<string> resolvers,
+        string domain,
+        DnsQueryOptions dnsQueryOptions)
+    {
+        using var cts = new CancellationTokenSource();
+
+        var queries = new List<Task<IDnsQueryResponse>>();
+        foreach (var resolver in resolvers)
+        {
+            _logger.LogTrace("Querying {resolver} for {domain} NS", resolver, domain);
+            var query = _dnsClient.Query(resolver, domain, QueryType.NS, dnsQueryOptions, cts.Token);
+            queries.Add(query);
+        }
+
+        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        {
+            var completedQuery = await Task.WhenAny(queries);
+            queries.Remove(completedQuery);
+
+            var response = await completedQuery;
+            if (response.HasError)
+            {
+                _logger.LogDebug("NS query returned {error} for {domain} from {server}",
+                    response.ErrorMessage, domain, response.NameServer);
+                continue;
+            }
+
+            var result = response.Answers.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
+            if (result.Any())
+            {
+                _logger.LogTrace("{resolver} found NS for {domain}: {glue}", response.NameServer, domain, string.Join(" ; ", result));
+            }
+            else
+            {
+                _logger.LogTrace("{resolver} found no NS for {domain}", response.NameServer, domain);
+            }
+
+            cts.Cancel();
+            return result;
+        }
+
+        return new List<string>();
     }
 
     //
@@ -110,55 +280,35 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
     {
         _logger.LogDebug("Beginning look up of zone apex for {domain}", domain);
 
-        var labels = domain.Split('.');
-        for (var i = 0; i < labels.Length; i++)
+        var authority = await LookupDomainAuthority(domain);
+        if (string.IsNullOrEmpty(authority.AuthorativeDomain))
         {
-            var subdomain = string.Join('.', labels.Skip(i));
-            var authorativeServer = await LookupNameServer(domain);
-            if (string.IsNullOrEmpty(authorativeServer))
-            {
-                _logger.LogDebug("LookupZoneApex did not find an authorative server for {domain}", subdomain);
-                return "";
-            }
-
-            _logger.LogDebug("LookupZoneApex query SOA on {domain}", subdomain);
-            var dnsClient = await CreateDnsClient(authorativeServer);
-
-            var response = await dnsClient.QueryAsync(subdomain, QueryType.SOA);
-            foreach (var soa in response.Answers.SoaRecords())
-            {
-                _logger.LogDebug("LookupZoneApex found SOA on {domain}: {SOA}", subdomain, soa);
-                if (soa.DomainName.Value.ToLower() == subdomain + '.')
-                {
-                    _logger.LogDebug("LookupZoneApex zone apex is {domain}", subdomain);
-                    return subdomain;
-                }
-            }
+            _logger.LogDebug("LookupZoneApex did not find an authorative server for {domain}", domain);
         }
-        _logger.LogError("LookupZoneApex found no zone anywhere in {domain}", domain);
-        return "";
+
+        _logger.LogDebug("Zone apex for {domain} is {authorative}", domain, authority.AuthorativeDomain);
+        return authority.AuthorativeDomain;
     }
+}
 
-    //
+//
 
-    private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName)
+public class AuthorativeDnsLookupResult : IAuthorativeDnsLookupResult
+{
+    public string AuthorativeDomain { get; set; } = "";
+    public string AuthorativeNameServer { get; set; } = "";
+    public List<string> NameServers { get; set; } = new();
+    public Exception? Exception { get; set; }
+
+    public AuthorativeDnsLookupResult()
     {
-        if (!IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
-        {
-            var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
-            nameServerIp = ips.First();
-        }
-
-        var options = new LookupClientOptions(nameServerIp)
-        {
-            Recursion = false,
-            Timeout = TimeSpan.FromSeconds(5),
-            UseCache = false,
-            UseTcpOnly = false,
-        };
-
-        return new LookupClient(options);
     }
+
+    public AuthorativeDnsLookupResult(Exception e)
+    {
+        Exception = e;
+    }
+
 }
 
 //

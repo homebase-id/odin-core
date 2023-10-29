@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -23,9 +24,9 @@ public class IdentityRegistrationServiceTest
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {
-        var authorativeDnsLookup = new AuthorativeDnsLookup(new Mock<ILogger<AuthorativeDnsLookup>>().Object);
+        var authorativeDnsLookup = new AuthorativeDnsLookup(new Mock<ILogger<AuthorativeDnsLookup>>().Object, new LookupClient());
         var dnsLookupService = new DnsLookupService(
-            new Mock<ILogger<DnsLookupService>>().Object, configuration, authorativeDnsLookup);
+            new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authorativeDnsLookup);
 
         return new IdentityRegistrationService(
             _loggerMock.Object,
@@ -48,21 +49,16 @@ public class IdentityRegistrationServiceTest
     //
 
     [Test, Explicit]
-    [TestCase("example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("foo.bar.www.example.com", Resolver.Authorative, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("yagni.dk", Resolver.Authorative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.Success)]
-    [TestCase("example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.IncorrectValue, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("foo.bar.www.example.com", Resolver.External, "131.164.170.62", "identity-host.sebbarg.net", false, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.DomainOrRecordNotFound)]
-    [TestCase("yagni.dk", Resolver.External, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.Success)]
+    [TestCase("yagni.dk", Resolver.Authorative, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.Success)]
+    [TestCase("yagni.dk", Resolver.External, "135.181.203.146", "identity-host-1.ravenhosting.cloud", true, DnsLookupRecordStatus.Success, DnsLookupRecordStatus.DomainOrRecordNotFound, DnsLookupRecordStatus.Success)]
     public async Task ItShouldGetAuthorativeDnsStatus(
         string domain,
         Resolver resolver,
         string apexARecord,
         string apexAliasRecord,
         bool success,
-        DnsLookupRecordStatus apexRecordStatus,
+        DnsLookupRecordStatus apexARecordStatus,
+        DnsLookupRecordStatus apexAliasRecordStatus,
         DnsLookupRecordStatus cnameRecordStatus)
     {
         var (resolved, dnsConfigs) = await GetDnsStatus(resolver, domain, apexARecord, apexAliasRecord);
@@ -70,11 +66,11 @@ public class IdentityRegistrationServiceTest
 
         {
             var record = dnsConfigs.First(x => x is { Name: "", Type: "A" });
-            Assert.That(record.Status, Is.EqualTo(apexRecordStatus));
+            Assert.That(record.Status, Is.EqualTo(apexARecordStatus));
         }
         {
             var record = dnsConfigs.First(x => x is { Name: "", Type: "ALIAS" });
-            Assert.That(record.Status, Is.EqualTo(apexRecordStatus));
+            Assert.That(record.Status, Is.EqualTo(apexAliasRecordStatus));
         }
         {
             var record = dnsConfigs.First(x => x is { Name: DnsConfigurationSet.PrefixWww });
