@@ -61,7 +61,7 @@ public static class DnsLookupClientExtensions
             queries.Remove(completedQuery);
 
             var response = await completedQuery;
-            if (response.HasError)
+            if (response.HasError && response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
             {
                 continue;
             }

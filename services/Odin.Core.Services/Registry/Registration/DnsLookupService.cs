@@ -324,13 +324,13 @@ public class DnsLookupService : IDnsLookupService
             }
         }
 
-        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms, result:{result}, answer:{answer}",
+        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms result:{result} answer:{answer}",
             domain,
             recordType,
             response?.NameServer.Address ?? string.Join(',', resolvers),
             sw.ElapsedMilliseconds,
             result,
-            response?.Answers.Count > 0 ? string.Join(" ; ", response.Answers) : "");
+            response?.Answers.Count > 0 ? string.Join(',', response.Answers) : "");
 
         // Sanity
         if (result == DnsLookupRecordStatus.Unknown)

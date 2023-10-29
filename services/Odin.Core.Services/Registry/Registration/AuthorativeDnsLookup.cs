@@ -85,7 +85,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
                 // Advance domain, e.g. "com" => "example.com"
                 subdomain = labels[idx] + (string.IsNullOrEmpty(subdomain) ? "" : ".") + subdomain;
 
-                nameServers = await LookUpGlueRecords(nameServers, subdomain, dnsQueryOptions);
+                nameServers = await LookUpGlue(nameServers, subdomain, dnsQueryOptions);
                 if (!nameServers.Any())
                 {
                     // Did not find any glue here, get out
@@ -123,7 +123,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
 
     //
 
-    private async Task<List<string>> LookUpGlueRecords(
+    private async Task<List<string>> LookUpGlue(
         IReadOnlyCollection<string> resolvers,
         string domain,
         DnsQueryOptions dnsQueryOptions)
@@ -134,7 +134,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         if (result?.Count > 0)
         {
             _logger.LogDebug("{resolver} found glue for {domain}: {glue}",
-                response!.NameServer, domain, string.Join(" ; ", result));
+                response!.NameServer, domain, string.Join(',', result));
         }
         else
         {
@@ -182,7 +182,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         if (result?.Count > 0)
         {
             _logger.LogDebug("{resolver} found NS for {domain}: {nameservers}", response!.NameServer, domain,
-                string.Join(" ; ", result));
+                string.Join(',', result));
         }
         else
         {
