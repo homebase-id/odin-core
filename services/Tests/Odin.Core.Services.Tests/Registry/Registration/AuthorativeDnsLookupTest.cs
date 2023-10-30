@@ -29,6 +29,7 @@ public class AuthorativeDnsLookupTest
     [TestCase(".", "", "a.root-servers.net", "a.root-servers.net", 1)]
     [TestCase("com", "com", "a.gtld-servers.net", "a.gtld-servers.net", 1)]
     [TestCase("dk", "dk", "b.nic.dk", "b.nic.dk", 1)]
+    [TestCase("id", "id", "b.dns.id", "b.dns.id", 1)]
     [TestCase("example.com", "example.com", "ns.icann.org", "a.iana-servers.net", 1)]
     [TestCase("www.example.com", "example.com", "ns.icann.org", "a.iana-servers.net", 1)]
     [TestCase("aslikdjaslidjsakldj.example.com", "example.com", "ns.icann.org", "a.iana-servers.net", 1)]
@@ -49,7 +50,8 @@ public class AuthorativeDnsLookupTest
     [TestCase("admin.dominion.id", "dominion.id", "ns1.id.pub", "ns1.id.pub", 1)]
     [TestCase("dominion.id", "dominion.id", "ns1.id.pub", "ns1.id.pub", 1)]
     [TestCase("martin.vonhaller.info", "vonhaller.info", "ns01.one.com", "ns01.one.com", 1)]
-    [TestCase("akujsdjhaskdjashdaskjdhxcmvnuj.com", "com", "a.gtld-servers.net", "a.gtld-servers.net", 1)]
+    [TestCase("wrwerakujsdjhaskdjashdaskjdhxcmvnuj.com", "com", "a.gtld-servers.net", "a.gtld-servers.net", 1)]
+    [TestCase("ertertakujsdjhaskdjashdaskjdhxcmvnuj.id", "id", "b.dns.id", "b.dns.id", 1)]
     [TestCase("not a domain", "", "", "", 0)]
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "", "", "", 0)]
     public async Task ItShouldLookupAuthorativeStuff(
