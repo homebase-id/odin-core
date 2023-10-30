@@ -290,20 +290,20 @@ namespace Odin.Core.Tests
             Assert.Pass();
         }
 
-        [Test]
-        [Ignore("Not yet used...")]
-        public void CNameLookupTest()
-        {
-            string s;
-
-            s = AsciiDomainNameValidator.CNameLookup("alias.id.pub");
-            Debug.Assert(s == "odin.earth.");
-
-            s = AsciiDomainNameValidator.CNameLookup("corleone.com");
-            Debug.Assert(s == null);
-
-            Assert.Pass();
-        }
+        // [Test]
+        // [Ignore("Not yet used...")]
+        // public void CNameLookupTest()
+        // {
+        //     string s;
+        //
+        //     s = AsciiDomainNameValidator.CNameLookup("alias.id.pub");
+        //     Debug.Assert(s == "odin.earth.");
+        //
+        //     s = AsciiDomainNameValidator.CNameLookup("corleone.com");
+        //     Debug.Assert(s == null);
+        //
+        //     Assert.Pass();
+        // }
     }
 }
 
