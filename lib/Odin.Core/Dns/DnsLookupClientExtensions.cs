@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
+using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Dns;
 #nullable enable
@@ -35,15 +36,18 @@ public static class DnsLookupClientExtensions
         string domain,
         QueryType queryType,
         DnsQueryOptions? queryOptions = null,
+        ILogger? logger = default,
         CancellationToken cancellationToken = default)
     {
         using var cts = new CancellationTokenSource();
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
 
-        var nameServers = new List<NameServer>();
+        var nameServerLookups = new List<Task<NameServer>>();
         foreach (var resolver in resolverAddressesOrHostNames)
         {
-            nameServers.Add(await ResolveNameServer(resolver));
+            nameServerLookups.Add(ResolveNameServer(resolver));
         }
+        var nameServers = await Task.WhenAll(nameServerLookups);
 
         var dnsQuestion = new DnsQuestion(domain, queryType);
         queryOptions ??= new DnsQueryOptions();
@@ -51,20 +55,38 @@ public static class DnsLookupClientExtensions
         var queries = new List<Task<IDnsQueryResponse>>();
         foreach (var nameServer in nameServers)
         {
-            var query = client.QueryServerAsync(new[] { nameServer }, dnsQuestion, queryOptions, cancellationToken);
+            logger?.LogTrace("DNS query {domain} {type} @{address}", domain, queryType, nameServer);
+            var query = client.QueryServerAsync(new[] { nameServer }, dnsQuestion, queryOptions, linkedCts.Token);
             queries.Add(query);
         }
 
-        while (queries.Count > 0 && !cts.IsCancellationRequested)
+        while (queries.Count > 0 && !linkedCts.IsCancellationRequested)
         {
             var completedQuery = await Task.WhenAny(queries);
             queries.Remove(completedQuery);
 
             var response = await completedQuery;
-            if (response.HasError && response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+            if (response.HasError)
             {
-                continue;
+                logger?.LogTrace("DNS error {domain} @{address} {error}", domain, response.NameServer, response.ErrorMessage);
+                if (response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+                {
+                    continue;
+                }
             }
+
+            if (logger?.IsEnabled(LogLevel.Trace) == true)
+            {
+                if (response.Authorities.Count > 0)
+                {
+                    logger.LogTrace("DNS authorities @{address} {response}", response.NameServer, response.Authorities);
+                }
+                if (response.Answers.Count > 0)
+                {
+                    logger.LogTrace("DNS answers @{address} {response}", response.NameServer, response.Answers);
+                }
+            }
+
             cts.Cancel();
             return response;
         }

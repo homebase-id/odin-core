@@ -294,7 +294,7 @@ public class DnsLookupService : IDnsLookupService
 
         // Bail if any AAAA records on domain
         var recordType = QueryType.AAAA;
-        var response = await _dnsClient.Query(resolvers, domain, recordType, options);
+        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
         if (response?.Answers.AaaaRecords().Any() == true)
         {
             result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
@@ -306,7 +306,7 @@ public class DnsLookupService : IDnsLookupService
             {
                 case "A":
                     recordType = QueryType.A;
-                    response = await _dnsClient.Query(resolvers, domain, recordType, options);
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
                     records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;
@@ -314,7 +314,7 @@ public class DnsLookupService : IDnsLookupService
                 case "ALIAS":
                 case "CNAME":
                     recordType = QueryType.CNAME;
-                    response = await _dnsClient.Query(resolvers, domain, recordType, options);
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
                     records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;

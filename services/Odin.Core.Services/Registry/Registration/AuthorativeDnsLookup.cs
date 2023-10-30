@@ -128,7 +128,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         string domain,
         DnsQueryOptions dnsQueryOptions)
     {
-        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions);
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, _logger);
 
         var result = response?.Authorities.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
         if (result?.Count > 0)
@@ -155,7 +155,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         var authorativeDomain = "";
         var authorativeNameServer = "";
 
-        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions);
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, _logger);
         var soa = response?.Answers.SoaRecords().FirstOrDefault();
         if (soa == null)
         {
@@ -177,7 +177,7 @@ public class AuthorativeDnsLookup : IAuthorativeDnsLookup
         string domain,
         DnsQueryOptions dnsQueryOptions)
     {
-        var response = await _dnsClient.Query(resolvers, domain, QueryType.NS, dnsQueryOptions);
+        var response = await _dnsClient.Query(resolvers, domain, QueryType.NS, dnsQueryOptions, _logger);
         var result = response?.Answers.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
         if (result?.Count > 0)
         {
