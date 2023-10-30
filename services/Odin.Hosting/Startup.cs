@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Background.Certificate;
@@ -196,6 +197,7 @@ namespace Odin.Hosting
                 AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
                 AcmeAccountFolder = config.Host.SystemSslRootPath
             });
+            services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
             services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();

@@ -213,14 +213,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
 
         // Identity already exists or domain path clash?
-        if (false == await _registry.CanAddNewRegistration(domain))
-        {
-            return false;
-        }
+        return await _registry.CanAddNewRegistration(domain);
 
+        // SEB:NOTE below removed for now since it's taking too big a toll on the system when called for each key press
         // We can only create new domain if we can find a zone apex
-        var zoneApex = await _dnsLookupService.LookupZoneApex(domain);
-        return !string.IsNullOrEmpty(zoneApex);
+        // var zoneApex = await _dnsLookupService.LookupZoneApex(domain);
+        // return !string.IsNullOrEmpty(zoneApex);
     }
 
     //
