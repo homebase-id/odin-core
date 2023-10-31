@@ -116,7 +116,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task<bool> IsManagedDomainAvailable(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return false;
+        }
 
         // Identity already exists or domain path clash?
         if (false == await _registry.CanAddNewRegistration(domain))
@@ -203,10 +207,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> IsOwnDomainAvailable(string domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
+        {
+            return false;
+        }
 
         // Identity already exists or domain path clash?
         return await _registry.CanAddNewRegistration(domain);
+
+        // SEB:NOTE below removed for now since it's taking too big a toll on the system when called for each key press
+        // We can only create new domain if we can find a zone apex
+        // var zoneApex = await _dnsLookupService.LookupZoneApex(domain);
+        // return !string.IsNullOrEmpty(zoneApex);
     }
 
     //

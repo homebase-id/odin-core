@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [fix-multiple-a-records]
+    branches: [dns-parallel]
 
 permissions:
   contents: read

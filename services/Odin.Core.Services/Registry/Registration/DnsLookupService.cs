@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using DnsClient;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Util;
@@ -16,15 +16,18 @@ public class DnsLookupService : IDnsLookupService
 {
     private readonly ILogger<DnsLookupService> _logger;
     private readonly OdinConfiguration _configuration;
+    private readonly ILookupClient _dnsClient;
     private readonly IAuthorativeDnsLookup _authorativeDnsLookup;
 
     public DnsLookupService(
         ILogger<DnsLookupService> logger,
         OdinConfiguration configuration,
+        ILookupClient dnsClient,
         IAuthorativeDnsLookup authorativeDnsLookup)
     {
         _logger = logger;
         _configuration = configuration;
+        _dnsClient = dnsClient;
         _authorativeDnsLookup = authorativeDnsLookup;
     }
 
@@ -126,8 +129,8 @@ public class DnsLookupService : IDnsLookupService
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         var dnsConfigs = GetDnsConfiguration(domain);
-        var authorativeServer = await _authorativeDnsLookup.LookupNameServer(domain);
-        if (string.IsNullOrEmpty(authorativeServer))
+        var authority = await _authorativeDnsLookup.LookupDomainAuthority(domain);
+        if (string.IsNullOrEmpty(authority.AuthorativeNameServer))
         {
             foreach (var record in dnsConfigs)
             {
@@ -136,11 +139,22 @@ public class DnsLookupService : IDnsLookupService
             return (false, dnsConfigs);
         }
 
-        var dnsClient = await CreateDnsClient(authorativeServer);
+        var queryOptions = new DnsQueryOptions
+        {
+            Recursion = false,
+            UseCache = false,
+        };
         foreach (var record in dnsConfigs)
         {
-            var recordStatus = await VerifyDnsRecord(domain, record.Name, record.Type, record.Value, dnsClient);
-            record.QueryResults[authorativeServer] = recordStatus;
+            var recordStatus = await VerifyDnsRecord(
+                authority.NameServers,
+                queryOptions,
+                domain,
+                record.Name,
+                record.Type,
+                record.Value);
+
+            record.QueryResults[authority.AuthorativeNameServer] = recordStatus;
             record.Status = recordStatus;
         }
 
@@ -156,12 +170,23 @@ public class DnsLookupService : IDnsLookupService
 
         var dnsConfigs = GetDnsConfiguration(domain);
         var resolvers = new List<string>(_configuration.Registry.DnsResolvers);
+        var queryOptions = new DnsQueryOptions
+        {
+            Recursion = true,
+            UseCache = false,
+        };
         foreach (var resolver in resolvers)
         {
-            var dnsClient = await CreateDnsClient(resolver);
             foreach (var record in dnsConfigs)
             {
-                var recordStatus = await VerifyDnsRecord(domain, record.Name, record.Type, record.Value, dnsClient);
+                var recordStatus = await VerifyDnsRecord(
+                    new [] {resolver},
+                    queryOptions,
+                    domain,
+                    record.Name,
+                    record.Type,
+                    record.Value);
+
                 record.QueryResults[resolver] = recordStatus;
                 if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
                 {
@@ -201,12 +226,12 @@ public class DnsLookupService : IDnsLookupService
         AsciiDomainNameValidator.AssertValidDomain(domain);
         AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        var dnsClient = await CreateDnsClient(_configuration.Registry.PowerDnsHostAddress);
+        var resolver = _configuration.Registry.PowerDnsHostAddress;
         var dnsConfig = GetDnsConfiguration(domain);
 
         var recordTypes = new[] { QueryType.A, QueryType.CNAME, QueryType.SOA, QueryType.AAAA };
 
-        if (await DnsRecordsOfTypeExists(domain, recordTypes, dnsClient))
+        if (await DnsRecordsOfTypeExists(resolver, domain, recordTypes))
         {
             return false;
         }
@@ -215,7 +240,7 @@ public class DnsLookupService : IDnsLookupService
         {
             if (record.Name != "")
             {
-                if (await DnsRecordsOfTypeExists(record.Name + "." + domain, recordTypes, dnsClient))
+                if (await DnsRecordsOfTypeExists(resolver, record.Name + "." + domain, recordTypes))
                 {
                     return false;
                 }
@@ -248,11 +273,12 @@ public class DnsLookupService : IDnsLookupService
     //
 
     private async Task<DnsLookupRecordStatus> VerifyDnsRecord(
+        IReadOnlyCollection<string> resolvers,
+        DnsQueryOptions options,
         string domain,
         string label,
         string type,
-        string expectedValue,
-        IDnsQuery dnsClient)
+        string expectedValue)
     {
         var result = DnsLookupRecordStatus.Unknown;
 
@@ -268,8 +294,8 @@ public class DnsLookupService : IDnsLookupService
 
         // Bail if any AAAA records on domain
         var recordType = QueryType.AAAA;
-        var response = await dnsClient.QueryAsync(domain, recordType);
-        if (response.Answers.AaaaRecords().Any())
+        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+        if (response?.Answers.AaaaRecords().Any() == true)
         {
             result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
         }
@@ -280,16 +306,16 @@ public class DnsLookupService : IDnsLookupService
             {
                 case "A":
                     recordType = QueryType.A;
-                    response = await dnsClient.QueryAsync(domain, recordType);
-                    records = response.Answers.ARecords().Select(x => x.Address.ToString()).ToList();
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+                    records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;
 
                 case "ALIAS":
                 case "CNAME":
                     recordType = QueryType.CNAME;
-                    response = await dnsClient.QueryAsync(domain, recordType);
-                    records = response.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList();
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+                    records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? new List<string>();
                     result = VerifyDnsValue(records, expectedValue);
                     break;
 
@@ -298,13 +324,13 @@ public class DnsLookupService : IDnsLookupService
             }
         }
 
-        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms, result:{result}, answer:{answer}",
+        _logger.LogDebug("DNS lookup {domain} {type} @{address} {elapsed}ms result:{result} answer:{answer}",
             domain,
             recordType,
-            response.NameServer.Address,
+            response?.NameServer.Address ?? string.Join(',', resolvers),
             sw.ElapsedMilliseconds,
             result,
-            string.Join(" ; ", response.Answers));
+            response?.Answers.Count > 0 ? string.Join(',', response.Answers) : "");
 
         // Sanity
         if (result == DnsLookupRecordStatus.Unknown)
@@ -336,11 +362,17 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<bool> DnsRecordsOfTypeExists(string domain, QueryType[] recordTypes, ILookupClient dnsClient)
+    private async Task<bool> DnsRecordsOfTypeExists(string resolver, string domain, QueryType[] recordTypes)
     {
+        var dnsQueryOptions = new DnsQueryOptions
+        {
+            Recursion = false,
+            UseCache = false,
+        };
+
         foreach (var recordType in recordTypes)
         {
-            var response = await dnsClient.QueryAsync(domain, recordType);
+            var response = await _dnsClient.Query(resolver, domain, recordType, dnsQueryOptions);
             if (response.Answers.Count > 0)
             {
                 return true;
@@ -348,36 +380,6 @@ public class DnsLookupService : IDnsLookupService
         }
 
         return false;
-    }
-
-    //
-
-    private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName)
-    {
-        if (resolverAddressOrHostName == "")
-        {
-            return new LookupClient(new LookupClientOptions
-            {
-                Recursion = false,
-                UseCache = false,
-            });
-        }
-
-        if (IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
-        {
-            return new LookupClient(nameServerIp);
-        }
-
-        var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
-        nameServerIp = ips.First();
-
-        var options = new LookupClientOptions(nameServerIp)
-        {
-            Recursion = false,
-            UseCache = false,
-        };
-
-        return new LookupClient(options);
     }
 
     //
