@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.Peer
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, lastModified, thumb) =
                 await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
-            if (thumb == Stream.Null)
+            if (thumb == null)
             {
                 return NotFound();
             }
@@ -129,7 +129,7 @@ namespace Odin.Hosting.Controllers.Peer
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified); 
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 

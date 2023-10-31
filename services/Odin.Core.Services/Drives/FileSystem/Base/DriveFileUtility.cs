@@ -68,7 +68,8 @@ public static class DriveFileUtility
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority,
             FileByteCount = header.ServerMetadata.FileByteCount,
-            Payloads = header.FileMetadata.Payloads
+            Payloads = header.FileMetadata.Payloads,
+            
         };
 
         //add additional info

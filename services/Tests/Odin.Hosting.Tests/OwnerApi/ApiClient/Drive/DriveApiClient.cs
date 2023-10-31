@@ -334,8 +334,7 @@ public class DriveApiClient
             });
         }
     }
-
-
+    
     public async Task DeleteFile(ExternalFileIdentifier file, List<string> recipients = null, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
