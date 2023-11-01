@@ -34,7 +34,7 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class
+    public IEnumerable<T> GetByDataType<T>(byte[] key2) where T : class
     {
         var list = _db.GetByKeyTwo(key2);
         if (null == list)

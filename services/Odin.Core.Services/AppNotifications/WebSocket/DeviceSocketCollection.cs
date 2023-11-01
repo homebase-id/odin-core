@@ -4,7 +4,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Odin.Core.Services.AppNotifications
+namespace Odin.Core.Services.AppNotifications.WebSocket
 {
     /// <summary>
     /// All devices connected for app notifications

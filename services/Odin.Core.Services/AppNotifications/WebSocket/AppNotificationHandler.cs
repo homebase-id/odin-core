@@ -14,7 +14,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.ReceivingHost;
 
-namespace Odin.Core.Services.AppNotifications
+namespace Odin.Core.Services.AppNotifications.WebSocket
 {
     public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
         INotificationHandler<TransitFileReceivedNotification>
@@ -38,7 +38,7 @@ namespace Odin.Core.Services.AppNotifications
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
-        public async Task Connect(WebSocket socket, EstablishConnectionRequest request)
+        public async Task Connect(System.Net.WebSockets.WebSocket socket, EstablishConnectionRequest request)
         {
             var dotYouContext = _contextAccessor.GetCurrent();
 
@@ -69,7 +69,7 @@ namespace Odin.Core.Services.AppNotifications
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(WebSocket webSocket)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
 

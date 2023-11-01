@@ -32,7 +32,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private static readonly SemaphoreSlim RsaRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
-        private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         private readonly SingleKeyValueStorage _storage;
 

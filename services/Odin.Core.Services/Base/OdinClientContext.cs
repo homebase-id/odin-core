@@ -1,6 +1,6 @@
 namespace Odin.Core.Services.Base;
 
-public class OdinYouAuthClientContext
+public class OdinClientContext
 {
     /// <summary>
     /// The host name used for CORS, if any

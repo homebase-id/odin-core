@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications.WebSocket;
 
 public class EstablishConnectionRequest
 {

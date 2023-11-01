@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Net.WebSockets;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Odin.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications.WebSocket;
 
 public class DeviceSocket
 {
     public Guid Key { get; set; }
-    public WebSocket Socket { get; set; }
+    public System.Net.WebSockets.WebSocket Socket { get; set; }
     public ClientAuthenticationToken DeviceAuthToken { get; set; }
     
     /// <summary>
