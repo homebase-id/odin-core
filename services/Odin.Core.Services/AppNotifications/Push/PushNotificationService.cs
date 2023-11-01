@@ -86,24 +86,25 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
             var vapidDetails = new VapidDetails(content.Subject, publicKey, privateKey);
-
             
+            //TODO: this will probably need to get an http client via @Seb's work
             var webPushClient = new WebPushClient();
             try
             {
-             
-                if (!string.IsNullOrEmpty(deviceSubscription.GcmApiKey) && !string.IsNullOrWhiteSpace(deviceSubscription.GcmApiKey))
+                if (string.IsNullOrEmpty(deviceSubscription.GcmApiKey?.Trim()))
                 {
-                    await webPushClient.SendNotificationAsync(subscription,content.Payload, deviceSubscription.GcmApiKey);
+                    await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
                 }
                 else
                 {
-                    await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
+                    await webPushClient.SendNotificationAsync(subscription, content.Payload, deviceSubscription.GcmApiKey?.Trim());
                 }
             }
             catch (WebPushException exception)
             {
-                Console.WriteLine("Http STATUS code" + exception.StatusCode);
+                //TODO: collect all errors and send back to client or do something with it
+                throw new OdinClientException("Failed to send one or more notifications.", exception);
+                // Console.WriteLine("Http STATUS code" + exception.StatusCode);
             }
         }
     }
