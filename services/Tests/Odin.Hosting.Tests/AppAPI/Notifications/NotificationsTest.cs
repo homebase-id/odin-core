@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Authentication.YouAuth;

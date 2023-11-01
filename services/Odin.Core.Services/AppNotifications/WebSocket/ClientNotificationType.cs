@@ -1,4 +1,4 @@
-namespace Odin.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications.WebSocket;
 
 public enum ClientNotificationType
 {

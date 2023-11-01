@@ -70,13 +70,13 @@ namespace Odin.Core.Services.Authentication.Owner
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
             const string nonceDataContextKey = "cc5430e7-cc05-49aa-bc8b-d8c1f261f5ee";
             _nonceDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
-            
+
             const string serverTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
             _serverTokenStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(serverTokenContextKey));
-            
+
             const string firstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
-            _firstRunInfoStorage=tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(firstRunContextKey));
-            
+            _firstRunInfoStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(firstRunContextKey));
+
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -130,7 +130,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey()),
                 ClientTokenType = ClientTokenType.Other
             };
-            
+
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
             var odinContext = _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
             await this.UpdateOdinContext(token, odinContext);
@@ -313,7 +313,13 @@ namespace Odin.Core.Services.Authentication.Owner
             odinContext.Caller = new CallerContext(
                 odinId: (OdinId)context.Request.Host.Host,
                 masterKey: null, //will be set later
-                securityLevel: SecurityGroupType.Owner);
+                securityLevel: SecurityGroupType.Owner,
+                odinClientContext: new OdinClientContext()
+                {
+                    ClientIdOrDomain = string.Empty,
+                    CorsHostName = string.Empty,
+                    AccessRegistrationId = token.Id
+                });
 
             OdinContext ctx = await this.GetDotYouContext(token);
 
@@ -351,6 +357,5 @@ namespace Odin.Core.Services.Authentication.Owner
                 });
             }
         }
-
     }
 }

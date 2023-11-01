@@ -1,5 +1,6 @@
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications.WebSocket;
 
 namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {

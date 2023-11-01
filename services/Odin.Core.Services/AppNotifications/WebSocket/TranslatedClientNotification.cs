@@ -1,6 +1,6 @@
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 
-namespace Odin.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications.WebSocket;
 
 public class TranslatedClientNotification : IClientNotification
 {
