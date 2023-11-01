@@ -48,9 +48,10 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
             throw new OdinClientException("Invalid Push notification subscription request");
         }
 
+        subscription.AccessRegistrationId = GetDeviceKey();
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        _deviceSubscriptionStorage.Upsert(GetDeviceKey(), _deviceStorageDataType, subscription);
+        _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
         return Task.CompletedTask;
     }
 
@@ -69,7 +70,7 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         return Task.CompletedTask;
     }
 
-    
+
     public async Task Push(PushNotificationContent content)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -79,21 +80,26 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         var publicKey = (await _keyService.GetOfflinePublicKey()).publicKey.ToBase64();
         var privateKey = PublicPrivateKeyService.OfflinePrivateKeyEncryptionKey.ToBase64();
 
-        foreach (var sub in subscriptions)
+        foreach (var deviceSubscription in subscriptions)
         {
-           
             //TODO: enforce sub.ExpirationTime
 
-            var subscription = new PushSubscription(sub.Endpoint, sub.P256DH, sub.Auth);
+            var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
             var vapidDetails = new VapidDetails(content.Subject, publicKey, privateKey);
 
-            // var gcmAPIKey = @"[your key here]";
-
+            
             var webPushClient = new WebPushClient();
             try
             {
-                await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
-                //await webPushClient.SendNotificationAsync(subscription, "payload", gcmAPIKey);
+             
+                if (!string.IsNullOrEmpty(deviceSubscription.GcmApiKey) && !string.IsNullOrWhiteSpace(deviceSubscription.GcmApiKey))
+                {
+                    await webPushClient.SendNotificationAsync(subscription,content.Payload, deviceSubscription.GcmApiKey);
+                }
+                else
+                {
+                    await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
+                }
             }
             catch (WebPushException exception)
             {
