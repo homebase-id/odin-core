@@ -1,10 +1,9 @@
-using System.Net;
 using System.Threading.Tasks;
 using DnsClient;
-using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
 namespace Odin.Core.Services.Tests.Registry.Registration;
 
@@ -14,8 +13,8 @@ public class AuthorativeDnsLookupTest
     [Test]
     public async Task ItShouldGetTheRootServers()
     {
-        var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
-        var lookup = new AuthorativeDnsLookup(loggerMock.Object, new LookupClient());
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupRootAuthority();
         Assert.That(result.AuthorativeDomain, Is.EqualTo(""));
         Assert.That(result.AuthorativeNameServer, Is.EqualTo("a.root-servers.net"));
@@ -61,8 +60,8 @@ public class AuthorativeDnsLookupTest
         string expectedOtherNameServer,
         int expectedMinNameServers)
     {
-        var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
-        var lookup = new AuthorativeDnsLookup(loggerMock.Object, new LookupClient());
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupDomainAuthority(domain);
         Assert.That(result.Exception, Is.Null);
         Assert.That(result.AuthorativeDomain, Is.EqualTo(expectedAuthorityDomain));
@@ -89,8 +88,8 @@ public class AuthorativeDnsLookupTest
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "")]
     public async Task ItShouldLookupZoneApexForTheDomain(string domain, string expectedZoneApex)
     {
-        var loggerMock = new Mock<ILogger<AuthorativeDnsLookup>>();
-        var lookup = new AuthorativeDnsLookup(loggerMock.Object, new LookupClient());
+        var logger = TestLogFactory.CreateConsoleLogger<AuthorativeDnsLookup>(LogEventLevel.Verbose);
+        var lookup = new AuthorativeDnsLookup(logger, new LookupClient());
         var result = await lookup.LookupZoneApex(domain);
 
         Assert.That(result, Is.EqualTo(expectedZoneApex));
