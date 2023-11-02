@@ -14,9 +14,7 @@ public class PushNotificationSubscription
     public string P256DH { get; set; }
 
     public UnixTimeUtc SubscriptionStartedDate { get; set; }
-    public string GcmApiKey { get; set; }
-
-
+    
     public RedactedPushNotificationSubscription Redacted()
     {
         return new RedactedPushNotificationSubscription()

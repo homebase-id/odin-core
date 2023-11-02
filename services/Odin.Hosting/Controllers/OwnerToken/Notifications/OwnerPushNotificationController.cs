@@ -30,8 +30,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
                 Endpoint = request.Endpoint,
                 // ExpirationTime = ??
                 Auth = request.Auth,
-                P256DH = request.P256DH, 
-                GcmApiKey = request.GcmApiKey
+                P256DH = request.P256DH
             };
 
             await _notificationService.AddDevice(sub);
