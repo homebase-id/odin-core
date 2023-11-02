@@ -16,7 +16,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Dns;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Background.Certificate;
@@ -80,18 +79,20 @@ namespace Odin.Hosting
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
-            if (config.Quartz.EnableQuartzBackgroundService)
+            services.AddQuartz(q =>
             {
-                services.AddQuartz(q =>
+                q.UseMicrosoftDependencyInjectionJobFactory();
+                if (config.Quartz.EnableQuartzBackgroundService)
                 {
-                    //lets use use our normal DI setup
-                    q.UseMicrosoftDependencyInjectionJobFactory();
                     q.UseDefaultCronSchedule(config);
                     q.UseDefaultCertificateRenewalSchedule(config);
-                });
+                }
+            });
+            services.AddQuartzServer(options =>
+            {
+                options.WaitForJobsToComplete = true;
 
-                services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
-            }
+            });
 
             services.AddControllers()
                 .AddJsonOptions(options =>

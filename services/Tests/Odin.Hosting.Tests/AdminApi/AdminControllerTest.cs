@@ -88,8 +88,8 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards.Count, Is.EqualTo(0));
-        Assert.That(tenant.PayloadSize, Is.EqualTo(0));
+        Assert.That(tenant.PayloadShards, Is.Null);
+        Assert.That(tenant.PayloadSize, Is.Null);
     }
 
     //
@@ -109,10 +109,44 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards.Count, Is.GreaterThan(0));
+        Assert.That(tenant.PayloadShards!.Count, Is.GreaterThan(0));
         Assert.That(tenant.PayloadShards[0].Name, Is.EqualTo("shard1"));
         Assert.That(tenant.PayloadShards[0].Path, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.PayloadShards[0].Path, Does.EndWith(Path.Combine("shard1", tenant.Id)));
+        // Assert.That(tenant.PayloadSize, Is.Null);
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldDeleteTenant()
+    {
+        // Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem.DrivePayloadTests
+
+
+
+        const string url = "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud";
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var request = NewRequestMessage(HttpMethod.Delete, url);
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var idx = 0;
+        const int max = 20;
+        for (idx = 0; idx < max; idx++)
+        {
+            await Task.Delay(100);
+            request = NewRequestMessage(HttpMethod.Delete, url);
+            response = await apiClient.SendAsync(request);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                break;
+            }
+        }
+        if (idx == max)
+        {
+            Assert.Fail("Failed to delete tenant");
+        }
     }
 
     //

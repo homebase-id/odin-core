@@ -8,7 +8,6 @@ using Odin.Core.Services.Admin.Tenants.Jobs;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry;
 using Quartz;
-using Quartz.Impl.Matchers;
 
 namespace Odin.Core.Services.Admin.Tenants;
 #nullable enable
@@ -55,52 +54,49 @@ public class TenantAdmin : ITenantAdmin
 
     //
 
-    public async Task<AdminJobStatus> DeleteTenant(string domain)
+    public async Task<bool> EnqueueDeleteTenant(string domain)
     {
-        SEB:HER!
-        var jobGroup = $"delete-tenant-{domain}";
-        var jobId = Guid.NewGuid().ToString();
-        var jobKey = new JobKey(jobId, jobGroup);
+        if (!await _identityRegistry.IsIdentityRegistered(domain))
+        {
+            throw new AdminValidationException($"{domain} not found");
+        }
+
+        var jobKey = new JobKey(domain, DeleteTenantJob.JobGroup);
 
         var scheduler = await _schedulerFactory.GetScheduler();
-
-        var existingJobs = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobGroup));
-        if (existingJobs.Count > 0)
-        {
-            var triggers = await scheduler.GetTriggersOfJob(existingJobs.First());
-            if (triggers.Count == 0)
-            {
-                return AdminJobStatus.Unknown;
-            }
-
-            var triggerState = await scheduler.GetTriggerState(triggers.First().Key);
-            switch (triggerState)
-            {
-                case TriggerState.Paused:
-                    return AdminJobStatus.Paused;
-                case TriggerState.Complete:
-                    return AdminJobStatus.Completed;
-                case TriggerState.Blocked:
-                    return AdminJobStatus.Blocked;
-                case TriggerState.Error:
-                    return AdminJobStatus.Error;
-                default:
-                    return AdminJobStatus.Scheduled;
-            }
-        }
 
         var job = JobBuilder.Create<DeleteTenantJob>()
             .WithIdentity(jobKey)
             .UsingJobData("domain", domain)
             .Build();
+
         var trigger = TriggerBuilder.Create()
             .StartNow()
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
 
-        return AdminJobStatus.Scheduled;
+        return true;
     }
+
+    //
+
+    // public Task<string> EnqueueCopyTenant(string domain)
+    // {
+    //     if (!await _identityRegistry.IsIdentityRegistered(domain))
+    //     {
+    //         throw new AdminValidationException($"{domain} not found");
+    //     }
+    //
+    //     if (copyToRequest.Destination?.StartsWith("file://") == false)
+    //     {
+    //         return BadRequest(new ProblemDetails
+    //         {
+    //             Title = "Invalid destination type",
+    //             Detail = "Destination must begin with 'file://'"
+    //         });
+    //     }
+    // }
 
     //
 
@@ -214,6 +210,5 @@ public class TenantAdmin : ITenantAdmin
     }
 
     //
-
 
 }

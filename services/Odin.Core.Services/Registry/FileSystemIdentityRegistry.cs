@@ -208,12 +208,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            SEB:HER
-            await Task.Delay(30000);
-            // _trie.RemoveDomain(domain);
-            // var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
-            // Directory.Delete(tenantRoot, true);
-            // await DeletePayloads(registration);
+            _trie.RemoveDomain(domain);
+            var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
+            Directory.Delete(tenantRoot, true);
+            await DeletePayloads(registration);
         }
     }
 

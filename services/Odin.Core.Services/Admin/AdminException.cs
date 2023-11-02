@@ -18,3 +18,22 @@ public class AdminException : OdinSystemException
     {
     }
 }
+
+//
+
+// This class serves as a validation layer between service and controller.
+// Data in here is meant to be sent to the client. E.g. in a Bad Request response.
+public class AdminValidationException : AdminException
+{
+    public AdminValidationException(string message) : base(message)
+    {
+    }
+
+    public AdminValidationException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+
+    protected AdminValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
+}

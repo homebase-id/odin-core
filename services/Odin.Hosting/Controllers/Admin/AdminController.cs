@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
-using Quartz;
 
 namespace Odin.Hosting.Controllers.Admin;
 #nullable enable
@@ -61,9 +60,44 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        var status = await _tenantAdmin.DeleteTenant(domain);
-        return Accepted(new { status });
+        try
+        {
+            await _tenantAdmin.EnqueueDeleteTenant(domain);
+        }
+        catch (AdminValidationException e)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = e.Message
+            });
+        }
+
+        return Accepted();
     }
+
+    //
+
+    // [HttpPost("tenants/{domain}/copy")]
+    // public async Task<ActionResult<TenantCopyResponse>> CopyTenant(string domain)
+    // {
+    //     if (!await _tenantAdmin.TenantExists(domain))
+    //     {
+    //         return NotFound();
+    //     }
+    //
+    //     try
+    //     {
+    //         var path = await _tenantAdmin.EnqueueCopyTenant(domain);
+    //         return Accepted(new TenantCopyResponse {Path = path});
+    //     }
+    //     catch (AdminValidationException e)
+    //     {
+    //         return BadRequest(new ProblemDetails
+    //         {
+    //             Title = e.Message
+    //         });
+    //     }
+    // }
 
     //
 
