@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
-            const string payloadKey = "xx";
+            const string payloadKey = WebScaffold.PAYLOAD_KEY;
             var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
@@ -268,9 +268,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 {
                     File = fileToDelete,
                     Height = thumb.PixelHeight,
-                    Width = thumb.PixelWidth
+                    Width = thumb.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
-                Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+                Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound, $"code was {getThumbnailResponse.StatusCode}");
 
                 //there should not be a payload
                 var getPayloadResponse = await svc.GetPayloadAsPost(new GetPayloadRequest() { File = fileToDelete, Key = WebScaffold.PAYLOAD_KEY });
