@@ -188,7 +188,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             string payloadKey, bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
-            
+
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
@@ -330,7 +330,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task<PayloadStream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
             this.AssertCanReadDrive(file.DriveId);
-
+            DriveFileUtility.AssertValidPayloadKey(key);
+            
             //Note: calling to get the file header will also
             //ensure the caller can touch this file.
             var header = await this.GetServerFileHeader(file);

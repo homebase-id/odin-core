@@ -119,9 +119,16 @@ public abstract class FileSystemStreamWriterBase
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
+        // if you're adding a thumbnail, there must be a manifest
+        var descriptors = Package.InstructionSet.Manifest?.PayloadDescriptors;
+        if (null == descriptors)
+        {
+            throw new OdinClientException("An upload manifest with payload descriptors is required when you're adding thumbnails");
+        }
+
         //find the thumbnail details for the given key
         //TODO: I'm not so sure this is gonna work out...
-        var result = Package.InstructionSet.Manifest.PayloadDescriptors.Select(pd =>
+        var result = descriptors.Select(pd =>
         {
             return new
             {

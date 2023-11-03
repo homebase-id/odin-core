@@ -27,7 +27,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
-        Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] parts);
+        Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);

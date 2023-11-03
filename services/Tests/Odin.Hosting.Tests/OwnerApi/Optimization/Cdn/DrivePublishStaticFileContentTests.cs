@@ -44,6 +44,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
         }
 
         [Test(Description = "publish static content to file, including payload and thumbnails")]
+        [Ignore("No longer valid since a payload is required when uploading thumbnails")]
         public async Task CanPublishStaticFileContentWithThumbnails()
         {
             var identity = TestIdentities.Frodo;

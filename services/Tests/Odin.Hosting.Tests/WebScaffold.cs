@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests
         /// This key is used in transition while both adding multi-payload support AND shifting tests
         /// to use the client api (where each test will support it's own payload key)
         /// </summary>
-        public const string PAYLOAD_KEY = "tests-paylod-key";
+        public const string PAYLOAD_KEY = "test_key";
         
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
         public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new();

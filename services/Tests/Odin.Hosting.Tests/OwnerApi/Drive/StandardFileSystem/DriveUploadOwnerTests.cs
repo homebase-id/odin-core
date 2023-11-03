@@ -202,17 +202,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
 
-                var instructionSet = new UploadInstructionSet()
-                {
-                    TransferIv = transferIv,
-                    StorageOptions = new StorageOptions()
-                    {
-                        Drive = testContext.TargetDrive
-                    }
-                };
-
-                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
-                var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
@@ -221,6 +210,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     ContentType = "image/jpeg"
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
+                var tk1 = $"{thumbnail1.PixelHeight}{thumbnail1.PixelWidth}{WebScaffold.PAYLOAD_KEY}";
 
                 var thumbnail2 = new ThumbnailDescriptor()
                 {
@@ -229,6 +219,44 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     ContentType = "image/jpeg",
                 };
                 var thumbnail2CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes400);
+                var tk2 = $"{thumbnail2.PixelHeight}{thumbnail2.PixelWidth}{WebScaffold.PAYLOAD_KEY}";
+
+                var instructionSet = new UploadInstructionSet()
+                {
+                    TransferIv = transferIv,
+                    StorageOptions = new StorageOptions()
+                    {
+                        Drive = testContext.TargetDrive
+                    },
+                    Manifest = new UploadManifest()
+                    {
+                        PayloadDescriptors = new List<UploadedPayloadDescriptor>()
+                        {
+                            new UploadedPayloadDescriptor()
+                            {
+                                PayloadKey = WebScaffold.PAYLOAD_KEY,
+                                Thumbnails = new List<UploadedThumbnailDescriptor>()
+                                {
+                                    new UploadedThumbnailDescriptor()
+                                    {
+                                        PixelHeight = thumbnail1.PixelHeight,
+                                        PixelWidth = thumbnail1.PixelWidth,
+                                        ThumbnailKey = tk1
+                                    },
+                                    new UploadedThumbnailDescriptor()
+                                    {
+                                        PixelWidth = thumbnail2.PixelWidth,
+                                        PixelHeight = thumbnail2.PixelHeight,
+                                        ThumbnailKey = tk2
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
                 {
@@ -263,9 +291,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), tk1, thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), tk2, thumbnail2.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -294,7 +322,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -362,7 +390,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
-                    Width = thumbnail1.PixelWidth
+                    Width = thumbnail1.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
@@ -379,7 +408,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,
-                    Width = thumbnail2.PixelWidth
+                    Width = thumbnail2.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
+
                 });
 
                 Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);

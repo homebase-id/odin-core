@@ -48,7 +48,7 @@ public class DrivePayloadTests
         const string uploadedContent = "I'm Mr. Underhill";
         var payload = new TestPayload()
         {
-            Key = "ppp",
+            Key = "ppppeeeer",
             Data = "What is happening with the encoding!?"
         };
 
@@ -92,7 +92,7 @@ public class DrivePayloadTests
         // var uploadedPayload = "‘Rope!’ muttered Sam. ‘I knew I’d want it, if I hadn’t got it!’";
         var payload = new TestPayload()
         {
-            Key = "ppp",
+            Key = "rrrccca3r",
             Data = "What is happening with the encoding!?"
         };
 
@@ -139,7 +139,7 @@ public class DrivePayloadTests
 
         var payload = new TestPayload()
         {
-            Key = "ppp",
+            Key = "sppee322p",
             Data = "‘Rope!’ muttered Sam. ‘I knew I’d want it, if I hadn’t got it!’"
         };
 
