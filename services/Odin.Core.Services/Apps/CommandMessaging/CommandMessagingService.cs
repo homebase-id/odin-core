@@ -50,7 +50,6 @@ public class CommandMessagingService
         {
             GlobalTransitId = null,
             Created = UnixTimeUtc.Now().milliseconds,
-            OriginalRecipientList = null,
             IsEncrypted = true,
             AppData = new AppFileMetaData()
             {

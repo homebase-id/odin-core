@@ -124,7 +124,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -388,7 +388,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = encryptedJsonContent64
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -740,7 +740,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -826,7 +826,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -868,7 +868,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = false,
+                    IsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1077,7 +1077,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1130,7 +1130,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = json
                     },
-                    PayloadIsEncrypted = false,
+                    IsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1436,7 +1436,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1479,7 +1479,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1568,7 +1568,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1626,7 +1626,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = encryptedJsonContent64
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };

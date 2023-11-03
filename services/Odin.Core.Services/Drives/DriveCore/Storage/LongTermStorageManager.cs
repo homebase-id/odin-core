@@ -281,9 +281,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, ThumbnailDescriptor thumbnailDescriptor)
+        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, string payloadKey, ThumbnailDescriptor thumbnailDescriptor)
         {
-            var dest = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, thumbnailDescriptor.PayloadKey);
+            DriveFileUtility.AssertValidPayloadKey(payloadKey);
+            var dest = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey);
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
             File.Move(sourceThumbnail, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
@@ -336,6 +337,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(json);
             return header;
         }
+        
+        /// <summary>
+        /// Removes any payloads that are not in the provided list
+        /// </summary>
+        public async Task DeleteMissingPayloads(List<PayloadDescriptor> payloads)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
@@ -343,7 +352,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteMissingThumbnailFiles(Guid fileId, List<ThumbnailDescriptor> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
-
+            
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
             if (Directory.Exists(dir))

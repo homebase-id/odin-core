@@ -29,15 +29,16 @@ public class ClientFileMetadata
     /// </summary>
     public string SenderOdinId { get; set; }
     
-        
     public AppFileMetaData AppData { get; set; }
     
     public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
     public ReactionSummary ReactionPreview { get; set; }
     
     public Guid VersionTag { get; set; }
+    
     public List<PayloadDescriptor> Payloads { get; set; }
     
+    [Obsolete]
     public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
 }

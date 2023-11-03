@@ -66,7 +66,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = "some content",
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = "some content",

@@ -51,7 +51,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 
         Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
 
-        Task<(string encryptedKeyHeader64, bool PayloadIsEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive,
+        Task<(string encryptedKeyHeader64, bool isEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive,
             Guid fileId, string key, FileChunk chunk);
 
         Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)> GetThumbnail(TargetDrive targetDrive,

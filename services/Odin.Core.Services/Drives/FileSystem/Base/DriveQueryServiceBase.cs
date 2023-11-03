@@ -54,7 +54,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
                 {
-                    IncludesJsonContent = o.IncludeJsonContent,
+                    IncludeHeaderContent = o.IncludeHeaderContent,
                     Cursor = updatedCursor,
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows
@@ -82,7 +82,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return new QueryBatchResult()
                 {
                     QueryTime = queryTime.uniqueTime,
-                    IncludeMetadataHeader = options.IncludeJsonContent,
+                    IncludeMetadataHeader = options.IncludeHeaderContent,
                     Cursor = cursor,
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows
@@ -135,7 +135,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     var driveId = driveIdValue.GetValueOrDefault();
                     var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
                     {
-                        IncludeJsonContent = true,
+                        IncludeHeaderContent = true,
                         ExcludePreviewThumbnail = false
                     };
 
@@ -203,7 +203,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     if (shouldReceiveFile)
                     {
                         var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
-                        if (!options.IncludeJsonContent)
+                        if (!options.IncludeHeaderContent)
                         {
                             header.FileMetadata.AppData.Content = string.Empty;
                         }

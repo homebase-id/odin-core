@@ -1,0 +1,35 @@
+﻿using System.Collections.Generic;
+using System.Linq;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
+{
+    /// <summary>
+    /// Specifies how an uploaded payload should be handed; whether it's new or updating an existing payload
+    /// </summary>
+    public class UploadPayloadInstructionSet
+    {
+        public UploadPayloadInstructionSet()
+        {
+            TargetFile = new ExternalFileIdentifier();
+        }
+
+        public ExternalFileIdentifier TargetFile { get; set; }
+        public UploadManifest Manifest { get; set; }
+
+
+        public void AssertIsValid()
+        {
+            if (!TargetFile.HasValue())
+            {
+                throw new OdinClientException("Target File is invalid, you must indicate the file which will own the payload(s)", OdinClientErrorCode.InvalidFile);
+            }
+
+            if (Manifest?.PayloadDescriptors?.Any() ?? false)
+            {
+                throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads", OdinClientErrorCode.InvalidPayload);
+            }
+        }
+    }
+}

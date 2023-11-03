@@ -129,7 +129,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -425,7 +425,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -706,7 +706,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };

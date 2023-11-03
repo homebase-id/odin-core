@@ -292,7 +292,7 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = headerContent,
@@ -315,7 +315,7 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {

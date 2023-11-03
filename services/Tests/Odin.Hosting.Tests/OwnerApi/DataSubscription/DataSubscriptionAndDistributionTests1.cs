@@ -239,7 +239,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -340,7 +340,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -440,7 +440,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -564,7 +564,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -704,7 +704,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -1165,7 +1165,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,
@@ -1186,7 +1186,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,
@@ -1206,7 +1206,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {

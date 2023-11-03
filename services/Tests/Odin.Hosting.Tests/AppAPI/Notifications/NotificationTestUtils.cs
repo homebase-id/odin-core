@@ -17,7 +17,7 @@ public static class NotificationTestUtils
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             AppData = new()
             {
                 Content = OdinSystemSerializer.Serialize(encryptedJsonContents),

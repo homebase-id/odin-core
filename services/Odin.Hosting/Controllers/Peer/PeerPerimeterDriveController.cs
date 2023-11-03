@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.Peer
         public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var (encryptedKeyHeader64, payloadIsEncrypted, payloadStream) =
+            var (encryptedKeyHeader64, isEncrypted, payloadStream) =
                 await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Key, request.Chunk);
 
             if (payloadStream == null)
@@ -100,7 +100,7 @@ namespace Odin.Hosting.Controllers.Peer
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Controllers.Peer
         {
             var perimeterService = GetPerimeterService();
 
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, lastModified, thumb) =
+            var (encryptedKeyHeader64, isEncrypted, decryptedContentType, lastModified, thumb) =
                 await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey);
 
             if (thumb == null)
@@ -126,7 +126,7 @@ namespace Odin.Hosting.Controllers.Peer
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);

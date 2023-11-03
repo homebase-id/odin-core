@@ -142,7 +142,7 @@ public class TransitBadCATDetectionTests
                 FileType = 10101,
                 Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Connected
         };
 
@@ -168,7 +168,7 @@ public class TransitBadCATDetectionTests
                 FileType = 10101,
                 Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Anonymous
         };
 

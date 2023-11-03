@@ -5,6 +5,7 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -28,7 +29,11 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);
-
+        
+        [Multipart]
+        [Post(RootStorageEndpoint + "/uploadpayload")]
+        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
+        
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
         

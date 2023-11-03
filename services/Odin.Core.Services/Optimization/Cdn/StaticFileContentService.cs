@@ -90,7 +90,7 @@ public class StaticFileContentService
 
             var options = new QueryBatchResultOptions()
             {
-                IncludeJsonContent = section.ResultOptions.IncludeJsonContent,
+                IncludeHeaderContent = section.ResultOptions.IncludeHeaderContent,
                 ExcludePreviewThumbnail = section.ResultOptions.ExcludePreviewThumbnail,
                 Cursor = null, //TODO?
                 MaxRecords = int.MaxValue //TODO: Consider
@@ -114,25 +114,6 @@ public class StaticFileContentService
                     FileId = fileHeader.FileId,
                     DriveId = driveId
                 };
-
-                if (section.ResultOptions.IncludeAdditionalThumbnails)
-                {
-                    foreach (var thumbHeader in fileHeader.FileMetadata.Thumbnails ??
-                                                new List<ThumbnailDescriptor>())
-                    {
-                        var (thumbnailStream, thumbnailHeader) = await _fileSystem.Storage.GetThumbnailPayloadStream(
-                            internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight, thumbHeader.PayloadKey);
-
-                        thumbnails.Add(new ThumbnailContent()
-                        {
-                            PixelHeight = thumbnailHeader.PixelHeight,
-                            PixelWidth = thumbnailHeader.PixelWidth,
-                            ContentType = thumbnailHeader.ContentType,
-                            LastModified = thumbnailHeader.LastModified,
-                            Content = thumbnailStream.ToByteArray()
-                        });
-                    }
-                }
 
                 var payloads = new List<PayloadStaticFileResponse>();
                 if (section.ResultOptions.PayloadKeys?.Any() ?? false)

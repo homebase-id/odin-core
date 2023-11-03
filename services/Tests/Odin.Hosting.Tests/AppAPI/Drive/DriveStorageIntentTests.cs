@@ -51,7 +51,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     FileType = 101,
                     Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 
@@ -90,7 +90,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     FileType = 101,
                     Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 

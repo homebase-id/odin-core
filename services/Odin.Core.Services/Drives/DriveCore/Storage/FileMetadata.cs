@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -68,12 +69,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// The size of the payload on disk
         /// </summary>
+        [Obsolete("remove this")]
         public long PayloadSize { get; set; }
-        
-        /// <summary>
-        /// Specifies the list of recipients set when the file was uploaded
-        /// </summary>
-        public List<string> OriginalRecipientList { get; set; }
         
         public AppFileMetaData AppData { get; set; }
 
@@ -82,8 +79,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Set of thumbnails for this file in addition to the Appdata.PreviewThumbnail
         /// </summary>
+        [Obsolete("now found in the payloads")]
         public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
         public Guid? VersionTag { get; set; }
+        
+        public PayloadDescriptor GetPayloadDescriptor(string key)
+        {
+            return Payloads.SingleOrDefault(pk => pk.Key == key);
+        }
     }
 }

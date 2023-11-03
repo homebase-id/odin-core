@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// <summary>
         /// Receives the stream for a new thumbnail being added to an existing file
         /// </summary>
-        protected async Task<UploadAttachmentsResult> ReceiveAttachmentStream()
+        protected async Task<UploadPayloadResult> ReceivePayloadStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -83,28 +83,31 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var writer = this.GetFileSystemResolver().ResolveAttachmentStreamWriter();
+            var writer = this.GetFileSystemResolver().ResolvePayloadStreamWriter();
 
             var section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.ThumbnailInstructions);
+            AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
 
             await writer.StartUpload(section!.Body);
-
 
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
-                //TODO: parse payload or thumbnail
-                AssertIsValidThumbnailPart_old(section, out var fileSection, out var width, out var height);
-                await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                if (IsPayloadPart(section))
+                {
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream);
+                }
+
+                if (IsThumbnail(section))
+                {
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream);
+                }
+
                 section = await reader.ReadNextSectionAsync();
             }
-
-            //
-            // section = await reader.ReadNextSectionAsync();
-            // AssertIsPart(section, MultipartUploadParts.Payload);
-            // await writer.AddPayload(section!.Body);
 
             var status = await writer.FinalizeUpload();
             return status;

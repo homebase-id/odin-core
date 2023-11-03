@@ -33,8 +33,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<UploadResult>> Upload(StreamPart[] streamdata);
         
         [Multipart]
-        [Post(RootEndpoint + "/files/attachments/upload")]
-        Task<ApiResponse<UploadAttachmentsResult>> UploadAttachments(StreamPart[] streamdata);
+        [Post(RootEndpoint + "/files/uploadpayload")]
+        Task<ApiResponse<UploadPayloadResult>> UploadPayloads(StreamPart[] streamdata);
 
         
         [Post(RootEndpoint + "/files/header")]

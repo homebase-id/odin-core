@@ -128,7 +128,7 @@ namespace Odin.Hosting
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileAttachmentStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
@@ -136,7 +136,7 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentAttachmentStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();

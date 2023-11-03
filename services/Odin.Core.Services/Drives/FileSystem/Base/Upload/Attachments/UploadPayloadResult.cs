@@ -7,9 +7,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
     /// <summary>
     ///  Specifies how the transfer was handled for each recipient
     /// </summary>
-    public class UploadAttachmentsResult
+    public class UploadPayloadResult
     {
-        public UploadAttachmentsResult()
+        public UploadPayloadResult()
         {
             this.RecipientStatus = new();
         }

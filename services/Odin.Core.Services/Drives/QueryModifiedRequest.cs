@@ -47,7 +47,7 @@ public class GetQueryModifiedRequest
     /// </summary>
     public int MaxRecords { get; set; } = 100;
 
-    public bool IncludeJsonContent { get; set; }
+    public bool IncludeHeaderContent { get; set; }
     public bool ExcludePreviewThumbnail { get; set; }
 
      public QueryModifiedRequest ToQueryModifiedRequest () {
@@ -72,7 +72,7 @@ public class GetQueryModifiedRequest
                 MaxDate = this.MaxDate,
                 Cursor = this.Cursor,
                 MaxRecords = this.MaxRecords,
-                IncludeJsonContent = this.IncludeJsonContent,
+                IncludeHeaderContent = this.IncludeHeaderContent,
                 ExcludePreviewThumbnail = this.ExcludePreviewThumbnail,
             }
         };

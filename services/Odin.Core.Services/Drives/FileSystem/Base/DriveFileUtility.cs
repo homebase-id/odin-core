@@ -93,7 +93,6 @@ public static class DriveFileUtility
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
             Payloads = fileMetadata.Payloads,
-            Thumbnails = fileMetadata.Thumbnails,
             VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
         };
         return clientFile;

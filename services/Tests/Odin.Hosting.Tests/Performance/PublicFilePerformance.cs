@@ -183,8 +183,7 @@ TaskPerformanceTest
                 {
                     PayloadKeys = new List<string>() { WebScaffold.PAYLOAD_KEY },
                     ExcludePreviewThumbnail = false,
-                    IncludeAdditionalThumbnails = true,
-                    IncludeJsonContent = true
+                    IncludeHeaderContent = true
                 }
             });
 
@@ -200,8 +199,7 @@ TaskPerformanceTest
                 ResultOptions = new SectionResultOptions()
                 {
                     ExcludePreviewThumbnail = false,
-                    IncludeAdditionalThumbnails = false,
-                    IncludeJsonContent = false
+                    IncludeHeaderContent = false
                 }
             });
 
@@ -328,7 +326,7 @@ TaskPerformanceTest
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = false,
+                        IsEncrypted = false,
                         AppData = new()
                         {
                             Tags = tags,

@@ -39,7 +39,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var standardFile = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
                 {
@@ -56,7 +56,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
             var commentFile = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new()
                 {

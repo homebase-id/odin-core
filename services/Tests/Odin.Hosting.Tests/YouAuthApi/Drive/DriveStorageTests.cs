@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()
                 {

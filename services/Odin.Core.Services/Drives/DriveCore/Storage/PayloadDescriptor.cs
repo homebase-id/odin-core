@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
@@ -9,8 +10,9 @@ public class PayloadDescriptor
 {
     public PayloadDescriptor()
     {
-        
+        this.Thumbnails = new List<ThumbnailDescriptor>();
     }
+    
     /// <summary>
     /// A text value specified by the app to define the payload
     /// </summary>
@@ -22,6 +24,11 @@ public class PayloadDescriptor
     
     public UnixTimeUtc LastModified { get; set; }
 
+    /// <summary>
+    /// Set of thumbnails for this payload in addition to the Appdata.PreviewThumbnail
+    /// </summary>
+    public List<ThumbnailDescriptor> Thumbnails { get; set; }
+    
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));

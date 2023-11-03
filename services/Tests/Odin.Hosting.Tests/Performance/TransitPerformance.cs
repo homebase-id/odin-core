@@ -258,7 +258,7 @@ TaskPerformanceTest_Transit
                     FileMetadata = new()
                     {
                         AllowDistribution = true,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -498,7 +498,7 @@ TaskPerformanceTest_Transit
                     FileMetadata = new()
                     {
                         AllowDistribution = true,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },

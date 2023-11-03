@@ -208,7 +208,7 @@ namespace Odin.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },

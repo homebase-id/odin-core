@@ -165,7 +165,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 {
                     MaxDate = DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
                     MaxRecords = 10,
-                    IncludeJsonContent = false
+                    IncludeHeaderContent = false
                 };
 
                 var request = new QueryModifiedRequest()
@@ -323,7 +323,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -368,7 +368,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 VersionTag = versionTag,
                 AppData = new()
                 {

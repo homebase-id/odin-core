@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var metadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AllowDistribution = false,
                 AppData = new()
                 {
@@ -160,7 +160,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -264,7 +264,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -455,7 +455,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -518,7 +518,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             UniqueId = Guid.NewGuid(),
@@ -603,7 +603,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             UniqueId = uid1,
@@ -662,7 +662,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             UniqueId = uid2,
@@ -713,7 +713,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         VersionTag = secondFileUploadResult.NewVersionTag,
                         AppData = new()
                         {
@@ -763,7 +763,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             UniqueId = uniqueId,

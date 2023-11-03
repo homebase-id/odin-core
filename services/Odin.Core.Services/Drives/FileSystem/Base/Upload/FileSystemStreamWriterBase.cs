@@ -328,7 +328,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
+        KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
 
@@ -413,13 +413,6 @@ public abstract class FileSystemStreamWriterBase
             {
                 throw new OdinClientException("One or more payload descriptors is invalid", OdinClientErrorCode.InvalidFile);
             }
-        }
-
-        // validate all thumbnails have a matching payload
-        var missing = metadata.Thumbnails.Where(thumb => metadata.Payloads.All(p => p.Key != thumb.PayloadKey));
-        if (missing.Any())
-        {
-            throw new OdinClientException("Missing thumbnails for one or more payloads", OdinClientErrorCode.InvalidFile);
         }
 
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);

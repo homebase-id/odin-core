@@ -311,7 +311,6 @@ namespace Odin.Core.Services.Peer.SendingHost
                     GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = sourceMetadata.ReactionPreview,
                     SenderOdinId = string.Empty,
-                    OriginalRecipientList = null,
                     ReferencedFile = sourceMetadata.ReferencedFile,
                     VersionTag = sourceMetadata.VersionTag,
                     Payloads = sourceMetadata.Payloads,

@@ -152,7 +152,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
                 PayloadKey = payloadKey,
             });
         }

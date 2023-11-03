@@ -146,8 +146,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
-            IsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-            OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
+            IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,

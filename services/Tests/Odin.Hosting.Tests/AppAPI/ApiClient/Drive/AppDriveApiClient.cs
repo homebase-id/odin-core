@@ -182,7 +182,7 @@ public class AppDriveApiClient : AppApiClientBase
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -231,11 +231,11 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    public async Task<(AddAttachmentInstructionSet instructionSet, ApiResponse<UploadAttachmentsResult>)> UploadAttachments(ExternalFileIdentifier targetFile,
+    public async Task<(UploadPayloadInstructionSet instructionSet, ApiResponse<UploadPayloadResult>)> UploadAttachments(ExternalFileIdentifier targetFile,
         List<ThumbnailContent> thumbnails,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var instructionSet = new AddAttachmentInstructionSet()
+        var instructionSet = new UploadPayloadInstructionSet()
         {
             TargetFile = targetFile,
             Thumbnails = thumbnails,
@@ -244,7 +244,7 @@ public class AppDriveApiClient : AppApiClientBase
         var bytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
 
         List<StreamPart> parts = new();
-        parts.Add(new StreamPart(new MemoryStream(bytes), "instructionSet", "application/json", Enum.GetName(MultipartUploadParts.ThumbnailInstructions)));
+        parts.Add(new StreamPart(new MemoryStream(bytes), "instructionSet", "application/json", Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
 
         if (thumbnails?.Any() ?? false)
         {
@@ -260,7 +260,7 @@ public class AppDriveApiClient : AppApiClientBase
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
             var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-            var response = await driveSvc.UploadAttachments(parts.ToArray());
+            var response = await driveSvc.UploadPayloads(parts.ToArray());
 
             return (instructionSet, response);
         }
@@ -362,7 +362,7 @@ public class AppDriveApiClient : AppApiClientBase
 
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -416,7 +416,7 @@ public class AppDriveApiClient : AppApiClientBase
 
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {

@@ -147,8 +147,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                     {
                         PayloadKeys = new List<string>() { WebScaffold.PAYLOAD_KEY },
                         ExcludePreviewThumbnail = false,
-                        IncludeAdditionalThumbnails = true,
-                        IncludeJsonContent = true
+                        IncludeHeaderContent = true
                     }
                 });
 
@@ -164,8 +163,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                     ResultOptions = new SectionResultOptions()
                     {
                         ExcludePreviewThumbnail = false,
-                        IncludeAdditionalThumbnails = false,
-                        IncludeJsonContent = false
+                        IncludeHeaderContent = false
                     }
                 });
 
@@ -286,7 +284,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = false,
+                        IsEncrypted = false,
                         AppData = new()
                         {
                             Tags = tags,

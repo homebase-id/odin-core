@@ -526,7 +526,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             {
                 VersionTag = versionTag,
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
@@ -642,7 +642,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
                     Content = uploadedContent,

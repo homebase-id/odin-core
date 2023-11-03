@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
                     Content = uploadedContent,

@@ -63,13 +63,13 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
                 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
-                $"{GuestApiPathConstants.DriveV1}/files/attachments/upload",
+                $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
             
                 $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.TransitSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
-                $"{AppApiPathConstants.DriveV1}/files/attachments/upload",
+                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{AppApiPathConstants.AuthV1}/logout", 
                 $"{AppApiPathConstants.NotificationsV1}/preauth"
             };

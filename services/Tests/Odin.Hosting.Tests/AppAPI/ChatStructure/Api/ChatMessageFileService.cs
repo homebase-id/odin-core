@@ -161,7 +161,7 @@ public class ChatMessageFileService
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = OdinSystemSerializer.Serialize(message),

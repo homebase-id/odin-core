@@ -17,6 +17,7 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     /// <summary>
     /// Indicates this thumbnail is for the given payload key
     /// </summary>
+    [Obsolete]
     public string PayloadKey { get; set; }
 
     public UnixTimeUtc LastModified { get; set; }

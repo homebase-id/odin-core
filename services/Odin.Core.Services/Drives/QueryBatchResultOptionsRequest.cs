@@ -30,7 +30,7 @@ public class QueryBatchResultOptionsRequest
         {
             Cursor = string.IsNullOrEmpty(this.CursorState) ? new QueryBatchCursor() : new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,
-            IncludeJsonContent = this.IncludeMetadataHeader,
+            IncludeHeaderContent = this.IncludeMetadataHeader,
             Ordering = this.Ordering,
             Sorting = this.Sorting
         };

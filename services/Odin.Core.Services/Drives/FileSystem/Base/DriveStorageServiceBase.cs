@@ -13,6 +13,7 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Encryption;
@@ -193,14 +194,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-            var thumbs = header?.FileMetadata?.Thumbnails?.ToList();
+            var thumbs = header?.FileMetadata.GetPayloadDescriptor(payloadKey)?.Thumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
                 return (Stream.Null, null);
             }
 
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width);
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
                 return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height, payloadKey), directMatchingThumb);
@@ -212,7 +213,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             //TODO: add more logic here to compare width and height separately or together
-            var nextSizeUp = thumbs.FirstOrDefault(t => t.PayloadKey == payloadKey && (t.PixelHeight > height || t.PixelWidth > width));
+            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
             if (null == nextSizeUp)
             {
                 nextSizeUp = thumbs.LastOrDefault();
@@ -223,7 +224,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             return (
-                await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, nextSizeUp.PayloadKey),
+                await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, payloadKey),
                 nextSizeUp);
         }
 
@@ -233,19 +234,30 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-            var thumbs = header?.FileMetadata?.Thumbnails?.ToList();
+            var payloadDescriptor = header?.FileMetadata.GetPayloadDescriptor(payloadKey);
+
+            if (null == payloadDescriptor)
+            {
+                return Guid.Empty;
+            }
+
+            var thumbs = payloadDescriptor.Thumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
                 return Guid.Empty;
             }
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width);
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
                 // Update the metadata 
-                var updatedThumbs = header.FileMetadata.Thumbnails
-                    .Where(t => !(t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width));
-                header.FileMetadata.Thumbnails = updatedThumbs;
+                var updatedThumbs = payloadDescriptor.Thumbnails
+                    .Where(t => !(t.PixelHeight == height && t.PixelWidth == width))
+                    .ToList();
+
+                payloadDescriptor.Thumbnails = updatedThumbs;
+                // header.FileMetadata.Thumbnails = updatedThumbs;
+
                 await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height, payloadKey);
                 await this.UpdateActiveFileHeader(file, header);
             }
@@ -331,7 +343,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             this.AssertCanReadDrive(file.DriveId);
             DriveFileUtility.AssertValidPayloadKey(key);
-            
+
             //Note: calling to get the file header will also
             //ensure the caller can touch this file.
             var header = await this.GetServerFileHeader(file);
@@ -428,7 +440,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
                     var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
+                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, payloadKey, thumb);
                 }
             }
 
@@ -487,7 +499,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             // ignorePayload and ignoreThumbnail allow it to tell us what to expect.
 
             bool metadataSaysThisFileHasPayloads = newMetadata.Payloads?.Any() ?? false;
-
+            
+            await storageManager.DeleteMissingPayloads(newMetadata.Payloads);
+            
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
                 foreach (var descriptor in newMetadata.Payloads)
@@ -495,28 +509,21 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     //Note: it's just as performant to directly get the file length as it is to perform File.Exists
                     var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
                     string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
-                    newMetadata.PayloadSize += new FileInfo(sourceFile).Length;
 
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFile);
+                    
+                    // Process thumbnails
+                    var thumbs = descriptor.Thumbnails;
+                    await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
+                    foreach (var thumb in thumbs)
+                    {
+                        var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+                        var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
+                        await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor.Key, thumb);
+                    }
                 }
             }
 
-            //TODO: clean up old payload if it was removed?
-            var metadataSaysThisFileHasThumbnails = newMetadata.Thumbnails != null;
-
-            if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
-            {
-                var thumbs = newMetadata.Thumbnails?.ToList() ?? new List<ThumbnailDescriptor>();
-                await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
-                foreach (var thumb in thumbs)
-                {
-                    var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
-                    var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
-                }
-            }
-
-            //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
@@ -540,15 +547,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<Guid> UpdateAttachments(InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
-            IEnumerable<ThumbnailDescriptor> incomingThumbnails)
+        public async Task<Guid> UpdatePayloads(InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
+            List<UploadedPayloadDescriptor> incomingPayloads)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
             if (null == existingServerHeader)
             {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
+                throw new OdinClientException("Invalid target file", OdinClientErrorCode.FileNotFound);
             }
 
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
@@ -560,33 +567,39 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
             var existingThumbnails = existingServerHeader.FileMetadata.Thumbnails?.ToList() ?? new List<ThumbnailDescriptor>();
-            await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
-            foreach (var thumb in incomingThumbnails ?? new List<ThumbnailDescriptor>())
+
+            foreach (var descriptor in incomingPayloads)
             {
-                //TODO: de-dupe the records
-                var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
-                var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
-                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
+                // if the payload exists by key, overwrite; if not write new payload
+                // delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
+                // await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
-                if (!existingThumbnails.Contains(thumb))
-                {
-                    existingThumbnails.Add(thumb);
-                }
+                //TODO: de-dupe the records
+                // var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.PixelWidth, descriptor.PixelHeight, descriptor.PayloadKey);
+                // var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
+                // await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor);
+                //
+                // if (!existingThumbnails.Contains(descriptor))
+                // {
+                //     existingThumbnails.Add(descriptor);
+                // }
             }
 
             existingServerHeader.FileMetadata.Thumbnails = existingThumbnails;
+            //TODO: merge payloads with incomingPayloads
+            // existingServerHeader.FileMetadata.Payloads = TODO: merge with incomingPayloas; 
 
             //update the existing file metadata with new attachments data
-            if (existingServerHeader.FileMetadata.Payloads?.Any() ?? false)
-            {
-                //TODO: update payload size to be a sum of all payloads
-
-                throw new NotImplementedException("Need to support attachments with mutlipayloads when the feature is used");
-                // string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
-                // existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
-                // await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFilePath);
-            }
+            // if (existingServerHeader.FileMetadata.Payloads?.Any() ?? false)
+            // {
+            //     //TODO: update payload size to be a sum of all payloads
+            //
+            //     throw new NotImplementedException("Need to support attachments with mutlipayloads when the feature is used");
+            //     // string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
+            //     // existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
+            //     // await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFilePath);
+            // }
 
             await WriteFileHeaderInternal(existingServerHeader);
 
@@ -630,8 +643,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-
-            newMetadata.Thumbnails = existingServerHeader.FileMetadata.Thumbnails;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;

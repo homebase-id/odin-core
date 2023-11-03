@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
@@ -12,6 +13,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
@@ -33,7 +35,7 @@ public class TestPayloadDefinition
 
     public UploadedPayloadDescriptor ToPayloadDescriptor()
     {
-        var t = this.Thumbnails.Select(thumb => new UploadedThumbnailDescriptor  ()
+        var t = this.Thumbnails.Select(thumb => new UploadedThumbnailDescriptor()
         {
             ThumbnailKey = $"{this.Key}{thumb.PixelWidth}{thumb.PixelHeight}", //hulk smash (it all together)
             PixelWidth = thumb.PixelWidth,
@@ -95,7 +97,7 @@ public class DriveApiClientRedux
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -150,7 +152,7 @@ public class DriveApiClientRedux
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -212,7 +214,7 @@ public class DriveApiClientRedux
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -316,7 +318,6 @@ public class DriveApiClientRedux
                 parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
                     Enum.GetName(MultipartUploadParts.Payload)));
 
-
                 foreach (var thumbnail in payloadDefinition.Thumbnails)
                 {
                     var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
@@ -330,6 +331,45 @@ public class DriveApiClientRedux
 
             keyHeader.AesKey.Wipe();
 
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<UploadPayloadResult>> UploadPayloads(
+        ExternalFileIdentifier targetFile,
+        UploadManifest uploadManifest,
+        List<TestPayloadDefinition> payloads,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var instructionSet = new UploadPayloadInstructionSet()
+        {
+            TargetFile = targetFile,
+            Manifest = uploadManifest
+        };
+
+        var instructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
+
+        List<StreamPart> parts = new();
+        parts.Add(new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json", Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
+
+        foreach (var payloadDefinition in payloads)
+        {
+            parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
+                Enum.GetName(MultipartUploadParts.Payload)));
+
+            foreach (var thumbnail in payloadDefinition.Thumbnails)
+            {
+                var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
+                    Enum.GetName(MultipartUploadParts.Thumbnail)));
+            }
+        }
+        
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var response = await svc.UploadPayload(parts.ToArray());
             return response;
         }
     }

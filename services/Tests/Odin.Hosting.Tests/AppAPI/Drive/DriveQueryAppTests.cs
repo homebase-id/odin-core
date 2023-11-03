@@ -46,7 +46,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -161,7 +161,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -246,7 +246,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata_not_archived = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -262,7 +262,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata_archived = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -333,7 +333,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),

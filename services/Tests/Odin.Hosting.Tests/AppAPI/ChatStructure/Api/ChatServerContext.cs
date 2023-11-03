@@ -162,7 +162,7 @@ public class ChatServerContext
 
             var sharedSecret = _appContext.SharedSecret.ToSensitiveByteArray();
 
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),

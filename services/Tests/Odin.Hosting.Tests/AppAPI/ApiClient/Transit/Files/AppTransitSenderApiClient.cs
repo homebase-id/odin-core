@@ -58,7 +58,7 @@ public class AppTransitSenderApiClient: AppApiClientBase
             
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {

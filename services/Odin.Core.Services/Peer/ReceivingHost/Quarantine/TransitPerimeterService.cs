@@ -253,7 +253,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, bool PayloadIsEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive, Guid fileId,
+        public async Task<(string encryptedKeyHeader64, bool isEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive, Guid fileId,
             string key, FileChunk chunk)
         {
             var file = new InternalDriveFileId()

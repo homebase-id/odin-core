@@ -56,7 +56,7 @@ public class TransitQueryService
         {
             SearchResults = TransformSharedSecret(response.SearchResults, icr),
             Cursor = response.Cursor,
-            IncludesJsonContent = response.IncludesJsonContent
+            IncludeHeaderContent = response.IncludeHeaderContent
         };
     }
 

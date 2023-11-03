@@ -71,7 +71,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     AllowDistribution = false,
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -179,7 +179,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AppData = new()
                 {
                     FileType = SomeFileType,

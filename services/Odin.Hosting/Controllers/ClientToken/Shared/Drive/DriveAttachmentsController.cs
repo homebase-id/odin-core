@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/attachments/deletethumbnail")]
         public async Task<DeleteThumbnailResult> DeleteThumbnailC(DeleteThumbnailRequest request)
         {
-            return await base.DeleteThumbnail(request);
+            return await base.DeleteThumbnail(request); 
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
