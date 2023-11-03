@@ -591,7 +591,7 @@ TaskPerformanceTest_Transit
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
+                Assert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == 2);
 
 
                 //
@@ -618,7 +618,7 @@ TaskPerformanceTest_Transit
                 // Validate additional thumbnails
                 //
 
-                var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
+                var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.ToList();
 
                 //validate thumbnail 1
                 Assert.IsTrue(expectedThumbnails[0].ContentType == clientFileHeaderList[0].ContentType);

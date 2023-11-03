@@ -104,27 +104,31 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
+            
+            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
+            if (header == null)
+            {
+                return NotFound();
+            }
 
-            var (thumbPayload, thumbHeader) =
-                await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.PayloadKey, request.DirectMatchOnly);
+            var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(request.PayloadKey);
+            if (null == payloadDescriptor)
+            {
+                return NotFound();
+            }
+            
+            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
+                request.Width, request.Height, request.PayloadKey, request.DirectMatchOnly);
+            
             if (thumbPayload == Stream.Null)
             {
                 return NotFound();
             }
 
-            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-
-            if (header == null)
-            {
-                //TODO: need to throw a better exception when we have a thumbnail but no header
-                throw new OdinClientException("Missing header", OdinClientErrorCode.UnknownId);
-            }
-
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
-            HttpContext.Response.Headers.LastModified = thumbHeader.GetLastModifiedHttpHeaderValue();
+            HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, header.SharedSecretEncryptedKeyHeader.ToBase64());
 
             AddGuestApiCacheHeader();
 

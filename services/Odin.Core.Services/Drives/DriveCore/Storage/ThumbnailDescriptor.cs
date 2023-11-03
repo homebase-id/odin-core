@@ -24,14 +24,10 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
 
     public string GetFilename()
     {
+        throw new NotImplementedException("need to fix key");
         return $"{this.PixelWidth}x{this.PixelHeight}-{PayloadKey}";
     }
-
-    public string GetLastModifiedHttpHeaderValue()
-    {
-        return LastModified.ToDateTime().ToString("R");
-    }
-
+    
     public bool Equals(ThumbnailDescriptor other)
     {
         if (ReferenceEquals(null, other)) return false;

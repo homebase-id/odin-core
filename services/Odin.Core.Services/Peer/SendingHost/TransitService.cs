@@ -269,7 +269,6 @@ namespace Odin.Core.Services.Peer.SendingHost
                 }
 
                 var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-                var shouldSendThumbnails = options.SendContents.HasFlag(SendContents.Thumbnails);
 
                 var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
@@ -313,8 +312,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                     SenderOdinId = string.Empty,
                     ReferencedFile = sourceMetadata.ReferencedFile,
                     VersionTag = sourceMetadata.VersionTag,
-                    Payloads = sourceMetadata.Payloads,
-                    Thumbnails = sourceMetadata.Thumbnails
+                    Payloads = sourceMetadata.Payloads
                 };
 
                 var json = OdinSystemSerializer.Serialize(redactedMetadata);
@@ -338,21 +336,17 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                         var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
                         additionalStreamParts.Add(payload);
+                        
+                        foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
+                        {
+                            var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+
+                            var thumbnailKey = thumbHeader.GetFilename();
+                            additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        }
                     }
                 }
-
-                if (shouldSendThumbnails)
-                {
-                    foreach (var thumb in redactedMetadata.Thumbnails ?? new List<ThumbnailDescriptor>())
-                    {
-                        var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
-
-                        var thumbnailKey = thumbHeader.GetFilename();
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
-                            Enum.GetName(MultipartUploadParts.Thumbnail)));
-                    }
-                }
-
+                
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 

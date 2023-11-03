@@ -28,7 +28,7 @@ public static class OdinTestAssertions
         Assert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
 
         Assert.IsNotNull(fileHeader.FileMetadata.AppData);
-        Assert.IsTrue(fileHeader.FileMetadata.Thumbnails == default);
+        Assert.IsTrue(fileHeader.FileMetadata.Payloads == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);

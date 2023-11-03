@@ -116,7 +116,7 @@ namespace Odin.Hosting.Tests.Performance
             // fileByteLength += (int)headerResponse.Content. .ToString().Length; -- help
             fileByteLength += 320;
 
-            var thumbnail1 = headerResponse.Content.FileMetadata.Thumbnails.FirstOrDefault();
+            var thumbnail1 = headerResponse.Content.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.FirstOrDefault();
             // var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
             var thumbnail1Response = await frodoDriveService.GetThumbnailAsPost(new GetThumbnailRequest()
             {
@@ -293,7 +293,7 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
+                Assert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == 2);
 
 
                 //
@@ -321,7 +321,7 @@ namespace Odin.Hosting.Tests.Performance
                 //
 
                 var descriptorList = new List<ThumbnailDescriptor>() { thumbnail1, thumbnail2 };
-                var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
+                var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.ToList();
 
                 //validate thumbnail 1
                 Assert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);

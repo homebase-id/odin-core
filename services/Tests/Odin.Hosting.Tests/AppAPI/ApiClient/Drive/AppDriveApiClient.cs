@@ -231,39 +231,22 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    public async Task<(UploadPayloadInstructionSet instructionSet, ApiResponse<UploadPayloadResult>)> UploadAttachments(ExternalFileIdentifier targetFile,
+    public async Task<ApiResponse<UploadPayloadResult>> UploadAttachments(ExternalFileIdentifier targetFile,
         List<ThumbnailContent> thumbnails,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var instructionSet = new UploadPayloadInstructionSet()
-        {
-            TargetFile = targetFile,
-            Thumbnails = thumbnails,
-        };
+        //
+        // var client = CreateAppApiHttpClient(_token, fileSystemType);
+        // {
+        //     var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
+        //     var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+        //
+        //     var response = await driveSvc.UploadPayloads(parts.ToArray());
+        //
+        //     return (instructionSet, response);
+        // }
 
-        var bytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
-
-        List<StreamPart> parts = new();
-        parts.Add(new StreamPart(new MemoryStream(bytes), "instructionSet", "application/json", Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
-
-        if (thumbnails?.Any() ?? false)
-        {
-            foreach (var thumbnail in thumbnails)
-            {
-                parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnail.GetFilename(), thumbnail.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-            }
-        }
-
-        var client = CreateAppApiHttpClient(_token, fileSystemType);
-        {
-            var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
-            var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-
-            var response = await driveSvc.UploadPayloads(parts.ToArray());
-
-            return (instructionSet, response);
-        }
+        return null;
     }
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
@@ -455,22 +438,5 @@ public class AppDriveApiClient : AppApiClientBase
     private IDriveTestHttpClientForApps CreateDriveService(HttpClient client)
     {
         return RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, _token.SharedSecret);
-    }
-
-    public async Task<DeleteAttachmentsResult> DeleteThumbnail(ExternalFileIdentifier file, int width, int height,
-        FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var client = CreateAppApiHttpClient(_token, fileSystemType);
-        {
-            var svc = CreateDriveService(client);
-            var response = await svc.DeleteThumbnail(new DeleteThumbnailRequest()
-            {
-                File = file,
-                Width = width,
-                Height = height
-            });
-
-            return response.Content;
-        }
     }
 }

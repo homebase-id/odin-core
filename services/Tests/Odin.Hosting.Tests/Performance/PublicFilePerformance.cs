@@ -306,6 +306,7 @@ TaskPerformanceTest
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
 
+                var payloadKey = WebScaffold.PAYLOAD_KEY;
                 var instructionSet = new UploadInstructionSet()
                 {
                     TransferIv = transferIv,
@@ -353,8 +354,8 @@ TaskPerformanceTest
                         Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                         Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent),
-                        WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent), 
+                        payloadKey, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     additionalThumbnailContent ?? Array.Empty<StreamPart>());
 
@@ -397,7 +398,6 @@ TaskPerformanceTest
                 else
                 {
                     Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 0);
-
                 }
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -418,8 +418,7 @@ TaskPerformanceTest
                     descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() ==
-                              (additionalThumbs?.Count ?? 0));
+                Assert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.Count() == (additionalThumbs?.Count ?? 0));
 
                 //
                 // If payload was uploaded, get the payload that was uploaded, test it
@@ -441,7 +440,7 @@ TaskPerformanceTest
                 if (null != additionalThumbs)
                 {
                     // var descriptorList = descriptor.FileMetadata.Thumbnails.ToList();
-                    var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
+                    var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.ToList();
 
                     //there should be the same number of thumbnails on the server as we sent; order should match
                     for (int i = 0; i < additionalThumbs.Count - 1; i++)

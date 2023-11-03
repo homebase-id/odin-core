@@ -165,30 +165,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
             payloadKey = fileSection?.FileName;
         }
 
-        private protected void AssertIsValidThumbnailPart_old(MultipartSection section, out FileMultipartSection fileSection,
-            out int width, out int height)
-        {
-            var expectedPart = MultipartUploadParts.Thumbnail;
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
-            {
-                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
-            }
-
-            fileSection = section.AsFileSection();
-            if (null == fileSection)
-            {
-                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
-
-            string[] parts = fileSection.FileName.Split('x');
-            if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
-            {
-                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
-        }
-
         private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
             out string thumbnailUploadKey, out string contentType)
         {

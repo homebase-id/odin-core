@@ -119,8 +119,7 @@ public abstract class PayloadStreamWriterBase
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType,
-            LastModified = UnixTimeUtc.Now()
+            ContentType = contentType
         });
     }
 

@@ -16,6 +16,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base;
 public static class DriveFileUtility
 {
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+    public const string PayloadDelimiter = "-";
+    public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -132,7 +134,9 @@ public static class DriveFileUtility
 
     public static string GetPayloadFileExtension(string key)
     {
-        string extenstion = $"-{key?.ToLower()}.payload";
+        AssertValidPayloadKey(key);
+        // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
+        string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
         return extenstion;
     }
 
@@ -157,7 +161,7 @@ public static class DriveFileUtility
     {
         return lastModified.GetValueOrDefault().ToDateTime().ToString("R");
     }
-    
+
     public static void AssertValidPayloadKey(string payloadKey)
     {
         bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
@@ -167,7 +171,7 @@ public static class DriveFileUtility
                 OdinClientErrorCode.InvalidPayloadNameOrKey);
         }
     }
-    
+
     public static string GetThumbnailFileExtension(int width, int height, string payloadKey)
     {
         if (string.IsNullOrEmpty(payloadKey?.Trim()))

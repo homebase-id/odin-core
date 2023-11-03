@@ -229,7 +229,7 @@ namespace Odin.Hosting.Controllers.Peer
         private async Task ProcessThumbnailSection(MultipartSection section)
         {
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-
+            
             throw new NotImplementedException("multi-payload WIP");
             // string extension = _fileSystem.Storage.GetThumbnailFileExtension(width, height);
             

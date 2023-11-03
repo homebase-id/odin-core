@@ -151,37 +151,17 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
-
+        
         Package.UploadedThumbnails.Add(new ThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
             ContentType = contentType,
-            LastModified = UnixTimeUtc.Now(),
             PayloadKey = result.PayloadKey
         });
     }
 
-    [Obsolete("replacing WIP")]
-    public virtual async Task AddThumbnail_old(int width, int height, string contentType, Stream data)
-    {
-        //TODO: should i validate width and height are > 0?
-
-        throw new NotImplementedException("multipayload wip");
-        // string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
-        // await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
-        //
-        // Package.UploadedThumbnails.Add(new ThumbnailDescriptor()
-        // {
-        //     PixelHeight = height,
-        //     PixelWidth = width,
-        //     ContentType = contentType,
-        //     LastModified = UnixTimeUtc.Now(),
-        //     PayloadKey = "" // ????
-        // });
-    }
-
-    /// <summary>
+   /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
     public async Task<UploadResult> FinalizeUpload()
@@ -335,15 +315,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
-
-        if (metadata.Thumbnails?.Any() ?? false)
-        {
-            foreach (var t in metadata.Thumbnails)
-            {
-                t.LastModified = UnixTimeUtc.Now();
-            }
-        }
-
+        
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -366,9 +338,9 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
 
-        if (metadata.Thumbnails?.Any() ?? false)
+        if (metadata.Payloads?.Any() ?? false)
         {
-            throw new OdinClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
+            throw new OdinClientException($"Cannot specify additional payloads when storage intent is {StorageIntent.MetadataOnly}",
                 OdinClientErrorCode.MalformedMetadata);
         }
 

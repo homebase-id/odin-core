@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 
@@ -41,4 +42,8 @@ public class ClientFileMetadata
     [Obsolete]
     public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
+    public PayloadDescriptor GetPayloadDescriptor(string key)
+    {
+        return Payloads.SingleOrDefault(pk => pk.Key == key);
+    }
 }

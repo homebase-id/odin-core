@@ -295,9 +295,14 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             };
 
             var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            var thumbs = header.FileMetadata.Thumbnails?.ToList();
+            var descriptor = header.FileMetadata.GetPayloadDescriptor(payloadKey);
+            if (descriptor == null)
+            {
+                return (null, default, null, null, null);
+            }
+            
+            var thumbs = descriptor.Thumbnails?.ToList();
             var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
             {
@@ -305,7 +310,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             }
 
             var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey);
-            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, thumbnail.ContentType, thumbnail.LastModified, thumb);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, thumbnail.ContentType, descriptor.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)

@@ -404,7 +404,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         }
 
         public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-            bool? ignorePayload, bool? ignoreThumbnail)
+            bool? ignorePayload)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -427,22 +427,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     //Note: it's just as performant to directly get the file length as it is to perform File.Exists
                     var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
                     string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
-                    metadata.PayloadSize += new FileInfo(sourceFile).Length;
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFile);
+
+                    string payloadKey = descriptor.Key;
+
+                    foreach (var thumb in descriptor.Thumbnails)
+                    {
+                        var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, payloadKey);
+                        var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
+                        await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, payloadKey, thumb);
+                    }
                 }
             }
 
-            var metadataSaysThisFileHasThumbnails = metadata.Thumbnails != null;
-
-            if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
-            {
-                foreach (var thumb in metadata.Thumbnails)
-                {
-                    var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
-                    var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, payloadKey, thumb);
-                }
-            }
 
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, metadata, serverMetadata);
@@ -464,7 +461,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         }
 
         public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
-            ServerMetadata serverMetadata, bool? ignorePayload, bool? ignoreThumbnail)
+            ServerMetadata serverMetadata, bool? ignorePayload)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -499,9 +496,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             // ignorePayload and ignoreThumbnail allow it to tell us what to expect.
 
             bool metadataSaysThisFileHasPayloads = newMetadata.Payloads?.Any() ?? false;
-            
-            await storageManager.DeleteMissingPayloads(newMetadata.Payloads);
-            
+
+            await storageManager.DeleteMissingPayloads(newMetadata.File.FileId, newMetadata.Payloads);
+
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))
             {
                 foreach (var descriptor in newMetadata.Payloads)
@@ -511,7 +508,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
 
                     await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFile);
-                    
+
                     // Process thumbnails
                     var thumbs = descriptor.Thumbnails;
                     await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);

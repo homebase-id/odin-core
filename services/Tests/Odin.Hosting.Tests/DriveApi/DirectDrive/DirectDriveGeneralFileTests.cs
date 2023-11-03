@@ -64,7 +64,6 @@ public class DirectDriveGeneralFileTests
         var header = getHeaderResponse.Content;
         Assert.IsNotNull(header);
         Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-        Assert.IsFalse(header.FileMetadata.Thumbnails.Any());
         Assert.IsFalse(header.FileMetadata.Payloads.Any());
     }
 
@@ -139,8 +138,16 @@ public class DirectDriveGeneralFileTests
         var header = getHeaderResponse.Content;
         Assert.IsNotNull(header);
         Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-        Assert.IsTrue(header.FileMetadata.Thumbnails.Count() == 2);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+        Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
+        
+        //test the headers payload info
+        foreach (var testPayload in testPayloads)
+        {
+            var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
+            Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
+            Assert.IsTrue(testPayload.ContentType == payload.ContentType);
+            //Assert.IsTrue(payload.LastModified); //TODO: how to test?
+        }
 
         // Get the payloads
         foreach (var definition in testPayloads)
@@ -240,8 +247,16 @@ public class DirectDriveGeneralFileTests
         var header = getHeaderResponse.Content;
         Assert.IsNotNull(header);
         Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-        Assert.IsTrue(header.FileMetadata.Thumbnails.Count() == 2);
         Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+        
+        //test the headers payload info
+        foreach (var testPayload in testPayloads)
+        {
+            var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
+            Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
+            Assert.IsTrue(testPayload.ContentType == payload.ContentType);
+            //Assert.IsTrue(payload.LastModified); //TODO: how to test?
+        }
 
         // Get the payloads
         foreach (var definition in testPayloads)
@@ -364,7 +379,7 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
         var header = getHeaderResponse.Content;
         Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.Thumbnails.Count() == 2);
+        Assert.IsTrue(header.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == 2);
         Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
 
         // now that we know we have a valid file with a few payloads

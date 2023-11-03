@@ -29,6 +29,11 @@ public class PayloadDescriptor
     /// </summary>
     public List<ThumbnailDescriptor> Thumbnails { get; set; }
     
+    public string GetLastModifiedHttpHeaderValue()
+    {
+        return LastModified.ToDateTime().ToString("R");
+    }
+    
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));

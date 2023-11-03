@@ -78,8 +78,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart_old(section, out var fileSection, out var width, out var height);
-                    await driveUploadService.AddThumbnail_old(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream);
                 }
 
                 section = await reader.ReadNextSectionAsync();

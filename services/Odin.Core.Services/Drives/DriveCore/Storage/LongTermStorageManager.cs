@@ -337,13 +337,38 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(json);
             return header;
         }
-        
+
         /// <summary>
         /// Removes any payloads that are not in the provided list
         /// </summary>
-        public async Task DeleteMissingPayloads(List<PayloadDescriptor> payloads)
+        public Task DeleteMissingPayloads(Guid fileId, List<PayloadDescriptor> payloadsToKeep)
         {
-            throw new NotImplementedException();
+            //get all payloads in the path
+            var payloadFileDirectory = this.GetPayloadPath(fileId);
+
+            if (Directory.Exists(payloadFileDirectory))
+            {
+                var searchPattern = string.Format(DriveFileUtility.PayloadExtensionSpecifier, "*");
+                var seekPath = Path.Combine(payloadFileDirectory, searchPattern);
+
+                var files = Directory.GetFiles(payloadFileDirectory, seekPath);
+                foreach (var payloadFilePath in files)
+                {
+                    // get the payload key from the filepath
+                    // Given a payload key of "test001
+                    // Filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-test001"
+                    var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
+                    var payloadKeyOnDisk = filename.Split(DriveFileUtility.PayloadDelimiter)[1];
+
+                    var keepPayload = payloadsToKeep.Exists(p => p.Key == payloadKeyOnDisk);
+                    if (!keepPayload)
+                    {
+                        File.Delete(payloadFilePath);
+                    }
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -352,7 +377,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteMissingThumbnailFiles(Guid fileId, List<ThumbnailDescriptor> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
-            
+
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
             if (Directory.Exists(dir))

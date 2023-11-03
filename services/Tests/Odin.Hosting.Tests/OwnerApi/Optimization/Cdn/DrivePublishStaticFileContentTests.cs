@@ -365,7 +365,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == (additionalThumbs?.Count ?? 0));
+                Assert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == (additionalThumbs?.Count ?? 0));
 
                 //
                 // If payload was uploaded, get the payload that was uploaded, test it
@@ -387,7 +387,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 if (null != additionalThumbs)
                 {
                     // var descriptorList = descriptor.FileMetadata.Thumbnails.ToList();
-                    var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
+                    var clientFileHeaderList = clientFileHeader.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.ToList();
 
                     //there should be the same number of thumbnails on the server as we sent; order should match
                     for (int i = 0; i < additionalThumbs.Count - 1; i++)
