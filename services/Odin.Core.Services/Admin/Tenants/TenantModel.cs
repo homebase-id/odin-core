@@ -1,9 +1,23 @@
 using System;
+using System.Collections.Generic;
 
 namespace Odin.Core.Services.Admin.Tenants;
+#nullable enable
 
 public class TenantModel
 {
-    public string Domain { get; set; }
-    public Guid Id { get; set; }
+    public string Domain { get; set; } = "";
+    public string Id { get; set; } = "";
+    public string RegistrationPath { get; set; } = "";
+    public long RegistrationSize { get; set; } = 0;
+
+    public List<PayloadShard>? PayloadShards { get; set; } = null;
+    public long? PayloadSize { get; set; } = null;
+
+    public class PayloadShard
+    {
+        public string Name { get; set; } = "";
+        public long Size { get; set; } = 0;
+        public string Path { get; set; } = "";
+    }
 }

@@ -24,6 +24,9 @@ namespace Odin.Core.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
+    public string RegistrationRoot { get; private set; }
+    public string ShardablePayloadRoot { get; private set; }
+
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
@@ -32,8 +35,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
-
-    private readonly string _registrationRoot;
     private readonly string _tempFolderRoot;
 
     public FileSystemIdentityRegistry(
@@ -43,7 +44,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ISystemHttpClient systemHttpClient,
         OdinConfiguration config)
     {
-        string tenantDataRootPath = config.Host.TenantDataRootPath;
+        var tenantDataRootPath = config.Host.TenantDataRootPath;
+        RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
+        ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
+        _tempFolderRoot = tenantDataRootPath;
 
         if (!Directory.Exists(tenantDataRootPath))
         {
@@ -60,8 +64,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
 
-        _registrationRoot = Path.Combine(tenantDataRootPath, "registrations");
-        _tempFolderRoot = tenantDataRootPath;
         RegisterCertificateInitializerHttpClient();
         Initialize();
     }
@@ -113,7 +115,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var regIdFolder = idReg.Id.ToString();
 
-        var rootPath = Path.Combine(_registrationRoot, regIdFolder);
+        var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         var storageConfig = new TenantStorageConfig(
             headerDataStoragePath:Path.Combine(rootPath, "headers"),
             tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
@@ -138,8 +140,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured);
         return tc;
     }
-
-    public string ShardablePayloadRoot => Path.Combine(_config.Host.TenantDataRootPath, "payloads");
 
     public Task<bool> IsIdentityRegistered(string domain)
     {
@@ -208,9 +208,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (null != registration)
         {
-            string tenantRoot = Path.Combine(_registrationRoot, registration.Id.ToString());
-            Directory.Delete(tenantRoot, true);
             _trie.RemoveDomain(domain);
+            var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
+            Directory.Delete(tenantRoot, true);
+            await DeletePayloads(registration);
         }
     }
 
@@ -264,7 +265,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task SaveRegistrationInternal(IdentityRegistration registration)
     {
-        string root = Path.Combine(_registrationRoot, registration.Id.ToString());
+        string root = Path.Combine(RegistrationRoot, registration.Id.ToString());
         Directory.CreateDirectory(root);
 
         var json = OdinSystemSerializer.Serialize(registration);
@@ -301,17 +302,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private string GetRegFilePath(Guid registrationId)
     {
-        return Path.Combine(_registrationRoot, registrationId.ToString(), "reg.json");
+        return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
     }
 
     private void LoadCache()
     {
-        if (!Directory.Exists(_registrationRoot))
+        if (!Directory.Exists(RegistrationRoot))
         {
             return;
         }
 
-        var directories = Directory.GetDirectories(_registrationRoot);
+        var directories = Directory.GetDirectories(RegistrationRoot);
 
         foreach (var dir in directories)
         {
@@ -469,4 +470,31 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return handler;
         }).SetHandlerLifetime(TimeSpan.FromMinutes(2)));
     }
+
+    //
+
+    private Task DeletePayloads(IdentityRegistration identity)
+    {
+        return Task.Run(() =>
+        {
+            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            foreach (var shard in shards)
+            {
+                var payloadPath = Path.Combine(shard, identity.Id.ToString());
+                if (Directory.Exists(payloadPath))
+                {
+                    try
+                    {
+                        Directory.Delete(payloadPath, true);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Error deleting payload in '{path}': {error}", payloadPath, e.Message);
+                    }
+                }
+            }
+        });
+    }
+
+    //
 }
