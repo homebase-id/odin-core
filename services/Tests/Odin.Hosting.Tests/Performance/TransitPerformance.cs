@@ -235,7 +235,7 @@ TaskPerformanceTest_Transit
                 var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
-                var thumbnail1 = new ImageDataHeader()
+                var thumbnail1 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 300,
                     PixelWidth = 300,
@@ -243,7 +243,7 @@ TaskPerformanceTest_Transit
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
 
-                var thumbnail2 = new ImageDataHeader()
+                var thumbnail2 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 400,
                     PixelWidth = 400,
@@ -263,8 +263,8 @@ TaskPerformanceTest_Transit
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             FileType = FileType,
-                            JsonContent = OdinSystemSerializer.Serialize(new { content = message }),
-                            PreviewThumbnail = new ImageDataContent()
+                            Content = OdinSystemSerializer.Serialize(new { content = message }),
+                            PreviewThumbnail = new ThumbnailContent()
                             {
                                 PixelHeight = 100,
                                 PixelWidth = 100,
@@ -475,7 +475,7 @@ TaskPerformanceTest_Transit
                 var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
-                var thumbnail1 = new ImageDataHeader()
+                var thumbnail1 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 300,
                     PixelWidth = 300,
@@ -483,7 +483,7 @@ TaskPerformanceTest_Transit
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
 
-                var thumbnail2 = new ImageDataHeader()
+                var thumbnail2 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 400,
                     PixelWidth = 400,
@@ -491,7 +491,7 @@ TaskPerformanceTest_Transit
                 };
                 var thumbnail2CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes400);
 
-                var expectedThumbnails = new List<ImageDataHeader> { thumbnail1, thumbnail2 };
+                var expectedThumbnails = new List<ThumbnailDescriptor> { thumbnail1, thumbnail2 };
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
@@ -503,8 +503,8 @@ TaskPerformanceTest_Transit
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             FileType = FileType,
-                            JsonContent = OdinSystemSerializer.Serialize(new { content = message }),
-                            PreviewThumbnail = new ImageDataContent()
+                            Content = OdinSystemSerializer.Serialize(new { content = message }),
+                            PreviewThumbnail = new ThumbnailContent()
                             {
                                 PixelHeight = 100,
                                 PixelWidth = 100,
@@ -567,7 +567,7 @@ TaskPerformanceTest_Transit
 
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 

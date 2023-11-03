@@ -119,8 +119,8 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
                 Created = updatedFileHeader.FileMetadata.Created,
                 Updated = updatedFileHeader.FileMetadata.Updated,
                 OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-                IsEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted,
-                JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+                IsEncrypted = updatedFileHeader.FileMetadata.IsEncrypted,
+                JsonContent = updatedFileHeader.FileMetadata.AppData.Content,
                 Reactions = new List<ReactionContentPreview>()
             };
         }
@@ -136,7 +136,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             return;
         }
 
-        var isEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted;
+        var isEncrypted = updatedFileHeader.FileMetadata.IsEncrypted;
         targetFileReactionPreview.Comments.Add(new CommentPreview()
         {
             FileId = updatedFileHeader.FileMetadata.File.FileId,
@@ -144,7 +144,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             IsEncrypted = isEncrypted,
-            JsonContent = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.JsonContent,
+            JsonContent = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()
         });
     }

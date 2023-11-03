@@ -60,11 +60,10 @@ public abstract class AttachmentStreamWriterBase
 
     public virtual async Task AddThumbnail(int width, int height, string contentType, Stream data)
     {
-        //TODO: How to store the content type for later usage?  is it even needed?
-
         //TODO: should i validate width and height are > 0?
-        string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
-        await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        throw new NotSupportedException("Not yet support for multi-payloads");
+        // string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
+        // await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
     }
 
     /// <summary>

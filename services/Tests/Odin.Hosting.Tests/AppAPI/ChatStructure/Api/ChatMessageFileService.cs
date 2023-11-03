@@ -140,7 +140,7 @@ public class ChatMessageFileService
     private ChatMessage File2ChatMessage(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader)
     {
         var appData = sharedSecretEncryptedFileHeader.FileMetadata.AppData;
-        var message = OdinSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
+        var message = OdinSystemSerializer.Deserialize<ChatMessage>(appData.Content);
 
         //TODO: add checks for file corruption - 
         // if appData.GroupId != message.ConversationId
@@ -164,7 +164,7 @@ public class ChatMessageFileService
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                JsonContent = OdinSystemSerializer.Serialize(message),
+                Content = OdinSystemSerializer.Serialize(message),
                 FileType = ChatMessage.FileType,
                 GroupId = message.ConversationId,
                 // UniqueId = message.Id,

@@ -108,7 +108,7 @@ public class StaticFileContentService
 
             foreach (var fileHeader in filteredHeaders)
             {
-                var thumbnails = new List<ImageDataContent>();
+                var thumbnails = new List<ThumbnailContent>();
                 var internalFileId = new InternalDriveFileId()
                 {
                     FileId = fileHeader.FileId,
@@ -118,12 +118,12 @@ public class StaticFileContentService
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.Thumbnails ??
-                                                new List<ImageDataHeader>())
+                                                new List<ThumbnailDescriptor>())
                     {
                         var (thumbnailStream, thumbnailHeader) = await _fileSystem.Storage.GetThumbnailPayloadStream(
-                            internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
+                            internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight, thumbHeader.PayloadKey);
 
-                        thumbnails.Add(new ImageDataContent()
+                        thumbnails.Add(new ThumbnailContent()
                         {
                             PixelHeight = thumbnailHeader.PixelHeight,
                             PixelWidth = thumbnailHeader.PixelWidth,
@@ -137,7 +137,7 @@ public class StaticFileContentService
                 var payloads = new List<PayloadStaticFileResponse>();
                 if (section.ResultOptions.PayloadKeys?.Any() ?? false)
                 {
-                    foreach (var pd in fileHeader.Payloads)
+                    foreach (var pd in fileHeader.FileMetadata.Payloads)
                     {
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
                         payloads.Add(new PayloadStaticFileResponse()
@@ -260,7 +260,7 @@ public class StaticFileContentService
     {
         return headers.Where(r =>
             r.FileState == FileState.Active &&
-            r.FileMetadata.PayloadIsEncrypted == false &&
+            r.FileMetadata.IsEncrypted == false &&
             r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
     }
 }

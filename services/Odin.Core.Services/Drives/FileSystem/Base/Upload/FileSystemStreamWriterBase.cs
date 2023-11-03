@@ -15,7 +15,6 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Time;
-using Org.BouncyCastle.Tls;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -116,21 +115,63 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(int width, int height, string contentType, Stream data)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data)
     {
-        //TODO: How to store the content type for later usage?  is it even needed?
+        //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
+
+        //find the thumbnail details for the given key
+        //TODO: I'm not so sure this is gonna work out...
+        var result = Package.InstructionSet.Manifest.PayloadDescriptors.Select(pd =>
+        {
+            return new
+            {
+                PayloadKey = pd.PayloadKey,
+                ThumbnailDescriptor = pd.Thumbnails.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
+            };
+        }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
+
+        if (null == result)
+        {
+            throw new OdinClientException(
+                $"Error while adding thumbnail; the upload manifest does not " +
+                $"have a thumbnail descriptor matching key {thumbnailUploadKey}",
+                OdinClientErrorCode.InvalidUpload);
+        }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
+        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+            result.ThumbnailDescriptor.PixelWidth,
+            result.ThumbnailDescriptor.PixelHeight,
+            result.PayloadKey);
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
 
-        Package.UploadedThumbnails.Add(new ImageDataHeader()
+        Package.UploadedThumbnails.Add(new ThumbnailDescriptor()
         {
-            PixelHeight = height,
-            PixelWidth = width,
+            PixelHeight = result.ThumbnailDescriptor.PixelHeight,
+            PixelWidth = result.ThumbnailDescriptor.PixelWidth,
             ContentType = contentType,
-            LastModified = UnixTimeUtc.Now()
+            LastModified = UnixTimeUtc.Now(),
+            PayloadKey = result.PayloadKey
         });
+    }
+
+    [Obsolete("replacing WIP")]
+    public virtual async Task AddThumbnail_old(int width, int height, string contentType, Stream data)
+    {
+        //TODO: should i validate width and height are > 0?
+
+        throw new NotImplementedException("multipayload wip");
+        // string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
+        // await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+        //
+        // Package.UploadedThumbnails.Add(new ThumbnailDescriptor()
+        // {
+        //     PixelHeight = height,
+        //     PixelWidth = width,
+        //     ContentType = contentType,
+        //     LastModified = UnixTimeUtc.Now(),
+        //     PayloadKey = "" // ????
+        // });
     }
 
     /// <summary>
@@ -295,7 +336,7 @@ public abstract class FileSystemStreamWriterBase
                 t.LastModified = UnixTimeUtc.Now();
             }
         }
-        
+
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -345,14 +386,14 @@ public abstract class FileSystemStreamWriterBase
 
         serverMetadata.AccessControlList.Validate();
 
-        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
+        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.IsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to anonymous visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
-        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.PayloadIsEncrypted)
+        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.IsEncrypted)
         {
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
@@ -365,6 +406,13 @@ public abstract class FileSystemStreamWriterBase
             {
                 throw new OdinClientException("One or more payload descriptors is invalid", OdinClientErrorCode.InvalidFile);
             }
+        }
+
+        // validate all thumbnails have a matching payload
+        var missing = metadata.Thumbnails.Where(thumb => metadata.Payloads.All(p => p.Key != thumb.PayloadKey));
+        if (missing.Any())
+        {
+            throw new OdinClientException("Missing thumbnails for one or more payloads", OdinClientErrorCode.InvalidFile);
         }
 
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
@@ -384,7 +432,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            if (metadata.PayloadIsEncrypted)
+            if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

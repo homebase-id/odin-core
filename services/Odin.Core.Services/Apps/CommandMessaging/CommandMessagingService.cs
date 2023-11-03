@@ -51,11 +51,11 @@ public class CommandMessagingService
             GlobalTransitId = null,
             Created = UnixTimeUtc.Now().milliseconds,
             OriginalRecipientList = null,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             AppData = new AppFileMetaData()
             {
                 FileType = ReservedFileTypes.CommandMessage,
-                JsonContent = OdinSystemSerializer.Serialize(msg),
+                Content = OdinSystemSerializer.Serialize(msg),
                 DataType = command.Code
             }
         };

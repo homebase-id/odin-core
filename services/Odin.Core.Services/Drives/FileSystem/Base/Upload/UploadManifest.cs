@@ -1,0 +1,35 @@
+using System.Collections.Generic;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
+
+/// <summary>
+/// Describes the content being uploaded
+/// </summary>
+public class UploadManifest
+{
+    public List<UploadedPayloadDescriptor> PayloadDescriptors { get; set; }
+}
+
+/// <summary>
+/// Describes the attributes of the payload of a given PayloadKey
+/// </summary>
+public class UploadedPayloadDescriptor
+{
+    public string PayloadKey { get; set; }
+
+    /// <summary>
+    /// The thumbnails expected for this payload key
+    /// </summary>
+    public IEnumerable<UploadedThumbnailDescriptor> Thumbnails { get; set; }
+    
+    //other stuff when needed
+}
+
+public class UploadedThumbnailDescriptor
+{
+    public string ThumbnailKey { get; set; }
+    public int PixelWidth { get; set; }
+
+    public int PixelHeight { get; set; }
+}

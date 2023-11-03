@@ -122,7 +122,7 @@ public class AppDriveApiClient : AppApiClientBase
 
     public async Task<UploadResult> UploadFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
-        List<ImageDataContent> thumbnails = null,
+        List<ThumbnailContent> thumbnails = null,
         Guid? overwriteFileId = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -141,7 +141,7 @@ public class AppDriveApiClient : AppApiClientBase
     public async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult>)> UploadRaw(FileSystemType fileSystemType,
         TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
-        List<ImageDataContent> thumbnails = null,
+        List<ThumbnailContent> thumbnails = null,
         Guid? overwriteFileId = null)
     {
         var (uploadedInstructionSet, response) =
@@ -154,7 +154,7 @@ public class AppDriveApiClient : AppApiClientBase
         TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         string payloadData = "",
-        List<ImageDataContent> thumbnails = null,
+        List<ThumbnailContent> thumbnails = null,
         Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -180,8 +180,8 @@ public class AppDriveApiClient : AppApiClientBase
 
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.JsonContent = encryptedJsonContent64;
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.PayloadIsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
@@ -232,7 +232,7 @@ public class AppDriveApiClient : AppApiClientBase
     }
 
     public async Task<(AddAttachmentInstructionSet instructionSet, ApiResponse<UploadAttachmentsResult>)> UploadAttachments(ExternalFileIdentifier targetFile,
-        List<ImageDataContent> thumbnails,
+        List<ThumbnailContent> thumbnails,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var instructionSet = new AddAttachmentInstructionSet()
@@ -390,7 +390,7 @@ public class AppDriveApiClient : AppApiClientBase
         TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         string payloadData = "",
-        List<ImageDataContent> thumbnails = null,
+        List<ThumbnailContent> thumbnails = null,
         Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);

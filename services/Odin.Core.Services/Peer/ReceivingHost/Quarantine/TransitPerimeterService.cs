@@ -269,7 +269,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 return (null, default, null);
             }
 
-            if (!(header.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
+            if (!(header.FileMetadata.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
             {
                 return (null, default, null);
             }
@@ -282,11 +282,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
             }
 
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, ps);
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, ps);
         }
 
         public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)>
-            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
+            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey)
         {
             var file = new InternalDriveFileId()
             {
@@ -304,8 +304,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 return (null, default, null, null, null);
             }
 
-            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumbnail.LastModified, thumb);
+            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey);
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, thumbnail.ContentType, thumbnail.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
@@ -369,7 +369,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
 
-            if (metadata.PayloadIsEncrypted == false)
+            if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
                 await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet);
@@ -378,7 +378,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             }
 
             //S1100
-            if (metadata.PayloadIsEncrypted)
+            if (metadata.IsEncrypted)
             {
                 // Next determine if we can direct write the file
                 var hasStorageKey = _contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out var _);

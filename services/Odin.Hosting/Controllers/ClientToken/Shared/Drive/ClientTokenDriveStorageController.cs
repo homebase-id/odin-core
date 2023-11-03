@@ -141,9 +141,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [HttpGet("files/thumb")]
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
-            [FromQuery] Guid type, [FromQuery] int width,
-            [FromQuery] int height)
+            [FromQuery] Guid type, 
+            [FromQuery] int width, [FromQuery] int height,
+            [FromQuery] string payloadKey)
         {
+            
             return await GetThumbnail(new GetThumbnailRequest()
             {
                 File = new ExternalFileIdentifier()
@@ -156,7 +158,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
+                PayloadKey = payloadKey
             });
         }
 

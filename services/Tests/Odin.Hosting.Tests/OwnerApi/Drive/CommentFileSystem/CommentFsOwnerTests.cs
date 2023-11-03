@@ -37,7 +37,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
@@ -50,7 +50,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 
@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
             Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == commentMetadata.AppData.JsonContent);
+            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
             Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
         }
 
@@ -75,7 +75,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
@@ -89,7 +89,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 
@@ -98,7 +98,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
             Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == commentMetadata.AppData.JsonContent);
+            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
             Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
 
             var blogPostHeaderWith1Comment = await client.Drive.GetFileHeader(FileSystemType.Standard, blogPostUploadResult.File);
@@ -128,7 +128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
@@ -141,7 +141,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 

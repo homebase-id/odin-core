@@ -20,9 +20,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
         public int ArchivalStatus { get; set; }
 
-        public string JsonContent { get; set; }
+        public string Content { get; set; }
         
-        public ImageDataContent PreviewThumbnail { get; set; }
+        public ThumbnailContent PreviewThumbnail { get; set; }
         
     }
 }   

@@ -119,7 +119,7 @@ namespace Odin.Hosting.Controllers.Peer
             var perimeterService = GetPerimeterService();
 
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, lastModified, thumb) =
-                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
+                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey);
 
             if (thumb == null)
             {

@@ -55,7 +55,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             Guid fileId, string key, FileChunk chunk);
 
         Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)> GetThumbnail(TargetDrive targetDrive,
-            Guid fileId, int height, int width);
+            Guid fileId, int height, int width, string payloadKey);
 
         Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType);
     }

@@ -69,7 +69,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
             };
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -196,7 +196,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     },
                     AccessControlList = new AccessControlList()
                     {
@@ -242,7 +242,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "some data" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "some data" }),
                     UniqueId = firstUniqueId
                 }
             };
@@ -253,7 +253,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // Validate File was uploaded
             //
             var getFirstFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, firstFile.File);
-            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.JsonContent == firstFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
             Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
 
             //
@@ -261,7 +261,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //
             var getFirstFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
             Assert.IsNotNull(getFirstFileByUniqueId);
-            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.JsonContent == firstFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
             Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
 
             //
@@ -288,7 +288,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "this is content in a second file that reuses a uniqueId" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "this is content in a second file that reuses a uniqueId" }),
                     UniqueId = firstUniqueId
                 }
             };
@@ -300,7 +300,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // Validate File was uploaded
             //
             var getSecondFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, secondFile.File);
-            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.JsonContent == secondFileMeta.AppData.JsonContent);
+            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
             Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
 
             //
@@ -308,7 +308,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //
             var getSecondFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
             Assert.IsNotNull(getSecondFileByUniqueId);
-            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.JsonContent == secondFileMeta.AppData.JsonContent);
+            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
             Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
         }
     }

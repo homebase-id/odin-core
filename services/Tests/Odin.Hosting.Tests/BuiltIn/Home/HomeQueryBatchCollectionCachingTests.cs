@@ -206,7 +206,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 AppData = new()
                 {
                     FileType = fileType,
-                    JsonContent = $"Some json content {Guid.NewGuid()}",
+                    Content = $"Some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = acl ?? AccessControlList.OwnerOnly

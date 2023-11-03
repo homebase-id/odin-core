@@ -78,7 +78,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 AppData = new()
                 {
                     FileType = someFileType,
-                    JsonContent = "{some:'file content'}",
+                    Content = "{some:'file content'}",
                 },
                 AccessControlList = AccessControlList.Connected
             };

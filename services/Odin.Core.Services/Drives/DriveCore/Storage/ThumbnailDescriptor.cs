@@ -3,7 +3,7 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
-public class ImageDataHeader: IEquatable<ImageDataHeader>
+public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
 {
     public int PixelWidth { get; set; }
 
@@ -14,19 +14,24 @@ public class ImageDataHeader: IEquatable<ImageDataHeader>
     /// </summary>
     public string ContentType { get; set; }
 
+    /// <summary>
+    /// Indicates this thumbnail is for the given payload key
+    /// </summary>
+    public string PayloadKey { get; set; }
+
     public UnixTimeUtc LastModified { get; set; }
-    
+
     public string GetFilename()
     {
-        return $"{this.PixelWidth}x{this.PixelHeight}";
+        return $"{this.PixelWidth}x{this.PixelHeight}-{PayloadKey}";
     }
 
     public string GetLastModifiedHttpHeaderValue()
     {
         return LastModified.ToDateTime().ToString("R");
     }
-    
-    public bool Equals(ImageDataHeader other)
+
+    public bool Equals(ThumbnailDescriptor other)
     {
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
@@ -38,7 +43,7 @@ public class ImageDataHeader: IEquatable<ImageDataHeader>
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != this.GetType()) return false;
-        return Equals((ImageDataHeader)obj);
+        return Equals((ThumbnailDescriptor)obj);
     }
 
     public override int GetHashCode()

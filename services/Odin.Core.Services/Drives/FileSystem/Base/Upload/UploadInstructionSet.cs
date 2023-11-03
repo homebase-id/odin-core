@@ -16,6 +16,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         {
             TransitOptions = new TransitOptions();
             StorageOptions = new StorageOptions();
+            Manifest = new UploadManifest();
         }
 
         /// <summary>
@@ -26,6 +27,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         public StorageOptions StorageOptions { get; set; }
 
         public TransitOptions TransitOptions { get; set; }
+
+        public UploadManifest Manifest { get; set; }
 
         public void AssertIsValid()
         {
@@ -38,6 +41,33 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             if (!StorageOptions?.Drive?.IsValid() ?? false)
             {
                 throw new OdinClientException("Target drive is invalid", OdinClientErrorCode.InvalidTargetDrive);
+            }
+
+            if (Manifest?.PayloadDescriptors?.Any() ?? false)
+            {
+                foreach (var pd in Manifest.PayloadDescriptors)
+                {
+                    DriveFileUtility.AssertValidPayloadKey(pd.PayloadKey);
+
+                    var anyMissingThumbnailKey = pd.Thumbnails.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim()));
+                    if (anyMissingThumbnailKey)
+                    {
+                        throw new OdinClientException($"The payload key [{pd.PayloadKey}] as a thumbnail missing a thumbnailKey",
+                            OdinClientErrorCode.InvalidUpload);
+                    }
+
+                    // the width and height of all thumbnails must be unique for a given payload key
+                    var hasDuplicates = pd.Thumbnails.GroupBy(p => $"{p.PixelWidth}{p.PixelHeight}")
+                        .Any(group => group.Count() > 1);
+
+                    if (hasDuplicates)
+                    {
+                        throw new OdinClientException($"You have duplicate thumbnails for the " +
+                                                      $"payloadKey [{pd.PayloadKey}]. in the UploadManifest. " +
+                                                      $"You can have multiple thumbnails per payload key, however, " +
+                                                      $"the WidthXHeight must be unique.", OdinClientErrorCode.InvalidPayload);
+                    }
+                }
             }
 
             //Removed because this conflicts with AllowDistribution flag.

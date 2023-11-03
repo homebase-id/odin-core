@@ -1,21 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using Microsoft.Extensions.Primitives;
+using System.Text.RegularExpressions;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Time;
-using Refit;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base;
 
 public static class DriveFileUtility
 {
+    public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
@@ -28,7 +29,7 @@ public static class DriveFileUtility
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-        if (header.FileMetadata.PayloadIsEncrypted)
+        if (header.FileMetadata.IsEncrypted)
         {
             var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
@@ -68,8 +69,6 @@ public static class DriveFileUtility
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority,
             FileByteCount = header.ServerMetadata.FileByteCount,
-            Payloads = header.FileMetadata.Payloads,
-            
         };
 
         //add additional info
@@ -89,9 +88,7 @@ public static class DriveFileUtility
             Updated = fileMetadata.Updated,
             AppData = fileMetadata.AppData,
             GlobalTransitId = fileMetadata.GlobalTransitId,
-            PayloadSize = fileMetadata.PayloadSize,
-            OriginalRecipientList = fileMetadata.OriginalRecipientList,
-            PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
+            IsEncrypted = fileMetadata.IsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
@@ -102,7 +99,7 @@ public static class DriveFileUtility
         return clientFile;
     }
 
-    public static ImageDataHeader FindMatchingThumbnail(List<ImageDataHeader> thumbs, int width, int height, bool directMatchOnly)
+    public static ThumbnailDescriptor FindMatchingThumbnail(List<ThumbnailDescriptor> thumbs, int width, int height, bool directMatchOnly)
     {
         if (null == thumbs || !thumbs.Any())
         {
@@ -160,5 +157,28 @@ public static class DriveFileUtility
     public static string GetLastModifiedHeaderValue(UnixTimeUtc? lastModified)
     {
         return lastModified.GetValueOrDefault().ToDateTime().ToString("R");
+    }
+    
+    public static void AssertValidPayloadKey(string payloadKey)
+    {
+        bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
+        if (!isMatch)
+        {
+            throw new OdinClientException($"Invalid payload key {payloadKey}.  It must match pattern {ValidPayloadKeyRegex}.",
+                OdinClientErrorCode.InvalidPayloadNameOrKey);
+        }
+    }
+    
+    public static string GetThumbnailFileExtension(int width, int height, string payloadKey)
+    {
+        if (string.IsNullOrEmpty(payloadKey?.Trim()))
+        {
+            throw new OdinClientException($"PayloadKey is null or empty for the thumbnail with width:{width} x height:{height}.",
+                OdinClientErrorCode.InvalidPayloadNameOrKey);
+        }
+
+        //TODO: move this down into the long term storage manager
+        string extenstion = $"-{width}x{height}-{payloadKey}.thumb";
+        return extenstion.ToLower();
     }
 }

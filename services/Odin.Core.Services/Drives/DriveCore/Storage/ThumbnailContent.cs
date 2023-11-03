@@ -1,6 +1,6 @@
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
-public class ImageDataContent : ImageDataHeader
+public class ThumbnailContent : ThumbnailDescriptor
 {
     /// <summary>
     /// The thumbnail data

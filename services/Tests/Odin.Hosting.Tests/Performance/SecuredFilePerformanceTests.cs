@@ -186,7 +186,7 @@ namespace Odin.Hosting.Tests.Performance
                 var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
-                var thumbnail1 = new ImageDataHeader()
+                var thumbnail1 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 300,
                     PixelWidth = 300,
@@ -194,7 +194,7 @@ namespace Odin.Hosting.Tests.Performance
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
 
-                var thumbnail2 = new ImageDataHeader()
+                var thumbnail2 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 400,
                     PixelWidth = 400,
@@ -212,8 +212,8 @@ namespace Odin.Hosting.Tests.Performance
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            JsonContent = OdinSystemSerializer.Serialize(new { content = jsonContent }),
-                            PreviewThumbnail = new ImageDataContent()
+                            Content = OdinSystemSerializer.Serialize(new { content = jsonContent }),
+                            PreviewThumbnail = new ThumbnailContent()
                             {
                                 PixelHeight = 100,
                                 PixelWidth = 100,
@@ -270,7 +270,7 @@ namespace Odin.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -320,7 +320,7 @@ namespace Odin.Hosting.Tests.Performance
                 // Validate additional thumbnails
                 //
 
-                var descriptorList = new List<ImageDataHeader>() { thumbnail1, thumbnail2 };
+                var descriptorList = new List<ThumbnailDescriptor>() { thumbnail1, thumbnail2 };
                 var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
 
                 //validate thumbnail 1

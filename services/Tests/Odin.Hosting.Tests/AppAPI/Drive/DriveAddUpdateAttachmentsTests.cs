@@ -53,7 +53,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 TargetDrive = targetDrive
             };
 
-            var thumbnailsToAdd = new List<ImageDataContent>()
+            var thumbnailsToAdd = new List<ThumbnailContent>()
             {
                 new()
                 {
@@ -109,7 +109,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var originalFile = await appApiClient.Drive.GetFileHeader(targetFile);
 
-            var thumbnailsToUpdate = new List<ImageDataContent>()
+            var thumbnailsToUpdate = new List<ThumbnailContent>()
             {
                 new()
                 {
@@ -120,7 +120,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var thumbnailsToAdd = new List<ImageDataContent>()
+            var thumbnailsToAdd = new List<ThumbnailContent>()
             {
                 new()
                 {
@@ -189,11 +189,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             return (appApiClient, appDrive.TargetDriveInfo);
         }
 
-        private async Task<(UploadResult, List<ImageDataContent> thumbnails)> UploadUnEncryptedFileWithTwoThumbnails(AppApiClient appApiClient,
+        private async Task<(UploadResult, List<ThumbnailContent> thumbnails)> UploadUnEncryptedFileWithTwoThumbnails(AppApiClient appApiClient,
             TargetDrive targetDrive,
             FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var thumbnails = new List<ImageDataContent>()
+            var thumbnails = new List<ThumbnailContent>()
             {
                 new()
                 {
@@ -217,7 +217,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = "some content",
+                    Content = "some content",
                     FileType = 101,
                     GroupId = default,
                 },

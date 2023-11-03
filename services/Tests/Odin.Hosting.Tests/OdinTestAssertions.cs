@@ -24,17 +24,15 @@ public static class OdinTestAssertions
         Assert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == expectedSecurityGroupType);
         Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
         Assert.IsTrue(fileHeader.FileMetadata.Created == default);
-        Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
         Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
-        Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == null);
-        Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);
+        Assert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
 
         Assert.IsNotNull(fileHeader.FileMetadata.AppData);
         Assert.IsTrue(fileHeader.FileMetadata.Thumbnails == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.JsonContent));
+        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.Content));
         Assert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
         Assert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);

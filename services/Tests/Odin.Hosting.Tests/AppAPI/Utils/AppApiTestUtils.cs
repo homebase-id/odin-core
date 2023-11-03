@@ -135,10 +135,10 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var sharedSecret = senderAppContext.SharedSecret.ToSensitiveByteArray();
 
                 var thumbnails = new List<StreamPart>();
-                var thumbnailsAdded = new List<ImageDataHeader>();
+                var thumbnailsAdded = new List<ThumbnailDescriptor>();
                 if (options.IncludeThumbnail)
                 {
-                    var thumbnail1 = new ImageDataHeader()
+                    var thumbnail1 = new ThumbnailDescriptor()
                     {
                         PixelHeight = 300,
                         PixelWidth = 300,
@@ -266,10 +266,10 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var sharedSecret = identityAppContext.SharedSecret.ToSensitiveByteArray();
 
                 var thumbnails = new List<StreamPart>();
-                var thumbnailsAdded = new List<ImageDataHeader>();
+                var thumbnailsAdded = new List<ThumbnailDescriptor>();
                 if (includeThumbnail)
                 {
-                    var thumbnail1 = new ImageDataHeader()
+                    var thumbnail1 = new ThumbnailDescriptor()
                     {
                         PixelHeight = 300,
                         PixelWidth = 300,

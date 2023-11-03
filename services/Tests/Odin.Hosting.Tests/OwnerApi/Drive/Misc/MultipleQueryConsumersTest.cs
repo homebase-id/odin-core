@@ -43,7 +43,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
                 AllowDistribution = true,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 101,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
                 ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 909,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),

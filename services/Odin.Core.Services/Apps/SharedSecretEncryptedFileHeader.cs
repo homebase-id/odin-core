@@ -27,8 +27,6 @@ namespace Odin.Core.Services.Apps
         
         public Int64 FileByteCount { get; set; }
         
-        public List<PayloadDescriptor> Payloads { get; set; }
-
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)

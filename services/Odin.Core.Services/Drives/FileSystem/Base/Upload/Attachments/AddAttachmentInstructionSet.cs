@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         /// <summary>
         /// Thumbnails included in this attachment
         /// </summary>
-        public IEnumerable<ImageDataHeader> Thumbnails { get; set; }
+        public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
         
         /// <summary>
         /// Payloads included in this attachment

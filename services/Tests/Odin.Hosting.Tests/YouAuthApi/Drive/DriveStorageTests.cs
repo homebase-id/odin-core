@@ -90,7 +90,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 AllowDistribution = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),

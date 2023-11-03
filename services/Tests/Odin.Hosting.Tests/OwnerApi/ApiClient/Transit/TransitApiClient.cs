@@ -173,7 +173,7 @@ public class TransitApiClient
         TargetDrive remoteTargetDrive,
         string payloadData = "",
         Guid? overwriteGlobalTransitFileId = null,
-        ImageDataContent thumbnail = null
+        ThumbnailContent thumbnail = null
     )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -243,7 +243,7 @@ public class TransitApiClient
         TargetDrive remoteTargetDrive,
         string payloadData = "",
         Guid? overwriteGlobalTransitFileId = null,
-        ImageDataContent thumbnail = null
+        ThumbnailContent thumbnail = null
     )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -263,8 +263,8 @@ public class TransitApiClient
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.JsonContent = encryptedJsonContent64;
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.PayloadIsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()

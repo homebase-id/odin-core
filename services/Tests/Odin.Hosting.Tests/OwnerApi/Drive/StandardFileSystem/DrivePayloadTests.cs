@@ -174,7 +174,7 @@ public class DrivePayloadTests
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = 200,
                 GroupId = default,
                 Tags = default

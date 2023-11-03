@@ -49,7 +49,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
             var identity = TestIdentities.Frodo;
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
-            var thumbnail1 = new ImageDataContent()
+            var thumbnail1 = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -57,7 +57,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Content = TestMedia.ThumbnailBytes300
             };
 
-            var thumbnail2 = new ImageDataContent()
+            var thumbnail2 = new ThumbnailContent()
             {
                 PixelHeight = 400,
                 PixelWidth = 400,
@@ -76,14 +76,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                 payloadContent: null,
-                previewThumbnail: new ImageDataContent()
+                previewThumbnail: new ThumbnailContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ImageDataContent>() { thumbnail1, thumbnail2 });
+                additionalThumbs: new List<ThumbnailContent>() { thumbnail1, thumbnail2 });
 
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -92,14 +92,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "this is just a bit of text payload".ToUtf8ByteArray(),
-                previewThumbnail: new ImageDataContent()
+                previewThumbnail: new ThumbnailContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
+                additionalThumbs: new List<ThumbnailContent>() { thumbnail2 });
 
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -108,14 +108,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "stuff" }),
                 tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "payload".ToUtf8ByteArray(),
-                previewThumbnail: new ImageDataContent()
+                previewThumbnail: new ThumbnailContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
+                additionalThumbs: new List<ThumbnailContent>() { thumbnail2 });
 
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
@@ -258,8 +258,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
 
         public async Task CreateAnonymousUnEncryptedFile(TestAppContext testContext, int fileType, int dataType, string jsonContent, List<Guid> tags,
             byte[] payloadContent,
-            ImageDataContent previewThumbnail,
-            List<ImageDataContent> additionalThumbs)
+            ThumbnailContent previewThumbnail,
+            List<ThumbnailContent> additionalThumbs)
         {
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
@@ -289,7 +289,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                         AppData = new()
                         {
                             Tags = tags,
-                            JsonContent = jsonContent,
+                            Content = jsonContent,
                             FileType = fileType,
                             DataType = dataType,
                             PreviewThumbnail = previewThumbnail,
@@ -340,7 +340,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
 
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 if (payloadContent?.Any() ?? false)
                 {
                     Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);

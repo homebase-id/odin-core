@@ -274,7 +274,7 @@ public class TransitQueryService
         IdentityConnectionRegistration icr)
     {
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
+        if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
         {
             var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;

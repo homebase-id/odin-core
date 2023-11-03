@@ -307,7 +307,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                     Created = sourceMetadata.Created,
                     Updated = sourceMetadata.Updated,
                     AppData = sourceMetadata.AppData,
-                    PayloadIsEncrypted = sourceMetadata.PayloadIsEncrypted,
+                    IsEncrypted = sourceMetadata.IsEncrypted,
                     GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = sourceMetadata.ReactionPreview,
                     SenderOdinId = string.Empty,
@@ -344,10 +344,12 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 if (shouldSendThumbnails)
                 {
-                    foreach (var thumb in redactedMetadata.Thumbnails ?? new List<ImageDataHeader>())
+                    foreach (var thumb in redactedMetadata.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
-                        var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbHeader.GetFilename(), thumbHeader.ContentType,
+                        var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
+
+                        var thumbnailKey = thumbHeader.GetFilename();
+                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                             Enum.GetName(MultipartUploadParts.Thumbnail)));
                     }
                 }
@@ -423,7 +425,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
-            var keyHeader = header.FileMetadata.PayloadIsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
+            var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
 
             foreach (var r in options.Recipients!)

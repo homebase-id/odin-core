@@ -226,7 +226,7 @@ public class DataSubscriptionAndDistributionTests2
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var originalFile = batch.SearchResults.First();
         Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == encryptedJsonContent64);
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
     }
 
@@ -295,7 +295,7 @@ public class DataSubscriptionAndDistributionTests2
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                JsonContent = headerContent,
+                Content = headerContent,
                 GroupId = default,
                 Tags = default
             },
@@ -319,7 +319,7 @@ public class DataSubscriptionAndDistributionTests2
             VersionTag = versionTag,
             AppData = new()
             {
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
                 Tags = default

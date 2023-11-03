@@ -9,7 +9,7 @@ public class StaticFile
 {
     public SharedSecretEncryptedFileHeader Header { get; set; }
 
-    public IEnumerable<ImageDataContent> AdditionalThumbnails { get; set; }
+    public IEnumerable<ThumbnailContent> AdditionalThumbnails { get; set; }
 
     public List<PayloadStaticFileResponse> Payloads { get; set; }
 }

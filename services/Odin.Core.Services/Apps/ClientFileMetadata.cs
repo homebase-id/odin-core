@@ -22,22 +22,13 @@ public class ClientFileMetadata
     /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
     /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
     /// </summary>
-    public bool PayloadIsEncrypted { get; set; }
+    public bool IsEncrypted { get; set; }
         
     /// <summary>
     /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
     /// </summary>
     public string SenderOdinId { get; set; }
-
-    /// <summary>
-    /// The size of the payload on disk
-    /// </summary>
-    public long PayloadSize { get; set; }
-        
-    /// <summary>
-    /// Specifies the list of recipients set when the file was uploaded
-    /// </summary>
-    public List<string> OriginalRecipientList { get; set; }
+    
         
     public AppFileMetaData AppData { get; set; }
     
@@ -47,6 +38,6 @@ public class ClientFileMetadata
     public Guid VersionTag { get; set; }
     public List<PayloadDescriptor> Payloads { get; set; }
     
-    public IEnumerable<ImageDataHeader> Thumbnails { get; set; }
+    public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
 }

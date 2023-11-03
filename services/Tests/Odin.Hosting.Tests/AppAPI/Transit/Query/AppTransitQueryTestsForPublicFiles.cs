@@ -162,7 +162,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
             Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
-            Assert.IsFalse(randomFile.uploadedMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent, "file was not modified");
+            Assert.IsFalse(randomFile.uploadedMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content, "file was not modified");
 
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
@@ -183,7 +183,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(getBatchResponse.Content);
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
             Assert.IsNotNull(theModifiedFile);
-            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
+            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content);
         }
 
         [Test]
@@ -206,7 +206,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             Assert.IsTrue(response.IsSuccessStatusCode);
             Assert.IsNotNull(response.Content);
-            Assert.IsTrue(response.Content.FileMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent);
+            Assert.IsTrue(response.Content.FileMetadata.AppData.Content == randomFile.uploadedMetadata.AppData.Content);
         }
 
         [Test]
@@ -245,7 +245,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
-            var thumbnail = new ImageDataContent()
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -339,7 +339,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomPublicFileHeader(TestIdentity identity,
-            TargetDrive targetDrive, string payload = null, ImageDataContent thumbnail = null)
+            TargetDrive targetDrive, string payload = null, ThumbnailContent thumbnail = null)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
@@ -348,7 +348,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"some json content {Guid.NewGuid()}",
+                    Content = $"some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -373,7 +373,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended"
+                    Content = header.FileMetadata.AppData.Content + " something i appended"
                 },
                 VersionTag = header.FileMetadata.VersionTag,
                 AccessControlList = AccessControlList.Anonymous

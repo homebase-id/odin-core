@@ -107,7 +107,7 @@ public class ConversationDefinitionService
             AppData = new UploadAppFileMetaData()
             {
                 UniqueId = convo.Id,
-                JsonContent = OdinSystemSerializer.Serialize(convo),
+                Content = OdinSystemSerializer.Serialize(convo),
                 FileType = ChatConversation.ConversationDefinitionFileType,
                 DataType = 0,
                 //notice that I do not set group id here.  this file is not a converastion file, it is a definition

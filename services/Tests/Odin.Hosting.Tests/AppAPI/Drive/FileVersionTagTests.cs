@@ -69,7 +69,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = "some content",
+                    Content = "some content",
                     FileType = 101,
                     GroupId = default,
                     // UniqueId = message.Id,
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = "some content",
+                    Content = "some content",
                     FileType = 101,
                     GroupId = default,
                     // UniqueId = message.Id,

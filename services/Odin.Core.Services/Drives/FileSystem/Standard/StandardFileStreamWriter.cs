@@ -117,11 +117,11 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
-                JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
+                Content = uploadDescriptor.FileMetadata.AppData.Content,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail
             },
 
-            PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
+            IsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
 

@@ -49,7 +49,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1
+                    Content = content1
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
@@ -58,11 +58,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content
-            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.AppData.Content = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
 
             var updateResult = await appApiClient.Drive.UpdateMetadata(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updateResult.NewVersionTag != uploadResult.NewVersionTag);
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
         }
 
@@ -88,7 +88,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1
+                    Content = content1
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
@@ -97,11 +97,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content; indicate the payload changed
-            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.AppData.Content = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
 
             var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
@@ -111,7 +111,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
             Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
         }

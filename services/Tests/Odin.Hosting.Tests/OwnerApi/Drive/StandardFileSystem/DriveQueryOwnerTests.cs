@@ -54,7 +54,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -115,7 +115,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)
@@ -180,8 +180,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent
-                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
-                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.Content);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
@@ -204,7 +204,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)
@@ -248,7 +248,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
             }
         }
 
@@ -265,7 +265,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -305,7 +305,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -391,7 +391,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -431,7 +431,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),

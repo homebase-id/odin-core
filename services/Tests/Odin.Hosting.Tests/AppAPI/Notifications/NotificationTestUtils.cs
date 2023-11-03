@@ -20,7 +20,7 @@ public static class NotificationTestUtils
             PayloadIsEncrypted = true,
             AppData = new()
             {
-                JsonContent = OdinSystemSerializer.Serialize(encryptedJsonContents),
+                Content = OdinSystemSerializer.Serialize(encryptedJsonContents),
                 FileType = 150
             },
             AccessControlList = AccessControlList.OwnerOnly

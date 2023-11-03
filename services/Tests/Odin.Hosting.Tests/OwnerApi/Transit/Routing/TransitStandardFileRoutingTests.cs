@@ -87,8 +87,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == uploadedContent);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == uploadedContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -146,8 +146,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -218,7 +218,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 PayloadIsEncrypted = encrypted,
                 AppData = new()
                 {
-                    JsonContent = uploadedContent,
+                    Content = uploadedContent,
                     FileType = default,
                     GroupId = default,
                     Tags = default

@@ -122,7 +122,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -217,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -368,7 +368,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ImageDataHeader()
+            var thumbnail1 = new ThumbnailDescriptor()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -386,7 +386,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = encryptedJsonContent64
+                        Content = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -482,7 +482,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -550,7 +550,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true,
-                new ImageDataContent()
+                new ThumbnailContent()
                 {
                     ContentType = thumbnail1.ContentType,
                     PixelHeight = thumbnail1.PixelHeight,
@@ -586,7 +586,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transitClientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 CollectionAssert.AreEquivalent(transitClientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(transitClientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(transitClientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(transitClientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -738,7 +738,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -824,7 +824,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -866,7 +866,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -961,7 +961,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -1075,7 +1075,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1109,7 +1109,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             // var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ImageDataHeader()
+            var thumbnail1 = new ThumbnailDescriptor()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -1128,7 +1128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = json
+                        Content = json
                     },
                     PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1224,7 +1224,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -1269,7 +1269,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true,
-                new ImageDataContent()
+                new ThumbnailContent()
                 {
                     ContentType = thumbnail1.ContentType,
                     PixelHeight = thumbnail1.PixelHeight,
@@ -1307,7 +1307,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transitClientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 CollectionAssert.AreEquivalent(transitClientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(transitClientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(transitClientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(transitClientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(transitClientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -1434,7 +1434,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1477,7 +1477,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1566,7 +1566,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 AppData = new()
                 {
                     Tags = new List<Guid>() { fileTag },
-                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1601,7 +1601,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ImageDataHeader()
+            var thumbnail1 = new ThumbnailDescriptor()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -1624,7 +1624,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        JsonContent = encryptedJsonContent64
+                        Content = encryptedJsonContent64
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }

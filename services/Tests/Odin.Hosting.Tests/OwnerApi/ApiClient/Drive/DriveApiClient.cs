@@ -148,7 +148,7 @@ public class DriveApiClient
     public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
         Guid? overwriteFileId = null,
-        ImageDataContent thumbnail = null,
+        ThumbnailContent thumbnail = null,
         string payloadKey = "")
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -222,7 +222,7 @@ public class DriveApiClient
         FileSystemType fileSystemType, TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         string payloadData = "",
-        ImageDataContent thumbnail = null,
+        ThumbnailContent thumbnail = null,
         Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -246,8 +246,8 @@ public class DriveApiClient
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.JsonContent = encryptedJsonContent64;
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.PayloadIsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
@@ -390,7 +390,7 @@ public class DriveApiClient
         StorageOptions storageOptions,
         TransitOptions transitOptions,
         string payloadData = "",
-        ImageDataContent thumbnail = null
+        ThumbnailContent thumbnail = null
     )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -458,7 +458,7 @@ public class DriveApiClient
         StorageOptions storageOptions,
         TransitOptions transitOptions,
         string payloadData = "",
-        ImageDataContent thumbnail = null)
+        ThumbnailContent thumbnail = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -474,8 +474,8 @@ public class DriveApiClient
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.JsonContent = encryptedJsonContent64;
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.PayloadIsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()

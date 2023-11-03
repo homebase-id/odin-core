@@ -35,7 +35,7 @@ public class AppTransitSenderApiClient: AppApiClientBase
         TargetDrive remoteTargetDrive,
         Guid? overwriteGlobalTransitFileId = null,
         string payloadData = "",
-        ImageDataContent thumbnail = null,
+        ThumbnailContent thumbnail = null,
         FileSystemType fileSystemType = FileSystemType.Standard
     )
     {

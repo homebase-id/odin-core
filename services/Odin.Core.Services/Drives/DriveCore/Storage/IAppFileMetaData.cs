@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// This is not searchable but rather available to be returned
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
-        string JsonContent { get; set; }
+        string Content { get; set; }
 
         /// <summary>
         /// An id that can be used by the client to group this file with others
@@ -46,7 +46,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// A tiny thumbnail, blurry and small to be seen when previewing
         /// content (i.e. scrolling past an image in chat or list of blog posts during first page load)
         /// </summary>
-        public ImageDataContent PreviewThumbnail { get; set; }
+        public ThumbnailContent PreviewThumbnail { get; set; }
 
     }
 }

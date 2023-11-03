@@ -163,18 +163,19 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <param name="fileId"></param>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        public Task<Stream> GetThumbnail(Guid fileId, int width, int height)
+        /// <param name="payloadKey"></param>
+        public Task<Stream> GetThumbnail(Guid fileId, int width, int height, string payloadKey)
         {
-            string fileName = GetThumbnailFileName(fileId, width, height);
+            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey);
             string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
         }
 
-        public Task DeleteThumbnail(Guid fileId, int width, int height)
+        public Task DeleteThumbnail(Guid fileId, int width, int height, string payloadKey)
         {
-            string fileName = GetThumbnailFileName(fileId, width, height);
+            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey);
             string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
 
@@ -182,11 +183,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        private string GetThumbnailFileName(Guid fileId, int width, int height)
+        private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey)
         {
-            var suffix = string.Format(ThumbnailSuffixFormatSpecifier, width, height);
-            string fileName = this.GetFilename(fileId, suffix, FilePart.Thumb);
-            return fileName;
+            var extension = DriveFileUtility.GetThumbnailFileExtension(width, height, payloadKey);
+            return $"{fileId.ToString()}.{extension}";
+
+            // var suffix = string.Format(ThumbnailSuffixFormatSpecifier, width, height);
+            // string fileName = this.GetFilename(fileId, suffix, FilePart.Thumb);
+            // return fileName;
         }
 
         /// <summary>
@@ -277,9 +281,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, int width, int height)
+        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, ThumbnailDescriptor thumbnailDescriptor)
         {
-            var dest = GetThumbnailPath(targetFileId, width, height);
+            var dest = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, thumbnailDescriptor.PayloadKey);
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
             File.Move(sourceThumbnail, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
@@ -336,7 +340,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
-        public Task DeleteMissingThumbnailFiles(Guid fileId, List<ImageDataHeader> thumbnailsToKeep)
+        public Task DeleteMissingThumbnailFiles(Guid fileId, List<ThumbnailDescriptor> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
 
@@ -367,9 +371,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        private string GetThumbnailPath(Guid fileId, int width, int height)
+        private string GetThumbnailPath(Guid fileId, int width, int height, string payloadKey)
         {
-            var thumbnailFileName = GetThumbnailFileName(fileId, width, height);
+            var thumbnailFileName = GetThumbnailFileName(fileId, width, height, payloadKey);
             var filePath = GetFilePath(fileId, FilePart.Thumb);
             var thumbnailPath = Path.Combine(filePath, thumbnailFileName);
             return thumbnailPath;

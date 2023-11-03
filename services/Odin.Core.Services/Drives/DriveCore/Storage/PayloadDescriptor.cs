@@ -7,6 +7,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage;
 /// </summary>
 public class PayloadDescriptor
 {
+    public PayloadDescriptor()
+    {
+        
+    }
     /// <summary>
     /// A text value specified by the app to define the payload
     /// </summary>

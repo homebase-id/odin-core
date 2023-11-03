@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 
@@ -47,18 +48,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
             await driveUploadService.AddMetadata(section!.Body);
 
             //
-
-            //TODO: todd removed with multi-part payload; as this is not required; i think
-            // section = await reader.ReadNextSectionAsync();
-
-            //backwards compat
-            // bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
-            // if (section == null && requirePayloadSection)
-            // {
-            //     throw new OdinClientException("Missing Payload section", OdinClientErrorCode.InvalidPayload);
-            // }
-
-            //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
@@ -70,8 +59,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
-                    await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -107,7 +96,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             while (null != section)
             {
                 //TODO: parse payload or thumbnail
-                AssertIsValidThumbnailPart(section, out var fileSection, out var width, out var height);
+                AssertIsValidThumbnailPart_old(section, out var fileSection, out var width, out var height);
                 await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
@@ -148,14 +137,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             return part == MultipartUploadParts.Thumbnail;
         }
-        
+
         private protected void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection,
             out string payloadKey, out string contentType)
         {
             var expectedPart = MultipartUploadParts.Payload;
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidPayloadName);
+                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidPayloadNameOrKey);
             }
 
             fileSection = section.AsFileSection();
@@ -168,16 +157,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     OdinClientErrorCode.InvalidPayload);
             }
 
+            fileSection = section.AsFileSection();
+            DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
             payloadKey = fileSection?.FileName;
-            if (string.IsNullOrEmpty(payloadKey) || string.IsNullOrWhiteSpace(payloadKey))
-            {
-                throw new OdinClientException(
-                    "Payloads must include filename in the multi-part upload.  It must have no spaces. i.e. ('image_data' is valid where as 'image data' is not).  This will be the payload key used when you retrieve the payload.",
-                    OdinClientErrorCode.InvalidPayload);
-            }
         }
 
-        private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
+        private protected void AssertIsValidThumbnailPart_old(MultipartSection section, out FileMultipartSection fileSection,
             out int width, out int height)
         {
             var expectedPart = MultipartUploadParts.Thumbnail;
@@ -197,6 +182,41 @@ namespace Odin.Hosting.Controllers.Base.Drive
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
                 throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+        }
+
+        private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
+            out string thumbnailUploadKey, out string contentType)
+        {
+            var expectedPart = MultipartUploadParts.Thumbnail;
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            fileSection = section.AsFileSection();
+            if (null == fileSection)
+            {
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            fileSection = section.AsFileSection();
+
+            contentType = section.ContentType;
+            if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
+            {
+                throw new OdinClientException(
+                    "Thumbnails must include a valid contentType in the multi-part upload.",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            thumbnailUploadKey = fileSection?.FileName;
+            if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))
+            {
+                throw new OdinClientException(
+                    "Thumbnails must include the thumbnailKey, which matches the key in the InstructionSet.UploadManifest.",
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
         }

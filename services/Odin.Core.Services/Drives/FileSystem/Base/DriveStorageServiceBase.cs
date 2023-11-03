@@ -184,10 +184,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<(Stream stream, ImageDataHeader thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
-            bool directMatchOnly = false)
+        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
+            string payloadKey, bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
+            
+            DriveFileUtility.AssertValidPayloadKey(payloadKey);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
@@ -198,10 +200,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height), directMatchingThumb);
+                return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height, payloadKey), directMatchingThumb);
             }
 
             if (directMatchOnly)
@@ -210,7 +212,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             //TODO: add more logic here to compare width and height separately or together
-            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
+            var nextSizeUp = thumbs.FirstOrDefault(t => t.PayloadKey == payloadKey && (t.PixelHeight > height || t.PixelWidth > width));
             if (null == nextSizeUp)
             {
                 nextSizeUp = thumbs.LastOrDefault();
@@ -220,10 +222,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
 
-            return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight), nextSizeUp);
+            return (
+                await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, nextSizeUp.PayloadKey),
+                nextSizeUp);
         }
 
-        public async Task<Guid> DeleteThumbnail(InternalDriveFileId file, int width, int height)
+        public async Task<Guid> DeleteThumbnail(InternalDriveFileId file, int width, int height, string payloadKey)
         {
             this.AssertCanWriteToDrive(file.DriveId);
 
@@ -235,13 +239,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return Guid.Empty;
             }
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
                 // Update the metadata 
-                var updatedThumbs = header.FileMetadata.Thumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
+                var updatedThumbs = header.FileMetadata.Thumbnails
+                    .Where(t => !(t.PayloadKey == payloadKey && t.PixelHeight == height && t.PixelWidth == width));
                 header.FileMetadata.Thumbnails = updatedThumbs;
-                await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
+                await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height, payloadKey);
                 await this.UpdateActiveFileHeader(file, header);
             }
 
@@ -266,13 +271,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header);
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
-        }
-
-        public string GetThumbnailFileExtension(int width, int height)
-        {
-            //TODO: move this down into the long term storage manager
-            string extenstion = $"-{width}x{height}.thumb";
-            return extenstion;
         }
 
         public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata,
@@ -427,9 +425,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 foreach (var thumb in metadata.Thumbnails)
                 {
-                    var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                    var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
                     var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
                 }
             }
 
@@ -507,13 +505,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (metadataSaysThisFileHasThumbnails && !ignoreThumbnail.GetValueOrDefault(false))
             {
-                var thumbs = newMetadata.Thumbnails?.ToList() ?? new List<ImageDataHeader>();
+                var thumbs = newMetadata.Thumbnails?.ToList() ?? new List<ThumbnailDescriptor>();
                 await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, thumbs);
                 foreach (var thumb in thumbs)
                 {
-                    var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                    var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
                     var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
                 }
             }
 
@@ -542,7 +540,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         }
 
         public async Task<Guid> UpdateAttachments(InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
-            IEnumerable<ImageDataHeader> incomingThumbnails)
+            IEnumerable<ThumbnailDescriptor> incomingThumbnails)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -560,15 +558,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
-            var existingThumbnails = existingServerHeader.FileMetadata.Thumbnails?.ToList() ?? new List<ImageDataHeader>();
+            var existingThumbnails = existingServerHeader.FileMetadata.Thumbnails?.ToList() ?? new List<ThumbnailDescriptor>();
             await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
-            foreach (var thumb in incomingThumbnails ?? new List<ImageDataHeader>())
+            foreach (var thumb in incomingThumbnails ?? new List<ThumbnailDescriptor>())
             {
                 //TODO: de-dupe the records
-                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, thumb.PayloadKey);
                 var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
-                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb);
 
                 if (!existingThumbnails.Contains(thumb))
                 {
@@ -847,7 +845,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             return new ServerFileHeader()
             {
-                EncryptedKeyHeader = metadata.PayloadIsEncrypted ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader) : EncryptedKeyHeader.Empty(),
+                EncryptedKeyHeader = metadata.IsEncrypted ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader) : EncryptedKeyHeader.Empty(),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };

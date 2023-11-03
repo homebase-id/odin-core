@@ -58,7 +58,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
         /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
         /// </summary>
-        public bool PayloadIsEncrypted { get; set; }
+        public bool IsEncrypted { get; set; }
         
         /// <summary>
         /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
@@ -82,7 +82,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Set of thumbnails for this file in addition to the Appdata.PreviewThumbnail
         /// </summary>
-        public IEnumerable<ImageDataHeader> Thumbnails { get; set; }
+        public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
         public Guid? VersionTag { get; set; }
     }

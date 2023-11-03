@@ -9,4 +9,6 @@ public class GetThumbnailRequest
     public int Height { get; set; }
 
     public bool DirectMatchOnly { get; set; } = false;
+    
+    public string PayloadKey { get; set; }
 }

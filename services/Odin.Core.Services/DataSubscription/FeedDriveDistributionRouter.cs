@@ -79,8 +79,8 @@ namespace Odin.Core.Services.DataSubscription
                 {
                     var deleteNotification = notification as DriveFileDeletedNotification;
                     var isEncryptedFile =
-                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.PayloadIsEncrypted) ||
-                        notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted;
+                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
+                        notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
                     if (isEncryptedFile)
                     {

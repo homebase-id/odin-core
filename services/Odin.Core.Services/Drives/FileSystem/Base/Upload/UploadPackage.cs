@@ -21,7 +21,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
-            this.UploadedThumbnails = new List<ImageDataHeader>();
+            this.UploadedThumbnails = new List<ThumbnailDescriptor>();
             this.UploadedPayloads = new List<PayloadDescriptor>();
         }
 
@@ -39,6 +39,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         /// <summary>
         /// A list of thumbnails sent in the stream
         /// </summary>
-        public List<ImageDataHeader> UploadedThumbnails { get; }
+        public List<ThumbnailDescriptor> UploadedThumbnails { get; }
     }
 }

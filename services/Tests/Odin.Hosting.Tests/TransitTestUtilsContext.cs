@@ -14,6 +14,6 @@ namespace Odin.Hosting.Tests
 
         public Guid? GlobalTransitId { get; set; }
 
-        public List<ImageDataHeader> Thumbnails { get; set; }
+        public List<ThumbnailDescriptor> Thumbnails { get; set; }
     }
 }

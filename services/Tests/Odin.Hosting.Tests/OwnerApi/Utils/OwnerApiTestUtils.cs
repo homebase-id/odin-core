@@ -759,7 +759,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
             string payloadData,
-            bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
+            bool encryptPayload = true, ThumbnailContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 

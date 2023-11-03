@@ -65,7 +65,7 @@ public class ReactionTests
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
         Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == comment);
+        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
         Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == targetReferenceFile, "target reference file not referenced");
     }
 
@@ -98,7 +98,7 @@ public class ReactionTests
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
         Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == comment);
+        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
         Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.GlobalTransitIdFileIdentifier, "target reference file not referenced");
 
         // Get the target file and validate reaction was updated
@@ -169,7 +169,7 @@ public class ReactionTests
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = default,
                 GroupId = default,
                 Tags = default
@@ -192,7 +192,7 @@ public class ReactionTests
 
             AppData = new()
             {
-                JsonContent = commentContent,
+                Content = commentContent,
                 FileType = default,
                 GroupId = default,
                 Tags = default

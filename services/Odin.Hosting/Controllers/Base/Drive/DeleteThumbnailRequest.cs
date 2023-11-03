@@ -17,4 +17,6 @@ public class DeleteThumbnailRequest
     public int Width { get; set; }
     
     public int Height { get; set; }
+    
+    public string PayloadKey { get; set; }
 }

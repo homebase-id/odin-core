@@ -76,7 +76,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Get the post from Sam's feed drive, validate we got it
         //
         var headerOnSamsFeed = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsTrue(headerOnSamsFeed.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(headerOnSamsFeed.FileMetadata.AppData.Content == uploadedContent);
 
         //
         // Sam adds reaction from Sam's feed to Pippin's channel
@@ -110,7 +110,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Get the post from Sam's feed drive, validate we got it
         //
         var headerOnSamsFeedWithReaction = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
         var reactionSummaryValue = headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
         Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
 
@@ -142,7 +142,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             PayloadIsEncrypted = false,
             AppData = new()
             {
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = default,
                 GroupId = default,
                 Tags = default

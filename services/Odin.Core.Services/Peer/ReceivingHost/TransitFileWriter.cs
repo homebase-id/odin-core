@@ -121,7 +121,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
 
 
             //S2040
-            if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
+            if (referencedFile.FileMetadata.IsEncrypted != metadata.IsEncrypted)
             {
                 throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
             }

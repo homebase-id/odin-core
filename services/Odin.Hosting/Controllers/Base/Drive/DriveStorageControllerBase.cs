@@ -72,7 +72,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
@@ -80,9 +80,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             if (null != request.Chunk)
             {
+                var payloadSize = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key)?.BytesWritten ??
+                                  throw new OdinSystemException("Invalid payload key");
+
                 var to = request.Chunk.Start + request.Chunk.Length - 1;
                 HttpContext.Response.Headers.Add("Content-Range",
-                    new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, header.FileMetadata.PayloadSize), header.FileMetadata.PayloadSize)
+                    new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, payloadSize), payloadSize)
                         .ToString());
             }
 
@@ -102,7 +105,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
+            var (thumbPayload, thumbHeader) =
+                await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.PayloadKey, request.DirectMatchOnly);
             if (thumbPayload == Stream.Null)
             {
                 return NotFound();
@@ -117,14 +121,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Missing header", OdinClientErrorCode.UnknownId);
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = thumbHeader.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
             AddGuestApiCacheHeader();
 
-            var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
+            var result = new FileStreamResult(thumbPayload, header.FileMetadata.IsEncrypted
                 ? "application/octet-stream"
                 : thumbHeader.ContentType);
 
@@ -221,7 +225,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
             return new DeleteThumbnailResult()
             {
-                NewVersionTag = await fs.Storage.DeleteThumbnail(file, request.Width, request.Height)
+                NewVersionTag = await fs.Storage.DeleteThumbnail(file, request.Width, request.Height, request.PayloadKey)
             };
         }
 

@@ -63,7 +63,7 @@ public class ChatServerContext
 
             //Note: intentionally left out decryption
             var items = batch.SearchResults.Select(item =>
-                OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.Content));
 
             return (items, batch.CursorState);
         }
@@ -100,7 +100,7 @@ public class ChatServerContext
             //Note: intentionally left out decryption for this prototype
             var items = batch.SearchResults.ToDictionary(
                 item => item.FileId,
-                item => OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                item => OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.Content));
 
             return (items, batch.CursorState);
         }

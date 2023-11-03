@@ -195,7 +195,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 else
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file);
-                    var isEncrypted = serverFileHeader.FileMetadata.PayloadIsEncrypted;
+                    var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
                     
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
@@ -205,7 +205,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                         var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
                         if (!options.IncludeJsonContent)
                         {
-                            header.FileMetadata.AppData.JsonContent = string.Empty;
+                            header.FileMetadata.AppData.Content = string.Empty;
                         }
 
                         if (options.ExcludePreviewThumbnail)
@@ -218,7 +218,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     else
                     {
                         Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search " +
-                                  $"index with (isPayloadEncrypted: {serverFileHeader.FileMetadata.PayloadIsEncrypted}) but does not have the " +
+                                  $"index with (isPayloadEncrypted: {serverFileHeader.FileMetadata.IsEncrypted}) but does not have the " +
                                   $"storage key to decrypt the file {file}.");
                     }
                 }

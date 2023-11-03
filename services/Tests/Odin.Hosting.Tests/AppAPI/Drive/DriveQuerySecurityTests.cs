@@ -46,7 +46,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"Some json content {Guid.NewGuid()}",
+                    Content = $"Some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = acl ?? AccessControlList.OwnerOnly

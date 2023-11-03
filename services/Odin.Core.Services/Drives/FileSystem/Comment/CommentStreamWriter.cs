@@ -138,7 +138,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
-                JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
+                Content = uploadDescriptor.FileMetadata.AppData.Content,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
@@ -146,7 +146,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
-            PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
+            IsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
 
