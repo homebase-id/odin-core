@@ -98,7 +98,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 },
                 RequiredSecurityGroup = SecurityGroupType.Connected
             };
-            
+
             var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
             var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
             var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl, "payload 2");
@@ -264,7 +264,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
                 var firstResult = batch.SearchResults.First();
 
-                //ensure file content was sent 
+                //ensure file content was sent
                 Assert.NotNull(firstResult.FileMetadata.AppData.Content);
                 Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
@@ -323,7 +323,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -368,7 +368,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 VersionTag = versionTag,
                 AppData = new()
                 {

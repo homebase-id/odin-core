@@ -104,7 +104,7 @@
 //
 //         // Sam posts feedback using YouAuh on frodo's drive
 //         //TODO: Build a youauth API client
-//         
+//
 //     }
 //
 //     private async Task<UploadResult> UploadToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true)
@@ -113,7 +113,7 @@
 //         {
 //             AllowDistribution = allowDistribution,
 //             ContentType = "application/json",
-//             PayloadIsEncrypted = false,
+//             IsEncrypted = false,
 //             AppData = new()
 //             {
 //                 ContentIsComplete = true,
@@ -134,7 +134,7 @@
 //         {
 //             AllowDistribution = allowDistribution,
 //             ContentType = "application/json",
-//             PayloadIsEncrypted = false,
+//             IsEncrypted = false,
 //
 //             //indicates the file about which this file is giving feed back
 //             ReferencedFile = targetFile,

@@ -33,7 +33,7 @@ public class TestPayloadDefinition
 
     public UploadedPayloadDescriptor ToPayloadDescriptor()
     {
-        var t = this.Thumbnails.Select(thumb => new UploadedThumbnailDescriptor  ()
+        var t = this.Thumbnails.Select(thumb => new UploadedThumbnailDescriptor()
         {
             ThumbnailKey = $"{this.Key}{thumb.PixelWidth}{thumb.PixelHeight}", //hulk smash (it all together)
             PixelWidth = thumb.PixelWidth,
@@ -95,7 +95,7 @@ public class DriveApiClientRedux
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -150,7 +150,7 @@ public class DriveApiClientRedux
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -212,7 +212,7 @@ public class DriveApiClientRedux
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {

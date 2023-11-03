@@ -117,7 +117,7 @@ public class ChatMessageFileService
 
     private async Task<SharedSecretEncryptedFileHeader> GetChatMessageFileById(Guid conversationId, Guid messageId)
     {
-        
+
         var queryParams = new FileQueryParams()
         {
             TargetDrive = ChatApiConfig.Drive,
@@ -142,7 +142,7 @@ public class ChatMessageFileService
         var appData = sharedSecretEncryptedFileHeader.FileMetadata.AppData;
         var message = OdinSystemSerializer.Deserialize<ChatMessage>(appData.Content);
 
-        //TODO: add checks for file corruption - 
+        //TODO: add checks for file corruption -
         // if appData.GroupId != message.ConversationId
         // if message is null or did not deserialize correctly
 
@@ -161,7 +161,7 @@ public class ChatMessageFileService
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = OdinSystemSerializer.Serialize(message),

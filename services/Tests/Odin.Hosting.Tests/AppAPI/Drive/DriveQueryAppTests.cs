@@ -46,7 +46,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -161,7 +161,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 var firstResult = batch.SearchResults.First();
 
-                //ensure file content was sent 
+                //ensure file content was sent
                 Assert.NotNull(firstResult.FileMetadata.AppData.Content);
                 Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
@@ -246,7 +246,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata_not_archived = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -262,7 +262,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata_archived = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -282,7 +282,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                    ArchivalStatus =  new List<int>() { archivalStatus }
+                    ArchivalStatus = new List<int>() { archivalStatus }
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -310,7 +310,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 var theFileResult = batch.SearchResults.Single();
 
-                //ensure file content was sent 
+                //ensure file content was sent
                 Assert.NotNull(theFileResult.FileMetadata.AppData.Content);
                 Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.Content);
 
@@ -324,7 +324,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 //TODO: How to test this with a fileId?
             }
         }
-        
+
         [Test]
         public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
@@ -333,7 +333,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
@@ -363,7 +363,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
                 {
-                    CursorState = "", MaxRecords = 10,
+                    CursorState = "",
+                    MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 

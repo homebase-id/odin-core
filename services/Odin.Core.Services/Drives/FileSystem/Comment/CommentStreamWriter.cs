@@ -127,7 +127,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
                 ? Guid.NewGuid()
                 : null,
-            
+
             ReferencedFile = uploadDescriptor.FileMetadata.ReferencedFile,
 
             //TODO: need an automapper *sigh
@@ -146,12 +146,12 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
-            IsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
+            IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            
+
             Payloads = package.UploadedPayloads,
             Thumbnails = package.UploadedThumbnails
         };

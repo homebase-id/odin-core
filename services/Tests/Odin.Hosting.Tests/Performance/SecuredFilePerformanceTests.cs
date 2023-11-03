@@ -101,7 +101,7 @@ namespace Odin.Hosting.Tests.Performance
         {
             //
             // Calls to get the secured file parts
-            // 
+            //
 
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -131,7 +131,7 @@ namespace Odin.Hosting.Tests.Performance
 
 
             // var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY});
+            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY });
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
             // System.Threading.Thread.Sleep(2000);
@@ -208,7 +208,7 @@ namespace Odin.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -256,7 +256,7 @@ namespace Odin.Hosting.Tests.Performance
                 //
 
                 //
-                // Retrieve the file header that was uploaded; test it matches; 
+                // Retrieve the file header that was uploaded; test it matches;
                 //
                 var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
@@ -298,9 +298,9 @@ namespace Odin.Hosting.Tests.Performance
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

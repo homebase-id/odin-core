@@ -151,7 +151,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     thumbnailsAdded.Add(thumbnail1);
                 }
 
-                fileMetadata.PayloadIsEncrypted = true;
+                fileMetadata.IsEncrypted = true;
 
                 payloadData = options?.PayloadData ?? payloadData;
                 if (payloadData.Length > 0)
@@ -282,7 +282,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     thumbnailsAdded.Add(thumbnail1);
                 }
 
-                fileMetadata.PayloadIsEncrypted = true;
+                fileMetadata.IsEncrypted = true;
 
                 if (payloadData.Length > 0)
                 {

@@ -58,7 +58,7 @@ public class DataSubscriptionAndDistributionTests2
 
         //
         // Sam, Merry, and Pippin follow Frodo
-        // 
+        //
         await samOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
         await merryOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
         await pippinOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
@@ -95,7 +95,7 @@ public class DataSubscriptionAndDistributionTests2
         //
         // The header is distributed to the feed drive of Sam
         // Sam can get the payload via transit query
-        // 
+        //
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDriveHasHeader(samOwnerClient, firstUploadResult, encryptedJsonContent64);
         await AssertCanGetPayload(samOwnerClient, TestIdentities.Frodo, firstUploadResult, encryptedPayloadContent64);
@@ -137,7 +137,7 @@ public class DataSubscriptionAndDistributionTests2
 
         //
         // Sam follows Frodo
-        // 
+        //
         await samOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
         //scenarioContext.AppContexts[TestIdentities.Frodo.OdinId]
@@ -175,7 +175,7 @@ public class DataSubscriptionAndDistributionTests2
         //
         // The header is distributed to the feed drive of Sam
         // Sam can get the payload via transit query
-        // 
+        //
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDriveHasHeader(samOwnerClient, uploadResult, encryptedJsonContent64);
         await AssertCanGetPayload(samOwnerClient, TestIdentities.Frodo, uploadResult, encryptedPayloadContent64);
@@ -188,7 +188,7 @@ public class DataSubscriptionAndDistributionTests2
         //
         // Sam's feed drive no longer has the header
         // Sam can not get the payload via transit query
-        // 
+        //
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(samOwnerClient, uploadResult);
         await AssertPayloadIs404(samOwnerClient, TestIdentities.Frodo, uploadResult);
@@ -292,7 +292,7 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = headerContent,
@@ -315,7 +315,7 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {

@@ -39,7 +39,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var standardFile = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
                 {
@@ -56,7 +56,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
             var commentFile = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new()
                 {
@@ -68,7 +68,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
                 }
             };
 
-            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data", payloadKey:WebScaffold.PAYLOAD_KEY);
+            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data", payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Standard, new FileQueryParams()
             {

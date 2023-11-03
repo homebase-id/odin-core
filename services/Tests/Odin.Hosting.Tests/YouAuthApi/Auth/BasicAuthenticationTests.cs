@@ -85,7 +85,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
 
             var standardFile = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
                 {

@@ -75,8 +75,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
-                ignorePayload:false,
-                ignoreThumbnail:false);
+                ignorePayload: false,
+                ignoreThumbnail: false);
 
             return;
         }
@@ -121,12 +121,12 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail
             },
 
-            IsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
+            IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            
+
             Payloads = package.UploadedPayloads,
             Thumbnails = package.UploadedThumbnails
         };

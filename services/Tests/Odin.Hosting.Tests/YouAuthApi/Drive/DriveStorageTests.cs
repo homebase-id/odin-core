@@ -72,7 +72,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                         {
                             TargetDrive = uploadContext.UploadedFile.TargetDrive,
                             FileId = uploadContext.UploadedFile.FileId
-                        }, 
+                        },
                         Key = WebScaffold.PAYLOAD_KEY
                     });
                 Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()
                 {

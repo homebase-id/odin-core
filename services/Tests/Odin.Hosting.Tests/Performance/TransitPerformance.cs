@@ -258,7 +258,7 @@ TaskPerformanceTest_Transit
                     FileMetadata = new()
                     {
                         AllowDistribution = true,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -338,7 +338,7 @@ TaskPerformanceTest_Transit
                 // //
                 //
                 // //
-                // // Retrieve the file header that was uploaded; test it matches; 
+                // // Retrieve the file header that was uploaded; test it matches;
                 // //
                 // var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, ss);
                 // var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile.FileId, uploadedFile.TargetDrive.Alias, uploadedFile.TargetDrive.Type);
@@ -351,7 +351,7 @@ TaskPerformanceTest_Transit
                 // Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 // Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
                 //
-                // 
+                //
                 // CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 // Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 // Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
@@ -378,7 +378,7 @@ TaskPerformanceTest_Transit
                 //
                 // //
                 // // Get the payload that was uploaded, test it
-                // // 
+                // //
                 //
                 // var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile.FileId, uploadedFile.TargetDrive.Alias, uploadedFile.TargetDrive.Type);
                 // Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -498,7 +498,7 @@ TaskPerformanceTest_Transit
                     FileMetadata = new()
                     {
                         AllowDistribution = true,
-                        PayloadIsEncrypted = true,
+                        IsEncrypted = true,
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -552,7 +552,7 @@ TaskPerformanceTest_Transit
                 //
 
                 //
-                // Retrieve the file header that was uploaded; test it matches; 
+                // Retrieve the file header that was uploaded; test it matches;
                 //
                 var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
@@ -596,7 +596,7 @@ TaskPerformanceTest_Transit
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);

@@ -344,7 +344,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             const string commentFileContent = "Srsly!?? =O";
             const bool commentIsEncrypted = false;
 
-            
+
             var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
 
             var (standardFileUploadResult, encryptedJsonContent64) =
@@ -366,8 +366,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
-            
-            
+
+
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
                 $"Should have been delivered, actual status was {recipientStatus}");
@@ -390,7 +390,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 Should fail
                 Bad Request (S2100)
              */
-            
+
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
@@ -448,7 +448,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 Should fail
                 403
              */
-            
+
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
@@ -506,7 +506,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
@@ -625,9 +625,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             await recipientOwnerClient.Network.AcceptConnectionRequest(senderOwnerClient.Identity, new List<GuidId>() { recipientCircle.Id });
 
-            // 
+            //
             // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
+            //
 
             var senderConnectionInfo = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
 
@@ -643,7 +643,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
                     Content = uploadedContent,

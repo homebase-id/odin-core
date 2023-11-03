@@ -65,7 +65,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             // Test
             // At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
+            //
 
             var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
 
@@ -112,7 +112,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             // Test
             // At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
+            //
 
             var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
 
@@ -172,7 +172,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //             JsonContent = encryptedJsonContent64,
             //             AdditionalThumbnails = new[] { thumbnail1 }
             //         },
-            //         PayloadIsEncrypted = true,
+            //         IsEncrypted = true,
             //         AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             //     },
             // };
@@ -183,7 +183,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             // var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
             //
             // //
-            // // upload and send the file 
+            // // upload and send the file
             // //
             // var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
             // {
@@ -281,7 +281,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             //     //
             //     // Get the payload that was uploaded, test it
-            //     // 
+            //     //
             //
             //     var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
             //     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -411,7 +411,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     // Get the thumbnail that was sent to the recipient via transit, test it
             //     // can get the thumbnail that as uploaded and sent
             //     // can decrypt the thumbnail using the owner shared secret encrypted keyheader
-            //     // 
+            //     //
             //     var getTransitThumbnailResponse = await transitQueryService.GetThumbnail(new TransitGetThumbRequest()
             //     {
             //         OdinId = recipient.OdinId,

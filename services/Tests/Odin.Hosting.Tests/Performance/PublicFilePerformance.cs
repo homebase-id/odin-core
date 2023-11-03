@@ -328,7 +328,7 @@ TaskPerformanceTest
                     FileMetadata = new()
                     {
                         AllowDistribution = false,
-                        PayloadIsEncrypted = false,
+                        IsEncrypted = false,
                         AppData = new()
                         {
                             Tags = tags,
@@ -338,7 +338,7 @@ TaskPerformanceTest
                             PreviewThumbnail = previewThumbnail
                         },
                         AccessControlList = new AccessControlList()
-                            { RequiredSecurityGroup = SecurityGroupType.Anonymous }
+                        { RequiredSecurityGroup = SecurityGroupType.Anonymous }
                     },
                 };
 
@@ -372,7 +372,7 @@ TaskPerformanceTest
                 var uploadedFile = uploadResult.File;
 
                 //
-                // Retrieve the file header that was uploaded; test it matches; 
+                // Retrieve the file header that was uploaded; test it matches;
                 //
                 var getFilesDriveSvc =
                     RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
@@ -406,7 +406,7 @@ TaskPerformanceTest
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.EqualTo(Guid.Empty.ToByteArray()),
-                    "Iv should be all zeros because PayloadIsEncrypted = false");
+                    "Iv should be all zeros because IsEncrypted = false");
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 //validate preview thumbnail
@@ -425,7 +425,7 @@ TaskPerformanceTest
 
                 //
                 // If payload was uploaded, get the payload that was uploaded, test it
-                // 
+                //
                 if (payloadContent != null)
                 {
                     var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });

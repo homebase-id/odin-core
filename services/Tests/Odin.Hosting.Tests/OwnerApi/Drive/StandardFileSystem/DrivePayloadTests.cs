@@ -171,7 +171,7 @@ public class DrivePayloadTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,

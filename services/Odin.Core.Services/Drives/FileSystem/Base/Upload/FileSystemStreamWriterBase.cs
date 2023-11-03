@@ -328,7 +328,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
+        KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
 

@@ -12,12 +12,12 @@ public static class NotificationTestUtils
         TargetDrive targetDrive)
     {
         var keyHeader = KeyHeader.NewRandom16();
-        
+
         var encryptedJsonContents = keyHeader.EncryptDataAesAsStream(jsonContents);
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             AppData = new()
             {
                 Content = OdinSystemSerializer.Serialize(encryptedJsonContents),

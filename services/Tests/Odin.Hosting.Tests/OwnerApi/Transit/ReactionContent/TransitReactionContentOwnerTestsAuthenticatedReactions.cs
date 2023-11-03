@@ -71,7 +71,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
 
         //Tell Pippin's identity to process the feed outbox
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from Sam's feed drive, validate we got it
         //
@@ -84,7 +84,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
@@ -117,19 +117,19 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Now, Sam deletes the reactions
         var deleteReactionResponse = await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
         // the changes
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from sam's feed drive again, it should have the header updated
         //
         var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
         Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(), "There should be no reactions in the summary but there was at least one");
-        
+
     }
 
 
@@ -139,7 +139,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,

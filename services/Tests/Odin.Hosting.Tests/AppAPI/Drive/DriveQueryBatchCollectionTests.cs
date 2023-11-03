@@ -144,24 +144,24 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null));
-            
+
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.InvalidDrive == false));
-            
+
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null));
-            
+
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.InvalidDrive == false));
-            
+
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null));
-            
-            
+
+
             Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.InvalidDrive == false));
@@ -296,7 +296,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()
                 {

@@ -190,7 +190,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var commentFileMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
@@ -210,7 +210,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Get the comment on pippin's identity and test it
             //
-            
+
             var remoteFile = new TransitExternalFileIdentifier()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
@@ -222,7 +222,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             Assert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
         }
 
-        
+
         [Test]
         public async Task AppCan_AddCommentOn_AnonymousDrive_With_CommentPermission_and_ConnectedIdentity()
         {
@@ -233,7 +233,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //Notice: no circles since we're only testing what can be done by connected identities on an anonymous drive
             await pippinOwnerClient.Network.SendConnectionRequestTo(TestIdentities.Merry, new List<GuidId>() { });
             await merryOwnerClient.Network.AcceptConnectionRequest(TestIdentities.Pippin, new List<GuidId>() { });
-            
+
             var remoteDrive = await pippinOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some target drive", "", allowAnonymousReads: true);
 
             // Pippin uploads file
@@ -249,7 +249,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
                 AllowDistribution = true,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
@@ -300,8 +300,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             await pippinOwnerClient.Network.DisconnectFrom(merryOwnerClient.Identity);
         }
-        
-        
+
+
         private async Task Connect(TestIdentity sender, TestIdentity recipient)
         {
             //Note
@@ -348,7 +348,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
@@ -372,7 +372,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var fileMetadata = new UploadFileMetadata()
             {
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,

@@ -239,7 +239,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -340,7 +340,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -440,7 +440,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -564,7 +564,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -704,7 +704,7 @@ public class DataSubscriptionAndDistributionTests1
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -1110,19 +1110,19 @@ public class DataSubscriptionAndDistributionTests1
 
         //
         // Sam's feed drive no longer has the header
-        // 
+        //
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(samOwnerClient, uploadResult);
 
         //
         // Pippin's feed drive no longer has the header
-        // 
+        //
         await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(pippinOwnerClient, uploadResult);
 
         //
         // Merry's feed drive no longer has the header
-        // 
+        //
         await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDrive_HasDeletedFile(merryOwnerClient, uploadResult);
 
@@ -1165,7 +1165,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,
@@ -1186,7 +1186,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,
@@ -1206,7 +1206,7 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {

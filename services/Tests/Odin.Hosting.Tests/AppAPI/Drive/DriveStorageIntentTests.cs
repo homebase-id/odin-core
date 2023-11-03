@@ -51,7 +51,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     FileType = 101,
                     Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 
@@ -90,7 +90,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     FileType = 101,
                     Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 
@@ -115,8 +115,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
             Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
         }
-        
-        // 
+
+        //
 
         private async Task<(AppApiClient appApiClient, TargetDrive drive)> CreateApp(TestIdentity identity)
         {

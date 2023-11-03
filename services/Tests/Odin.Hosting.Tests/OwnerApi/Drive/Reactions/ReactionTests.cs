@@ -57,7 +57,7 @@ public class ReactionTests
             GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault(),
             TargetDrive = uploadResult.File.TargetDrive
         };
-        
+
         var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, comment, false);
 
         Assert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
@@ -166,7 +166,7 @@ public class ReactionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,
@@ -185,7 +185,7 @@ public class ReactionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
 
             //indicates the file about which this file is giving feed back
             ReferencedFile = referencedFile,

@@ -526,7 +526,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             {
                 VersionTag = versionTag,
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
@@ -624,9 +624,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //
             await recipientOwnerClient.Network.AcceptConnectionRequest(senderOwnerClient.Identity, new List<GuidId>() { recipientCircle.Id });
 
-            // 
+            //
             // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
+            //
 
             var senderConnectionInfo = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
 
@@ -642,7 +642,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
                     Content = uploadedContent,

@@ -55,7 +55,7 @@ public class ReactionPreviewTests
         var commentFile1 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -72,7 +72,7 @@ public class ReactionPreviewTests
         var commentFile2 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -89,7 +89,7 @@ public class ReactionPreviewTests
         var commentFile3 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
@@ -120,7 +120,7 @@ public class ReactionPreviewTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
                 Content = uploadedContent,

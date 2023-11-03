@@ -45,7 +45,7 @@ public class TransitBadCATDetectionTests
         var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
 
         // 2. Merry posts two pieces of content 1 public, one secured that requires you to be connected
-        // 
+        //
 
         var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
         var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
@@ -78,7 +78,7 @@ public class TransitBadCATDetectionTests
         await merryOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
 
         //
-        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT).  
+        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT).
         //
         // On the backend - Merry's server detects bad CAT (or ICR), rejects the call and Tells Pippin's server that the CAT is invalid
         // therefore, the call should fail with 403
@@ -142,7 +142,7 @@ public class TransitBadCATDetectionTests
                 FileType = 10101,
                 Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Connected
         };
 
@@ -168,7 +168,7 @@ public class TransitBadCATDetectionTests
                 FileType = 10101,
                 Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Anonymous
         };
 

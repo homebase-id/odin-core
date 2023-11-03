@@ -65,7 +65,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     AllowDistribution = false,
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var targetDrive = uploadResult.File.TargetDrive;
                 var fileId = uploadResult.File.FileId;
 
-                //retrieve the file that was uploaded; decrypt; 
+                //retrieve the file that was uploaded; decrypt;
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testContext.SharedSecret);
 
                 var fileResponse = await driveSvc.GetFileHeaderAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
@@ -192,7 +192,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     AllowDistribution = true,
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -238,7 +238,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var firstFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -284,7 +284,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var secondFileMeta = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },

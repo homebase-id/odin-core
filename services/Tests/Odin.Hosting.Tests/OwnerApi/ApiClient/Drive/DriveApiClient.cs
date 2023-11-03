@@ -158,7 +158,7 @@ public class DriveApiClient
         {
             throw new Exception("your payload key is empty and refit is going to change it..");
         }
-        
+
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
@@ -177,7 +177,7 @@ public class DriveApiClient
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -248,7 +248,7 @@ public class DriveApiClient
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -260,7 +260,7 @@ public class DriveApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            
+
 
             if (!string.IsNullOrEmpty(payloadData))
             {
@@ -334,7 +334,7 @@ public class DriveApiClient
             });
         }
     }
-    
+
     public async Task DeleteFile(ExternalFileIdentifier file, List<string> recipients = null, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -408,7 +408,7 @@ public class DriveApiClient
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
             // fileMetadata.AppData.JsonContent = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -476,7 +476,7 @@ public class DriveApiClient
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
             {

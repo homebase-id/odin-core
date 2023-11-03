@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files;
 /// <summary>
 /// Sends files over transit
 /// </summary>
-public class AppTransitSenderApiClient: AppApiClientBase
+public class AppTransitSenderApiClient : AppApiClientBase
 {
     private readonly AppClientToken _token;
 
@@ -28,7 +28,7 @@ public class AppTransitSenderApiClient: AppApiClientBase
     {
         _token = token;
     }
-        
+
     public async Task<ApiResponse<TransitResult>> TransferFile(
         UploadFileMetadata fileMetadata,
         List<string> recipients,
@@ -55,10 +55,10 @@ public class AppTransitSenderApiClient: AppApiClientBase
 
         var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
-            
+
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.PayloadIsEncrypted = false;
+            fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
             {
@@ -82,7 +82,7 @@ public class AppTransitSenderApiClient: AppApiClientBase
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var svc =  RestService.For<IRefitAppTransitSender>(client);
+            var svc = RestService.For<IRefitAppTransitSender>(client);
             ApiResponse<TransitResult> response = await svc.TransferStream(parts.ToArray());
             keyHeader.AesKey.Wipe();
             return response;

@@ -201,7 +201,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
             Assert.IsFalse(batch.SearchResults.Any());
-            
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
                     Content = uploadedContent,
@@ -329,9 +329,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             await recipientOwnerClient.Network.AcceptConnectionRequest(senderOwnerClient.Identity, new List<GuidId>() { recipientCircle.Id });
 
-            // 
+            //
             // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
+            //
 
             var senderConnectionInfo = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
 

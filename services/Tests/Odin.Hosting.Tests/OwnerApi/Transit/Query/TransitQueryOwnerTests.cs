@@ -124,7 +124,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -135,7 +135,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -235,7 +235,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -388,7 +388,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = encryptedJsonContent64
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -399,7 +399,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
@@ -480,7 +480,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -492,7 +492,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
@@ -501,7 +501,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -632,7 +632,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the thumbnail that was sent to the recipient via transit, test it
                 // can get the thumbnail that as uploaded and sent
                 // can decrypt the thumbnail using the owner shared secret encrypted keyheader
-                // 
+                //
                 var getTransitThumbnailResponse = await transitQueryService.GetThumbnail(new TransitGetThumbRequest()
                 {
                     OdinId = recipient.OdinId,
@@ -740,7 +740,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -751,7 +751,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
@@ -826,7 +826,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -868,7 +868,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = false,
+                    IsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -878,7 +878,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var payloadData = "{payload:true, image:'b64 data'}";
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
             {
@@ -959,7 +959,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -967,10 +967,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -993,7 +993,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             descriptor.FileMetadata.AllowDistribution = false;
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
-                
+
             instructionSet.TransitOptions = null;
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true,
@@ -1077,7 +1077,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1130,7 +1130,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = json
                     },
-                    PayloadIsEncrypted = false,
+                    IsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1140,7 +1140,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var originalPayloadData = "{payload:true, image:'b64 data'}";
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             Guid senderUploadVersionTag;
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
@@ -1222,7 +1222,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -1230,10 +1230,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -1353,7 +1353,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the thumbnail that was sent to the recipient via transit, test it
                 // can get the thumbnail that as uploaded and sent
                 // can decrypt the thumbnail using the owner shared secret encrypted keyheader
-                // 
+                //
                 var getTransitThumbnailResponse = await transitQueryService.GetThumbnail(new TransitGetThumbRequest()
                 {
                     OdinId = recipient.OdinId,
@@ -1436,7 +1436,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1479,7 +1479,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1490,7 +1490,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
             //
-            // upload and send the file 
+            // upload and send the file
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
             {
@@ -1568,7 +1568,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Tags = new List<Guid>() { fileTag },
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
             };
 
@@ -1626,7 +1626,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Tags = new List<Guid>() { fileTag },
                         Content = encryptedJsonContent64
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };

@@ -129,7 +129,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -188,9 +188,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var sentFile = ctx.UploadedFile;
             var recipientAppContext = ctx.RecipientContexts.FirstOrDefault().Value;
 
-            // 
+            //
             // On recipient identity - see that file was transferred
-            // 
+            //
             var getFileByTypeResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext,
                 FileQueryParams.FromFileType(recipientAppContext.TargetDrive, someFiletype),
                 QueryBatchResultOptionsRequest.Default);
@@ -276,9 +276,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var firstFileSent = sendFileResult.UploadedFile;
             var recipientAppContext = sendFileResult.RecipientContexts.FirstOrDefault().Value;
 
-            // 
+            //
             // On recipient identity - see that file was transferred
-            // 
+            //
             var filesByGlobalTransitId = new FileQueryParams()
             {
                 TargetDrive = recipientAppContext.TargetDrive,
@@ -425,7 +425,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -537,7 +537,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -706,7 +706,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                             Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
                         }
                     },
-                    PayloadIsEncrypted = true,
+                    IsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -822,7 +822,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 //
                 // Get the payload that was uploaded, test it
-                // 
+                //
 
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { Key = payloadKey, File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);

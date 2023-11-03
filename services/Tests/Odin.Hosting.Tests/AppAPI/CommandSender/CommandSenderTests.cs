@@ -74,7 +74,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AppData = new()
                 {
                     FileType = someFileType,
@@ -135,7 +135,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
 
             //
             // validate frodo no longer as the file associated w/ the command
-            // 
+            //
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId);
             await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Merry.OdinId);

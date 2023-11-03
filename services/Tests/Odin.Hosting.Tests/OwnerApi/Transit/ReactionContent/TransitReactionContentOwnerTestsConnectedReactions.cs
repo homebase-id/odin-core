@@ -33,7 +33,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
         {
             _scaffold.RunAfterAnyTests();
         }
-        
+
         [Test]
         public async Task ConnectedIdentity_CanSendAndGetAllReactions_OverTransit_ForPublicChannel_WithNoCircles()
         {
@@ -145,7 +145,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var uploadedContent = "I'm Hungry!";
             var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
 
-            
+
             //
             // Sam adds reaction from Sam's feed to Pippin's channel
             //
@@ -207,7 +207,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     Content = uploadedContent,
@@ -227,7 +227,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
