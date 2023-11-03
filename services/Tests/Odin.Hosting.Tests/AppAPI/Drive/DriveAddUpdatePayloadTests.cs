@@ -39,9 +39,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         }
         
         [Test]
-        public async Task CanAddAndUpdateThumbnailToExistingFile()
+        public Task CanAddAndUpdateThumbnailToExistingFile()
         {
             Assert.Fail("implement after the owner is done");
+            
             // var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
             //
             // var (uploadResult, originalThumbnails) = await UploadUnEncryptedFileWithTwoThumbnails(appApiClient, targetDrive);
@@ -97,6 +98,9 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //     Assert.IsTrue(getThumbResponse.IsSuccessStatusCode);
             //     Assert.IsTrue(getThumbResponse!.ContentHeaders!.ContentLength > 0);
             // }
+            
+            return Task.CompletedTask;
+
         }
 
         // 

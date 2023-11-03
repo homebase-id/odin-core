@@ -585,19 +585,16 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 }
             }
 
-            throw new NotImplementedException("wip");
-            // Merge incoming payloads with existing ones
-            var currentPayloads = existingServerHeader.FileMetadata.Payloads;
-            foreach (var p in incomingPayloads)
-            {
-                // var existingDescriptor = existingServerHeader.FileMetadata.GetPayloadDescriptor(p.Key);
-                // if (null != existingDescriptor)
-                // {
-                //     currentPayloads.
-                // }
-            }
+            List<PayloadDescriptor> finalPayloads = new List<PayloadDescriptor>();
 
-            // existingServerHeader.FileMetadata.Payloads = finalPayloads;
+            // Add the incoming list as the priority
+            finalPayloads.AddRange(incomingPayloads);
+
+            // Now Add any that were in the existing server header not already in the list
+            var existingFiltered = existingServerHeader.FileMetadata.Payloads.Where(ep => incomingPayloads.All(ip => ip.Key != ep.Key));
+            finalPayloads.AddRange(existingFiltered);
+            
+            existingServerHeader.FileMetadata.Payloads = finalPayloads;
 
             await WriteFileHeaderInternal(existingServerHeader);
 

@@ -13,11 +13,7 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     /// The Mime Type of the thumbnail
     /// </summary>
     public string ContentType { get; set; }
-
-    public string GetFilename(string payloadKey)
-    {
-        return $"{this.PixelWidth}x{this.PixelHeight}-{payloadKey}";
-    }
+    
     
     public bool Equals(ThumbnailDescriptor other)
     {

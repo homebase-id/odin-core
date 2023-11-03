@@ -377,7 +377,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task DeleteMissingThumbnailFiles(Guid fileId, IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
         {
-            Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
+            var list = thumbnailsToKeep?.ToList();
+            Guard.Argument(list, nameof(list)).NotNull();
 
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
@@ -395,7 +396,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                     var width = int.Parse(sizeParts[0]);
                     var height = int.Parse(sizeParts[1]);
 
-                    var keepThumbnail = thumbnailsToKeep.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
+                    var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
                     if (!keepThumbnail)
                     {
                         File.Delete(thumbnailFilePath);

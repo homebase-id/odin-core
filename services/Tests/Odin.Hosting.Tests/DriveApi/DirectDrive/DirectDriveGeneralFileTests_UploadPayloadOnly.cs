@@ -11,7 +11,6 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Hosting.Tests.Extensions;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests.DriveApi.DirectDrive;
@@ -143,14 +142,17 @@ public class DirectDriveGeneralFileTests_UploadPayloadOnly
     }
     
     [Test]
-    public async Task CanOverwriteExistingPayloadByKey()
+    public  Task CanOverwriteExistingPayloadByKey()
     {
         Assert.Inconclusive("todos");
+        return Task.CompletedTask;
     }
     
     [Test]
-    public async Task CanRemovePayloadAndThumbsAreDeletedAsWell()
+    public  Task CanRemovePayloadAndThumbsAreDeletedAsWell()
     {
         Assert.Inconclusive("todos");
+        return Task.CompletedTask;
+
     }
 }

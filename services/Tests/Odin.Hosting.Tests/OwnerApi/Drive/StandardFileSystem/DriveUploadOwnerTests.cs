@@ -235,15 +235,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                             new UploadManifestPayloadDescriptor()
                             {
                                 PayloadKey = WebScaffold.PAYLOAD_KEY,
-                                Thumbnails = new List<PackageThumbnailDescriptor>()
+                                Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
                                 {
-                                    new PackageThumbnailDescriptor()
+                                    new ()
                                     {
                                         PixelHeight = thumbnail1.PixelHeight,
                                         PixelWidth = thumbnail1.PixelWidth,
                                         ThumbnailKey = tk1
                                     },
-                                    new PackageThumbnailDescriptor()
+                                    new ()
                                     {
                                         PixelWidth = thumbnail2.PixelWidth,
                                         PixelHeight = thumbnail2.PixelHeight,

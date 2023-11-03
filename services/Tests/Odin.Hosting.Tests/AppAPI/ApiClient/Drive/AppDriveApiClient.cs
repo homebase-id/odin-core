@@ -203,7 +203,8 @@ public class AppDriveApiClient : AppApiClientBase
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnails?.Any() ?? false)
@@ -231,7 +232,7 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<UploadPayloadResult>> UploadAttachments(ExternalFileIdentifier targetFile,
+    public Task<ApiResponse<UploadPayloadResult>> UploadAttachments(ExternalFileIdentifier targetFile,
         List<ThumbnailContent> thumbnails,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -245,8 +246,7 @@ public class AppDriveApiClient : AppApiClientBase
         //
         //     return (instructionSet, response);
         // }
-
-        return null;
+        return Task.FromResult<ApiResponse<UploadPayloadResult>>(null);
     }
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
