@@ -20,7 +20,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0" />
-    <PackageReference Include="Quartz" Version="3.3.3" />
+    <PackageReference Include="Quartz" Version="3.7.0" />
     <PackageReference Include="Refit" Version="6.0.38" />
     <PackageReference Include="System.Data.Sqlite" Version="1.0.116" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />

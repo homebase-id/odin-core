@@ -28,6 +28,7 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Hosting._dev;
@@ -79,9 +80,10 @@ namespace Odin.Hosting
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
+            services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
             services.AddQuartz(q =>
             {
-                q.UseMicrosoftDependencyInjectionJobFactory();
+                q.AddTriggerListener(sp => sp.GetRequiredService<IExclusiveJobManager>());
                 if (config.Quartz.EnableQuartzBackgroundService)
                 {
                     q.UseDefaultCronSchedule(config);
@@ -91,7 +93,6 @@ namespace Odin.Hosting
             services.AddQuartzServer(options =>
             {
                 options.WaitForJobsToComplete = true;
-
             });
 
             services.AddControllers()

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Admin.Tenants.Jobs;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Quartz;
 
@@ -17,17 +18,20 @@ public class TenantAdmin : ITenantAdmin
     private readonly ILogger<TenantAdmin> _logger;
     private readonly OdinConfiguration _config;
     private readonly ISchedulerFactory _schedulerFactory;
+    private readonly IExclusiveJobManager _exclusiveJobManager;
     private readonly IIdentityRegistry _identityRegistry;
 
     public TenantAdmin(
         ILogger<TenantAdmin> logger,
         OdinConfiguration config,
         ISchedulerFactory schedulerFactory,
+        IExclusiveJobManager exclusiveJobManager,
         IIdentityRegistry identityRegistry)
     {
         _logger = logger;
         _config = config;
         _schedulerFactory = schedulerFactory;
+        _exclusiveJobManager = exclusiveJobManager;
         _identityRegistry = identityRegistry;
     }
 
@@ -54,7 +58,7 @@ public class TenantAdmin : ITenantAdmin
 
     //
 
-    public async Task<bool> EnqueueDeleteTenant(string domain)
+    public async Task<string> EnqueueDeleteTenant(string domain)
     {
         if (!await _identityRegistry.IsIdentityRegistered(domain))
         {
@@ -62,21 +66,22 @@ public class TenantAdmin : ITenantAdmin
         }
 
         var jobKey = new JobKey(domain, DeleteTenantJob.JobGroup);
+        if (_exclusiveJobManager.Exists(jobKey))
+        {
+            return jobKey.ToString();
+        }
 
         var scheduler = await _schedulerFactory.GetScheduler();
-
         var job = JobBuilder.Create<DeleteTenantJob>()
             .WithIdentity(jobKey)
             .UsingJobData("domain", domain)
             .Build();
-
         var trigger = TriggerBuilder.Create()
             .StartNow()
             .Build();
-
         await scheduler.ScheduleJob(job, trigger);
 
-        return true;
+        return jobKey.ToString();
     }
 
     //

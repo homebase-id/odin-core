@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
+using Odin.Core.Services.Quartz;
 
 namespace Odin.Hosting.Controllers.Admin;
 #nullable enable
@@ -12,11 +14,14 @@ namespace Odin.Hosting.Controllers.Admin;
 [ServiceFilter(typeof(AdminApiRestrictedAttribute))]
 public class AdminController : ControllerBase
 {
+    private const string AdminJobStateRouteName = "AdminJobStateRoute";
     private readonly ITenantAdmin _tenantAdmin;
+    private readonly IExclusiveJobManager _exclusiveJobManager;
 
-    public AdminController(ITenantAdmin tenantAdmin)
+    public AdminController(ITenantAdmin tenantAdmin, IExclusiveJobManager exclusiveJobManager)
     {
         _tenantAdmin = tenantAdmin;
+        _exclusiveJobManager = exclusiveJobManager;
     }
 
     //
@@ -25,6 +30,25 @@ public class AdminController : ControllerBase
     public ActionResult<string> Ping()
     {
         return "pong";
+    }
+
+    //
+
+    [HttpGet("job-status/{jobId}", Name = AdminJobStateRouteName)]
+    public ActionResult<IJobState> JobState(string jobId)
+    {
+        var job = _exclusiveJobManager.GetJob(jobId);
+        if (job == null)
+        {
+            return NotFound();
+        }
+
+        if (job.IsDone)
+        {
+            _exclusiveJobManager.RemoveJob(jobId);
+        }
+
+        return Ok(job.State);
     }
 
     //
@@ -53,7 +77,7 @@ public class AdminController : ControllerBase
     //
 
     [HttpDelete("tenants/{domain}")]
-    public async Task<ActionResult<AdminJobStatus>> DeleteTenant(string domain)
+    public async Task<ActionResult> DeleteTenant(string domain)
     {
         if (!await _tenantAdmin.TenantExists(domain))
         {
@@ -62,7 +86,8 @@ public class AdminController : ControllerBase
 
         try
         {
-            await _tenantAdmin.EnqueueDeleteTenant(domain);
+            var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
+            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
         }
         catch (AdminValidationException e)
         {
@@ -71,8 +96,6 @@ public class AdminController : ControllerBase
                 Title = e.Message
             });
         }
-
-        return Accepted();
     }
 
     //
