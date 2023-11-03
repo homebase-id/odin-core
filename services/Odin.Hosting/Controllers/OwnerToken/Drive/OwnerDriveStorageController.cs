@@ -137,7 +137,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
             return await base.GetThumbnail(new GetThumbnailRequest()
@@ -153,6 +153,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 },
                 Width = width,
                 Height = height
+                PayloadKey = payloadKey,
             });
         }
 
