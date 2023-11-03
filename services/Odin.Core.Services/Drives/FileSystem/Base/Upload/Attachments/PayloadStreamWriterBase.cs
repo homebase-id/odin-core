@@ -49,15 +49,15 @@ public abstract class PayloadStreamWriterBase
         {
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
-        
+
         this._package = new PayloadOnlyPackage(file, instructionSet!);
         await Task.CompletedTask;
     }
-    
-    
+
+
     public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
-        if (_package.UploadedPayloads.Any(p => string.Equals(key, p.Key, StringComparison.InvariantCultureIgnoreCase)))
+        if (_package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
         }
@@ -66,9 +66,9 @@ public abstract class PayloadStreamWriterBase
         var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
         if (bytesWritten > 0)
         {
-            _package.UploadedPayloads.Add(new PayloadDescriptor()
+            _package.Payloads.Add(new PackagePayloadDescriptor()
             {
-                Key = key,
+                PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten
@@ -78,7 +78,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data)
     {
-        //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
+        // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
         // if you're adding a thumbnail, there must be a manifest
         var descriptors = _package.InstructionSet.Manifest?.PayloadDescriptors;
@@ -111,15 +111,15 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
+
         await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
 
-        var payloadDescriptor = _package.UploadedPayloads.Single(pk => pk.Key == result.PayloadKey);
-
-        payloadDescriptor.Thumbnails.Add(new ThumbnailDescriptor()
+        _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
-            ContentType = contentType
+            ContentType = contentType,
+            PayloadKey = result.PayloadKey
         });
     }
 
@@ -129,7 +129,7 @@ public abstract class PayloadStreamWriterBase
     public async Task<UploadPayloadResult> FinalizeUpload()
     {
         var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile);
-        
+
         await this.ValidateUploadCore(serverHeader);
 
         await this.ValidatePayloads(_package, serverHeader);

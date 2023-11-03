@@ -42,7 +42,7 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public UploadPackage Package { get; private set; }
+    public FileUploadPackage Package { get; private set; }
 
     public virtual async Task StartUpload(Stream data)
     {
@@ -85,7 +85,7 @@ public abstract class FileSystemStreamWriterBase
             };
         }
 
-        this.Package = new UploadPackage(file, instructionSet!, isUpdateOperation);
+        this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
         await Task.CompletedTask;
     }
 
@@ -96,7 +96,7 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
-        if (Package.UploadedPayloads.Any(p => string.Equals(key, p.Key, StringComparison.InvariantCultureIgnoreCase)))
+        if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
         }
@@ -105,9 +105,9 @@ public abstract class FileSystemStreamWriterBase
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
         if (bytesWritten > 0)
         {
-            Package.UploadedPayloads.Add(new PayloadDescriptor()
+            Package.Payloads.Add(new PackagePayloadDescriptor()
             {
-                Key = key,
+                PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten
@@ -150,9 +150,10 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
+        
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
         
-        Package.UploadedThumbnails.Add(new ThumbnailDescriptor()
+        Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
             PixelWidth = result.ThumbnailDescriptor.PixelWidth,
@@ -248,31 +249,31 @@ public abstract class FileSystemStreamWriterBase
     /// <returns></returns>
     protected abstract Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor);
 
-    protected abstract Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package);
+    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package);
 
     /// <summary>
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<FileMetadata> MapUploadToMetadata(UploadPackage package, UploadFileDescriptor uploadDescriptor);
+    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor);
 
-    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
+    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
         var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
@@ -297,7 +298,7 @@ public abstract class FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled storage intent");
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package,
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
@@ -325,7 +326,7 @@ public abstract class FileSystemStreamWriterBase
         return (keyHeader, metadata, serverMetadata);
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(UploadPackage package,
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
@@ -356,7 +357,7 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    private async Task ValidateUploadCore(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         if (null == serverMetadata.AccessControlList)
         {

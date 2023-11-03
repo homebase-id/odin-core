@@ -14,18 +14,9 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     /// </summary>
     public string ContentType { get; set; }
 
-    /// <summary>
-    /// Indicates this thumbnail is for the given payload key
-    /// </summary>
-    [Obsolete]
-    public string PayloadKey { get; set; }
-
-    public UnixTimeUtc LastModified { get; set; }
-
-    public string GetFilename()
+    public string GetFilename(string payloadKey)
     {
-        throw new NotImplementedException("need to fix key");
-        return $"{this.PixelWidth}x{this.PixelHeight}-{PayloadKey}";
+        return $"{this.PixelWidth}x{this.PixelHeight}-{payloadKey}";
     }
     
     public bool Equals(ThumbnailDescriptor other)

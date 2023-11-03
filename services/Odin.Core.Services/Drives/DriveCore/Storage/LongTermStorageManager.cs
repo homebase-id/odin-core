@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -374,7 +375,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
-        public Task DeleteMissingThumbnailFiles(Guid fileId, List<ThumbnailDescriptor> thumbnailsToKeep)
+        public Task DeleteMissingThumbnailFiles(Guid fileId, IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
 

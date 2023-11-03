@@ -16,6 +16,7 @@ using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
@@ -327,26 +328,33 @@ namespace Odin.Core.Services.Peer.SendingHost
                     {
                         var payloadKey = descriptor.Key;
 
-                        Stream payloadStream = Stream.Null;
                         string contentType = "application/unknown";
 
                         //TODO: consider what happens if the payload has been delete from disk
                         var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
-                        payloadStream = p.Stream;
+                        var payloadStream = p.Stream;
 
                         var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
                         additionalStreamParts.Add(payload);
-                        
+
                         foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                         {
-                            var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+                            var (thumbStream, thumbHeader) =
+                                await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
 
-                            var thumbnailKey = thumbHeader.GetFilename();
-                            additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                            var thumbnailKey =
+                                $"{payloadKey}" +
+                                $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                                $"{thumb.PixelWidth}" +
+                                $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                                $"{thumb.PixelHeight}";
+                            
+                            additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                                Enum.GetName(MultipartUploadParts.Thumbnail)));
                         }
                     }
                 }
-                
+
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 

@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 public static class UploadExtensions
 {
-    public static IEnumerable<UploadedPayloadDescriptor> ToPayloadDescriptorList(this IEnumerable<TestPayloadDefinition> list)
+    public static IEnumerable<UploadManifestPayloadDescriptor> ToPayloadDescriptorList(this IEnumerable<TestPayloadDefinition> list)
     {
         return list.Select(tpd => tpd.ToPayloadDescriptor());
     }

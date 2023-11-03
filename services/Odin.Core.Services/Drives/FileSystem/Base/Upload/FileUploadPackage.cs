@@ -5,15 +5,15 @@ using Dawn;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients
     /// </summary>
-    public class PayloadOnlyPackage
+    public class FileUploadPackage
     {
         /// <summary />
-        public PayloadOnlyPackage(InternalDriveFileId internalFile, UploadPayloadInstructionSet instructionSet)
+        public FileUploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet, bool isUpdateOperation)
         {
             Guard.Argument(internalFile, nameof(internalFile)).HasValue();
             Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
@@ -21,15 +21,22 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
+            this.IsUpdateOperation = isUpdateOperation;
+            this.Thumbnails = new List<PackageThumbnailDescriptor>();
             this.Payloads = new List<PackagePayloadDescriptor>();
         }
 
-        public UploadPayloadInstructionSet InstructionSet { get; init; }
+        public UploadInstructionSet InstructionSet { get; init; }
 
         public InternalDriveFileId InternalFile { get; init; }
 
+        public bool IsUpdateOperation { get; init; }
+
+        /// <summary>
+        /// List of payloads uploaded
+        /// </summary>
         public List<PackagePayloadDescriptor> Payloads { get; }
-        
+
         /// <summary>
         /// A list of thumbnails sent in the stream.
         /// this exists because payloads and thumbnails can

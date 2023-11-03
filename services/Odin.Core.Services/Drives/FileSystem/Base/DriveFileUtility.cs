@@ -18,6 +18,7 @@ public static class DriveFileUtility
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
     public const string PayloadDelimiter = "-";
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
+    public const string TransitThumbnailKeyDelimiter = "|";
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader

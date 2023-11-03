@@ -8,25 +8,25 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 /// </summary>
 public class UploadManifest
 {
-    public List<UploadedPayloadDescriptor> PayloadDescriptors { get; set; }
+    public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
 }
 
 /// <summary>
 /// Describes the attributes of the payload of a given PayloadKey
 /// </summary>
-public class UploadedPayloadDescriptor
+public class UploadManifestPayloadDescriptor
 {
     public string PayloadKey { get; set; }
 
     /// <summary>
     /// The thumbnails expected for this payload key
     /// </summary>
-    public IEnumerable<UploadedThumbnailDescriptor> Thumbnails { get; set; }
-    
+    public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
+
     //other stuff when needed
 }
 
-public class UploadedThumbnailDescriptor
+public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
     public int PixelWidth { get; set; }

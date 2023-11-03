@@ -25,6 +25,6 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
         return await FileSystem.Storage.UpdatePayloads(
             package.InternalFile,
             targetFile: package.InternalFile,
-            incomingPayloads: package.InstructionSet.Manifest.PayloadDescriptors);
+            incomingPayloads: package.GetFinalPayloadDescriptors());
     }
 }

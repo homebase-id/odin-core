@@ -33,16 +33,16 @@ public class TestPayloadDefinition
 
     public List<ThumbnailContent> Thumbnails { get; set; }
 
-    public UploadedPayloadDescriptor ToPayloadDescriptor()
+    public UploadManifestPayloadDescriptor ToPayloadDescriptor()
     {
-        var t = this.Thumbnails.Select(thumb => new UploadedThumbnailDescriptor()
+        var t = this.Thumbnails.Select(thumb => new UploadedManifestThumbnailDescriptor()
         {
             ThumbnailKey = $"{this.Key}{thumb.PixelWidth}{thumb.PixelHeight}", //hulk smash (it all together)
             PixelWidth = thumb.PixelWidth,
             PixelHeight = thumb.PixelHeight
         });
 
-        return new UploadedPayloadDescriptor()
+        return new UploadManifestPayloadDescriptor()
         {
             PayloadKey = this.Key,
             Thumbnails = t

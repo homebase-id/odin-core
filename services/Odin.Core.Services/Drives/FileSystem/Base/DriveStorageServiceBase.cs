@@ -544,8 +544,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<Guid> UpdatePayloads(InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
-            List<UploadedPayloadDescriptor> incomingPayloads)
+        public async Task<Guid> UpdatePayloads(InternalDriveFileId sourceFile,
+            InternalDriveFileId targetFile,
+            List<PayloadDescriptor> incomingPayloads)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -563,40 +564,40 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
 
-            var existingThumbnails = existingServerHeader.FileMetadata.Thumbnails?.ToList() ?? new List<ThumbnailDescriptor>();
-
-
+            //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
             foreach (var descriptor in incomingPayloads)
             {
                 // if the payload exists by key, overwrite; if not write new payload
-                // delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
-                // await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, existingThumbnails); //clean up
 
-                //TODO: de-dupe the records
-                // var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.PixelWidth, descriptor.PixelHeight, descriptor.PayloadKey);
-                // var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
-                // await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor);
-                //
-                // if (!existingThumbnails.Contains(descriptor))
+                string extenstion = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
+
+                string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, extenstion);
+                await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFilePath);
+
+                // Delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
+                await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, descriptor.Thumbnails); //clean up
+
+                foreach (var thumb in descriptor.Thumbnails)
+                {
+                    var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+                    var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
+                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor.Key, thumb);
+                }
+            }
+
+            throw new NotImplementedException("wip");
+            // Merge incoming payloads with existing ones
+            var currentPayloads = existingServerHeader.FileMetadata.Payloads;
+            foreach (var p in incomingPayloads)
+            {
+                // var existingDescriptor = existingServerHeader.FileMetadata.GetPayloadDescriptor(p.Key);
+                // if (null != existingDescriptor)
                 // {
-                //     existingThumbnails.Add(descriptor);
+                //     currentPayloads.
                 // }
             }
 
-            existingServerHeader.FileMetadata.Thumbnails = existingThumbnails;
-            //TODO: merge payloads with incomingPayloads
-            // existingServerHeader.FileMetadata.Payloads = TODO: merge with incomingPayloas; 
-
-            //update the existing file metadata with new attachments data
-            // if (existingServerHeader.FileMetadata.Payloads?.Any() ?? false)
-            // {
-            //     //TODO: update payload size to be a sum of all payloads
-            //
-            //     throw new NotImplementedException("Need to support attachments with mutlipayloads when the feature is used");
-            //     // string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
-            //     // existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
-            //     // await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFilePath);
-            // }
+            // existingServerHeader.FileMetadata.Payloads = finalPayloads;
 
             await WriteFileHeaderInternal(existingServerHeader);
 
