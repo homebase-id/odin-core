@@ -2,9 +2,11 @@ using System;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
@@ -69,6 +71,7 @@ public class DrivePayloadTests
         //even tho the payload is gone, we should still be able to get the header and it should be updated
         var getHeaderResponse = await ownerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        Assert.IsTrue(getHeaderResponse.Content!.FileState == FileState.Active);
         Assert.IsTrue(getHeaderResponse.Content.FileMetadata.Payloads.Count == 0);
     }
 
