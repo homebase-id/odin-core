@@ -169,7 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("attachments/deletepayload")]
+        [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {
             return await base.DeletePayload(request);

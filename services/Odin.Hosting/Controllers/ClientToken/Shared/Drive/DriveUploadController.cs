@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/uploadpayload")]
-        public async Task<UploadPayloadResult> UploadAttachment()
+        public async Task<UploadPayloadResult> UploadPayloadOnly()
         {
             return await base.ReceivePayloadStream();
         }

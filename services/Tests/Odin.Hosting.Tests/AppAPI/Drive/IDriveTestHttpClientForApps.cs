@@ -67,7 +67,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest request);
         
 
-        [Post(RootEndpoint + "/files/attachments/deletepayload")]
+        [Post(RootEndpoint + "/files/deletepayload")]
         Task<ApiResponse<DeleteAttachmentsResult>> DeletePayload([Body] DeletePayloadRequest request);
         
     }

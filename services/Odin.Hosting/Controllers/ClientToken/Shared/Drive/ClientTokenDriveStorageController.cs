@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
@@ -171,6 +172,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
             return await base.DeleteFile(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/deletepayload")]
+        public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
+        {
+            return await base.DeletePayload(request);
         }
     }
 }

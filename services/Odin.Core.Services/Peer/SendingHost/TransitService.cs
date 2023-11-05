@@ -231,7 +231,6 @@ namespace Odin.Core.Services.Peer.SendingHost
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            //enforce ACL at the last possible moment before shipping the file out of the identity
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
@@ -239,6 +238,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
             try
             {
+                // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
                 if (!await _driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
                 {
                     return new SendResult()

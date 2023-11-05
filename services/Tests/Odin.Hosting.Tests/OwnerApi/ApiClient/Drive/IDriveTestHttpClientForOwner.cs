@@ -37,7 +37,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
         
-        [Post(RootStorageEndpoint + "/attachments/deletepayload")]
+        [Post(RootStorageEndpoint + "/deletepayload")]
         Task<ApiResponse<DeletePayloadResult>> DeletePayload([Body] DeletePayloadRequest request);
         
         [Post(RootStorageEndpoint + "/header")]
