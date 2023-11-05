@@ -8,15 +8,3 @@ public class DeletePayloadRequest
 
     public ExternalFileIdentifier File { get; set; }
 }
-
-public class DeleteThumbnailRequest
-{
-
-    public ExternalFileIdentifier File { get; set; }
-    
-    public int Width { get; set; }
-    
-    public int Height { get; set; }
-    
-    public string PayloadKey { get; set; }
-}

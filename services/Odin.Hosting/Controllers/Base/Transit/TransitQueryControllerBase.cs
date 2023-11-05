@@ -121,6 +121,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
                 await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height,
+                    request.PayloadKey,
                     GetFileSystemResolver().GetFileSystemType());
 
             if (thumb == Stream.Null)

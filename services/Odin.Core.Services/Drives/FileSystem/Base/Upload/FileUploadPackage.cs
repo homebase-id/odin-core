@@ -65,7 +65,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
-                    LastModified = UnixTimeUtc.Now()
+                    LastModified = UnixTimeUtc.Now(),
+                    BytesWritten = p.BytesWritten
                 };
             });
 

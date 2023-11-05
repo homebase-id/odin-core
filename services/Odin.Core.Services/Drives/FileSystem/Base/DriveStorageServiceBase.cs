@@ -227,43 +227,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, payloadKey),
                 nextSizeUp);
         }
-
-        public async Task<Guid> DeleteThumbnail(InternalDriveFileId file, int width, int height, string payloadKey)
-        {
-            this.AssertCanWriteToDrive(file.DriveId);
-
-            //Note: calling to get the file header so we can ensure the caller can read this file
-            var header = await this.GetServerFileHeader(file);
-            var payloadDescriptor = header?.FileMetadata.GetPayloadDescriptor(payloadKey);
-
-            if (null == payloadDescriptor)
-            {
-                return Guid.Empty;
-            }
-
-            var thumbs = payloadDescriptor.Thumbnails?.ToList();
-            if (null == thumbs || !thumbs.Any())
-            {
-                return Guid.Empty;
-            }
-
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
-            if (null != directMatchingThumb)
-            {
-                // Update the metadata 
-                var updatedThumbs = payloadDescriptor.Thumbnails
-                    .Where(t => !(t.PixelHeight == height && t.PixelWidth == width))
-                    .ToList();
-
-                payloadDescriptor.Thumbnails = updatedThumbs;
-                // header.FileMetadata.Thumbnails = updatedThumbs;
-
-                await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height, payloadKey);
-                await this.UpdateActiveFileHeader(file, header);
-            }
-
-            return header.FileMetadata.VersionTag.GetValueOrDefault();
-        }
+        
 
         public async Task<Guid> DeletePayload(InternalDriveFileId file, string key)
         {

@@ -173,17 +173,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
         }
-
-        public Task DeleteThumbnail(Guid fileId, int width, int height, string payloadKey)
-        {
-            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey);
-            string dir = GetFilePath(fileId, FilePart.Thumb);
-            string path = Path.Combine(dir, fileName);
-
-            File.Delete(path);
-            return Task.CompletedTask;
-        }
-
+        
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(width, height, payloadKey);
@@ -350,9 +340,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             if (Directory.Exists(payloadFileDirectory))
             {
                 var searchPattern = string.Format(DriveFileUtility.PayloadExtensionSpecifier, "*");
-                var seekPath = Path.Combine(payloadFileDirectory, searchPattern);
 
-                var files = Directory.GetFiles(payloadFileDirectory, seekPath);
+                var files = Directory.GetFiles(payloadFileDirectory, searchPattern);
                 foreach (var payloadFilePath in files)
                 {
                     // get the payload key from the filepath

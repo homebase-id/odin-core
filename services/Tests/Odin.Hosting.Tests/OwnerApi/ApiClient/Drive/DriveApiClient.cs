@@ -365,22 +365,7 @@ public class DriveApiClient
             return apiResponse.Content;
         }
     }
-
-    public async Task<DeleteThumbnailResult> DeleteThumbnail(FileSystemType fileSystemType, ExternalFileIdentifier file)
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            //wth - refit is not sending headers when you do GET request - why not!?
-            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
-            var apiResponse = await svc.DeleteThumbnail(new DeleteThumbnailRequest()
-            {
-                File = file
-            });
-
-            return apiResponse.Content;
-        }
-    }
+    
 
     /// <summary>
     /// Uploads the file to the senders drive then sends it to the recipients

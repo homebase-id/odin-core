@@ -169,13 +169,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("attachments/deletethumbnail")]
-        public async Task<DeleteThumbnailResult> DeleteThumbnailC(DeleteThumbnailRequest request)
-        {
-            return await base.DeleteThumbnail(request);
-        }
-
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("attachments/deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {

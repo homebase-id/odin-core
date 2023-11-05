@@ -22,7 +22,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
     public interface IDriveTestHttpClientForApps
     {
         private const string RootEndpoint = AppApiPathConstants.DriveV1;
-        private const string ReactionRootEndpoint = AppApiPathConstants.DriveReactionsV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/upload")]
@@ -67,8 +66,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         [Post(RootEndpoint + "/files/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest request);
         
-        [Post(RootEndpoint + "/files/attachments/deletethumbnail")]
-        Task<ApiResponse<DeleteAttachmentsResult>> DeleteThumbnail([Body] DeleteThumbnailRequest request);
 
         [Post(RootEndpoint + "/files/attachments/deletepayload")]
         Task<ApiResponse<DeleteAttachmentsResult>> DeletePayload([Body] DeletePayloadRequest request);

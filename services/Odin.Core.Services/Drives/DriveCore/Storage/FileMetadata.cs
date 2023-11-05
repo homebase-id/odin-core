@@ -75,12 +75,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public AppFileMetaData AppData { get; set; }
 
         public List<PayloadDescriptor> Payloads { get; set; }
-        
-        /// <summary>
-        /// Set of thumbnails for this file in addition to the Appdata.PreviewThumbnail
-        /// </summary>
-        [Obsolete("now found in the payloads")]
-        public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
         public Guid? VersionTag { get; set; }
         

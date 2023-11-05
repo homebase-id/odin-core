@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
@@ -59,8 +60,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
+            DriveFileUtility.AssertValidPayloadKey(request.Key);
+            
             var file = MapToInternalFile(request.File);
-
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
             var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
@@ -101,8 +103,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
+            DriveFileUtility.AssertValidPayloadKey(request.PayloadKey);
+            
             var file = MapToInternalFile(request.File);
-
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
             
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
@@ -221,20 +224,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             return new JsonResult(result);
         }
-
-        protected async Task<DeleteThumbnailResult> DeleteThumbnail(DeleteThumbnailRequest request)
-        {
-            var file = MapToInternalFile(request.File);
-
-            var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            return new DeleteThumbnailResult()
-            {
-                NewVersionTag = await fs.Storage.DeleteThumbnail(file, request.Width, request.Height, request.PayloadKey)
-            };
-        }
-
+        
         protected async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
         {
+            DriveFileUtility.AssertValidPayloadKey(request?.Key);
+            
             var file = MapToInternalFile(request.File);
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 

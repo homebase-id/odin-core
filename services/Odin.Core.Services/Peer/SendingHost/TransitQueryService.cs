@@ -18,6 +18,7 @@ using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Refit;
 using Serilog;
 
@@ -155,9 +156,9 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified,
-            Stream thumbnail)>
-        GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType)
+    public async
+        Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream
+            thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -168,6 +169,7 @@ public class TransitQueryService
             File = file,
             Width = width,
             Height = height,
+            PayloadKey = payloadKey
         });
 
         if (response.StatusCode == HttpStatusCode.NotFound)

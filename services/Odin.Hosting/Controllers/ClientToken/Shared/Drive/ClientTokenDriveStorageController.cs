@@ -145,7 +145,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             [FromQuery] int width, [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
-            
             return await GetThumbnail(new GetThumbnailRequest()
             {
                 File = new ExternalFileIdentifier()

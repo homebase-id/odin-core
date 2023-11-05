@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -345,6 +345,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            var thumbnail1 = new ThumbnailDescriptor()
+            {
+                PixelHeight = 300,
+                PixelWidth = 300,
+                ContentType = "image/jpeg"
+            };
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -358,6 +365,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1) 
+                    }
                 }
             };
 
@@ -368,12 +382,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ThumbnailDescriptor()
-            {
-                PixelHeight = 300,
-                PixelWidth = 300,
-                ContentType = "image/jpeg"
-            };
+
             var thumbnail1OriginalBytes = TestMedia.ThumbnailBytes300;
             var thumbnail1CipherBytes = keyHeader.EncryptDataAes(thumbnail1OriginalBytes);
 
@@ -480,7 +489,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -492,7 +501,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
@@ -525,7 +534,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
-                    Height = thumbnail1.PixelHeight
+                    Height = thumbnail1.PixelHeight,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
@@ -638,7 +648,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     OdinId = recipient.OdinId,
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
-                    Height = thumbnail1.PixelHeight
+                    Height = thumbnail1.PixelHeight,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
@@ -849,6 +860,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
+                    }
                 }
             };
 
@@ -959,7 +977,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -967,7 +985,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -993,7 +1011,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             descriptor.FileMetadata.AllowDistribution = false;
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
-                
+
             instructionSet.TransitOptions = null;
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true,
@@ -1086,6 +1104,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+
+            var thumbnail1 = new ThumbnailDescriptor()
+            {
+                PixelHeight = 300,
+                PixelWidth = 300,
+                ContentType = "image/jpeg"
+            };
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -1099,6 +1125,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
+                    }
                 }
             };
 
@@ -1107,14 +1140,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
-            // var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ThumbnailDescriptor()
-            {
-                PixelHeight = 300,
-                PixelWidth = 300,
-                ContentType = "image/jpeg"
-            };
             var thumbnail1OriginalBytes = TestMedia.ThumbnailBytes300;
             var thumbnail1CipherBytes = keyHeader.EncryptDataAes(thumbnail1OriginalBytes);
 
@@ -1149,11 +1175,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                        Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(WebScaffold.PAYLOAD_KEY), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
-                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.IsSuccessStatusCode, Is.True, $"Code was {response.StatusCode}");
                 Assert.That(response.Content, Is.Not.Null);
                 var transferResult = response.Content;
                 Assert.That(transferResult.File, Is.Not.Null);
@@ -1222,7 +1249,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
-                
+
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
                 Assert.That(clientFileHeader.FileMetadata.Payloads.Count == 1);
@@ -1230,7 +1257,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
                 recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
-                
+
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -1245,7 +1272,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
-                    Height = thumbnail1.PixelHeight
+                    Height = thumbnail1.PixelHeight,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
@@ -1359,7 +1387,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     OdinId = recipient.OdinId,
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
-                    Height = thumbnail1.PixelHeight
+                    Height = thumbnail1.PixelHeight,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
@@ -1386,6 +1415,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
+
 
         [Test]
         public async Task FailToTransferComment_When_Missing_DrivePermission_WriteReactionAndComment()
@@ -1577,6 +1607,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            var thumbnail1 = new ThumbnailDescriptor()
+            {
+                PixelHeight = 300,
+                PixelWidth = 300,
+                ContentType = "image/jpeg"
+            };
+            
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -1591,7 +1628,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
-                }
+                },
+                 Manifest = new UploadManifest()
+                 {
+                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                     {
+                         CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
+                     }
+                 }
             };
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
@@ -1601,12 +1645,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            var thumbnail1 = new ThumbnailDescriptor()
-            {
-                PixelHeight = 300,
-                PixelWidth = 300,
-                ContentType = "image/jpeg"
-            };
+            
             var thumbnail1OriginalBytes = TestMedia.ThumbnailBytes300;
             var thumbnail1CipherBytes = keyHeader.EncryptDataAes(thumbnail1OriginalBytes);
 
@@ -1770,6 +1809,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             }
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
+        }
+
+        private UploadManifestPayloadDescriptor CreatePayloadDescriptorFrom(string payloadKey, params ThumbnailDescriptor[] thumbs)
+        {
+            var thumbList = thumbs?.Select(t => new UploadedManifestThumbnailDescriptor()
+            {
+                ThumbnailKey = t.GetFilename(WebScaffold.PAYLOAD_KEY),
+                PixelWidth = t.PixelWidth,
+                PixelHeight = t.PixelHeight
+            });
+
+
+            return new()
+            {
+                PayloadKey = payloadKey,
+                Thumbnails = thumbList
+            };
         }
     }
 }

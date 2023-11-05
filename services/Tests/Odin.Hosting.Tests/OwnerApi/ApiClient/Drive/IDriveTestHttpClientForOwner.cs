@@ -40,9 +40,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootStorageEndpoint + "/attachments/deletepayload")]
         Task<ApiResponse<DeletePayloadResult>> DeletePayload([Body] DeletePayloadRequest request);
         
-        [Post(RootStorageEndpoint + "/attachments/deletethumbnail")]
-        Task<ApiResponse<DeleteThumbnailResult>> DeleteThumbnail([Body] DeleteThumbnailRequest request);
-
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
