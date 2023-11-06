@@ -103,7 +103,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = recipients.ToList()
-                }
+                },
+                Manifest = new UploadManifest()
             };
         }
 

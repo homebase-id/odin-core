@@ -58,7 +58,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: "far and wide", thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -107,9 +108,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Content = TestMedia.ThumbnailBytes300
             };
 
+            const string payloadData = "far and wide";
+
             // Pippin uploads file
-            var randomFile1 = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
-            var randomFile2 = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile1 =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
+            var randomFile2 =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -190,8 +195,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Content = TestMedia.ThumbnailBytes300
             };
 
+            const string payloadData = "yea, another payload";
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive,payload:payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -299,6 +305,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //Connected merry and pippin; also grant RW to the remote drive
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive);
 
+            const string payloadData = "far and wide";
             var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
@@ -308,7 +315,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -318,6 +325,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 File = randomFile.uploadResult.File,
                 Width = thumbnail.PixelWidth,
                 Height = thumbnail.PixelHeight,
+                PayloadKey = WebScaffold.PAYLOAD_KEY,
                 DirectMatchOnly = true
             });
 

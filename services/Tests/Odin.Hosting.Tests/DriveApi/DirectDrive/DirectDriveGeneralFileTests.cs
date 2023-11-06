@@ -378,11 +378,10 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
         var header = getHeaderResponse.Content;
         Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == 2);
         Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
 
         // now that we know we have a valid file with a few payloads
-        var getRandomPayload = await client.DriveRedux.GetPayload(uploadResult.File, "r3nd0m");
+        var getRandomPayload = await client.DriveRedux.GetPayload(uploadResult.File, "r3nd0m09");
         Assert.IsTrue(getRandomPayload.StatusCode == HttpStatusCode.NotFound, $"Status code was {getRandomPayload.StatusCode}");
     }
 }

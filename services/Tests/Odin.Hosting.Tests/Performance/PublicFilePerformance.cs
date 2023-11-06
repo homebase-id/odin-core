@@ -106,6 +106,7 @@ TaskPerformanceTest
             const int section_1_filetype = 100;
             const int section_2_datatype = 888;
 
+
             int total_files_uploaded = 2;
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -113,7 +114,7 @@ TaskPerformanceTest
                 dataType: 0,
                 jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                payloadContent: null,
+                payloadContent: "some payload content".ToUtf8ByteArray(),
                 previewThumbnail: new ThumbnailContent()
                 {
                     PixelHeight = 100,
@@ -313,11 +314,9 @@ TaskPerformanceTest
                     StorageOptions = new StorageOptions()
                     {
                         Drive = testContext.TargetDrive
-                    }
+                    },
+                    Manifest = new UploadManifest()
                 };
-
-                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
-                var instructionStream = new MemoryStream(bytes);
 
 
                 var descriptor = new UploadFileDescriptor()
@@ -348,13 +347,28 @@ TaskPerformanceTest
                         Enum.GetName(MultipartUploadParts.Thumbnail))
                 ).ToArray();
 
+
+                instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
+                {
+                    PayloadKey = WebScaffold.PAYLOAD_KEY,
+                    Thumbnails = additionalThumbs?.Select(thumb => new UploadedManifestThumbnailDescriptor()
+                    {
+                        ThumbnailKey = thumb.GetFilename(WebScaffold.PAYLOAD_KEY),
+                        PixelWidth = thumb.PixelWidth,
+                        PixelHeight = thumb.PixelHeight
+                    })
+                });
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
+
                 var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
                         Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                         Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent), 
+                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent),
                         payloadKey, "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     additionalThumbnailContent ?? Array.Empty<StreamPart>());
@@ -454,7 +468,8 @@ TaskPerformanceTest
                         {
                             File = uploadedFile,
                             Height = thumbnailInDescriptor.PixelHeight,
-                            Width = thumbnailInDescriptor.PixelWidth
+                            Width = thumbnailInDescriptor.PixelWidth,
+                            PayloadKey = WebScaffold.PAYLOAD_KEY
                         });
 
                         Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);

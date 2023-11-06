@@ -401,7 +401,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
                         {
                             File = uploadedFile,
                             Height = thumbnailInDescriptor.PixelHeight,
-                            Width = thumbnailInDescriptor.PixelWidth
+                            Width = thumbnailInDescriptor.PixelWidth,
+                            PayloadKey = WebScaffold.PAYLOAD_KEY
                         });
 
                         Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);

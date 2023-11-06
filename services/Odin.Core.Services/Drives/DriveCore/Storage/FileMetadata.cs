@@ -80,7 +80,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
-            return Payloads.SingleOrDefault(pk => pk.Key == key);
+            return Payloads?.SingleOrDefault(pk => pk.Key == key);
         }
     }
 }

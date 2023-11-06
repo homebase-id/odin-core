@@ -261,7 +261,8 @@ public class AppDriveApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, bool directMatchOnly = false,
+    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
+        bool directMatchOnly = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fileSystemType);
@@ -274,6 +275,7 @@ public class AppDriveApiClient : AppApiClientBase
                 File = file,
                 Height = height,
                 Width = width,
+                PayloadKey = payloadKey,
                 DirectMatchOnly = directMatchOnly
             });
 

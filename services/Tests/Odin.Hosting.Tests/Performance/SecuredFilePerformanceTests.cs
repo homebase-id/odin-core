@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -48,10 +49,10 @@ namespace Odin.Hosting.Tests.Performance
         }
 
         /*
-             TaskPerformanceTest_SecuredFiles
-               Duration: 17.4 sec
+    TaskPerformanceTest_SecuredFiles
+      Duration: 17.4 sec
 
-              Standard Output: 
+              Standard Output:
                 2023-05-06 Host [SEMIBEASTII]
                 Threads   : 12
                 Iterations: 5,000
@@ -122,7 +123,8 @@ namespace Odin.Hosting.Tests.Performance
             {
                 File = uploadedFile1,
                 Width = thumbnail1.PixelWidth,
-                Height = thumbnail1.PixelHeight
+                Height = thumbnail1.PixelHeight,
+                PayloadKey = WebScaffold.PAYLOAD_KEY
             });
             Assert.IsTrue(thumbnail1Response.IsSuccessStatusCode);
             Assert.IsNotNull(thumbnail1Response.Content);
@@ -131,7 +133,7 @@ namespace Odin.Hosting.Tests.Performance
 
 
             // var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY});
+            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY });
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
             // System.Threading.Thread.Sleep(2000);
@@ -144,7 +146,8 @@ namespace Odin.Hosting.Tests.Performance
                 sw.Restart();
 
                 // var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-                var payload1Response = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY });
+                var payload1Response =
+                    await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1, Key = WebScaffold.PAYLOAD_KEY });
                 // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
                 Assert.IsTrue(payload1Response.IsSuccessStatusCode);
                 Assert.IsNotNull(payload1Response.Content);
@@ -183,8 +186,6 @@ namespace Odin.Hosting.Tests.Performance
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
-                var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
@@ -228,6 +229,20 @@ namespace Odin.Hosting.Tests.Performance
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
+
+                instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
+                {
+                    PayloadKey = WebScaffold.PAYLOAD_KEY,
+                    Thumbnails = (new[] { thumbnail1, thumbnail2 }).Select(thumb => new UploadedManifestThumbnailDescriptor()
+                    {
+                        ThumbnailKey = thumb.GetFilename(WebScaffold.PAYLOAD_KEY),
+                        PixelHeight = thumb.PixelHeight,
+                        PixelWidth = thumb.PixelWidth
+                    })
+                });
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
 
                 var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await driveSvc.Upload(
@@ -300,7 +315,7 @@ namespace Odin.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -332,7 +347,8 @@ namespace Odin.Hosting.Tests.Performance
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
-                    Width = thumbnail1.PixelWidth
+                    Width = thumbnail1.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
@@ -349,7 +365,8 @@ namespace Odin.Hosting.Tests.Performance
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,
-                    Width = thumbnail2.PixelWidth
+                    Width = thumbnail2.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);

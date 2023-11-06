@@ -629,7 +629,8 @@ TaskPerformanceTest_Transit
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
-                    Width = thumbnail1.PixelWidth
+                    Width = thumbnail1.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
@@ -646,7 +647,8 @@ TaskPerformanceTest_Transit
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,
-                    Width = thumbnail2.PixelWidth
+                    Width = thumbnail2.PixelWidth,
+                    PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
                 Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);

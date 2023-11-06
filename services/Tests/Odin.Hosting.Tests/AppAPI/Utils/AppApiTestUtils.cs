@@ -134,10 +134,8 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             var client = this.CreateAppApiHttpClient(senderAppContext);
             {
                 fileMetadata.IsEncrypted = true;
-
-                payloadData = options?.PayloadData ?? payloadData;
-
-                if (options.IncludeThumbnail && string.IsNullOrEmpty(options.PayloadData?.Trim()))
+                
+                if (options.IncludeThumbnail && string.IsNullOrEmpty(payloadData))
                 {
                     throw new Exception("Test data error - you cannot add thumbnails w/o a payload");
                 }
@@ -488,7 +486,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height)
+        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height, string payloadKey)
         {
             var client = this.CreateAppApiHttpClient(appContext);
             {
@@ -498,7 +496,8 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 {
                     File = file,
                     Height = height,
-                    Width = width
+                    Width = width,
+                    PayloadKey = payloadKey
                 });
 
                 return thumbnailResponse;

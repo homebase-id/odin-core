@@ -67,7 +67,7 @@ public class YouAuthDriveApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, bool directMatchOnly = false,
+    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height,string payloadKey, bool directMatchOnly = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = CreateYouAuthApiHttpClient(_token, fileSystemType);
@@ -80,6 +80,7 @@ public class YouAuthDriveApiClient
                 File = file,
                 Height = height,
                 Width = width,
+                PayloadKey = payloadKey,
                 DirectMatchOnly = directMatchOnly
             });
 

@@ -154,11 +154,46 @@ public class DriveApiClient
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        if (!string.IsNullOrEmpty(payloadData) && string.IsNullOrEmpty(payloadKey))
+        bool hasPayload = !string.IsNullOrEmpty(payloadData);
+
+        if (hasPayload && string.IsNullOrEmpty(payloadKey))
         {
             throw new Exception("your payload key is empty and refit is going to change it..");
         }
+
+        if (!hasPayload && thumbnail != null)
+        {
+            throw new Exception("your payload is empty but you have added a thumbnail; this is no longer valid with multi-payload support");
+        }
         
+        var descriptors = new List<UploadManifestPayloadDescriptor>();
+
+        if (hasPayload)
+        {
+            var thumbnails = new List<UploadedManifestThumbnailDescriptor>();
+
+            if (thumbnail != null)
+            {
+                thumbnails.Add(new UploadedManifestThumbnailDescriptor()
+                {
+                    ThumbnailKey = thumbnail.GetFilename(payloadKey),
+                    PixelWidth = thumbnail.PixelWidth,
+                    PixelHeight = thumbnail.PixelHeight
+                });
+            }
+            
+            descriptors.Add(new UploadManifestPayloadDescriptor()
+            {
+                PayloadKey = payloadKey,
+                Thumbnails = thumbnails
+            });
+        }
+
+        var manifest = new UploadManifest()
+        {
+            PayloadDescriptors = descriptors
+        };
+
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
@@ -170,7 +205,8 @@ public class DriveApiClient
             TransitOptions = new TransitOptions()
             {
                 UseGlobalTransitId = true
-            }
+            },
+            Manifest = manifest
         };
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -191,13 +227,18 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), payloadKey, "application/x-binary",
-                    Enum.GetName(MultipartUploadParts.Payload))
             };
+
+            if (hasPayload)
+            {
+                parts.Add(
+                    new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), payloadKey, "application/x-binary",
+                        Enum.GetName(MultipartUploadParts.Payload)));
+            }
 
             if (thumbnail != null)
             {
-                parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(), thumbnail.ContentType,
+                parts.Add(new StreamPart(thumbnail.Content.ToMemoryStream(), thumbnail.GetFilename(payloadKey), thumbnail.ContentType,
                     Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
@@ -260,7 +301,7 @@ public class DriveApiClient
 
             //expect a payload if the caller says there should be one
             byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            
+
 
             if (!string.IsNullOrEmpty(payloadData))
             {
@@ -271,7 +312,8 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
@@ -334,7 +376,7 @@ public class DriveApiClient
             });
         }
     }
-    
+
     public async Task DeleteFile(ExternalFileIdentifier file, List<string> recipients = null, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -365,7 +407,7 @@ public class DriveApiClient
             return apiResponse.Content;
         }
     }
-    
+
 
     /// <summary>
     /// Uploads the file to the senders drive then sends it to the recipients
@@ -482,7 +524,8 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)

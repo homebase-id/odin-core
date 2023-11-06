@@ -263,6 +263,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 File = randomFile.uploadResult.File,
                 Width = thumbnail.PixelWidth,
                 Height = thumbnail.PixelHeight,
+                PayloadKey = WebScaffold.PAYLOAD_KEY,
                 DirectMatchOnly = true
             });
 

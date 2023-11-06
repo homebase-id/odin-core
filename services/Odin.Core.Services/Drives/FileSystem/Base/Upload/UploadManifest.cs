@@ -8,6 +8,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 /// </summary>
 public class UploadManifest
 {
+    public UploadManifest()
+    {
+        PayloadDescriptors = new List<UploadManifestPayloadDescriptor>();
+    }
     public List<UploadManifestPayloadDescriptor> PayloadDescriptors { get; set; }
 }
 

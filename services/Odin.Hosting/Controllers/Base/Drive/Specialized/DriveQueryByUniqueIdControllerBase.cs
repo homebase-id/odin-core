@@ -96,7 +96,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         [HttpGet("thumb")]
         public async Task<IActionResult> GetThumbnailStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] int width,
-            [FromQuery] int height)
+            [FromQuery] int height,
+            [FromQuery] string payloadKey)
         {
             var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
@@ -116,7 +117,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
+                PayloadKey = payloadKey
             });
         }
 

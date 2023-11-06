@@ -38,12 +38,9 @@ public class ClientFileMetadata
     public Guid VersionTag { get; set; }
     
     public List<PayloadDescriptor> Payloads { get; set; }
-    
-    [Obsolete]
-    public IEnumerable<ThumbnailDescriptor> Thumbnails { get; set; }
 
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {
-        return Payloads.SingleOrDefault(pk => pk.Key == key);
+        return Payloads?.SingleOrDefault(pk => pk.Key == key);
     }
 }

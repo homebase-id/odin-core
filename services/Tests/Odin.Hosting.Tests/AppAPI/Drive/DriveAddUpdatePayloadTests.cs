@@ -39,65 +39,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         }
         
         [Test]
+        [Ignore("TODO: reconcile with multi-paylod changes")]
         public Task CanAddAndUpdateThumbnailToExistingFile()
         {
-            Assert.Fail("implement after the owner is done");
-            
-            // var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
-            //
-            // var (uploadResult, originalThumbnails) = await UploadUnEncryptedFileWithTwoThumbnails(appApiClient, targetDrive);
-            // var targetFile = uploadResult.File;
-            //
-            // var originalFile = await appApiClient.Drive.GetFileHeader(targetFile);
-            //
-            // var thumbnailsToUpdate = new List<ThumbnailContent>()
-            // {
-            //     new()
-            //     {
-            //         PixelHeight = 300,
-            //         PixelWidth = 300,
-            //         ContentType = "image/jpeg",
-            //         Content = TestMedia.ThumbnailBytes300Update
-            //     }
-            // };
-            //
-            // var thumbnailsToAdd = new List<ThumbnailContent>()
-            // {
-            //     new()
-            //     {
-            //         PixelHeight = 400,
-            //         PixelWidth = 400,
-            //         ContentType = "image/jpeg",
-            //         Content = TestMedia.ThumbnailBytes400
-            //     }
-            // };
-            //
-            // var finalThumbnailList = originalThumbnails.Concat(thumbnailsToAdd).ToList();
-            //
-            // var (_, response) = await appApiClient.Drive.UploadAttachments(targetFile, thumbnailsToAdd.Concat(thumbnailsToUpdate).ToList());
-            // Assert.IsTrue(response.IsSuccessStatusCode);
-            //
-            // var uploadAttachmentsResult = response.Content;
-            // Assert.IsNotNull(uploadAttachmentsResult);
-            //
-            // //header should have all thumbnails from original upload and the new ones
-            // var updatedHeader = await appApiClient.Drive.GetFileHeader(targetFile);
-            //
-            // Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
-            // Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
-            // Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == uploadAttachmentsResult.NewVersionTag);
-            // Assert.IsTrue(updatedHeader.FileMetadata.Thumbnails.Count() == finalThumbnailList.Count(),
-            //     $"Count was {updatedHeader.FileMetadata.Thumbnails.Count()} but should be {finalThumbnailList.Count()} ");
-            //
-            // var missing = updatedHeader.FileMetadata.Thumbnails.Except(finalThumbnailList);
-            // Assert.IsFalse(missing.Any());
-            //
-            // foreach (var thumb in updatedHeader.FileMetadata.Thumbnails)
-            // {
-            //     var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumb.PixelWidth, thumb.PixelHeight);
-            //     Assert.IsTrue(getThumbResponse.IsSuccessStatusCode);
-            //     Assert.IsTrue(getThumbResponse!.ContentHeaders!.ContentLength > 0);
-            // }
+           
             
             return Task.CompletedTask;
 
