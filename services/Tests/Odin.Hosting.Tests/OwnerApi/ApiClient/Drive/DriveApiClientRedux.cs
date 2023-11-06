@@ -367,8 +367,7 @@ public class DriveApiClientRedux
         
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
-            //wth - refit is not sending headers when you do GET request - why not!?
-            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
             var response = await svc.UploadPayload(parts.ToArray());
             return response;
         }

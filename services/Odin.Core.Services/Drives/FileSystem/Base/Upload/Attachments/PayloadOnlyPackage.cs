@@ -22,6 +22,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.Payloads = new List<PackagePayloadDescriptor>();
+            this.Thumbnails = new List<PackageThumbnailDescriptor>();
         }
 
         public UploadPayloadInstructionSet InstructionSet { get; init; }
@@ -29,7 +30,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         public InternalDriveFileId InternalFile { get; init; }
 
         public List<PackagePayloadDescriptor> Payloads { get; }
-        
+
         /// <summary>
         /// A list of thumbnails sent in the stream.
         /// this exists because payloads and thumbnails can

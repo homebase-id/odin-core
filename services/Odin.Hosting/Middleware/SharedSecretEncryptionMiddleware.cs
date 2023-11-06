@@ -60,6 +60,7 @@ namespace Odin.Hosting.Middleware
                 OwnerApiPathConstants.AuthV1,
                 $"{OwnerApiPathConstants.TransitV1}/outbox/processor",
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
+                $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
                 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",

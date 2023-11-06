@@ -231,9 +231,7 @@ TaskPerformanceTest_Transit
                         Schedule = ScheduleOptions.SendNowAwaitResponse
                     }
                 };
-
-                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
-                var instructionStream = new MemoryStream(bytes);
+                
 
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
@@ -280,6 +278,20 @@ TaskPerformanceTest_Transit
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
 
+                instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
+                {
+                    PayloadKey = WebScaffold.PAYLOAD_KEY,
+                    Thumbnails =( new []{thumbnail1, thumbnail2}).Select(t=>new UploadedManifestThumbnailDescriptor()
+                    {
+                        ThumbnailKey = t.GetFilename(WebScaffold.PAYLOAD_KEY),
+                        PixelWidth = t.PixelWidth,
+                        PixelHeight = t.PixelHeight
+                    })
+                });
+                
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
+                
                 var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",

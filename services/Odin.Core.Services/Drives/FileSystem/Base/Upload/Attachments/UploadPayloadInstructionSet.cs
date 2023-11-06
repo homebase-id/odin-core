@@ -26,7 +26,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
                 throw new OdinClientException("Target File is invalid, you must indicate the file which will own the payload(s)", OdinClientErrorCode.InvalidFile);
             }
 
-            if (Manifest?.PayloadDescriptors?.Any() ?? false)
+            if (!Manifest?.PayloadDescriptors?.Any() ?? false)
             {
                 throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads", OdinClientErrorCode.InvalidPayload);
             }
