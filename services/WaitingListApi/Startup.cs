@@ -107,14 +107,11 @@ namespace WaitingListApi
             // app.UseLoggingMiddleware();
             // app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-            app.UseCertificateForwarding();
             app.UseCors(WaitingListCorsPolicy);
 
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
-
-            app.UseHttpsRedirection();
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
