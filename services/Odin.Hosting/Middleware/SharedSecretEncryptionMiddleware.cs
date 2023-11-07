@@ -50,7 +50,7 @@ namespace Odin.Hosting.Middleware
             _next = next;
             _logger = logger;
 
-            
+
             _ignoredPathsForRequests = new List<string>
             {
                 PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
@@ -62,16 +62,16 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
-                
+
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
-            
+
                 $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
                 $"{AppApiPathConstants.TransitSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
-                $"{AppApiPathConstants.AuthV1}/logout", 
+                $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth"
             };
 
@@ -80,6 +80,9 @@ namespace Odin.Hosting.Middleware
             {
                 $"{OwnerApiPathConstants.DriveV1}/files/payload",
                 $"{OwnerApiPathConstants.DriveV1}/files/thumb",
+
+                $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
 
                 $"{OwnerApiPathConstants.TransitV1}/query/payload",
                 $"{OwnerApiPathConstants.TransitV1}/query/thumb",
@@ -214,7 +217,7 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-            
+
             if (context.WebSockets.IsWebSocketRequest)
             {
                 return false;

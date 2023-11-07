@@ -82,21 +82,21 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         }
 
         await fs.Storage.UpdateReactionPreview(new InternalDriveFileId()
-            {
-                FileId = referencedFileHeader.FileId,
-                DriveId = referenceFileDriveId
-            },
+        {
+            FileId = referencedFileHeader.FileId,
+            DriveId = referenceFileDriveId
+        },
             referencedFileReactionPreview);
     }
 
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview)
     {
-        if(targetFileReactionPreview.TotalCommentCount>0)
+        if (targetFileReactionPreview.TotalCommentCount > 0)
         {
             targetFileReactionPreview.TotalCommentCount--;
         }
-        
+
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
 
@@ -120,7 +120,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
                 Updated = updatedFileHeader.FileMetadata.Updated,
                 OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
                 IsEncrypted = updatedFileHeader.FileMetadata.IsEncrypted,
-                JsonContent = updatedFileHeader.FileMetadata.AppData.Content,
+                Content = updatedFileHeader.FileMetadata.AppData.Content,
                 Reactions = new List<ReactionContentPreview>()
             };
         }
@@ -144,7 +144,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             IsEncrypted = isEncrypted,
-            JsonContent = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
+            Content = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()
         });
     }
