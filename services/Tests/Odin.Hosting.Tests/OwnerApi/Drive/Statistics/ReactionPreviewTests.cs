@@ -110,9 +110,9 @@ public class ReactionPreviewTests
         Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Reactions.Count == 0);
         Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 3);
 
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.Content));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile2.AppData.Content));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.Content));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile1.AppData.Content));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile2.AppData.Content));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile3.AppData.Content));
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)

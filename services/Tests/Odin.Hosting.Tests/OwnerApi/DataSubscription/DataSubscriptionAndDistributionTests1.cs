@@ -382,7 +382,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile2.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.Content));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
 
         //All done
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
@@ -486,7 +486,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile2.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.Content));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -620,7 +620,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.Content));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
         //TODO: test the other file parts here
 
 
@@ -761,7 +761,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.IsEncrypted));
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == ""));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == ""));
         // Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
         //TODO: test the other file parts here
 
