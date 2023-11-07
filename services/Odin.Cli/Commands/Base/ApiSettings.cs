@@ -6,13 +6,17 @@ namespace Odin.Cli.Commands.Base;
 
 public class ApiSettings : BaseSettings
 {
-    [Description("Identity host URL")]
-    [CommandArgument(0, "<identity-host>")]
-    public string IdentityHost { get; init; } = "";
+    // [Description("Identity host(:port) (alt: set env var ODIN_ADMIN_IDENTITY_HOST)")]
+    // [CommandArgument(0, "[identity-host]")]
+    // public string IdentityHost { get; init; } = Environment.GetEnvironmentVariable("ODIN_ADMIN_IDENTITY_HOST") ?? "";
 
-    [Description("API key value")]
-    [CommandOption("--api-key <VALUE>")]
-    public string ApiKey { get; init; } = "";
+    [Description("Identity host(:port) (alt: set env var ODIN_ADMIN_IDENTITY_HOST)")]
+    [CommandOption("-I|--identity-host <VALUE>")]
+    public string IdentityHost { get; set; } = "";
+
+    [Description("API key value (alt: set env var ODIN_ADMIN_API_KEY)")]
+    [CommandOption("-K|--api-key <VALUE>")]
+    public string ApiKey { get; set; } = "";
 
     [Description("API key header value (default: Odin-Admin-Api-Key)")]
     [CommandOption("--api-key-header <VALUE>")]
@@ -20,9 +24,30 @@ public class ApiSettings : BaseSettings
 
     public override ValidationResult Validate()
     {
+        if (string.IsNullOrWhiteSpace(IdentityHost))
+        {
+            var envHost = Environment.GetEnvironmentVariable("ODIN_ADMIN_IDENTITY_HOST") ?? "";
+            if (envHost != "")
+            {
+                IdentityHost = envHost;
+            }
+            else
+            {
+                return ValidationResult.Error("Identity host (-I) is required");
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(ApiKey))
         {
-            return ValidationResult.Error("API key is required");
+            var envApiKey = Environment.GetEnvironmentVariable("ODIN_ADMIN_API_KEY") ?? "";
+            if (envApiKey != "")
+            {
+                ApiKey = envApiKey;
+            }
+            else
+            {
+                return ValidationResult.Error("API key (-K) is required");
+            }
         }
         return base.Validate();
     }

@@ -13,8 +13,8 @@
         <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-        <PackageReference Include="Spectre.Console" Version="0.47.0" />
-        <PackageReference Include="Spectre.Console.Cli" Version="0.47.0" />
+        <PackageReference Include="Spectre.Console" Version="0.47.1-preview.0.27" />
+        <PackageReference Include="Spectre.Console.Cli" Version="0.47.1-preview.0.27" />
     </ItemGroup>
 
     <ItemGroup>

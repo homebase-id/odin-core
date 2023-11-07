@@ -132,6 +132,7 @@ public class TenantAdmin : ITenantAdmin
         {
             Domain = identityRegistration.PrimaryDomainName,
             Id = identityRegistration.Id.ToString(),
+            Enabled = !identityRegistration.Disabled
         };
 
         if (_identityRegistry is FileSystemIdentityRegistry fsir)

@@ -48,7 +48,7 @@ public sealed class ShowTenantFsCommand : Command<ShowTenantFsCommand.Settings>
             new Text("Reg. Size", new Style(Color.Green)).RightJustified(),
             new Text("Payload Size", new Style(Color.Green)).RightJustified());
 
-        var payLoadSize = settings.IncludePayload ? tenant.PayloadSize.HumanReadableBytes() : "-";
+        var payLoadSize = settings.IncludePayload ? tenant.PayloadSize.HumanReadableBytes() : "?";
         grid.AddRow(
             new Text(tenant.Registration.PrimaryDomainName).LeftJustified(),
             new Text(tenant.Registration.Id.ToString()).LeftJustified(),
