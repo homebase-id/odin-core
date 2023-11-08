@@ -14,4 +14,9 @@ public class ResultOptions
     /// bandwidth in high load scenarios (i.e. every byte counts)
     /// </summary>
     public bool ExcludePreviewThumbnail { get; set; }
+    
+    /// <summary>
+    /// If true, the ServerMetaData will be excluded from the result, even if the caller is owner or the force flag is true
+    /// </summary>
+    public bool ExcludeServerMetaData { get; set; }
 }

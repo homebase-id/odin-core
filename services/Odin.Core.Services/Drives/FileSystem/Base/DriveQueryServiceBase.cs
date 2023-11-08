@@ -154,7 +154,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false, bool excludePreviewThumbnail = true)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
+            bool excludePreviewThumbnail = true)
         {
             AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
@@ -190,19 +191,23 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
+                    Log.Warning(
+                        $"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
                 }
                 else
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file);
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
-                    
+
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;  
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
                     if (shouldReceiveFile)
                     {
-                        var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
+                        var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(
+                            serverFileHeader,
+                            ContextAccessor,
+                            forceIncludeServerMetadata);
                         if (!options.IncludeHeaderContent)
                         {
                             header.FileMetadata.AppData.Content = string.Empty;
@@ -211,6 +216,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                         if (options.ExcludePreviewThumbnail)
                         {
                             header.FileMetadata.AppData.PreviewThumbnail = null;
+                        }
+
+                        if (options.ExcludeServerMetaData)
+                        {
+                            header.ServerMetadata = null;
                         }
 
                         results.Add(header);
