@@ -29,41 +29,6 @@ namespace Odin.Core.Cryptography.Data
         public UInt32 crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
-
-        //
-        // Perhaps move to other lib/ class
-        // 
-
-        public static string Base64UrlEncode(byte[] input)
-        {
-            return Convert.ToBase64String(input).Split('=')[0].Replace('+', '-').Replace('/', '_');
-        }
- 
-        public static string Base64UrlEncode(string input)
-        {
-            return Base64UrlEncode(input.ToUtf8ByteArray());
-        }
-
-        public static byte[] Base64UrlDecode(string input)
-        {
-            string base64 = input.Replace('-', '+').Replace('_', '/');
-            switch (base64.Length % 4)
-            {
-                case 2: base64 += "=="; break;
-                case 3: base64 += "="; break;
-            }
-            return Convert.FromBase64String(base64);
-        }
-
-        public static string Base64UrlDecodeString(string input)
-        {
-            return Base64UrlDecode(input).ToStringFromUtf8Bytes();
-        }
-
-
-        //
-        // End of stuff to be put in another class
-        //
         public static EccPublicKeyData FromJwkPublicKey(string jwk, int hours = 1)
         {
             var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
@@ -74,8 +39,8 @@ namespace Odin.Core.Cryptography.Data
             if (jwkObject["crv"] != "P-384")
                 throw new InvalidOperationException("Invalid curve, crv must be P-384");
 
-            byte[] x = Base64UrlDecode(jwkObject["x"]);
-            byte[] y = Base64UrlDecode(jwkObject["y"]);
+            byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
+            byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
 
             X9ECParameters x9ECParameters = NistNamedCurves.GetByName("P-384");
             ECCurve curve = x9ECParameters.Curve;
@@ -98,7 +63,7 @@ namespace Odin.Core.Cryptography.Data
 
         public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
         {
-            return FromJwkPublicKey(Base64UrlDecodeString(jwkbase64Url) , hours);
+            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
         }
 
         public string PublicKeyJwk()
@@ -115,8 +80,8 @@ namespace Odin.Core.Cryptography.Data
             {
                 kty = "EC",
                 crv = "P-384", // Corresponds to "secp384r1"
-                x = Base64UrlEncode(x.ToByteArrayUnsigned()),
-                y = Base64UrlEncode(y.ToByteArrayUnsigned())
+                x = Base64UrlEncoder.Encode(x.ToByteArrayUnsigned()),
+                y = Base64UrlEncoder.Encode(y.ToByteArrayUnsigned())
             };
 
             var options = new JsonSerializerOptions
@@ -132,7 +97,7 @@ namespace Odin.Core.Cryptography.Data
 
         public string PublicKeyJwkBase64Url()
         {
-            return Base64UrlEncode(PublicKeyJwk());
+            return Base64UrlEncoder.Encode(PublicKeyJwk());
         }
 
 
