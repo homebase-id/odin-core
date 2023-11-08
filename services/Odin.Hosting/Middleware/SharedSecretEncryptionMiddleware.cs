@@ -87,6 +87,9 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.TransitV1}/query/payload",
                 $"{OwnerApiPathConstants.TransitV1}/query/thumb",
 
+                $"{OwnerApiPathConstants.TransitV1}/query/payload_byglobaltransitid",
+                $"{OwnerApiPathConstants.TransitV1}/query/thumb_byglobaltransitid",
+
                 $"{AppApiPathConstants.DriveV1}/files/payload",
                 $"{AppApiPathConstants.DriveV1}/files/thumb",
 
