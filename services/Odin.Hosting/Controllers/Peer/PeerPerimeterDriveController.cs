@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +9,6 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
@@ -42,7 +41,6 @@ namespace Odin.Hosting.Controllers.Peer
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
         }
-
 
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
@@ -150,6 +148,141 @@ namespace Odin.Hosting.Controllers.Peer
                 transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 transitRequest.FileSystemType);
         }
+
+        ///
+        [HttpPost("header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromBody] GlobalTransitIdFileIdentifier file)
+        {
+            var result = await LookupFileHeaderByGlobalTransitId(file);
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
+        [HttpPost("header_byuniqueid")]
+        public async Task<IActionResult> GetFileHeaderByUniqueId([FromBody] GetFileHeaderByUniqueIdRequest request)
+        {
+            var result = await LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
+        [HttpPost("payload_byglobaltransitid")]
+        public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromBody] GetPayloadByGlobalTransitIdRequest request)
+        {
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = header.FileId,
+                        TargetDrive = request.File.TargetDrive
+                    },
+                    Key = request.Key,
+                    Chunk = request.Chunk
+                });
+        }
+
+        [HttpPost("payload_byuniqueid")]
+        public async Task<IActionResult> GetPayloadStreamByUniqueId([FromBody] GetPayloadByUniqueIdRequest request)
+        {
+            var header = await this.LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = header.FileId,
+                        TargetDrive = request.TargetDrive
+                    },
+                    Key = request.Key,
+                    Chunk = request.Chunk
+                });
+        }
+
+        [HttpPost("thumb_byglobaltransitid")]
+        public async Task<IActionResult> GetThumbnailStreamByGlobalTransitId([FromBody] GetThumbnailByGlobalTransitIdRequest request)
+        {
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header.FileId,
+                    TargetDrive = request.File.TargetDrive
+                },
+                Width = request.Width,
+                Height = request.Height,
+                PayloadKey = request.PayloadKey
+            });
+        }
+
+        [HttpPost("thumb_byuniqueid")]
+        public async Task<IActionResult> GetThumbnailStreamByUniqueId(GetThumbnailByUniqueIdRequest request)
+        {
+            var header = await this.LookupHeaderByUniqueId(request.ClientUniqueId, request.TargetDrive);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header.FileId,
+                    TargetDrive = request.TargetDrive
+                },
+                Width = request.Width,
+                Height = request.Height,
+                PayloadKey = request.PayloadKey
+            });
+        }
+
+        private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(new TargetDrive()
+            {
+                Alias = file.TargetDrive.Alias,
+                Type = file.TargetDrive.Type
+            });
+
+            var queryService = GetFileSystemResolver().ResolveFileSystem().Query;
+            var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
+            return result;
+        }
+
+        private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+            var queryService = GetFileSystemResolver().ResolveFileSystem().Query;
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false);
+            return result;
+        }
+
 
         private TransitPerimeterService GetPerimeterService()
         {

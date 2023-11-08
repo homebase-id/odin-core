@@ -50,5 +50,24 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext();
+
+        [Post(DriveRoot + "/header_byglobaltransitid")]
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file);
+        
+        [Post(DriveRoot + "/thumb_byglobaltransitid")]
+        Task<ApiResponse<HttpContent>> GetThumbnailStreamByGlobalTransitId([Body] GetThumbnailByGlobalTransitIdRequest request);
+
+        [Post(DriveRoot + "/payload_byglobaltransitid")]
+        Task<ApiResponse<HttpContent>> GetPayloadStreamByGlobalTransitId([Body] GetPayloadByGlobalTransitIdRequest request);
+        
+        [Post(DriveRoot + "/header_byuniqueid")]
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId(GetPayloadByUniqueIdRequest request);
+        
+        [Post(DriveRoot + "/thumb_byuniqueid")]
+        Task<ApiResponse<HttpContent>> GetThumbnailStreamByUniqueId([Body] GetThumbnailRequest request);
+
+        [Post(DriveRoot + "/payload_byuniqueid")]
+        Task<ApiResponse<HttpContent>> GetPayloadStreamByUniqueId([Body] GetPayloadRequest request);
+        
     }
 }

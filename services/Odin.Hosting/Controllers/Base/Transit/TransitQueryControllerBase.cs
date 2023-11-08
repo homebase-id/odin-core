@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,9 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Time;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -33,7 +36,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var result = await _transitQueryService.GetBatchCollection((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
             return result;
         }
-
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("modified")]
@@ -92,17 +94,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var (encryptedKeyHeader, isEncrypted, payloadStream) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId,
                 request.File, request.Key, request.Chunk, GetFileSystemResolver().GetFileSystemType());
 
-            if (payloadStream == null)
-            {
-                return NotFound();
-            }
-
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
-            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+            return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
         /// <summary>
@@ -124,16 +116,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     request.PayloadKey,
                     GetFileSystemResolver().GetFileSystemType());
 
-            if (thumb == Stream.Null)
-            {
-                return NotFound();
-            }
-
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
-            return new FileStreamResult(thumb, "application/octet-stream");
+            return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
@@ -149,6 +132,121 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
             return page;
+        }
+
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] string odinId,
+            [FromQuery] Guid globalTransitId,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            var fst = GetFileSystemResolver().GetFileSystemType();
+            var file = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = globalTransitId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            };
+
+            var result = await _transitQueryService.GetFileHeaderByGlobalTransitId((OdinId)odinId, file, fst);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            AddGuestApiCacheHeader();
+
+            return new JsonResult(result);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("payload_byglobaltransitid")]
+        public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromQuery] string odinId,
+            [FromQuery] Guid globalTransitId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key,
+            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+        {
+            var fst = GetFileSystemResolver().GetFileSystemType();
+            var file = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = globalTransitId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            };
+
+            var chunk = GetChunk(chunkStart, chunkLength);
+
+            var (encryptedKeyHeader, isEncrypted, payloadStream) =
+                await _transitQueryService.GetPayloadByGlobalTransitId((OdinId)odinId, file, key, chunk, fst);
+
+            return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
+        }
+
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("thumb_byglobaltransitid")]
+        public async Task<IActionResult> GetThumbnailStreamByGlobalTransitId([FromQuery] string odinId,
+            [FromQuery] Guid globalTransitId,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type,
+            [FromQuery] int width,
+            [FromQuery] int height,
+            [FromQuery] bool directMatchOnly,
+            [FromQuery] string payloadKey)
+        {
+            var fst = GetFileSystemResolver().GetFileSystemType();
+            var file = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = globalTransitId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            };
+
+            var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) = await _transitQueryService.GetThumbnailByGlobalTransitId((OdinId)odinId, file, payloadKey, width, height, directMatchOnly, fst);
+
+            return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
+        }
+
+        private IActionResult HandleThumbnailResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, string decryptedContentType,
+            UnixTimeUtc? lastModified, Stream thumb)
+        {
+            if (thumb == Stream.Null)
+            {
+                return NotFound();
+            }
+
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            return new FileStreamResult(thumb, "application/octet-stream");
+        }
+
+        private IActionResult HandlePayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, PayloadStream payloadStream)
+        {
+            if (payloadStream == null)
+            {
+                return NotFound();
+            }
+
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
     }
 }

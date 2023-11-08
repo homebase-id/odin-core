@@ -154,7 +154,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false, bool excludePreviewThumbnail = true)
         {
             AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
@@ -166,7 +166,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
-                ExcludePreviewThumbnail = true
+                ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
             var results = await this.GetBatch(driveId, qp, options, forceIncludeServerMetadata);

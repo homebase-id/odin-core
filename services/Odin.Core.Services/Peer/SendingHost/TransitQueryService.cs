@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -18,7 +18,6 @@ using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
-using Org.BouncyCastle.Asn1.Ocsp;
 using Refit;
 using Serilog;
 
@@ -40,7 +39,6 @@ public class TransitQueryService
         _circleNetworkService = circleNetworkService;
         _contextAccessor = contextAccessor;
     }
-
 
     public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType)
     {
@@ -73,7 +71,6 @@ public class TransitQueryService
         var batch = queryBatchResponse.Content;
         return batch;
     }
-
 
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType)
     {
@@ -112,9 +109,7 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted,
-        PayloadStream payloadStream)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
-        string key, FileChunk chunk, FileSystemType fileSystemType)
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType)
     {
         var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
         permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
@@ -122,43 +117,15 @@ public class TransitQueryService
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk });
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return (null, default, null);
-        }
-
-        HandleInvalidTransitResponse(odinId, response);
-
-        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-        var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-
-        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
-        {
-            Log.Warning($"Could not parse last modified for payload (key:{key}) with fileId: {file}");
-        }
-
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
-        {
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
-                icrEncryptedKeyHeader);
-        }
-        else
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-
-        var stream = await response.Content!.ReadAsStreamAsync();
-        var payloadStream = new PayloadStream(key, decryptedContentType, lastModified.GetValueOrDefault(UnixTimeUtc.Now()), stream);
-        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
+        return await HandlePayloadResponse(odinId, icr, key, response);
     }
 
-    public async
-        Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream
-            thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType)
+    public async Task<(
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+        bool payloadIsEncrypted,
+        string decryptedContentType,
+        UnixTimeUtc? lastModified,
+        Stream thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -172,38 +139,9 @@ public class TransitQueryService
             PayloadKey = payloadKey
         });
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return (null, default, null, null, Stream.Null);
-        }
-
-        HandleInvalidTransitResponse(odinId, response);
-
-        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-
-        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
-        {
-            Log.Warning($"Could not parse last modified for thumbnail (w:{width}x h:{height}) with fileId: {file}");
-        }
-
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (payloadIsEncrypted)
-        {
-            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
-            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader =
-                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
-        }
-        else
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-
-        var stream = await response!.Content!.ReadAsStreamAsync();
-
-        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, stream);
+        return await HandleThumbnailResponse(odinId, icr, response);
     }
+
 
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)
     {
@@ -222,6 +160,65 @@ public class TransitQueryService
 
         HandleInvalidTransitResponse(odinId, response);
         return response.Content;
+    }
+
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file,
+        FileSystemType fileSystemType)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetFileHeaderByGlobalTransitId(file);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        HandleInvalidTransitResponse(odinId, response);
+
+        var header = TransformSharedSecret(response.Content, icr);
+        return header;
+    }
+
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file, string key,
+            FileChunk chunk, FileSystemType fileSystemType)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetPayloadStreamByGlobalTransitId(new GetPayloadByGlobalTransitIdRequest()
+        {
+            File = file,
+            Key = key,
+            Chunk = chunk
+        });
+
+        return await HandlePayloadResponse(odinId, icr, key, response);
+    }
+
+    public async Task<(
+            EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+            bool payloadIsEncrypted,
+            string decryptedContentType,
+            UnixTimeUtc? lastModified,
+            Stream thumbnail)>
+        GetThumbnailByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
+            int width, int height, bool directMatchOnly, FileSystemType fileSystemType)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetThumbnailStreamByGlobalTransitId(new GetThumbnailByGlobalTransitIdRequest()
+        {
+            File = file,
+            PayloadKey = payloadKey,
+            Width = width,
+            Height = height,
+            DirectMatchOnly = directMatchOnly
+        });
+
+        return await HandleThumbnailResponse(odinId, icr, response);
     }
 
     public async Task<RedactedOdinContext> GetRemoteDotYouContext(OdinId odinId)
@@ -327,5 +324,86 @@ public class TransitQueryService
         {
             throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
+    }
+
+    private async Task<(
+            EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+            bool payloadIsEncrypted,
+            string decryptedContentType,
+            UnixTimeUtc? lastModified,
+            Stream thumbnail)>
+        HandleThumbnailResponse(OdinId odinId, IdentityConnectionRegistration icr, ApiResponse<HttpContent> response)
+    {
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return (null, default, null, null, Stream.Null);
+        }
+
+        HandleInvalidTransitResponse(odinId, response);
+
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
+
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
+        {
+            Log.Warning($"Could not parse remote server response last modified for thumbnail");
+        }
+
+        EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            sharedSecretEncryptedKeyHeader =
+                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
+        }
+        else
+        {
+            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
+        var stream = await response!.Content!.ReadAsStreamAsync();
+
+        return (sharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, lastModified, stream);
+    }
+
+
+    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> HandlePayloadResponse(
+        OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response)
+    {
+        var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return (null, default, null);
+        }
+
+        HandleInvalidTransitResponse(odinId, response);
+
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
+
+        if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
+        {
+            Log.Warning($"Could not parse last modified for payload (key:{key})");
+        }
+
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader);
+        }
+        else
+        {
+            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
+        var stream = await response.Content!.ReadAsStreamAsync();
+        var payloadStream = new PayloadStream(key, decryptedContentType, lastModified.GetValueOrDefault(UnixTimeUtc.Now()), stream);
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 }

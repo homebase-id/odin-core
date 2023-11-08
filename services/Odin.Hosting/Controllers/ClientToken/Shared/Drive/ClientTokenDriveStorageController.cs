@@ -85,34 +85,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            FileChunk chunk = null;
-            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
-                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
-            {
-                var firstRange = range.Ranges.First();
-                if (firstRange.From != null && firstRange.To != null)
-                {
-                    HttpContext.Response.StatusCode = 206;
-
-                    int start = Convert.ToInt32(firstRange.From ?? 0);
-                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
-
-                    chunk = new FileChunk()
-                    {
-                        Start = start,
-                        Length = end - start + 1
-                    };
-                }
-            }
-            else if (chunkStart.HasValue)
-            {
-                chunk = new FileChunk()
-                {
-                    Start = chunkStart.GetValueOrDefault(),
-                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
-                };
-            }
-
+            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {

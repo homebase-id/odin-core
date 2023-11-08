@@ -301,7 +301,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             {
                 return (null, default, null, null, null);
             }
-            
+
             var thumbs = descriptor.Thumbnails?.ToList();
             var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
