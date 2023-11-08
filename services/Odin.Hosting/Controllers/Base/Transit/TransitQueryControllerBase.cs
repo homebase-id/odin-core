@@ -77,6 +77,27 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return new JsonResult(result);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("header")]
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            return await this.GetFileHeader(
+                new TransitExternalFileIdentifier()
+                {
+                    OdinId = odinId,
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new TargetDrive()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    }
+                });
+        }
+
         /// <summary>
         /// Retrieves a file's encrypted payload from a remote identity server
         ///
@@ -95,6 +116,30 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 request.File, request.Key, request.Chunk, GetFileSystemResolver().GetFileSystemType());
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("payload")]
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type, [FromQuery] string key)
+        {
+            FileChunk chunk = this.GetChunk(null, null);
+            return await this.GetPayloadStream(
+                new TransitGetPayloadRequest()
+                {
+                    OdinId = odinId,
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Key = key,
+                    Chunk = chunk
+                });
         }
 
         /// <summary>
@@ -117,6 +162,31 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     GetFileSystemResolver().GetFileSystemType());
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpGet("thumb")]
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] string payloadKey,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type, [FromQuery] int width,
+            [FromQuery] int height)
+        {
+            return await this.GetThumbnail(new TransitGetThumbRequest()
+            {
+                OdinId = odinId,
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                },
+                Width = width,
+                Height = height,
+                PayloadKey = payloadKey,
+            });
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
@@ -214,7 +284,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 }
             };
 
-            var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) = await _transitQueryService.GetThumbnailByGlobalTransitId((OdinId)odinId, file, payloadKey, width, height, directMatchOnly, fst);
+            var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
+                await _transitQueryService.GetThumbnailByGlobalTransitId((OdinId)odinId, file, payloadKey, width, height, directMatchOnly, fst);
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
