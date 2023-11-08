@@ -190,7 +190,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
+                    Log.Warning($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
                 }
                 else
                 {
