@@ -120,6 +120,10 @@ public class StaticFileContentService
                 {
                     foreach (var pd in fileHeader.FileMetadata.Payloads)
                     {
+                        if (pd.Key == null || !section.ResultOptions.PayloadKeys.Contains(pd.Key))
+                        {
+                            continue;
+                        }
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
                         payloads.Add(new PayloadStaticFileResponse()
                         {
