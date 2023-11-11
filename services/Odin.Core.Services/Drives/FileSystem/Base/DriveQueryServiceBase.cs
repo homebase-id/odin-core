@@ -230,7 +230,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                                   "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
                                   "storage key to decrypt the file {file} on drive {drive}.",
                             ContextAccessor.GetCurrent().Caller.OdinId,
-                            serverFileHeader.FileMetadata.PayloadIsEncrypted,
+                            serverFileHeader.FileMetadata.IsEncrypted,
                             file.FileId,
                             file.DriveId);
                     }
