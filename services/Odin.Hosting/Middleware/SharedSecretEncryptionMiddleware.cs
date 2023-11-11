@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -172,6 +173,13 @@ namespace Odin.Hosting.Middleware
             {
                 throw new OdinClientException(
                     "Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
+                    OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
+            }
+            catch (CryptographicException ex) when (ex.Message.Contains("Padding is invalid and cannot be removed"))
+            {
+                // We can get here if the encryption keys don't match. Go figure.
+                throw new OdinClientException(
+                    "Failed to decrypt shared secret payload. Ensure encryption keys are matching.",
                     OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
             }
         }

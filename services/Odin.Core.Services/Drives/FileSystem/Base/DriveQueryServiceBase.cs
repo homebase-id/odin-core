@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.Management;
@@ -191,8 +190,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Warning(
-                        $"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
+                    Log.Warning("Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
+                        ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
                 }
                 else
                 {
@@ -227,9 +226,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search " +
-                                  $"index with (isPayloadEncrypted: {serverFileHeader.FileMetadata.IsEncrypted}) but does not have the " +
-                                  $"storage key to decrypt the file {file}.");
+                        Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
+                                  "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
+                                  "storage key to decrypt the file {file} on drive {drive}.",
+                            ContextAccessor.GetCurrent().Caller.OdinId,
+                            serverFileHeader.FileMetadata.PayloadIsEncrypted,
+                            file.FileId,
+                            file.DriveId);
                     }
                 }
             }
