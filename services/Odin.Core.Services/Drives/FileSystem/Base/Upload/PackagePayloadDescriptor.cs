@@ -11,4 +11,5 @@ public class PackagePayloadDescriptor
     public long BytesWritten { get; set; }
 
     public UnixTimeUtc LastModified { get; set; }
+    public string DescriptorContent { get; set; }
 }

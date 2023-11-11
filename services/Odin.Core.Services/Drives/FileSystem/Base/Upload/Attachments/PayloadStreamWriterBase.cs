@@ -54,12 +54,18 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-
     public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
+        var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
+
+        if (null == descriptor)
+        {
+            throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
+        }
+        
         if (_package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
-            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
+            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
         string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
@@ -71,7 +77,8 @@ public abstract class PayloadStreamWriterBase
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
-                BytesWritten = bytesWritten
+                BytesWritten = bytesWritten,
+                DescriptorContent = descriptor.DescriptorContent
             });
         }
     }

@@ -23,6 +23,11 @@ public class PayloadDescriptor
     public long BytesWritten { get; set; }
     
     public UnixTimeUtc LastModified { get; set; }
+    
+    /// <summary>
+    /// Content describing this payload (in what ever format you want)
+    /// </summary>
+    public string DescriptorContent { get; set; }
 
     /// <summary>
     /// Set of thumbnails for this payload in addition to the Appdata.PreviewThumbnail

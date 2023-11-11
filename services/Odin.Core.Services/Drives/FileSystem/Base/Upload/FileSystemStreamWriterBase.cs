@@ -96,9 +96,16 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
+        var descriptor = Package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
+
+        if (null == descriptor)
+        {
+            throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
+        }
+        
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
-            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidFile);
+            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
         string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
@@ -110,7 +117,8 @@ public abstract class FileSystemStreamWriterBase
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
-                BytesWritten = bytesWritten
+                BytesWritten = bytesWritten,
+                DescriptorContent = descriptor.DescriptorContent
             });
         }
     }
@@ -150,9 +158,9 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
-        
+
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
-        
+
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
@@ -162,7 +170,7 @@ public abstract class FileSystemStreamWriterBase
         });
     }
 
-   /// <summary>
+    /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
     public async Task<UploadResult> FinalizeUpload()
@@ -298,7 +306,8 @@ public abstract class FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled storage intent");
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(FileUploadPackage package,
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
+        FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
@@ -316,7 +325,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
-        
+
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,

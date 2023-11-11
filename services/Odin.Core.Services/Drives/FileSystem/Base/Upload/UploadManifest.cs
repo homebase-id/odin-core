@@ -22,12 +22,14 @@ public class UploadManifestPayloadDescriptor
 {
     public string PayloadKey { get; set; }
 
+    
+    public string DescriptorContent { get; set; }
+
     /// <summary>
     /// The thumbnails expected for this payload key
     /// </summary>
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
-    //other stuff when needed
 }
 
 public class UploadedManifestThumbnailDescriptor
