@@ -18,6 +18,7 @@ using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.ReceivingHost.Reactions;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
+using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken.Transit;
@@ -44,7 +45,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _ownerApi.SystemProcessApiKey.ToString());
             var resp = await transitSvc.ProcessOutbox(batchSize);
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
@@ -64,7 +65,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
             var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
             {
                 OdinId = recipient.OdinId,
@@ -83,7 +84,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
             var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
@@ -94,12 +95,12 @@ public class TransitApiClient
         }
     }
 
-    public async Task DeleteReactionContent(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
+    public async Task<ApiResponse<HttpContent>> DeleteReaction(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
+            var response = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new DeleteReactionRequestByGlobalTransitId()
@@ -108,6 +109,8 @@ public class TransitApiClient
                     File = file
                 }
             });
+
+            return response;
         }
     }
 
@@ -115,7 +118,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
             var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
@@ -132,7 +135,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionCountsByFile(new TransitGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
@@ -147,7 +150,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionsByIdentity(new TransitGetReactionsByIdentityRequest()
             {
                 OdinId = recipient.OdinId,
@@ -344,7 +347,7 @@ public class TransitApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
-            var svc = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, sharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
             var response = await svc.GetPayload(new TransitExternalFileIdentifier()
             {

@@ -68,20 +68,19 @@ namespace Odin.Core.Services.Peer.SendingHost
             {
                 if (failIfNotConnected)
                 {
-                    return null;
+                    throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
                 }
-
-                throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
+                
+                return null;
             }
 
             return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());
 
         }
 
-        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, bool failIfNotConnected = true,
-            FileSystemType? fileSystemType = null)
+        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, failIfNotConnected);
+            var token = await ResolveClientAccessToken(odinId, false);
 
             if (token == null)
             {

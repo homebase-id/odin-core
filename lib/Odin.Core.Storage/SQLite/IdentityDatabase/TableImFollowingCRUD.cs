@@ -168,7 +168,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                  {
                      item.created = now;
-                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.DomainName+item.driveId.ToString(), item);
                  }
                 return count;
             } // Lock
@@ -216,7 +216,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                          item.modified = new UnixTimeUtcUnique((long)modified);
                       else
                          item.modified = null;
-                      _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                      _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.DomainName+item.driveId.ToString(), item);
                       return 1;
                    }
                 }
@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                 {
                      item.modified = now;
-                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identity.DomainName+item.driveId.ToString(), item);
                 }
                 return count;
             } // Lock
@@ -328,7 +328,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param2.Value = driveId.ToByteArray();
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableImFollowingCRUD", identity.ToString()+driveId.ToString());
+                    _cache.Remove("TableImFollowingCRUD", identity.DomainName+driveId.ToString());
                 return count;
             } // Lock
         }
@@ -363,7 +363,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public ImFollowingRecord Get(OdinId identity,Guid driveId)
         {
-            var (hit, cacheObject) = _cache.Get("TableImFollowingCRUD", identity.ToString()+driveId.ToString());
+            var (hit, cacheObject) = _cache.Get("TableImFollowingCRUD", identity.DomainName+driveId.ToString());
             if (hit)
                 return (ImFollowingRecord)cacheObject;
             lock (_get0Lock)
@@ -387,11 +387,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableImFollowingCRUD", identity.ToString()+driveId.ToString(), null);
+                        _cache.AddOrUpdate("TableImFollowingCRUD", identity.DomainName+driveId.ToString(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, identity,driveId);
-                    _cache.AddOrUpdate("TableImFollowingCRUD", identity.ToString()+driveId.ToString(), r);
+                    _cache.AddOrUpdate("TableImFollowingCRUD", identity.DomainName+driveId.ToString(), r);
                     return r;
                 } // using
             } // lock
@@ -453,7 +453,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableImFollowingCRUD", identity.ToString(), null);
+                        _cache.AddOrUpdate("TableImFollowingCRUD", identity.DomainName, null);
                         return null;
                     }
                     var result = new List<ImFollowingRecord>();

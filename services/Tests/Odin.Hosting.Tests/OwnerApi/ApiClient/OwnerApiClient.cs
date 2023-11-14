@@ -1,16 +1,18 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
-using Odin.Hosting.Tests.OwnerApi.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient
@@ -31,8 +33,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly SecurityApiClient _securityApiClient;
         private readonly PublicPrivateKeyApiClient _publicPrivateKey;
         private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
+        private readonly OwnerConfigurationApiClient _ownerConfigurationApiClient;
 
-        public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
+        public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity, Guid? systemApiKey = null)
         {
             _ownerApi = ownerApi;
             _identity = identity;
@@ -47,8 +50,13 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _publicPrivateKey = new PublicPrivateKeyApiClient(ownerApi, identity);
             _circleMembershipApiClient = new CircleMembershipApiClient(ownerApi, identity);
             _youAuthDomainApiClient = new YouAuthDomainApiClient(ownerApi, identity);
-            
+            _ownerConfigurationApiClient = new OwnerConfigurationApiClient(ownerApi, identity);
+
+            TransitQuery = new OwnerTransitQueryApiClient(ownerApi, identity);
+
         }
+
+        public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
 
         public TestIdentity Identity => _identity;
 
@@ -65,6 +73,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;
 
         public TransitApiClient Transit => _transitApiClient;
+        
+        public OwnerTransitQueryApiClient TransitQuery { get; }
 
         public YouAuthDomainApiClient YouAuth => _youAuthDomainApiClient;
 
@@ -76,7 +86,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         {
             var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
 
-            var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
             Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 

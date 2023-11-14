@@ -28,11 +28,18 @@ namespace Odin.Hosting.Multitenant
         {
             // Bail if we don't know the hostname/tenant
             var host = context.Request.Host.Host;
-            var registry = identityRegistry.ResolveIdentityRegistration(host, out _);
-            if (registry == null)
+            var registration = identityRegistry.ResolveIdentityRegistration(host, out _);
+            if (registration == null)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
-                await context.Response.WriteAsync($"{host} not found.");
+                await context.Response.WriteAsync($"{host} not found");
+                return;
+            }
+
+            if (registration.Disabled)
+            {
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsync($"{host} is disabled");
                 return;
             }
             

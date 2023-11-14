@@ -8,13 +8,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class KeyTwoValueRecord
     {
-        private Guid _key1;
-        public Guid key1
+        private byte[] _key1;
+        public byte[] key1
         {
            get {
                    return _key1;
                }
            set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value?.Length > 48) throw new Exception("Too long");
                   _key1 = value;
                }
         }
@@ -143,13 +146,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _insertParam3.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.key1.ToByteArray();
+                _insertParam1.Value = item.key1;
                 _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                  }
                 return count;
             } // Lock
@@ -178,12 +181,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam3.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.key1.ToByteArray();
+                _upsertParam1.Value = item.key1;
                 _upsertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                 return count;
             } // Lock
         }
@@ -208,13 +211,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _updateParam3.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.key1.ToByteArray();
+                _updateParam1.Value = item.key1;
                 _updateParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                 }
                 return count;
             } // Lock
@@ -235,10 +238,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in key1...");
-                item.key1 = new Guid(_guid);
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 48+1);
+                if (bytesRead > 48)
+                    throw new Exception("Too much data in key1...");
+                if (bytesRead < 16)
+                    throw new Exception("Too little data in key1...");
+                item.key1 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key1, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(1))
@@ -269,8 +275,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid key1)
+        public int Delete(byte[] key1)
         {
+            if (key1 == null) throw new Exception("Cannot be null");
+            if (key1?.Length < 16) throw new Exception("Too short");
+            if (key1?.Length > 48) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
@@ -283,10 +292,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _delete0Param1.ParameterName = "$key1";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = key1.ToByteArray();
+                _delete0Param1.Value = key1;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableKeyTwoValueCRUD", key1.ToString());
+                    _cache.Remove("TableKeyTwoValueCRUD", key1.ToBase64());
                 return count;
             } // Lock
         }
@@ -308,10 +317,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in key1...");
-                item.key1 = new Guid(_guid);
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 48+1);
+                if (bytesRead > 48)
+                    throw new Exception("Too much data in key1...");
+                if (bytesRead < 16)
+                    throw new Exception("Too little data in key1...");
+                item.key1 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key1, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(1))
@@ -350,7 +362,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key2.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key2.ToBase64(), null);
                         return null;
                     }
                     var result = new List<KeyTwoValueRecord>();
@@ -365,8 +377,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid key1)
+        public KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, byte[] key1)
         {
+            if (key1 == null) throw new Exception("Cannot be null");
+            if (key1?.Length < 16) throw new Exception("Too short");
+            if (key1?.Length > 48) throw new Exception("Too long");
             var result = new List<KeyTwoValueRecord>();
             byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
@@ -404,9 +419,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public KeyTwoValueRecord Get(Guid key1)
+        public KeyTwoValueRecord Get(byte[] key1)
         {
-            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToString());
+            if (key1 == null) throw new Exception("Cannot be null");
+            if (key1?.Length < 16) throw new Exception("Too short");
+            if (key1?.Length > 48) throw new Exception("Too long");
+            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToBase64());
             if (hit)
                 return (KeyTwoValueRecord)cacheObject;
             lock (_get1Lock)
@@ -421,16 +439,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get1Param1.ParameterName = "$key1";
                     _get1Command.Prepare();
                 }
-                _get1Param1.Value = key1.ToByteArray();
+                _get1Param1.Value = key1;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToBase64(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader1(rdr, key1);
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToString(), r);
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToBase64(), r);
                     return r;
                 } // using
             } // lock

@@ -37,6 +37,7 @@ using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Authentication.Owner;
+using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
@@ -44,6 +45,8 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Apps;
@@ -58,8 +61,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
+        public readonly Guid SystemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
+
+        public OwnerApiTestUtils(Guid systemProcessApiKey)
+        {
+            SystemProcessApiKey = systemProcessApiKey;
+        }
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
             SslPolicyErrors sslErrors)
@@ -289,7 +298,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
                 {
-                    var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                    var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
                     var setupConfig = new InitialSetupRequest();
                     await svc.InitializeIdentity(setupConfig);
                 }
@@ -390,7 +399,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     });
                 }
 
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 var request = new AppRegistrationRequest
                 {
@@ -423,7 +432,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
@@ -460,7 +469,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.RevokeApp(new GetAppRequest() { AppId = appId });
             }
@@ -470,7 +479,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest()
                 {
@@ -485,7 +494,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
                 await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest()
                 {
@@ -541,7 +550,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
@@ -590,7 +599,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
                 var resp = await transitSvc.ProcessOutbox(batchSize);
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
@@ -912,7 +921,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                         var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _);
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+                            rClient.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
 
                             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
@@ -942,7 +951,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
-                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
 
                 var dgrList = drives.Select(d => new DriveGrantRequest()
                 {

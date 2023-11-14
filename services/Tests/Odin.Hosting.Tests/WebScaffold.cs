@@ -40,7 +40,9 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
-
+        
+        public Guid SystemProcessApiKey = Guid.NewGuid();
+        
         static WebScaffold()
         {
             HttpClientFactory.Register<OwnerApiTestUtils>(b =>
@@ -54,18 +56,18 @@ namespace Odin.Hosting.Tests
                 {
                     UseCookies = false // DO NOT CHANGE!
                 }));
-            
+
             HttpClientFactory.Register<AppApiClientBase>(b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
                 {
                     UseCookies = false // DO NOT CHANGE!
                 }));
-            
-            HttpClientFactory.Register("no-cookies-no-redirects", b => 
+
+            HttpClientFactory.Register("no-cookies-no-redirects", b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
                 {
                     AllowAutoRedirect = false, // DO NOT CHANGE!
-                    UseCookies = false         // DO NOT CHANGE!
+                    UseCookies = false // DO NOT CHANGE!
                 }));
         }
 
@@ -73,14 +75,14 @@ namespace Odin.Hosting.Tests
         {
             this._folder = folder;
             this._uniqueSubPath = Guid.NewGuid().ToString();
-            _oldOwnerApi = new OwnerApiTestUtils();
+            _oldOwnerApi = new OwnerApiTestUtils(SystemProcessApiKey);
         }
 
         public static HttpClient CreateHttpClient<T>()
         {
             return HttpClientFactory.CreateClient<T>();
         }
-        
+
         public static HttpClient CreateDefaultHttpClient()
         {
             return HttpClientFactory.CreateClient("no-cookies-no-redirects");
@@ -110,7 +112,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
-
+            Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
@@ -136,6 +138,12 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
             Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
+
+            Environment.SetEnvironmentVariable("Admin__ApiEnabled", "true");
+            Environment.SetEnvironmentVariable("Admin__ApiKey", "your-secret-api-key-here");
+            Environment.SetEnvironmentVariable("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
+            Environment.SetEnvironmentVariable("Admin__ApiPort", "4444");
+            Environment.SetEnvironmentVariable("Admin__Domain", "admin.dotyou.cloud");
 
             if (envOverrides != null)
             {
@@ -240,7 +248,7 @@ namespace Odin.Hosting.Tests
                 Console.WriteLine($"Removing data in [{TestDataPath}]");
                 Directory.Delete(TestDataPath, true);
             }
-            
+
             if (Directory.Exists(LogFilePath))
             {
                 Console.WriteLine($"Removing data in [{LogFilePath}]");

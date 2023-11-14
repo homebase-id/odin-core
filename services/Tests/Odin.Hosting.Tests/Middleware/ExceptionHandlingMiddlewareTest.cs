@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -376,5 +377,150 @@ public class ExceptionHandlingMiddlewareTest
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
             Times.Once);
     }
+
+    [Test]
+    public async Task CancellationAggregateExceptionInProduction()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            var task1 = Task.Run(() => throw new IOException("The client reset the request stream."));
+            var task2 = Task.Run(() => throw new IOException("The request stream was aborted."));
+            await Task.WhenAll(task1, task2);
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(499));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo(499));
+        Assert.That(problems.Title, Is.EqualTo("Operation was cancelled"));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task CancellationAggregateExceptionInDevelopment()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
+        {
+            var task1 = Task.Run(() => throw new IOException("The client reset the request stream."));
+            var task2 = Task.Run(() => throw new IOException("The request stream was aborted."));
+            await Task.WhenAll(task1, task2);
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(499));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo(499));
+        Assert.That(problems.Title, Is.EqualTo("The client reset the request stream.").Or.EqualTo("The request stream was aborted."));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task GenericAggregateExceptionInProduction()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            var task1 = Task.Run(() => throw new OperationCanceledException("run away!"));
+            var task2 = Task.Run(() => throw new Exception("this is not a cancellation!"));
+            await Task.WhenAll(task1, task2);
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(500));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+        Assert.That(problems.Title, Is.EqualTo("Internal Server Error"));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task GenericAggregateExceptionInDevelopment()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
+        {
+            var task1 = Task.Run(() => throw new OperationCanceledException("run away!"));
+            var task2 = Task.Run(() => throw new Exception("this is not a cancellation!"));
+            await Task.WhenAll(task1, task2);
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+        var content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(500));
+
+        var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
+        Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+        Assert.That(problems.Title, Is.EqualTo("run away!").Or.EqualTo("this is not a cancellation!"));
+        Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
+        Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
 
 }

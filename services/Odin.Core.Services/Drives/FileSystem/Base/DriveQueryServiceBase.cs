@@ -9,6 +9,7 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Serilog;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
@@ -16,6 +17,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
     {
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
+
 
         protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
@@ -45,7 +47,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, o);
+                    await queryManager.GetModifiedCore(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, o);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, o);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -69,7 +71,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
@@ -89,7 +91,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
         {
             AssertCanReadDrive(driveId);
 
@@ -102,7 +104,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
-                ExcludePreviewThumbnail = true
+                ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
             var results = await this.GetBatch(driveId, qp, options);
@@ -116,21 +118,36 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 throw new OdinClientException("The Names of Queries must be unique", OdinClientErrorCode.InvalidQuery);
             }
-            
-            foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
-            {
-                AssertCanReadDrive(driveId);
-            }
+
+            var permissionContext = ContextAccessor.GetCurrent().PermissionsContext;
 
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
-                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptionsRequest.ToQueryBatchResultOptions());
+                var targetDrive = query.QueryParams.TargetDrive;
 
-                var response = QueryBatchResponse.FromResult(result);
-                response.Name = query.Name;
-                collection.Results.Add(response);
+                var canReadDrive = permissionContext.HasDriveId(targetDrive, out var driveIdValue) &&
+                                   permissionContext.HasDrivePermission(driveIdValue.GetValueOrDefault(), DrivePermission.Read);
+
+                if (canReadDrive)
+                {
+                    var driveId = driveIdValue.GetValueOrDefault();
+                    var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
+                    {
+                        IncludeJsonContent = true,
+                        ExcludePreviewThumbnail = false
+                    };
+
+                    var result = await this.GetBatch(driveId, query.QueryParams, options);
+
+                    var response = QueryBatchResponse.FromResult(result);
+                    response.Name = query.Name;
+                    collection.Results.Add(response);
+                }
+                else
+                {
+                    collection.Results.Add(QueryBatchResponse.FromInvalidDrive(query.Name));
+                }
             }
 
             return collection;
@@ -169,19 +186,46 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     FileId = fileId
                 };
 
-                var serverFileHeader = await _storage.GetServerFileHeader(file);
-                var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
-                if (!options.IncludeJsonContent)
+                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
+                if (!hasPermissionToFile)
                 {
-                    header.FileMetadata.AppData.JsonContent = string.Empty;
+                    Log.Warning("Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
+                        ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
                 }
-
-                if (options.ExcludePreviewThumbnail)
+                else
                 {
-                    header.FileMetadata.AppData.PreviewThumbnail = null;
-                }
+                    var serverFileHeader = await _storage.GetServerFileHeader(file);
+                    var isEncrypted = serverFileHeader.FileMetadata.PayloadIsEncrypted;
+                    var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
+                    
+                    //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;  
+                    if (shouldReceiveFile)
+                    {
+                        var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
+                        if (!options.IncludeJsonContent)
+                        {
+                            header.FileMetadata.AppData.JsonContent = string.Empty;
+                        }
 
-                results.Add(header);
+                        if (options.ExcludePreviewThumbnail)
+                        {
+                            header.FileMetadata.AppData.PreviewThumbnail = null;
+                        }
+
+                        results.Add(header);
+                    }
+                    else
+                    {
+                        Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
+                                  "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
+                                  "storage key to decrypt the file {file} on drive {drive}.",
+                            ContextAccessor.GetCurrent().Caller.OdinId,
+                            serverFileHeader.FileMetadata.PayloadIsEncrypted,
+                            file.FileId,
+                            file.DriveId);
+                    }
+                }
             }
 
             return results;
@@ -216,7 +260,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
-                var (_, fileIdList, _) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (_, fileIdList, _) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);

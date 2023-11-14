@@ -17,7 +17,6 @@ namespace Odin.Core.Services.Base
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
-            // SensitiveByteArray icrKey,
             bool isSystem = false)
         {
             Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
@@ -32,9 +31,11 @@ namespace Odin.Core.Services.Base
 
         public SensitiveByteArray SharedSecretKey { get; }
 
+        internal Dictionary<string, PermissionGroup> PermissionGroups => _permissionGroups;
+
         public SensitiveByteArray GetIcrKey()
         {
-            foreach (var group in _permissionGroups.Values)
+            foreach (var group in PermissionGroups.Values)
             {
                 var key = group.GetIcrKey();
                 if (key?.IsSet() ?? false)
@@ -54,9 +55,9 @@ namespace Odin.Core.Services.Base
                 return true;
             }
 
-            foreach (var key in _permissionGroups.Keys)
+            foreach (var key in PermissionGroups.Keys)
             {
-                var group = _permissionGroups[key];
+                var group = PermissionGroups[key];
                 if (group.HasDrivePermission(driveId, permission))
                 {
                     //TODO: log key as source of permission.
@@ -65,6 +66,15 @@ namespace Odin.Core.Services.Base
             }
 
             return false;
+        }
+
+
+        public void AssertHasAtLeastOneDrivePermission(Guid driveId, params DrivePermission[] permissions)
+        {
+            if (!permissions.Any(p => HasDrivePermission(driveId, p)))
+            {
+                throw new OdinSecurityException($"Unauthorized access to drive [{driveId}]");
+            }
         }
 
         public void AssertHasDrivePermission(Guid driveId, DrivePermission permission)
@@ -82,9 +92,9 @@ namespace Odin.Core.Services.Base
                 return true;
             }
 
-            foreach (var key in _permissionGroups.Keys)
+            foreach (var key in PermissionGroups.Keys)
             {
-                var group = _permissionGroups[key];
+                var group = PermissionGroups[key];
                 if (group.HasPermission(permissionKey))
                 {
                     //TODO: log key as source of permission.
@@ -97,7 +107,7 @@ namespace Odin.Core.Services.Base
 
         public void AssertHasAtLeastOnePermission(params int[] permissionKeys)
         {
-            if(!permissionKeys.Any(HasPermission))
+            if (!permissionKeys.Any(HasPermission))
             {
                 throw new OdinSecurityException("Does not have permission");
             }
@@ -122,13 +132,6 @@ namespace Odin.Core.Services.Base
             }
         }
 
-        public void AssertCanWriteReactionsAndCommentsToDrive(Guid driveId)
-        {
-            if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
-            {
-                throw new OdinSecurityException($"Unauthorized to write reactions and comments to drive [{driveId}]");
-            }
-        }
 
         /// <summary>
         /// Determines if the current request can write to the specified drive
@@ -146,6 +149,17 @@ namespace Odin.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
+        public bool HasDriveId(TargetDrive drive, out Guid? driveId)
+        {
+            if (null == drive)
+            {
+                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
+            }
+
+            driveId = GetDriveIdInternal(drive);
+            return driveId.HasValue;
+        }
+
         public Guid GetDriveId(TargetDrive drive)
         {
             if (null == drive)
@@ -153,25 +167,36 @@ namespace Odin.Core.Services.Base
                 throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            foreach (var key in _permissionGroups.Keys)
+            var driveId = GetDriveIdInternal(drive);
+
+            if (driveId.HasValue)
             {
-                var group = _permissionGroups[key];
-                var driveId = group.GetDriveId(drive);
-                if (driveId.HasValue)
-                {
-                    //TODO: log key as source of permission.
-                    return driveId.Value;
-                }
+                return driveId.Value;
             }
 
             throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
 
+        private Guid? GetDriveIdInternal(TargetDrive drive)
+        {
+            foreach (var key in PermissionGroups.Keys)
+            {
+                var group = PermissionGroups[key];
+                var driveId = group.GetDriveId(drive);
+                if (driveId.HasValue)
+                {
+                    return driveId.Value;
+                }
+            }
+
+            return null;
+        }
+
         public TargetDrive GetTargetDrive(Guid driveId)
         {
-            foreach (var key in _permissionGroups.Keys)
+            foreach (var key in PermissionGroups.Keys)
             {
-                var group = _permissionGroups[key];
+                var group = PermissionGroups[key];
                 var td = group.GetTargetDrive(driveId);
                 if (null != td)
                 {
@@ -202,9 +227,9 @@ namespace Odin.Core.Services.Base
         public bool TryGetDriveStorageKey(Guid driveId, out SensitiveByteArray storageKey)
         {
             storageKey = null;
-            foreach (var key in _permissionGroups.Keys)
+            foreach (var key in PermissionGroups.Keys)
             {
-                var group = _permissionGroups[key];
+                var group = PermissionGroups[key];
                 storageKey = group.GetDriveStorageKey(driveId);
                 var value = storageKey?.GetKey() ?? Array.Empty<byte>();
                 // if (storageKey?.IsSet() ?? false)
@@ -221,7 +246,7 @@ namespace Odin.Core.Services.Base
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = _permissionGroups.Values.Select(pg => pg.Redacted()),
+                PermissionGroups = PermissionGroups.Values.Select(pg => pg.Redacted()),
             };
         }
     }

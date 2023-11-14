@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -15,6 +16,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query
     {
         private const string RootEndpoint = AppApiPathConstants.TransitQueryV1;
 
+            
         [Post(RootEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request);
 
@@ -35,5 +37,8 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query
         
         [Post(RootEndpoint + "/metadata/type")]
         Task<ApiResponse<PagedResult<ClientDriveData>>> GetDrives([Body] TransitGetDrivesByTypeRequest request);
+
+        [Post(RootEndpoint + "/security/context")]
+        Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext(TransitGetSecurityContextRequest request);
     }
 }

@@ -34,11 +34,17 @@ namespace Odin.Core.Services.Registry
         Task<bool> IsIdentityRegistered(string domain);
 
         /// <summary>
+        /// Test if domain can be addded as a new registration
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <returns></returns>
+        Task<bool> CanAddNewRegistration(string domain);
+
+        /// <summary>
         /// Adds an identity to this host
         /// </summary>
         /// <param name="request"></param>
         Task<Guid> AddRegistration(IdentityRegistrationRequest request);
-
 
         /// <summary>
         /// Fully deletes a registration and all data; use with caution
@@ -66,5 +72,10 @@ namespace Odin.Core.Services.Registry
         /// Returns the registration status for the identity
         /// </summary>
         Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken);
+
+        /// <summary>
+        /// Toggles disabled on/off
+        /// </summary>
+        Task<IdentityRegistration> ToggleDisabled(string domain, bool disabled);
     }
 }

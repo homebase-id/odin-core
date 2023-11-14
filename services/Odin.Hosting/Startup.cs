@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
-using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using DnsClient;
@@ -18,7 +17,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -29,6 +28,7 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Hosting._dev;
@@ -36,6 +36,7 @@ using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
@@ -79,18 +80,20 @@ namespace Odin.Hosting
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
-            if (config.Quartz.EnableQuartzBackgroundService)
+            services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
+            services.AddQuartz(q =>
             {
-                services.AddQuartz(q =>
+                q.AddTriggerListener(sp => sp.GetRequiredService<IExclusiveJobManager>());
+                if (config.Quartz.EnableQuartzBackgroundService)
                 {
-                    //lets use use our normal DI setup
-                    q.UseMicrosoftDependencyInjectionJobFactory();
                     q.UseDefaultCronSchedule(config);
                     q.UseDefaultCertificateRenewalSchedule(config);
-                });
-
-                services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
-            }
+                }
+            });
+            services.AddQuartzServer(options =>
+            {
+                options.WaitForJobsToComplete = true;
+            });
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -178,7 +181,6 @@ namespace Odin.Hosting
                 PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<OdinConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
@@ -197,9 +199,11 @@ namespace Odin.Hosting
                 AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
                 AcmeAccountFolder = config.Host.SystemSslRootPath
             });
+            services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
-            services.AddSingleton<ILookupClient>(new LookupClient());
+            services.AddSingleton<IAuthorativeDnsLookup, AuthorativeDnsLookup>();
+            services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
                 sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
@@ -221,6 +225,16 @@ namespace Odin.Hosting
                 config.Mailgun.ApiKey,
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
+
+            services.AddSingleton(sp => new AdminApiRestrictedAttribute(
+                sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
+                config.Admin.ApiEnabled,
+                config.Admin.ApiKey,
+                config.Admin.ApiKeyHttpHeaderName,
+                config.Admin.ApiPort,
+                config.Admin.Domain));
+
+            services.AddSingleton<ITenantAdmin, TenantAdmin>();
         }
 
         // ConfigureContainer is where you can register things directly
@@ -260,17 +274,30 @@ namespace Odin.Hosting
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
             var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
 
+            // Note 1: see NotificationSocketController
+            // Note 2: UseWebSockets must be before UseLoggingMiddleware
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromMinutes(2)
+            });
+
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
+            app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
-            bool IsProvisioningSite(HttpContext context)
-            {
-                var domain = context.RequestServices.GetService<OdinConfiguration>()?.Registry.ProvisioningDomain;
-                return context.Request.Host.Equals(new HostString(domain ?? ""));
-            }
+            // app.UseHsts(); // SEB:TODO will hsts break something?
+            app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
 
-            app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
+            // Provisioning mapping
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                a => Provisioning.Map(a, env, logger));
+
+            // Admin mapping
+            app.MapWhen(
+                context => context.Request.Host.Host == config.Admin.Domain,
+                a => Admin.Map(a, env, logger));
 
             app.UseMultiTenancy();
 
@@ -288,15 +315,6 @@ namespace Odin.Hosting
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
-            app.UseHttpsRedirection();
-
-            var webSocketOptions = new WebSocketOptions
-            {
-                KeepAliveInterval = TimeSpan.FromMinutes(2)
-            };
-
-            // webSocketOptions.AllowedOrigins.Add("https://...");
-            app.UseWebSockets(webSocketOptions); //Note: see NotificationSocketController
 
             app.UseEndpoints(endpoints =>
             {

@@ -33,36 +33,6 @@ public class AppFollowerTests
         _scaffold.RunAfterAnyTests();
     }
 
-    public async Task<AppApiClient> PrepareAppAndClient(TestIdentity identity, params int[] permissionKeys)
-    {
-        var appId = Guid.NewGuid();
-
-        var ownerClient = _scaffold.CreateOwnerApiClient(identity);
-
-        var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
-
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = appDrive.TargetDriveInfo,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(permissionKeys)
-        };
-
-        var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
-
-        var client = _scaffold.CreateAppClient(identity, appId);
-        return client;
-    }
-
     [Test]
     public async Task CanFollowIdentity_AllNotifications()
     {
@@ -112,7 +82,7 @@ public class AppFollowerTests
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-        
+
         //create some channels for Sam
         var channel1Drive = await samOwnerClient.Drive.CreateDrive(new TargetDrive()
         {
@@ -185,7 +155,7 @@ public class AppFollowerTests
         var frodoAppApiClient = await this.PrepareAppAndClient(TestIdentities.Frodo, PermissionKeys.ReadMyFollowers, PermissionKeys.ReadWhoIFollow);
         var samAppApiClient = await this.PrepareAppAndClient(TestIdentities.Samwise, PermissionKeys.ReadMyFollowers, PermissionKeys.ReadWhoIFollow);
 
-        
+
         // Frodo should follow sam
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
@@ -261,7 +231,7 @@ public class AppFollowerTests
 
         var frodoAppApiClient = await this.PrepareAppAndClient(TestIdentities.Frodo, PermissionKeys.ReadMyFollowers, PermissionKeys.ReadWhoIFollow);
         var pippinAppApiClient = await this.PrepareAppAndClient(TestIdentities.Pippin, PermissionKeys.ReadMyFollowers, PermissionKeys.ReadWhoIFollow);
-        
+
         //
         var pippinFollows = await pippinAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
 
@@ -283,5 +253,34 @@ public class AppFollowerTests
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
         await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
     }
-    
+
+    private async Task<AppApiClient> PrepareAppAndClient(TestIdentity identity, params int[] permissionKeys)
+    {
+        var appId = Guid.NewGuid();
+
+        var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+        var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
+
+        var appPermissionsGrant = new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = appDrive.TargetDriveInfo,
+                        Permission = DrivePermission.All
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(permissionKeys)
+        };
+
+        await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+
+        var client = _scaffold.CreateAppClient(identity, appId);
+        return client;
+    }
 }

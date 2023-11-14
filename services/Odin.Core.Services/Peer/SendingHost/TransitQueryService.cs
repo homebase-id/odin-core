@@ -119,7 +119,7 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, null);
+            return (null, default, null, Stream.Null);
         }
 
         HandleInvalidTransitResponse(odinId, response);
@@ -161,7 +161,7 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null, null);
+            return (null, default, null, Stream.Null);
         }
 
         HandleInvalidTransitResponse(odinId, response);
@@ -288,19 +288,15 @@ public class TransitQueryService
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            if (response.StatusCode == HttpStatusCode.Forbidden)
+            if(response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values))
             {
-                var icrIssueHeaderExists = bool.TryParse(response.Headers.GetValues(HttpHeaderConstants.RemoteServerIcrIssue).Single(), out var isIcrIssue);
+                var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    _circleNetworkService.MarkConnectionRevokedOnRemoteServer(odinId).GetAwaiter().GetResult();
+                    _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
                 }
-
-                // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
-                throw new OdinSecurityException("Remote server returned 403");
             }
-
-            // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
+            
             throw new OdinSecurityException("Remote server returned 403");
         }
 

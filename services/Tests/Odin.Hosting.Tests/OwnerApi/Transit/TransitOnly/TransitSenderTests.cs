@@ -430,8 +430,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
 
-            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var samwiseOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
             const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
@@ -440,14 +440,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             const string commentFileContent = "Srsly!?? =O";
             const bool commentIsEncrypted = false;
 
-            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+            var targetDrive = await this.PrepareScenario(frodoOwnerClient, samwiseOwnerClient, drivePermissions);
 
-            var (standardFileUploadResult, _) = await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+            var (standardFileUploadResult, _) = await UploadStandardFile(samwiseOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
 
             //
             // Assert that the recipient server has the file by global transit id
             //
-            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+            var recipientFileByGlobalTransitId = await samwiseOwnerClient.Drive.QueryByGlobalTransitFileId(
                 FileSystemType.Standard,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
@@ -456,7 +456,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
-            var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
+            var (commentTransitResult, _) = await this.TransferComment(frodoOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
@@ -476,7 +476,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
             };
 
-            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var batch = await samwiseOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
             Assert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
@@ -489,7 +489,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //Delete the comment
             //
 
-            await senderOwnerClient.Transit.DeleteFile(
+            await frodoOwnerClient.Transit.DeleteFile(
                 FileSystemType.Comment,
                 commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
                 new List<string>() { recipient.OdinId });
@@ -498,14 +498,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             // See the comment is deleted
             //
 
-            var softDeletedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            var softDeletedBatch = await samwiseOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
             Assert.IsTrue(softDeletedBatch.SearchResults.Count() == 1);
             var theDeletedFile = softDeletedBatch.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theDeletedFile);
             Assert.IsTrue(theDeletedFile.FileState == FileState.Deleted);
             Assert.IsTrue(theDeletedFile.FileSystemType == FileSystemType.Comment);
 
-            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+            await this.DeleteScenario(frodoOwnerClient, samwiseOwnerClient);
         }
 
         //
@@ -540,7 +540,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.OwnerOnly
+                AccessControlList = AccessControlList.Connected
             };
 
             var recipients = new List<string>() { recipient.OdinId };
@@ -661,7 +661,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                (uploadResult, encryptedJsonContent64, _) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
             }
             else
             {

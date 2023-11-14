@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -66,6 +67,8 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstants.DriveV1}/files/attachments/upload",
             
                 $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstants.TransitSenderV1}/files/send",
+
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/attachments/upload",
                 $"{AppApiPathConstants.AuthV1}/logout", 
@@ -165,6 +168,13 @@ namespace Odin.Hosting.Middleware
                     "Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
                     OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
             }
+            catch (CryptographicException ex) when (ex.Message.Contains("Padding is invalid and cannot be removed"))
+            {
+                // We can get here if the encryption keys don't match. Go figure.
+                throw new OdinClientException(
+                    "Failed to decrypt shared secret payload. Ensure encryption keys are matching.",
+                    OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
+            }
         }
 
         private async Task EncryptResponse(HttpContext context, Stream originalBody)
@@ -207,6 +217,11 @@ namespace Odin.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
+            if (context.Request.Method.ToUpper() == "GET" && !context.Request.Query.Any())
+            {
+                return false;
+            }
+            
             if (context.WebSockets.IsWebSocketRequest)
             {
                 return false;

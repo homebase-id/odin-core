@@ -24,9 +24,9 @@ namespace Odin.Core.Services.Membership.Connections.Requests
     /// </summary>
     public class CircleNetworkRequestService
     {
-        private readonly GuidId _pendingRequestsDataType = GuidId.FromString("pnd_requests");
+        private readonly byte[] _pendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
 
-        private readonly GuidId _sentRequestsDataType = GuidId.FromString("sent_requests");
+        private readonly byte[] _sentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
 
         private readonly OdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _cns;
@@ -67,8 +67,11 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _contextAccessor = contextAccessor;
 
-            _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _sentRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
+            _pendingRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(pendingContextKey));
+
+            const string sentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
+            _sentRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(sentContextKey));
         }
 
         /// <summary>
@@ -110,7 +113,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _pendingRequestValueStorage.GetByKey3<PendingConnectionRequestHeader>(_pendingRequestsDataType);
+            var results = _pendingRequestValueStorage.GetByCategory<PendingConnectionRequestHeader>(_pendingRequestsDataType);
             return await Task.FromResult(new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList()));
         }
 
@@ -121,7 +124,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _sentRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
+            var results = _sentRequestValueStorage.GetByCategory<ConnectionRequest>(_sentRequestsDataType);
             return await Task.FromResult(new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList()));
         }
 

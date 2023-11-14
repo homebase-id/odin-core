@@ -10,7 +10,6 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Membership.CircleMembership;
@@ -29,10 +28,10 @@ namespace Odin.Core.Services.Membership.YouAuth
         private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
-        private readonly GuidId _domainRegistrationDataType = GuidId.FromString("__youauth_domain_reg");
+        private readonly byte[] _domainRegistrationDataType = Guid.Parse("0c2c70c2-86e9-4214-818d-8b57c8d59762").ToByteArray();
         private readonly ThreeKeyValueStorage _domainStorage;
 
-        private readonly GuidId _clientDataType = GuidId.FromString("__youauth_domain_client_reg");
+        private readonly byte[] _clientDataType = Guid.Parse("cd16bc37-3e1f-410b-be03-7bec83dd6c33").ToByteArray();
         private readonly ThreeKeyValueStorage _clientStorage;
 
         private readonly OdinContextCache _cache;
@@ -49,8 +48,12 @@ namespace Odin.Core.Services.Membership.YouAuth
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
-            _domainStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _clientStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            const string domainStorageContextKey = "e11ff091-0edf-4532-8b0f-b9d9ebe0880f";
+            _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
+            
+            const string domainClientStorageContextKey = "8994c20a-179c-469c-a3b9-c4d6a8d2eb3c";
+            _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
+            
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -74,19 +77,12 @@ namespace Odin.Core.Services.Membership.YouAuth
                 throw new OdinClientException("Domain already registered");
             }
 
-            if (request.ConsentRequirement == ConsentRequirement.Expiring)
-            {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (request.ConsentExpirationDateTime.milliseconds < nowMs)
-                {
-                    throw new OdinClientException("ConsentExpirationDateTime should be in the future");
-                }
-            }
-            
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
+            request.ConsentRequirements?.Validate();
+            
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
@@ -96,8 +92,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 CorsHostName = request.CorsHostName,
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 CircleGrants = grants,
-                ConsentRequirement = request.ConsentRequirement,
-                ConsentExpirationDateTime = request.ConsentExpirationDateTime
+                ConsentRequirements = request.ConsentRequirements
             };
 
             this.SaveRegistration(reg);
@@ -158,28 +153,25 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             var reg = await this.GetDomainRegistrationInternal(domain);
 
-            if (null == reg)
+            return reg?.ConsentRequirements?.IsRequired() ?? true;
+        }
+
+        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            consentRequirements.Validate();
+
+            var domainReg = await this.GetDomainRegistrationInternal(domain);
+            if (null == domainReg)
             {
-                return true;
+                throw new OdinClientException("Domain not registered");
             }
 
-            if (reg.ConsentRequirement == ConsentRequirement.Always)
-            {
-                return true;
-            }
+            domainReg.ConsentRequirements = consentRequirements;
 
-            if (reg.ConsentRequirement == ConsentRequirement.Expiring)
-            {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                return reg.ConsentExpirationDateTime.milliseconds > nowMs;
-            }
-
-            if (reg.ConsentRequirement == ConsentRequirement.Never)
-            {
-                return false;
-            }
-
-            return true;
+            this.SaveRegistration(domainReg);
+            ResetPermissionContextCache();
         }
 
         public async Task RevokeDomain(AsciiDomainName domain)
@@ -218,7 +210,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var list = _clientStorage.GetByKey3<YouAuthDomainClient>(_clientDataType);
+            var list = _clientStorage.GetByCategory<YouAuthDomainClient>(_clientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {
                 Domain = domainClient.Domain,
@@ -286,7 +278,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             }
 
             //delete the clients
-            var clientsByDomain = _clientStorage.GetByKey2<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
+            var clientsByDomain = _clientStorage.GetByDataType<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
 
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
@@ -305,7 +297,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var domains = _domainStorage.GetByKey3<YouAuthDomainRegistration>(_domainRegistrationDataType);
+            var domains = _domainStorage.GetByCategory<YouAuthDomainRegistration>(_domainRegistrationDataType);
             var redactedList = domains.Select(d => d.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }
@@ -393,7 +385,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     return odinContext;
                 }
 
-                return await CreateContextForYouAuthDomain(token, domainRegistration, accessReg);
+                return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg);
             }
 
             var result = await _cache.GetOrAddContext(token, Creator);
@@ -487,7 +479,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             }
         }
 
-        private async Task<OdinContext> CreateContextForYouAuthDomain(
+        private async Task<OdinContext> CreateAuthenticatedContextForYouAuthDomain(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
             AccessRegistration accessReg)
@@ -500,16 +492,8 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             //TODO: do we want allow youauthdomains to have these permissions?
 
-            List<int> permissionKeys = new List<int>();
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
-            {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
-            {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
+            var anonymousDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
 
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.CircleGrants.Values.ToList());
 
@@ -518,7 +502,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                 grants: grants,
                 accessReg: accessReg,
                 additionalPermissionKeys: permissionKeys,
-                includeAnonymousDrives: true);
+                includeAnonymousDrives: true,
+                anonymousDrivePermission: anonymousDrivePermissions);
 
             var dotYouContext = new OdinContext()
             {
@@ -529,6 +514,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     circleIds: enabledCircles,
                     youAuthClientContext: new OdinYouAuthClientContext()
                     {
+                        ClientIdOrDomain = domainRegistration.Domain.DomainName,
                         CorsHostName = domainRegistration.CorsHostName,
                         AccessRegistrationId = accessReg.Id
                     })

@@ -51,12 +51,6 @@ namespace Odin.Core.Services.Membership.Connections
         /// The encrypted <see cref="ClientAccessToken"/> token used when accessing another connected identity
         /// </summary>
         public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
-
-        /// <summary>
-        /// When true, the remote identity of the <see cref="OdinId"/> has indicated their corresponding record is
-        /// invalid (i.e. was removed or the CAT provided is no longer working)
-        /// </summary>
-        public bool RemoteIcrIsInvalid { get; set; }
         
         public long LastUpdated { get; set; }
         public long Created { get; set; }
@@ -90,8 +84,7 @@ namespace Odin.Core.Services.Membership.Connections
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
                 OriginalContactData = omitContactData ? null : this.OriginalContactData,
-                AccessGrant = this.AccessGrant?.Redacted(),
-                RemoteIcrIsInvalid = this.RemoteIcrIsInvalid
+                AccessGrant = this.AccessGrant?.Redacted()
             };
         }
     }
@@ -111,6 +104,5 @@ namespace Odin.Core.Services.Membership.Connections
         public long LastUpdated { get; set; }
         public ContactRequestData OriginalContactData { get; set; }
         
-        public bool? RemoteIcrIsInvalid { get; set; }
     }
 }

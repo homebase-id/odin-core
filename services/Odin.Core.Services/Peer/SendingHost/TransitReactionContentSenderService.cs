@@ -97,7 +97,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
+        var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactions(payload);
         return response.Content;
@@ -106,7 +106,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
+        var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactionCountsByFile(payload);
         return response.Content;
@@ -114,7 +114,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
+        var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactionsByIdentity(payload);
         return response.Content;

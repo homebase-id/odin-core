@@ -19,4 +19,7 @@ public class DriveFileDeletedNotification : EventArgs, INotification, IDriveNoti
     public ServerFileHeader ServerFileHeader { get; set; }
 
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
+    public ServerFileHeader PreviousServerFileHeader { get; set; }
+    
+    
 }

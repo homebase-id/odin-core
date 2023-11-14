@@ -32,7 +32,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteReactionsAndCommentsToDrive(driveId);
+            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(driveId,DrivePermission.Comment);
         }
     }
 
@@ -42,7 +42,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         if (!drive.AllowAnonymousReads)
         {
             var pc = ContextAccessor.GetCurrent().PermissionsContext;
-            var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments) ||
+            var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Comment) ||
                                  pc.HasDrivePermission(driveId, DrivePermission.Read);
 
             if (!hasPermissions)

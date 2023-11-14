@@ -105,7 +105,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             Dictionary<Guid, ExchangeGrant>? grants,
             AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null,
-            bool includeAnonymousDrives = false)
+            bool includeAnonymousDrives = false,
+            DrivePermission anonymousDrivePermission = DrivePermission.Read)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
             var (grantKeyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
@@ -132,7 +133,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             {
                 //MergeAnonymousDrives
                 //TODO: remove any anonymous drives which are explicitly granted above
-                permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup());
+                permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission));
             }
 
             if (additionalPermissionKeys != null)
@@ -152,10 +153,10 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a permission group of anonymous drives
         /// </summary>
-        public async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup()
+        private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions)
         {
             var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
-            var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
+            var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, permissions, null, null));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null);
         }
 

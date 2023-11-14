@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Registry.Registration;
 
 namespace Odin.Core.Services.Certificate
 {
@@ -16,6 +17,7 @@ namespace Odin.Core.Services.Certificate
     {
         private readonly ILogger<CertificateService> _logger;
         private readonly ICertesAcme _certesAcme;
+        private readonly IDnsLookupService _dnsLookupService;
         private readonly AcmeAccountConfig _accountConfig;
         private readonly string _sslRootPath;
 
@@ -24,11 +26,13 @@ namespace Odin.Core.Services.Certificate
         public CertificateService(
             ILogger<CertificateService> logger, 
             ICertesAcme certesAcme,
+            IDnsLookupService dnsLookupService,
             AcmeAccountConfig accountConfig,
             string sslRootPath)
         {
             _logger = logger;
             _certesAcme = certesAcme;
+            _dnsLookupService = dnsLookupService;
             _accountConfig = accountConfig;
             _sslRootPath = sslRootPath;
         }
@@ -113,6 +117,17 @@ namespace Odin.Core.Services.Certificate
         {
             try
             {
+                if (sans != null) // don't verify system domains (e.g. provisioning, admin, etc)
+                {
+                    var (isDnsRecordOk, _) = await _dnsLookupService.GetAuthorativeDomainDnsStatus(domain);
+                    if (!isDnsRecordOk)
+                    {
+                        _logger.LogWarning(
+                            "Cannot create certifice for {domain}. One or more DNS records are no longer correct.", domain);
+                        return null;
+                    }
+                }
+
                 var account = await LoadAccount();
                 if (account == null)
                 {

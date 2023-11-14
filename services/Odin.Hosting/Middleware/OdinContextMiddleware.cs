@@ -46,11 +46,10 @@ namespace Odin.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-            
+
             if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, odinContext);
-
                 await _next(httpContext);
                 return;
             }
@@ -151,12 +150,6 @@ namespace Odin.Hosting.Middleware
                 var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
                 var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
 
-                //load in transit context
-                // var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
-                // var transitCtx = await transitRegService.GetDotYouContext(odinId, clientAuthToken);
-
-                // transitCtx.PermissionsContext.Redacted().PermissionGroups.First().DriveGrants.First().PermissionedDrive.
-
                 if (ctx != null)
                 {
                     odinContext.Caller = ctx.Caller;
@@ -189,19 +182,25 @@ namespace Odin.Hosting.Middleware
                     OdinClientErrorCode.NotInitialized);
             }
 
+            //TODO: need to put this behind a class and cache
+
+            var tenantContext = httpContext.RequestServices.GetRequiredService<TenantContext>();
+            var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
+            var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
+
             var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = d.TargetDriveInfo,
-                    Permission = DrivePermission.Read
+                    Permission = anonDrivePermissions
                 }
             }).ToList();
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null) },
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(permissionKeys), anonDriveGrants, null, null) },
             };
 
             odinContext.SetPermissionContext(

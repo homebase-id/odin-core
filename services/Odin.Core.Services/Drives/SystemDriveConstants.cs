@@ -1,3 +1,4 @@
+using System;
 using Odin.Core.Services.Drives.Management;
 
 namespace Odin.Core.Services.Drives;
@@ -7,8 +8,8 @@ namespace Odin.Core.Services.Drives;
 /// </summary>
 public static class SystemDriveConstants
 {
-    public static readonly GuidId ChannelDriveType = GuidId.FromString("channel");
-    
+    public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
+        
     public static readonly TargetDrive TransientTempDrive = new()
     {
         Alias = GuidId.FromString("transit_temp_drive"),
@@ -52,7 +53,7 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = TransientTempDrive,
-        OwnerOnly = true
+        OwnerOnly = false
     };
     
     public static readonly CreateDriveRequest CreateFeedDriveRequest = new()

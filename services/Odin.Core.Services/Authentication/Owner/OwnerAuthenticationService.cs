@@ -22,17 +22,15 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Storage;
 using Odin.Core.Time;
-using Org.BouncyCastle.Asn1.Ocsp;
 
-/// <summary>
-/// Goals here are that:
-///   * the password never leaves the clients.
-///   * the password hash changes with every login request, making playback impossible
-///   * the private encryption key on the server is encrypted with a KEK
-///   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
-///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
-/// </summary>
+// Goals here are that:
+//   * the password never leaves the clients.
+//   * the password hash changes with every login request, making playback impossible
+//   * the private encryption key on the server is encrypted with a KEK
+//   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
+//   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 namespace Odin.Core.Services.Authentication.Owner
 {
     /// <summary>
@@ -41,7 +39,6 @@ namespace Odin.Core.Services.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OwnerSecretService _secretService;
 
         private readonly OdinContextCache _cache;
@@ -52,6 +49,9 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
+        private readonly SingleKeyValueStorage _nonceDataStorage;
+        private readonly SingleKeyValueStorage _serverTokenStorage;
+        private readonly SingleKeyValueStorage _firstRunInfoStorage;
 
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
@@ -60,13 +60,23 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             _logger = logger;
             _secretService = secretService;
-            _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
             _icrKeyService = icrKeyService;
             _tenantConfigService = tenantConfigService;
             _httpContextAccessor = httpContextAccessor;
 
+            //TODO: does this need to mwatch owner secret service?
+            // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
+            const string nonceDataContextKey = "cc5430e7-cc05-49aa-bc8b-d8c1f261f5ee";
+            _nonceDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
+            
+            const string serverTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
+            _serverTokenStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(serverTokenContextKey));
+            
+            const string firstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
+            _firstRunInfoStorage=tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(firstRunContextKey));
+            
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -79,7 +89,7 @@ namespace Odin.Core.Services.Authentication.Owner
             var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
+            _nonceDataStorage.Upsert(nonce.Id, nonce);
             return nonce;
         }
 
@@ -92,13 +102,13 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(new GuidId(key));
+            var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist.
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(new GuidId(key));
+            _nonceDataStorage.Delete(new GuidId(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
@@ -108,7 +118,7 @@ namespace Odin.Core.Services.Authentication.Owner
             var keys = await this._secretService.GetOfflineRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(serverToken.Id, serverToken);
+            _serverTokenStorage.Upsert(serverToken.Id, serverToken);
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -124,30 +134,30 @@ namespace Odin.Core.Services.Authentication.Owner
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
             var odinContext = _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
             await this.UpdateOdinContext(token, odinContext);
-            await EnsureFirstOperations(token);
+            await EnsureFirstRunOperations(token);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
         /// <summary>
-        /// Determines if the <paramref name="sessionToken"/> is valid and has not expired.  
+        /// Determines if the <paramref name="sessionTokenId"/> is valid and has not expired.  
         /// </summary>
-        /// <param name="sessionToken">The token to be validated</param>
+        /// <param name="sessionTokenId">The token to be validated</param>
         /// <returns></returns>
-        public async Task<bool> IsValidToken(Guid sessionToken)
+        public async Task<bool> IsValidToken(Guid sessionTokenId)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            var entry = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
+            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(sessionTokenId);
             return await Task.FromResult(IsAuthTokenEntryValid(entry));
         }
 
         /// <summary>
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
-        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
+        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionTokenId, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
+            var loginToken = _serverTokenStorage.Get<OwnerConsoleToken>(sessionTokenId);
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
@@ -229,31 +239,32 @@ namespace Odin.Core.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
+        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.
         /// </summary>
-        /// <param name="token"></param>
-        public async Task ExtendTokenLife(Guid token, int ttlSeconds)
+        /// <param name="tokenId"></param>
+        /// <param name="ttlSeconds"></param>
+        public async Task ExtendTokenLife(Guid tokenId, int ttlSeconds)
         {
-            var entry = await GetValidatedEntry(token);
+            var entry = await GetValidatedEntry(tokenId);
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(entry.Id, entry);
+            _serverTokenStorage.Upsert(entry.Id, entry);
         }
 
         /// <summary>
-        /// Expires the <paramref name="token"/> thus making it invalid.  This can be used when a user
+        /// Expires the <paramref name="tokenId"/> thus making it invalid.  This can be used when a user
         /// clicks logout.  Invalid or expired tokens are ignored.
         /// </summary>
-        /// <param name="token"></param>
-        public void ExpireToken(Guid token)
+        /// <param name="tokenId"></param>
+        public void ExpireToken(Guid tokenId)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(token);
+            _serverTokenStorage.Delete(tokenId);
         }
 
-        private Task<OwnerConsoleToken> GetValidatedEntry(Guid token)
+        private Task<OwnerConsoleToken> GetValidatedEntry(Guid tokenId)
         {
-            var entry = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(token);
+            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(tokenId);
             AssertTokenIsValid(entry);
             return Task.FromResult(entry);
         }
@@ -289,22 +300,6 @@ namespace Odin.Core.Services.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        //
-
-        private async Task EnsureFirstOperations(ClientAuthenticationToken token)
-        {
-            var fli = _tenantSystemStorage.SingleKeyValueStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
-            if (fli == null)
-            {
-                await _tenantConfigService.CreateInitialKeys();
-
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
-                {
-                    FirstLoginDate = UnixTimeUtc.Now()
-                });
-            }
-        }
-
         public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
             var context = _httpContextAccessor.HttpContext;
@@ -317,7 +312,7 @@ namespace Odin.Core.Services.Authentication.Owner
             // just below this, we check to see if the token was good.  if not, the call fails.
             odinContext.Caller = new CallerContext(
                 odinId: (OdinId)context.Request.Host.Host,
-                masterKey: null,
+                masterKey: null, //will be set later
                 securityLevel: SecurityGroupType.Owner);
 
             OdinContext ctx = await this.GetDotYouContext(token);
@@ -340,5 +335,22 @@ namespace Odin.Core.Services.Authentication.Owner
 
             return true;
         }
+
+        //
+
+        private async Task EnsureFirstRunOperations(ClientAuthenticationToken token)
+        {
+            var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
+            if (fli == null)
+            {
+                await _tenantConfigService.CreateInitialKeys();
+
+                _firstRunInfoStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
+                {
+                    FirstLoginDate = UnixTimeUtc.Now()
+                });
+            }
+        }
+
     }
 }

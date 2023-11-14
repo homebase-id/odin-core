@@ -10,6 +10,8 @@ namespace Odin.Core.Services.Registry.Registration;
 /// </summary>
 public interface IIdentityRegistrationService
 {
+    Task<string> LookupZoneApex(string domain);
+
     /// <summary>
     /// Returns a list of domains managed by this identity host.
     /// </summary>
@@ -24,11 +26,17 @@ public interface IIdentityRegistrationService
     Task<List<DnsConfig>> GetDnsConfiguration(string domain);
 
     /// <summary>
-    /// Does a DNS lookup on domain records using configured DNS Resolvers
+    /// Verifies if DNS records are correctly configured using authorative name servers
     /// </summary>
-    /// <param name="domain"></param>
     /// <returns></returns>
-    Task<ExternalDnsResolverLookupResult> ExternalDnsResolverRecordLookup(string domain);
+    Task<(bool, List<DnsConfig>)> GetAuthorativeDomainDnsStatus(string domain);
+
+
+    /// <summary>
+    /// Verifies if DNS records are correctly configured using external name servers
+    /// </summary>
+    /// <returns></returns>
+    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain);
     
     /// <summary>
     /// Create identity on own or managed domain
@@ -49,13 +57,6 @@ public interface IIdentityRegistrationService
     //
 
     public Task<bool> IsOwnDomainAvailable(string domain);
-    
-    /// <summary>
-    /// Verifies if DNS records are correctly configured on own-domain
-    /// </summary>
-    /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetOwnDomainDnsStatus(string domain);
-    
     public Task DeleteOwnDomain(string domain);
     
     //
@@ -70,18 +71,3 @@ public interface IIdentityRegistrationService
     Task<bool> IsValidInvitationCode(string code);
 }
 
-//
-// DTOs
-//
-
-public class ExternalDnsResolverLookupResult
-{
-    public class ResolverStatus
-    {
-        public string ResolverIp { get; set; } = "";
-        public string Domain { get; set; } = "";
-        public bool Success { get; set; } = false;
-    }
-    public bool Success { get; set; }
-    public List<ResolverStatus> Statuses { get; } = new();
-}

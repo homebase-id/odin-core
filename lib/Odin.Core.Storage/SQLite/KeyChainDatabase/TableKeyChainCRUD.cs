@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
-                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKeyJwkBase64Url.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                  }
                 return count;
             } // Lock
@@ -281,7 +281,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _upsertParam7.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKeyJwkBase64Url.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 return count;
             } // Lock
         }
@@ -328,7 +328,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKeyJwkBase64Url.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
                 return count;
             } // Lock
@@ -441,7 +441,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _delete0Param2.Value = publicKeyJwkBase64Url;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableKeyChainCRUD", identity.ToString()+publicKeyJwkBase64Url.ToString());
+                    _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
             } // Lock
         }
@@ -527,7 +527,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null");
             if (publicKeyJwkBase64Url?.Length < 16) throw new Exception("Too short");
             if (publicKeyJwkBase64Url?.Length > 600) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity.ToString()+publicKeyJwkBase64Url.ToString());
+            var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
             if (hit)
                 return (KeyChainRecord)cacheObject;
             lock (_get0Lock)
@@ -551,11 +551,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyChainCRUD", identity.ToString()+publicKeyJwkBase64Url.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, identity,publicKeyJwkBase64Url);
-                    _cache.AddOrUpdate("TableKeyChainCRUD", identity.ToString()+publicKeyJwkBase64Url.ToString(), r);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, r);
                     return r;
                 } // using
             } // lock

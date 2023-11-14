@@ -25,6 +25,7 @@ namespace Odin.Core.Services.Configuration
         public CertificateRenewalSection CertificateRenewal { get; init; }
 
         public MailgunSection Mailgun { get; init; }
+        public AdminSection Admin { get; init; }
 
         public FeedSection Feed { get; init; }
         public TransitSection Transit { get; init; }
@@ -41,6 +42,7 @@ namespace Odin.Core.Services.Configuration
             Quartz = new QuartzSection(config);
             Registry = new RegistrySection(config);
             Mailgun = new MailgunSection(config);
+            Admin = new AdminSection(config);
 
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
@@ -91,6 +93,8 @@ namespace Odin.Core.Services.Configuration
                 {
                     throw new OdinSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
                 }
+
+                MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
             }
 
             public int DistributionBatchSize { get; init; }
@@ -100,6 +104,8 @@ namespace Odin.Core.Services.Configuration
             /// recipients; This should be false in high traffic environments
             /// </summary>
             public bool InstantDistribution { get; init; }
+
+            public int MaxCommentsInPreview { get; init; }
         }
 
         /// <summary>
@@ -147,6 +153,7 @@ namespace Odin.Core.Services.Configuration
                 PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
                 PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
+                AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
@@ -155,7 +162,7 @@ namespace Odin.Core.Services.Configuration
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
-                
+
                 InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
             }
 
@@ -169,10 +176,9 @@ namespace Odin.Core.Services.Configuration
         public class HostSection
         {
             public string TenantDataRootPath { get; init; }
-            
             public string SystemDataRootPath { get; init; }
-            
             public string SystemSslRootPath { get; init; }
+
 
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
@@ -180,6 +186,8 @@ namespace Odin.Core.Services.Configuration
             public List<ListenEntry> IPAddressListenList { get; init; }
 
             public int CacheSlidingExpirationSeconds { get; init; }
+
+            public Guid SystemProcessApiKey { get; set; }
 
             public HostSection()
             {
@@ -193,7 +201,7 @@ namespace Odin.Core.Services.Configuration
 
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
-                
+
                 var sd = config.Required<string>("Host:SystemDataRootPath");
                 SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
@@ -202,7 +210,14 @@ namespace Odin.Core.Services.Configuration
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
+
+                HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
+
+                SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
             }
+
+            public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
+            public int HomePageCachingExpirationSeconds { get; set; }
         }
 
         public class ListenEntry
@@ -316,7 +331,7 @@ namespace Odin.Core.Services.Configuration
         public class MailgunSection
         {
             public string ApiKey { get; init; }
-            public NameAndEmailAddress DefaultFrom { get; init;  }
+            public NameAndEmailAddress DefaultFrom { get; init; }
             public string EmailDomain { get; init; }
             public bool Enabled { get; init; }
 
@@ -335,6 +350,31 @@ namespace Odin.Core.Services.Configuration
                 };
                 EmailDomain = config.Required<string>("Mailgun:EmailDomain");
                 Enabled = config.Required<bool>("Mailgun:Enabled");
+            }
+        }
+
+        //
+
+        public class AdminSection
+        {
+            public bool ApiEnabled { get; init; }
+            public string ApiKey { get; init; }
+            public string ApiKeyHttpHeaderName { get; init; }
+            public int ApiPort { get; init; }
+            public string Domain { get; init; }
+
+            public AdminSection()
+            {
+                // Mockable support
+            }
+
+            public AdminSection(IConfiguration config)
+            {
+                ApiEnabled = config.Required<bool>("Admin:ApiEnabled");
+                ApiKey = config.Required<string>("Admin:ApiKey");
+                ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
+                ApiPort = config.Required<int>("Admin:ApiPort");
+                Domain = config.Required<string>("Admin:Domain");
             }
         }
 

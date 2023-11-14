@@ -82,6 +82,14 @@ namespace Odin.Hosting
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
+            cb.RegisterType<HomeCachingService>()
+                .AsSelf()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+                .SingleInstance();
+
             cb.RegisterType<HomeAuthenticatorService>()
                 .AsSelf()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
@@ -132,7 +140,9 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>();
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionDeletedNotification>>()
+                .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 

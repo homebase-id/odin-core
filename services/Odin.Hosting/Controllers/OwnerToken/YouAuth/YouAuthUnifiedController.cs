@@ -10,9 +10,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.Extensions;
@@ -65,9 +68,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             else if (authorize.ClientType == ClientType.app)
             {
                 // If we're authorizing an app, overwrite ClientInfo with ClientFriendly
-                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest, authorize.RedirectUri);
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
+
+            _logger.LogDebug("YouAuth: authorizing client_id={client_id}, redirect_uri={redirect_uri}",
+                authorize.ClientType, authorize.RedirectUri);
 
             //
             // Step [040] Logged in?
@@ -80,10 +86,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             if (authorize.ClientType == ClientType.app)
             {
-                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest, authorize.RedirectUri);
 
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
-                    authorize.ClientType,
                     authorize.ClientId,
                     authorize.PermissionRequest);
 
@@ -94,6 +99,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     var appRegisterPage =
                         $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
 
+                    _logger.LogDebug("YouAuth: redirecting to {redirect}", appRegisterPage);
                     return Redirect(appRegisterPage);
                 }
             }
@@ -113,6 +119,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                 var consentPage =
                     $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}?returnUrl={returnUrl}";
+
+                _logger.LogDebug("YouAuth: redirecting to {redirect}", consentPage);
                 return Redirect(consentPage);
             }
 
@@ -151,6 +159,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 Query = queryString.ToUriComponent()
             }.Uri;
 
+            _logger.LogDebug("YouAuth: redirecting to {redirect}", uri.ToString());
             return Redirect(uri.ToString());
         }
 
@@ -163,7 +172,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [HttpPost(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
         public async Task<ActionResult> Consent(
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)]
-            string returnUrl)
+            string returnUrl,
+            [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)]
+            string consentRequirementJson)
         {
             // SEB:TODO CSRF ValidateAntiForgeryToken
 
@@ -192,9 +203,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             authorize.Validate();
 
-            await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest);
+            ConsentRequirements consentRequirements = ConsentRequirements.Default;
+            if (!string.IsNullOrEmpty(consentRequirementJson))
+            {
+                var c = OdinSystemSerializer.Deserialize<ConsentRequirements>(consentRequirementJson);
+                if (null != c)
+                {
+                    consentRequirements = c;
+                }
+            }
+
+            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements);
 
             // Redirect back to authorize
+            _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);
             return Redirect(returnUrl);
         }
 
@@ -242,13 +264,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
         //
 
-        private YouAuthAppParameters GetYouAuthAppParameters(string json)
+        private YouAuthAppParameters GetYouAuthAppParameters(string json, string cancelUrl)
         {
             YouAuthAppParameters appParams;
 
             try
             {
                 appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(json)!;
+                if (string.IsNullOrEmpty(appParams.Cancel))
+                {
+                    appParams.Cancel = cancelUrl;
+                }
             }
             catch (Exception e)
             {

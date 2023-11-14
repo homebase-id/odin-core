@@ -8,6 +8,7 @@ using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
@@ -20,6 +21,7 @@ using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Time;
+using Serilog;
 using PermissionSet = Odin.Core.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Core.Services.Membership.Connections
@@ -518,7 +520,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             await _circleMembershipService.Delete(circleId);
         }
-        
+
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)
@@ -537,12 +539,14 @@ namespace Odin.Core.Services.Membership.Connections
         {
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
-        
-        public async Task MarkConnectionRevokedOnRemoteServer(OdinId odinId)
+
+        public async Task RevokeConnection(OdinId odinId)
         {
-            var icr = await this.GetIdentityConnectionRegistration(odinId);
-            icr.RemoteIcrIsInvalid = true;
-            SaveIcr(icr);
+            _storage.Delete(odinId);
+            await _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+            {
+                OdinId = odinId
+            });
         }
 
         //
@@ -640,15 +644,36 @@ namespace Odin.Core.Services.Membership.Connections
                                 enabledCircles.Add(appCg.CircleId);
                             }
 
-                            grants.Add(kvp.Key, new ExchangeGrant()
+                            if (grants.ContainsKey(kvp.Key))
                             {
-                                Created = 0,
-                                Modified = 0,
-                                IsRevoked = false, //TODO
-                                KeyStoreKeyEncryptedDriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
-                                MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
-                                PermissionSet = appCg.PermissionSet
-                            });
+                                //TODO: figuring out a production issue
+                                if (grants.TryGetValue(kvp.Key, out var v))
+                                {
+                                    var existingKeyJson = OdinSystemSerializer.Serialize(v.Redacted());
+                                    var newKeyJson = OdinSystemSerializer.Serialize(appCg);
+                                    var message = $"Key with value [{kvp.Key} already exists in grants.]";
+                                    message += $"\n Existing key has [{existingKeyJson}]";
+                                    message += $"\n appGrant Key [{newKeyJson}]";
+                                    
+                                    Log.Warning(message);    
+                                }
+                                else
+                                {
+                                    Log.Warning($"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
+                                }
+                            }
+                            else
+                            {
+                                grants.Add(kvp.Key, new ExchangeGrant()
+                                {
+                                    Created = 0,
+                                    Modified = 0,
+                                    IsRevoked = false, //TODO
+                                    KeyStoreKeyEncryptedDriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
+                                    MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
+                                    PermissionSet = appCg.PermissionSet
+                                });
+                            }
                         }
                     }
                 }
@@ -670,22 +695,16 @@ namespace Odin.Core.Services.Membership.Connections
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
-            List<int> permissionKeys = new List<int>();
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadConnections);
-            }
-
-            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewWhoIFollow ?? false)
-            {
-                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
-            }
+            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
-                additionalPermissionKeys: permissionKeys);
+                additionalPermissionKeys: permissionKeys,
+                includeAnonymousDrives: true,
+                anonymousDrivePermission: anonDrivePermissions);
 
             var result = (permissionCtx, enabledCircles);
             return await Task.FromResult(result);
@@ -703,7 +722,7 @@ namespace Odin.Core.Services.Membership.Connections
                 Results = list
             };
         }
-        
+
         /// <summary>
         /// Throws an exception if the odinId is blocked.
         /// </summary>
@@ -716,7 +735,7 @@ namespace Odin.Core.Services.Membership.Connections
                 throw new SecurityException("OdinId is blocked");
             }
         }
-        
+
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
         {
             var registration = _storage.Get(odinId);

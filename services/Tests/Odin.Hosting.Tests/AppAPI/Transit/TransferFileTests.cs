@@ -170,7 +170,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 {
                     FileType = someFiletype,
                     JsonContent = "this is some content",
-                }
+                },
+                AccessControlList = AccessControlList.Connected
             };
 
             var options = new TransitTestUtilsOptions()
@@ -254,7 +255,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 {
                     FileType = someFiletype,
                     JsonContent = "this is some content",
-                }
+                },
+                AccessControlList = AccessControlList.Connected
             };
 
             var options = new TransitTestUtilsOptions()
@@ -307,7 +309,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true, SecurityGroupType.Connected); //security group should be cause that's how we sent it
 
             // recipient server: Should still be in index and marked as deleted
 
@@ -754,7 +756,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                // client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
                 var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
@@ -778,7 +779,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1, $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
+                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1,
+                    $"result should have been 1 but was {queryBatchResponse.Content.SearchResults.Count()}");
 
                 var uploadedFile = new ExternalFileIdentifier()
                 {

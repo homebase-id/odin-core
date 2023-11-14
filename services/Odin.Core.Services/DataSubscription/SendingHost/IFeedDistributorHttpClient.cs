@@ -11,6 +11,9 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
 
         [Post(RootPath + "/filemetadata")]
         Task<ApiResponse<HostTransitResponse>> SendFeedFileMetadata([Body] UpdateFeedFileMetadataRequest request);
-        
+
+
+        [Post(RootPath + "/delete")]
+        Task<ApiResponse<HostTransitResponse>> DeleteFeedMetadata([Body] DeleteFeedFileMetadataRequest request);
     }
 }

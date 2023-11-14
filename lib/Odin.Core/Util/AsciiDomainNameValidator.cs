@@ -151,6 +151,8 @@ namespace Odin.Core.Util
         // Given a domain name, looks up and returns the CNAME record.
         // If a CNAME record does not exist then it null
         //
+
+        [Obsolete("This class must use an injected LookupClient or risk leaking resources")]
         public static string CNameLookup(string inputHostName)
         {
             var lookup = new LookupClient();
@@ -166,6 +168,7 @@ namespace Odin.Core.Util
             return srvRecord.CanonicalName;
         }
 
+        [Obsolete("This class must use an injected LookupClient or risk leaking resources")]
         public static string CNameLookup2(string inputHostName)
         {
             var client = new LookupClient(NameServer.GooglePublicDns);
@@ -175,6 +178,7 @@ namespace Odin.Core.Util
             return record.CanonicalName;
         }
 
+        [Obsolete("This class must use an injected LookupClient or risk leaking resources")]
         public static void TryIdentityDNSValidate(string identityName)
         {
             const string serverHostFQDN = "odin.earth."; // Pick a config value
