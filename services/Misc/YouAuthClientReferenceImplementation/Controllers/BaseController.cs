@@ -4,7 +4,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
-using Org.BouncyCastle.Utilities.Encoders;
+using Base64 = Org.BouncyCastle.Utilities.Encoders.Base64;
 
 namespace YouAuthClientReferenceImplementation.Controllers;
 
@@ -12,6 +12,8 @@ namespace YouAuthClientReferenceImplementation.Controllers;
 public abstract class BaseController : Controller
 {
     private readonly ILogger _logger;
+
+    //
 
     protected BaseController(ILogger logger)
     {
@@ -31,6 +33,8 @@ public abstract class BaseController : Controller
     {
         return UriWithEncryptedQueryString(uri, Base64.Decode(sharedSecretBase64));
     }
+
+    //
 
     protected static string UriWithEncryptedQueryString(string uri, byte[] sharedSecret)
     {

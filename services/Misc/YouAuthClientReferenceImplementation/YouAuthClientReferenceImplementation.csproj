@@ -8,8 +8,9 @@
 
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\lib\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj" />
     <ProjectReference Include="..\..\..\lib\Odin.Core\Odin.Core.csproj" />
-    <ProjectReference Include="..\..\Odin.Hosting\Odin.Hosting.csproj" />
+    <ProjectReference Include="..\..\Odin.Core.Services\Odin.Core.Services.csproj" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
