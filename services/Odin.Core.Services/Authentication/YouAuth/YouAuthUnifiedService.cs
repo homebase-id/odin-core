@@ -200,7 +200,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
     {
-        var appId = Guid.Parse(clientIdOrDomain);
+        if (!Guid.TryParse(clientIdOrDomain, out var appId))
+        {
+            throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
+        }
+
         var appReg = await _appRegistrationService.GetAppRegistration(appId);
         if (appReg == null)
         {
@@ -209,7 +213,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (appReg.IsRevoked)
         {
-            throw new OdinSecurityException("App is revoked");
+            throw new OdinClientException("App is revoked", OdinClientErrorCode.AppRevoked);
         }
 
         return false;

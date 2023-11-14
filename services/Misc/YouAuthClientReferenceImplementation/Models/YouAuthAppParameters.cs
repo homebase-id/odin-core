@@ -1,9 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using System.Web;
-using Odin.Hosting.ApiExceptions.Client;
 
-namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
+// SEB:TODO
+// This is a partial copy of the class in namespace Odin.Hosting.Controllers.OwnerToken.YouAuth.
+// It should be in a shared lib instead.
+
+namespace YouAuthClientReferenceImplementation.Models;
 
 public class YouAuthAppParameters
 {
@@ -47,6 +50,7 @@ public class YouAuthAppParameters
     [JsonPropertyName(CancelName)]
     public string Cancel { get; set; } = "";
 
+
     //
 
     public YouAuthAppParameters()
@@ -55,29 +59,6 @@ public class YouAuthAppParameters
     }
 
     //
-
-    private YouAuthAppParameters(
-        string appName,
-        string appOrigin,
-        string appId,
-        string clientFriendly,
-        string drivesParam,
-        string circleDrivesParam,
-        string permissionParam,
-        string @return,
-        string cancel)
-    {
-        AppId = appId;
-        AppName = appName;
-        AppOrigin = appOrigin;
-        ClientFriendly = clientFriendly;
-        DrivesParam = drivesParam;
-        CircleDrivesParam = circleDrivesParam;
-        PermissionParam = permissionParam;
-        Return = @return;
-        Cancel = cancel;
-    }
-
 
     public string ToQueryString()
     {
@@ -96,46 +77,5 @@ public class YouAuthAppParameters
         return qs.ToString() ?? string.Empty;
     }
 
-    //
-
-    public static YouAuthAppParameters FromQueryString(string queryString)
-    {
-        var qs = HttpUtility.ParseQueryString(queryString);
-
-        return new YouAuthAppParameters(
-            appId: qs[AppIdName] ?? string.Empty,
-            appName: qs[AppNameName] ?? string.Empty,
-            appOrigin: qs[AppOriginName] ?? string.Empty,
-            clientFriendly: qs[ClientFriendlyName] ?? string.Empty,
-            drivesParam: qs[DrivesParamName] ?? string.Empty,
-            circleDrivesParam: qs[CircleDrivesParamName] ?? string.Empty,
-            permissionParam: qs[PermissionParamName] ?? string.Empty,
-            @return: qs[ReturnName] ?? string.Empty,
-            cancel: qs[CancelName] ?? string.Empty);
-    }
-
-    //
-
-    public void Validate()
-    {
-        if (string.IsNullOrWhiteSpace(AppId))
-        {
-            throw new BadRequestException($"{AppIdName} is required");
-        }
-        if (string.IsNullOrWhiteSpace(AppName))
-        {
-            throw new BadRequestException($"{AppNameName} is required");
-        }
-        if (string.IsNullOrWhiteSpace(ClientFriendly))
-        {
-            throw new BadRequestException($"{ClientFriendlyName} is required");
-        }
-        if (string.IsNullOrWhiteSpace(DrivesParam))
-        {
-            throw new BadRequestException($"{DrivesParamName} is required");
-        }
-    }
-
-    //
 
 }
