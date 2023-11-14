@@ -66,12 +66,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public string SenderOdinId { get; set; }
 
-        /// <summary>
-        /// The size of the payload on disk
-        /// </summary>
-        [Obsolete("remove this")]
-        public long PayloadSize { get; set; }
-        
         public AppFileMetaData AppData { get; set; }
 
         public List<PayloadDescriptor> Payloads { get; set; }
