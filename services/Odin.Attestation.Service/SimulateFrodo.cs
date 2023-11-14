@@ -20,14 +20,14 @@ namespace OdinsAttestation
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _ecc = new EccFullKeyData(_pwd, EccFullKeyData.EccKeySize.P384, 1);
             _database = new Dictionary<string, Int64> { };
         }
 
         private static void GenerateNewKeys()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _ecc = new EccFullKeyData(_pwd, EccFullKeyData.EccKeySize.P384, 1);
         }
 
         private static void SaveLocally(string nonceBase64)

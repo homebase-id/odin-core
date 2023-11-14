@@ -90,7 +90,7 @@ public class ClientTypeDomainController : BaseController
         // YouAuth [010]
         //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, 1);
+        var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
 
         //
         // YouAuth [030]

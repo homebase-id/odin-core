@@ -60,7 +60,7 @@ namespace Odin.Core.Cryptography.Crypto
 
             lock (listEcc)
             {
-                var ecc = new EccFullKeyData(key, hours);
+                var ecc = new EccFullKeyData(key, EccFullKeyData.EccKeySize.P384, hours);
 
                 listEcc.ListEcc.Insert(0, ecc);
                 if (listEcc.ListEcc.Count > listEcc.MaxKeys)

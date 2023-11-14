@@ -27,7 +27,7 @@ public static class EccKeyStorage
             if (jsonString.Length <= 0)
             {
                 // Hack to create a key if none is there
-                var eccKey = new EccFullKeyData(pwd, 1);
+                var eccKey = new EccFullKeyData(pwd, EccFullKeyData.EccKeySize.P384, 1);
                 SaveKey(eccKey);
                 jsonString = File.ReadAllText(path);
                 if (jsonString == null)
