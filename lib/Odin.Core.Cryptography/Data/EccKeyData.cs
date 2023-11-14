@@ -125,6 +125,26 @@ namespace Odin.Core.Cryptography.Data
             return jwkJson;
         }
 
+        public string GenerateEcdsaBase64Url()
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+
+            // Extract X and Y coordinates
+            byte[] x = publicKeyParameters.Q.AffineXCoord.GetEncoded();
+            byte[] y = publicKeyParameters.Q.AffineYCoord.GetEncoded();
+
+            // Uncompressed key format: 0x04 | X | Y
+            byte[] uncompressedKey = new byte[1 + x.Length + y.Length];
+            uncompressedKey[0] = 0x04;
+            Buffer.BlockCopy(x, 0, uncompressedKey, 1, x.Length);
+            Buffer.BlockCopy(y, 0, uncompressedKey, 1 + x.Length, y.Length);
+
+            // Encode to URL-safe Base64 without padding
+            return Base64UrlEncoder.Encode(uncompressedKey);
+        }
+
+
         public string PublicKeyJwkBase64Url()
         {
             return Base64UrlEncoder.Encode(PublicKeyJwk());
