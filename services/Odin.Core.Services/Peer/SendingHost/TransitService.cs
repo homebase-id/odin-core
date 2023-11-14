@@ -310,7 +310,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                     IsEncrypted = sourceMetadata.IsEncrypted,
                     GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = sourceMetadata.ReactionPreview,
-                    SenderOdinId = string.Empty,
+                    SenderOdinId = sourceMetadata.SenderOdinId,
                     ReferencedFile = sourceMetadata.ReferencedFile,
                     VersionTag = sourceMetadata.VersionTag,
                     Payloads = sourceMetadata.Payloads
