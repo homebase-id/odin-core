@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Crypto;
@@ -15,7 +14,6 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
-using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
@@ -36,13 +34,14 @@ namespace Odin.Core.Cryptography.Data
             if (jwkObject["kty"] != "EC")
                 throw new InvalidOperationException("Invalid key type, kty must be EC");
 
-            if (jwkObject["crv"] != "P-384")
-                throw new InvalidOperationException("Invalid curve, crv must be P-384");
+            string curveName = jwkObject["crv"];
+            if ((curveName != "P-384") && (curveName != "P-256"))
+                throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
 
             byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
             byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
 
-            X9ECParameters x9ECParameters = NistNamedCurves.GetByName("P-384");
+            X9ECParameters x9ECParameters = NistNamedCurves.GetByName(curveName);
             ECCurve curve = x9ECParameters.Curve;
             ECPoint ecPoint = curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y));
 
@@ -66,6 +65,35 @@ namespace Odin.Core.Cryptography.Data
             return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
         }
 
+        private string GetCurveName(ECCurve curve)
+        {
+            string curveName = null;
+            foreach (string name in ECNamedCurveTable.Names)
+            {
+                var param = ECNamedCurveTable.GetByName(name);
+                if (param.Curve.Equals(curve))
+                {
+                    curveName = name;
+                    break;
+                }
+            }
+
+            switch (curveName)
+            {
+                case "secp384r1":
+                case "NIST P-384":
+                    return "P-384";
+
+                case "secp256r1":
+                case "prime256v1":
+                case "NIST P-256":
+                    return "P-256";
+
+                default:
+                    throw new Exception($"No curve name: [{curveName}] of secp384r1 (P-384) or secp256r1 (P-256) found");
+            }
+        }
+
         public string PublicKeyJwk()
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
@@ -75,11 +103,13 @@ namespace Odin.Core.Cryptography.Data
             BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
             BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
 
+            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
+
             // Create a JSON object to represent the JWK
             var jwk = new
             {
                 kty = "EC",
-                crv = "P-384", // Corresponds to "secp384r1"
+                crv = curveName, // Corresponds to "secp384r1"
                 x = Base64UrlEncoder.Encode(x.ToByteArrayUnsigned()),
                 y = Base64UrlEncoder.Encode(y.ToByteArrayUnsigned())
             };
@@ -115,7 +145,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
 
-            ISigner signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm);
+            ISigner signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm384);
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
             signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);
@@ -146,7 +176,15 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
-        public static string eccSignatureAlgorithm = "SHA-384withECDSA";
+        public enum EccKeySize
+        {
+            P256 = 256,
+            P384 = 384
+        }
+
+        public static string eccSignatureAlgorithm384 = "SHA-384withECDSA";
+        public static string eccSignatureAlgorithm256 = "SHA-256withECDSA";
+
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
@@ -170,14 +208,21 @@ namespace Odin.Core.Cryptography.Data
         /// Use this constructor. Key is the encryption key used to encrypt the private key
         /// </summary>
         /// <param name="key">The key used to (AES) encrypt the private key</param>
+        /// <param name="size"></param>
         /// <param name="hours">Lifespan of the key, required</param>
         /// <param name="minutes">Lifespan of the key, optional</param>
         /// <param name="seconds">Lifespan of the key, optional</param>
-        public EccFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
+        public EccFullKeyData(SensitiveByteArray key, EccKeySize keySize, int hours, int minutes = 0, int seconds = 0)
         {
             // Generate an EC key with Bouncy Castle, curve secp384r1
             ECKeyPairGenerator generator = new ECKeyPairGenerator();
-            var ecp = SecNamedCurves.GetByName("secp384r1");
+            X9ECParameters ecp;
+            
+            if (keySize == EccKeySize.P384)
+                ecp = SecNamedCurves.GetByName("secp384r1");
+            else
+                ecp = SecNamedCurves.GetByName("secp256r1");
+
             var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
             generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
             AsymmetricCipherKeyPair keys = generator.GenerateKeyPair();
@@ -335,7 +380,7 @@ namespace Odin.Core.Cryptography.Data
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
             // Assuming that 'keys' is your AsymmetricCipherKeyPair
-            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm);
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm384);
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
             signer.BlockUpdate(dataToSign, 0, dataToSign.Length);

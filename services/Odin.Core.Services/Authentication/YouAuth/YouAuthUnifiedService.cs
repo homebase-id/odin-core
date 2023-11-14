@@ -156,7 +156,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, 1);
+        var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
         var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);
 
         var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKey);
@@ -200,7 +200,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
     {
-        var appId = Guid.Parse(clientIdOrDomain);
+        if (!Guid.TryParse(clientIdOrDomain, out var appId))
+        {
+            throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
+        }
+
         var appReg = await _appRegistrationService.GetAppRegistration(appId);
         if (appReg == null)
         {
@@ -209,7 +213,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (appReg.IsRevoked)
         {
-            throw new OdinSecurityException("App is revoked");
+            throw new OdinClientException("App is revoked", OdinClientErrorCode.AppRevoked);
         }
 
         return false;

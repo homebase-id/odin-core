@@ -4,6 +4,7 @@ public enum OdinClientErrorCode
 {
     NoErrorCode = 0,
     UnhandledScenario = 1,
+    ArgumentError = 2,
 
     // Auth Errors 10xx
     InvalidAuthToken = 1001,
@@ -72,6 +73,7 @@ public enum OdinClientErrorCode
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
+    AppRevoked = 6002,
     DomainNotRegistered = 6050,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,

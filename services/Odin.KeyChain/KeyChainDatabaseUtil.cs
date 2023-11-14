@@ -27,7 +27,7 @@ namespace Odin.KeyChain
                 // Genesis ECC key
                 // 
                 var password = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                var eccGenesis = new EccFullKeyData(password, 1);
+                var eccGenesis = new EccFullKeyData(password, EccFullKeyData.EccKeySize.P384, 1);
 
                 // Create the genesis block
                 //
@@ -50,7 +50,7 @@ namespace Odin.KeyChain
             var r = new KeyChainRecord();
 
             r.timestamp = UnixTimeUtcUnique.Now();
-            r.algorithm = EccFullKeyData.eccSignatureAlgorithm;
+            r.algorithm = EccFullKeyData.eccSignatureAlgorithm384;
 
             return r;
         }

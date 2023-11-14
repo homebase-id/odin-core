@@ -9,9 +9,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.YouAuth;
-using Odin.Hosting.Controllers.Home.Auth;
-using Odin.Hosting.Controllers.OwnerToken;
-using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using YouAuthClientReferenceImplementation.Models;
 
 namespace YouAuthClientReferenceImplementation.Controllers;
@@ -55,15 +52,19 @@ public class ClientTypeDomainController : BaseController
             });
         }
 
-        var uri = UriWithEncryptedQueryString($"https://{LoggedInIdentity}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", SharedSecret);
+        var uri = UriWithEncryptedQueryString($"https://{LoggedInIdentity}/api/guest/v1/builtin/home/auth/ping?text=helloworld", SharedSecret);
         var request = new HttpRequestMessage(HttpMethod.Get, uri)
         {
             Headers = { { "Cookie", new Cookie("XT32", Cat).ToString() } }
         };
         var client = _httpClientFactory.CreateClient("default");
         var response = await client.SendAsync(request);
-        var text = await DecryptContent<string>(response, SharedSecret);
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            return LogOut();
+        }
 
+        var text = await DecryptContent<string>(response, SharedSecret);
         return View(new ClientTypeDomainIndexViewModel
         {
             LoggedInIdentity = LoggedInIdentity,
@@ -85,10 +86,15 @@ public class ClientTypeDomainController : BaseController
 
     private IActionResult LogIn(string identity)
     {
+        //
+        // YouAuth [010]
+        //
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, 1);
+        var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
 
-        const string thirdParty = "thirdparty.dotyou.cloud";
+        //
+        // YouAuth [030]
+        //
 
         var state = Guid.NewGuid().ToString();
         _stateMap[state] = new State
@@ -101,7 +107,7 @@ public class ClientTypeDomainController : BaseController
         var controllerRoute = ControllerContext.RouteData.Values["controller"]?.ToString() ?? "";
         var payload = new YouAuthAuthorizeRequest
         {
-            ClientId = thirdParty,
+            ClientId = "thirdparty.dotyou.cloud",
             ClientInfo = "",
             ClientType = ClientType.domain,
             PermissionRequest = "",
@@ -133,17 +139,34 @@ public class ClientTypeDomainController : BaseController
 
     [HttpGet("authorization-code-callback")]
     public async Task<IActionResult> AuthorizationCodeCallback(
+        [FromQuery(Name = YouAuthDefaults.Error)] string error,
         [FromQuery(Name = YouAuthDefaults.State)] string stateKey,
         [FromQuery(Name = YouAuthDefaults.PublicKey)] string publicKey,
         [FromQuery(Name = YouAuthDefaults.Salt)] string salt)
     {
+        if (!string.IsNullOrEmpty(error))
+        {
+            TempData["ErrorMessage"] = error;
+            return LogOut();
+        }
+
+        if (string.IsNullOrEmpty(stateKey))
+        {
+            TempData["ErrorMessage"] = "Missing stateKey";
+            return LogOut();
+        }
+
         if (!_stateMap.TryGetValue(stateKey, out var state))
         {
-            return RedirectToAction("Index");
+            return LogOut();
         }
 
         //
         // Exchange authorization code for token
+        //
+
+        //
+        // YouAuth [090]
         //
 
         var privateKey = state.PrivateKey!;
@@ -154,6 +177,10 @@ public class ClientTypeDomainController : BaseController
         var remotePublicKeyJwk = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
         var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyJwk, remoteSalt);
         var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
+        //
+        // YouAuth [100]
+        //
 
         var uri = new UriBuilder($"https://{state.Identity}{OwnerApiPathConstants.YouAuthV1Token}");
         var tokenRequest = new YouAuthTokenRequest
@@ -172,9 +199,12 @@ public class ClientTypeDomainController : BaseController
 
         if (response.StatusCode != HttpStatusCode.OK)
         {
-            // SEB:TODO DO SOMETHING!
-            return Redirect("/");
+            throw new Exception($"NO! It's a {(int)response.StatusCode}");
         }
+
+        //
+        // YouAuth [150]
+        //
 
         var json = await response.Content.ReadAsStringAsync();
         var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(json);
@@ -188,18 +218,21 @@ public class ClientTypeDomainController : BaseController
         var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
 
         //
+        // Post YouAuth [400]
         // Store thirdparty cookies
         //
 
-        // Save "sam was here" in cookie and then Sam is logged in with his ODIN identity! Hoorah!
         var cookieOption = new CookieOptions
         {
             Expires = DateTime.Now.AddDays(30)
         };
-        
         Response.Cookies.Append(IdentityCookieName, state.Identity, cookieOption);
         Response.Cookies.Append(CatCookieName, Convert.ToBase64String(clientAuthToken), cookieOption);
         Response.Cookies.Append(SharedSecretCookieName, Convert.ToBase64String(sharedSecret), cookieOption);
+
+        //
+        // Sam is now logged in on this server with his ODIN identity
+        //
 
         return RedirectToAction("Index");
     }

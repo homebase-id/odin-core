@@ -63,7 +63,7 @@ namespace Odin.Core.Cryptography.Signatures
             s.Identity = identity;
             s.PublicKeyJwkBase64Url = eccKey.PublicKeyJwkBase64Url();
             s.TimeStamp = UnixTimeUtc.Now();
-            s.SignatureAlgorithm = EccFullKeyData.eccSignatureAlgorithm;
+            s.SignatureAlgorithm = EccFullKeyData.eccSignatureAlgorithm384;
             var bytesToSign = ByteArrayUtil.Combine(s.DataHash, s.DataHashAlgorithm.ToUtf8ByteArray(), s.Identity.ToByteArray(), s.PublicKeyJwkBase64Url.ToUtf8ByteArray(), ByteArrayUtil.Int64ToBytes(s.TimeStamp.milliseconds), s.SignatureAlgorithm.ToUtf8ByteArray());
 
             s.Signature = eccKey.Sign(keyPwd, bytesToSign);

@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             else if (authorize.ClientType == ClientType.app)
             {
                 // If we're authorizing an app, overwrite ClientInfo with ClientFriendly
-                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest, authorize.RedirectUri);
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
 
@@ -86,7 +86,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             if (authorize.ClientType == ClientType.app)
             {
-                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest, authorize.RedirectUri);
 
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientId,
@@ -264,13 +264,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
         //
 
-        private YouAuthAppParameters GetYouAuthAppParameters(string json)
+        private YouAuthAppParameters GetYouAuthAppParameters(string json, string cancelUrl)
         {
             YouAuthAppParameters appParams;
 
             try
             {
                 appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(json)!;
+                if (string.IsNullOrEmpty(appParams.Cancel))
+                {
+                    appParams.Cancel = cancelUrl;
+                }
             }
             catch (Exception e)
             {

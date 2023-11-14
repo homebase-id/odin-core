@@ -39,7 +39,7 @@ namespace Odin.Tests
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("odin.valhalla.com");
             SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
+            EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, EccFullKeyData.EccKeySize.P384, 1);
 
             var signedEnvelope = new SignedEnvelope() { Envelope = envelope };
 
@@ -49,7 +49,7 @@ namespace Odin.Tests
             // Create a second identity and keys needed
             OdinId testIdentity2 = new OdinId("thor.valhalla.com");
             SensitiveByteArray testKeyPwd2 = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData testEccKey2 = new EccFullKeyData(testKeyPwd2, 1);
+            EccFullKeyData testEccKey2 = new EccFullKeyData(testKeyPwd2, EccFullKeyData.EccKeySize.P384, 1);
 
             //  Now let's sign the envelope with the second signature.
             signedEnvelope.CreateEnvelopeSignature(testIdentity2, testKeyPwd2, testEccKey2);
@@ -57,7 +57,7 @@ namespace Odin.Tests
             // Create a notary public identity and keys needed
             OdinId testIdentity3 = new OdinId("notarius.publicus.com");
             SensitiveByteArray testKeyPwd3 = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData testEccKey3 = new EccFullKeyData(testKeyPwd3, 1);
+            EccFullKeyData testEccKey3 = new EccFullKeyData(testKeyPwd3, EccFullKeyData.EccKeySize.P384, 1);
 
             // Yet another identity, but we skip it for now. POC.
             signedEnvelope.SignNotariusPublicus(testIdentity3, testKeyPwd3, testEccKey3);
@@ -72,7 +72,7 @@ namespace Odin.Tests
         public void VerifiedIdentityExperiment()
         {
             var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var eccKey = new EccFullKeyData(pwd, 1);
+            var eccKey = new EccFullKeyData(pwd, EccFullKeyData.EccKeySize.P384, 1);
             var frodoPuny = new AsciiDomainName("frodo.baggins.me");
             var attestationId = Guid.NewGuid().ToByteArray();
 

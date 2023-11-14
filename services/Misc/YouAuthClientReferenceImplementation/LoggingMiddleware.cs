@@ -15,21 +15,13 @@ public class LoggingMiddleware
 
     public async Task Invoke(HttpContext httpContext)
     {
-        if (httpContext.WebSockets.IsWebSocketRequest)
-        {
-            _logger.LogDebug("WebSocket connect: {path}", httpContext.Request.Path);
-            await _next(httpContext);
-        }
-        else
-        {
-            var startTimestamp = Stopwatch.GetTimestamp();
+        var startTimestamp = Stopwatch.GetTimestamp();
 
-            await _next(httpContext); // Call the next middleware
+        await _next(httpContext); // Call the next middleware
 
-            var currentTimestamp = Stopwatch.GetTimestamp();
-            var duration = TimeSpan.FromTicks(currentTimestamp - startTimestamp).TotalMilliseconds;
+        var currentTimestamp = Stopwatch.GetTimestamp();
+        var duration = TimeSpan.FromTicks(currentTimestamp - startTimestamp).TotalMilliseconds;
 
-            _logger.LogInformation($"{httpContext.Request.Method} {httpContext.Request.Path} {duration}ms");
-        }
+        _logger.LogInformation($"{httpContext.Request.Method} {httpContext.Request.Path} {duration}ms");
     }
 }
