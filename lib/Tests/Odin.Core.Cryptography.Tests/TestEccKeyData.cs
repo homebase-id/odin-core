@@ -29,6 +29,23 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        public void TestEcdh()
+        {
+            SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P256, 2);
+
+            EccPublicKeyData pk = (EccPublicKeyData) fullKeyFrodo;
+            var s = pk.GenerateEcdsaBase64Url();
+
+            Assert.IsTrue(s != "");
+            Assert.IsTrue(s != null);
+
+            var ba = Base64UrlEncoder.Decode(s);
+            Assert.IsTrue(ba.Length == 65);
+        }
+
+
+        [Test]
         public void TestJwkPublicKey()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
