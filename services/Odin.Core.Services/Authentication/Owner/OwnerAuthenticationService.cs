@@ -209,7 +209,7 @@ namespace Odin.Core.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+        /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
         /// <param name="token"></param>
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)

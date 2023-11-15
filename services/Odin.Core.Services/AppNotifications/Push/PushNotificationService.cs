@@ -80,14 +80,14 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         var publicKey = await _keyService.GetNotificationsPublicKey();
 
         var publicKeyBase64 = publicKey.GenerateEcdsaBase64Url();
-        var privateKey = PublicPrivateKeyService.OfflinePrivateKeyEncryptionKey.ToBase64();
+        var privateKey = PublicPrivateKeyService.NotificationPrivateEncryptionKey.ToBase64();
 
         foreach (var deviceSubscription in subscriptions)
         {
             //TODO: enforce sub.ExpirationTime
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails(content.Subject, publicKeyBase64, privateKey);
+            var vapidDetails = new VapidDetails("mailto:info@homebase.id", publicKeyBase64, privateKey);
 
             //TODO: this will probably need to get an http client via @Seb's work
             var webPushClient = new WebPushClient();

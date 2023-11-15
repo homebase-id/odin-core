@@ -35,6 +35,9 @@ namespace Odin.Core.Services.EncryptionKeyService
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+        public static readonly byte[] NotificationPrivateEncryptionKey =
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
         private readonly SingleKeyValueStorage _storage;
 
         public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
@@ -286,7 +289,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                 await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
 
-                await this.CreateNotificationEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray());
+                await this.CreateNotificationEccKeys();
             }
             finally
             {
@@ -364,7 +367,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private Task CreateNotificationEccKeys(SensitiveByteArray encryptionKey)
+        private Task CreateNotificationEccKeys()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
             var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
@@ -375,7 +378,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             }
 
             //create a new key list
-            var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
+            var eccKeyList = EccKeyListManagement.CreateEccKeyList(NotificationPrivateEncryptionKey.ToSensitiveByteArray(),
                 EccKeyListManagement.DefaultMaxOnlineKeys,
                 EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
 
