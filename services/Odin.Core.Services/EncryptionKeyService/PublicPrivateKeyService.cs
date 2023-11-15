@@ -24,6 +24,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
         private readonly Guid _onlineEccKeyStorageId = Guid.Parse("0d4cbb31-bd2e-4910-806c-42a516e63174");
         private readonly Guid _offlineEccKeyStorageId = Guid.Parse("09529956-bf97-43e8-9822-ad3ecf26819d");
+        private readonly Guid _offlineNotificationsKeyStorageId = Guid.Parse("22165337-1ff5-4e92-87f2-95fc9ce424c3");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
@@ -44,10 +45,9 @@ namespace Odin.Core.Services.EncryptionKeyService
             _contextAccessor = contextAccessor;
             _odinHttpClientFactory = odinHttpClientFactory;
             _mediator = mediator;
-            
+
             const string icrKeyStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
             _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
-
         }
 
         /// <summary>
@@ -168,6 +168,12 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
+        public Task<EccPublicKeyData> GetNotificationsPublicKey()
+        {
+            var keyPair = this.GetCurrentEccKeyFromStorage(_offlineNotificationsKeyStorageId);
+            return Task.FromResult((EccPublicKeyData)keyPair);
+        }
+
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
             var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
@@ -203,7 +209,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             Guard.Argument(payload.KeyHeaderEncryptedData, nameof(payload.KeyHeaderEncryptedData)).NotNull();
             Guard.Argument(payload.RsaEncryptedKeyHeader, nameof(payload.RsaEncryptedKeyHeader)).NotNull();
             Guard.Argument(payload.Crc32, nameof(payload.Crc32)).Require(c => c > 0);
-            
+
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32);
 
             if (!isValidPublicKey)
@@ -276,9 +282,11 @@ namespace Odin.Core.Services.EncryptionKeyService
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
                 await this.CreateNewEccKeys(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId);
-                
+
                 await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
+
+                await this.CreateNotificationEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray());
             }
             finally
             {
@@ -356,6 +364,26 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
+        private Task CreateNotificationEccKeys(SensitiveByteArray encryptionKey)
+        {
+            var storageKey = _offlineNotificationsKeyStorageId;
+            var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
+
+            if (null != existingKeys)
+            {
+                throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
+            }
+
+            //create a new key list
+            var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
+                EccKeyListManagement.DefaultMaxOnlineKeys,
+                EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
+
+            _storage.Upsert(storageKey, eccKeyList);
+
+            return Task.CompletedTask;
+        }
+
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
             var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
@@ -368,7 +396,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             //create a new key list
             var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
                 EccKeyListManagement.DefaultMaxOnlineKeys,
-                EccKeyListManagement.DefaultHoursOnlineKey);
+                EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P384);
 
             _storage.Upsert(storageKey, eccKeyList);
 

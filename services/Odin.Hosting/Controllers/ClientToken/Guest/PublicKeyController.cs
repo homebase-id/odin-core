@@ -63,6 +63,19 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             //     Crc32 = key.crc32c
             // };
         }
+        
+        [HttpGet("notifications_pk")]
+        public async Task<string> GetNotificationsPk()
+        {
+            var key = await _publicKeyService.GetNotificationsPublicKey();
+            return key.PublicKeyJwkBase64Url();
+
+            // return new GetPublicKeyResponse()
+            // {
+            //     PublicKey = key.publicKey,
+            //     Crc32 = key.crc32c
+            // };
+        }
 
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
