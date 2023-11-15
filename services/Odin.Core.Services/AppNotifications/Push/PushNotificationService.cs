@@ -79,7 +79,7 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
         var publicKey = await _keyService.GetNotificationsPublicKey();
 
-        var publicKeyBase64 = key.GenerateEcdsaBase64Url();
+        var publicKeyBase64 = publicKey.GenerateEcdsaBase64Url();
         var privateKey = PublicPrivateKeyService.OfflinePrivateKeyEncryptionKey.ToBase64();
 
         foreach (var deviceSubscription in subscriptions)
