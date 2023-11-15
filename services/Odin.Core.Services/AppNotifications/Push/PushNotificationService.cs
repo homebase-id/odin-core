@@ -77,7 +77,9 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
         var subscriptions = await GetAllSubscriptions();
 
-        var publicKey = (await _keyService.GetOfflinePublicKey()).publicKey.ToBase64();
+        var publicKey = await _keyService.GetNotificationsPublicKey();
+
+        var publicKeyBase64 = key.GenerateEcdsaBase64Url();
         var privateKey = PublicPrivateKeyService.OfflinePrivateKeyEncryptionKey.ToBase64();
 
         foreach (var deviceSubscription in subscriptions)
@@ -85,7 +87,7 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
             //TODO: enforce sub.ExpirationTime
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails(content.Subject, publicKey, privateKey);
+            var vapidDetails = new VapidDetails(content.Subject, publicKeyBase64, privateKey);
 
             //TODO: this will probably need to get an http client via @Seb's work
             var webPushClient = new WebPushClient();
