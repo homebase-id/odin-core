@@ -62,7 +62,7 @@ namespace Odin.Core.Cryptography.Data
 
         public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
         {
-            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
+            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url), hours);
         }
 
         private string GetCurveName(ECCurve curve)
@@ -123,6 +123,25 @@ namespace Odin.Core.Cryptography.Data
             string jwkJson = JsonSerializer.Serialize(jwk, options);
 
             return jwkJson;
+        }
+
+        public string GenerateEcdsaBase64Url()
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+
+            // Extract X and Y coordinates
+            byte[] x = publicKeyParameters.Q.AffineXCoord.GetEncoded();
+            byte[] y = publicKeyParameters.Q.AffineYCoord.GetEncoded();
+
+            // Uncompressed key format: 0x04 | X | Y
+            byte[] uncompressedKey = new byte[1 + x.Length + y.Length];
+            uncompressedKey[0] = 0x04;
+            Buffer.BlockCopy(x, 0, uncompressedKey, 1, x.Length);
+            Buffer.BlockCopy(y, 0, uncompressedKey, 1 + x.Length, y.Length);
+
+            // Encode to URL-safe Base64 without padding
+            return Base64UrlEncoder.Encode(uncompressedKey);
         }
 
         public string PublicKeyJwkBase64Url()
@@ -190,7 +209,7 @@ namespace Odin.Core.Cryptography.Data
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
 
         public byte[] iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] keyHash { get; set; }  // The hash of the encryption key 
+        public byte[] keyHash { get; set; }  // The hash of the encryption key
         public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
 
 
@@ -217,7 +236,7 @@ namespace Odin.Core.Cryptography.Data
             // Generate an EC key with Bouncy Castle, curve secp384r1
             ECKeyPairGenerator generator = new ECKeyPairGenerator();
             X9ECParameters ecp;
-            
+
             if (keySize == EccKeySize.P384)
                 ecp = SecNamedCurves.GetByName("secp384r1");
             else
@@ -302,7 +321,7 @@ namespace Odin.Core.Cryptography.Data
             return Convert.ToBase64String(pk.GetKey());
         }
 
-        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration, 
+        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration,
         // then the key is considered dead and will be removed
         public bool IsDead()
         {
