@@ -140,19 +140,18 @@ public class DirectDriveGeneralFileTests_UploadPayloadOnly
             }
         }
     }
-    
+
     [Test]
-    public  Task CanOverwriteExistingPayloadByKey()
+    public Task CanOverwriteExistingPayloadByKey()
     {
         Assert.Inconclusive("todos");
         return Task.CompletedTask;
     }
-    
+
     [Test]
-    public  Task CanRemovePayloadAndThumbsAreDeletedAsWell()
+    public Task CanRemovePayloadAndThumbsAreDeletedAsWell()
     {
         Assert.Inconclusive("todos");
         return Task.CompletedTask;
-
     }
 }

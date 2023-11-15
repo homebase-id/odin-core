@@ -229,7 +229,13 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.Caller = new CallerContext(
                     odinId: _tenantContext.HostOdinId,
                     masterKey: masterKey,
-                    securityLevel: SecurityGroupType.Owner);
+                    securityLevel: SecurityGroupType.Owner,
+                    odinClientContext: new OdinClientContext()
+                    {
+                        ClientIdOrDomain = string.Empty,
+                        CorsHostName = string.Empty,
+                        AccessRegistrationId = token.Id
+                    });
 
                 return dotYouContext;
             });
