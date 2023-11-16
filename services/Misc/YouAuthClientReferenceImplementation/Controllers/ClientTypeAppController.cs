@@ -17,12 +17,12 @@ namespace YouAuthClientReferenceImplementation.Controllers;
 public class ClientTypeAppController : BaseController
 {
     private const string IdentityCookieName = "OdinAppIdentity";
-    // private const string CatCookieName = "OdinAppCat";
-    // private const string SharedSecretCookieName = "OdinAppSharedSecret";
+    private const string CatCookieName = "OdinAppCat";
+    private const string SharedSecretCookieName = "OdinAppSharedSecret";
 
     private string LoggedInIdentity => Request.Cookies[IdentityCookieName] ?? "";
-    // private string Cat => Request.Cookies[CatCookieName] ?? "";
-    // private string SharedSecret => Request.Cookies[SharedSecretCookieName] ?? "";
+    private string Cat => Request.Cookies[CatCookieName] ?? "";
+    private string SharedSecret => Request.Cookies[SharedSecretCookieName] ?? "";
 
     private readonly ILogger<ClientTypeAppController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -41,9 +41,9 @@ public class ClientTypeAppController : BaseController
     //
 
     // GET
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
-        if (LoggedInIdentity == ""/*|| Cat == "" || SharedSecret == ""*/)
+        if (LoggedInIdentity == "" || Cat == "" || SharedSecret == "")
         {
             return View(new ClientTypeAppIndexViewModel
             {
@@ -52,13 +52,29 @@ public class ClientTypeAppController : BaseController
             });
         }
 
-        // Load restricted stuff here ...
+        var driveStatus = "";
+        try
+        {
+            var dqr = new DriveQueryProvider();
+            var response = await dqr.QueryBatch(
+                LoggedInIdentity,
+                new Cookie("BX0900", Cat),
+                SharedSecret,
+                WhateverDriveAlias,
+                WhateverDriveType);
+            driveStatus = $"{LoggedInIdentity} can access drive {WhateverDriveAlias}";
+        }
+        catch (Exception e)
+        {
+            TempData["ErrorMessage"] = e.Message;
+        }
 
         return View(new ClientTypeAppIndexViewModel
         {
             LoggedInIdentity = LoggedInIdentity,
             LoggedInMessage = $"Logged in as {LoggedInIdentity}",
             ButtonCaption = "Log out",
+            DriveStatus = driveStatus
         });
     }
 
@@ -92,7 +108,8 @@ public class ClientTypeAppController : BaseController
             KeyPair = keyPair
         };
 
-        var appParams = GetAppPhotosParams();
+        // var appParams = GetAppPhotosParams();
+        var appParams = GetAppWhateverParams();
 
         var controllerRoute = ControllerContext.RouteData.Values["controller"]?.ToString() ?? "";
         var payload = new YouAuthAuthorizeRequest
@@ -120,8 +137,8 @@ public class ClientTypeAppController : BaseController
     private IActionResult LogOut()
     {
         Response.Cookies.Delete(IdentityCookieName);
-        // Response.Cookies.Delete(CatCookieName);
-        // Response.Cookies.Delete(SharedSecretCookieName);
+        Response.Cookies.Delete(CatCookieName);
+        Response.Cookies.Delete(SharedSecretCookieName);
         return RedirectToAction("Index");
     }
 
@@ -217,8 +234,8 @@ public class ClientTypeAppController : BaseController
             Expires = DateTime.Now.AddDays(30)
         };
         Response.Cookies.Append(IdentityCookieName, state.Identity, cookieOption);
-        // Response.Cookies.Append(CatCookieName, Convert.ToBase64String(clientAuthToken), cookieOption);
-        // Response.Cookies.Append(SharedSecretCookieName, Convert.ToBase64String(sharedSecret), cookieOption);
+        Response.Cookies.Append(CatCookieName, Convert.ToBase64String(clientAuthToken), cookieOption);
+        Response.Cookies.Append(SharedSecretCookieName, Convert.ToBase64String(sharedSecret), cookieOption);
 
         //
         // Sam is now logged in on this server with his ODIN identity
@@ -229,24 +246,58 @@ public class ClientTypeAppController : BaseController
 
     //
 
-    private YouAuthAppParameters GetAppPhotosParams()
+    // private const string PhotoDriveAlias = "6483b7b1f71bd43eb6896c86148668cc";
+    // private const string PhotoDriveType = "2af68fe72fb84896f39f97c59d60813a";
+    //
+    // private YouAuthAppParameters GetAppPhotosParams()
+    // {
+    //     var driveParams = new[]
+    //     {
+    //         new
+    //         {
+    //             a = PhotoDriveAlias,
+    //             t = PhotoDriveType,
+    //             n = "Photo Library",
+    //             d = "Place for your memories",
+    //             p = 3
+    //         },
+    //     };
+    //     var appParams = new YouAuthAppParameters
+    //     {
+    //         AppName = "Odin - Photos",
+    //         AppOrigin = "dev.dotyou.cloud:3005",
+    //         AppId = "32f0bdbf-017f-4fc0-8004-2d4631182d1e",
+    //         ClientFriendly = "Firefox | macOS",
+    //         DrivesParam = OdinSystemSerializer.Serialize(driveParams),
+    //         Return = "backend-will-decide",
+    //     };
+    //
+    //     return appParams;
+    // }
+
+    //
+
+    private const string WhateverDriveAlias = "11111111111111111111111111111111";
+    private const string WhateverDriveType = "22222222222222222222222222222222";
+
+    private YouAuthAppParameters GetAppWhateverParams()
     {
         var driveParams = new[]
         {
             new
             {
-                a = "6483b7b1f71bd43eb6896c86148668cc",
-                t = "2af68fe72fb84896f39f97c59d60813a",
-                n = "Photo Library",
-                d = "Place for your memories",
-                p = 3
+                a = WhateverDriveAlias, // drive alias
+                t = WhateverDriveType, // drive type
+                n = "Third Part Library",               // name
+                d = "Place for your third parties",     // description
+                p = 3                                   // drive permission
             },
         };
         var appParams = new YouAuthAppParameters
         {
-            AppName = "Odin - Photos",
+            AppName = "third party app",
             AppOrigin = "dev.dotyou.cloud:3005",
-            AppId = "32f0bdbf-017f-4fc0-8004-2d4631182d1e",
+            AppId = "aaaaaaaa-bbbb-cccc-dddd-cccccccccccc",
             ClientFriendly = "Firefox | macOS",
             DrivesParam = OdinSystemSerializer.Serialize(driveParams),
             Return = "backend-will-decide",
@@ -255,5 +306,6 @@ public class ClientTypeAppController : BaseController
         return appParams;
     }
 
+    //
 
 }

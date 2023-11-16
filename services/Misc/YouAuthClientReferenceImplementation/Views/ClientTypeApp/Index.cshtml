@@ -10,6 +10,15 @@
     </div>
 </div>
 
+@if (Model.DriveStatus != "")
+{
+    <div class="row mt-5">
+        <div class="col-10">
+            Drive status:<br/> <strong>@Model.DriveStatus</strong>
+        </div>
+    </div>
+}
+
 <div class="row mt-5">
     <div class="col-4">
         <form method="post">
