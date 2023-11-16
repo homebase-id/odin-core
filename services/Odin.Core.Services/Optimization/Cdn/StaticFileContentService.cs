@@ -167,22 +167,6 @@ public class StaticFileContentService
         return result;
     }
 
-    public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
-    {
-        Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
-        string targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
-
-        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
-
-        if (!File.Exists(targetFile))
-        {
-            return Task.FromResult((config, (Stream)null));
-        }
-
-        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return Task.FromResult((config, (Stream)fileStream));
-    }
-
     public async Task PublishProfileImage(string image64, string contentType)
     {
         string filename = StaticFileConstants.ProfileImageFileName;
@@ -234,6 +218,31 @@ public class StaticFileContentService
     private GuidId GetConfigKey(string filename)
     {
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
+    }
+
+    public Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename, UnixTimeUtc? ifModifiedSince = null)
+    {
+        Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
+
+        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
+
+        if (config == null || !File.Exists(targetFile))
+        {
+            return Task.FromResult(((StaticFileConfiguration)null, false, Stream.Null));
+        }
+
+        if (ifModifiedSince != null) //I was asked to check...
+        {
+            bool wasModified = config.LastModified > ifModifiedSince;
+            if (!wasModified)
+            {
+                return Task.FromResult((config, fileExists: true, Stream.Null));
+            }
+        }
+
+        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult((config, fileExists: true, (Stream)fileStream));
     }
 
     private string EnsurePath()

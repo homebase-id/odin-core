@@ -1,12 +1,18 @@
 ﻿#nullable enable
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Tenant;
+using Odin.Core.Time;
 using Odin.Hosting.Controllers.Home;
 
 namespace Odin.Hosting.Controllers.Anonymous
@@ -33,8 +39,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("cdn/{filename}")]
         public async Task<IActionResult> GetStaticFile(string filename)
         {
-            var (config, stream) = await _staticFileContentService.GetStaticFileStream(filename);
-            return SendStream(config, stream);
+            return await this.SendStream(filename);
         }
 
         /// <summary>
@@ -43,8 +48,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/image")]
         public async Task<IActionResult> GetPublicImage()
         {
-            var (config, stream) = await _staticFileContentService.GetStaticFileStream(StaticFileConstants.ProfileImageFileName);
-            return SendStream(config, stream);
+            return await this.SendStream(StaticFileConstants.ProfileImageFileName);
         }
 
         /// <summary>
@@ -53,13 +57,21 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet("pub/profile")]
         public async Task<IActionResult> GetPublicProfileData()
         {
-            var (config, stream) = await _staticFileContentService.GetStaticFileStream(StaticFileConstants.PublicProfileCardFileName);
-            return SendStream(config, stream);
+            return await this.SendStream(StaticFileConstants.PublicProfileCardFileName);
         }
 
-        private IActionResult SendStream(StaticFileConfiguration config, Stream? stream)
+
+        private async Task<IActionResult> SendStream(string filename)
         {
-            if (null == stream || stream == Stream.Null)
+            var (config, fileExists, stream) = await _staticFileContentService.GetStaticFileStream(filename, GetIfModifiedSince());
+
+            if (fileExists && stream == Stream.Null)
+            {
+                return StatusCode((int)HttpStatusCode.NotModified);
+            }
+
+            //sanity
+            if (!fileExists || (null == stream || stream == Stream.Null))
             {
                 return NotFound();
             }
@@ -73,12 +85,29 @@ namespace Odin.Hosting.Controllers.Anonymous
 
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
-            
+
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
             this.Response.Headers.Add("Cache-Control", "max-age=31536000");
 
             return new FileStreamResult(stream, config.ContentType);
         }
+
         //
+
+        private UnixTimeUtc? GetIfModifiedSince()
+        {
+            if (Request.Headers.TryGetValue(HttpHeaderConstants.IfModifiedSince, out var values))
+            {
+                DateTime modifiedSinceDatetime = DateTime.Now;
+                var headerValue = values.FirstOrDefault();
+                var hasValidDate = headerValue != null && DateTime.TryParse(headerValue, out modifiedSinceDatetime);
+                if (hasValidDate)
+                {
+                    return UnixTimeUtc.FromDateTime(modifiedSinceDatetime);
+                }
+            }
+
+            return null;
+        }
     }
 }
