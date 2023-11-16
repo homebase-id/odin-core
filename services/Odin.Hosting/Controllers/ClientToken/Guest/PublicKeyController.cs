@@ -66,9 +66,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("notifications_pk")]
         public async Task<string> GetNotificationsPk()
         {
-            var key = await _publicKeyService.GetNotificationsPublicKey();
-            return key.GenerateEcdsaBase64Url();
+            // var key = await _publicKeyService.GetNotificationsPublicKey();
+            // return key.GenerateEcdsaBase64Url();
 
+            return await _publicKeyService.GetNotificationsPublicKey();
+            
             // return new GetPublicKeyResponse()
             // {
             //     PublicKey = key.publicKey,

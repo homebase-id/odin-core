@@ -141,7 +141,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
-                //Hijack the groupId by setting it to referenced file
+                //Hijack the groupId by setting it to referenced file so the feed app can query by this transitId
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 

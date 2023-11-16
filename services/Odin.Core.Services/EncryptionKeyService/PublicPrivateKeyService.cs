@@ -14,9 +14,17 @@ using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using WebPush;
 
 namespace Odin.Core.Services.EncryptionKeyService
 {
+
+    public class NotificationEccKeys
+    {
+        public string PublicKey64 { get; set; }
+        public string PrivateKey64 { get; set; }
+    }
+    
     public class PublicPrivateKeyService : INotificationHandler<OwnerIsOnlineNotification>
     {
         private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
@@ -171,12 +179,24 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
-        public Task<EccPublicKeyData> GetNotificationsPublicKey()
-        {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_offlineNotificationsKeyStorageId);
-            return Task.FromResult((EccPublicKeyData)keyPair);
-        }
+        // public Task<EccPublicKeyData> GetNotificationsPublicKey()
+        // {
+        //     var keyPair = this.GetCurrentEccKeyFromStorage(_offlineNotificationsKeyStorageId);
+        //     return Task.FromResult((EccPublicKeyData)keyPair);
+        // }
 
+        public Task<string> GetNotificationsPublicKey()
+        {
+            return Task.FromResult(this.GetNotificationsKeys().PublicKey64);
+
+        }
+        
+        public NotificationEccKeys GetNotificationsKeys()
+        {
+            var keys = _storage.Get<NotificationEccKeys>(_offlineNotificationsKeyStorageId);
+            return keys;
+        }
+        
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
             var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
@@ -370,20 +390,27 @@ namespace Odin.Core.Services.EncryptionKeyService
         private Task CreateNotificationEccKeys()
         {
             var storageKey = _offlineNotificationsKeyStorageId;
-            var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
+            // var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
+            //
+            // if (null != existingKeys)
+            // {
+            //     throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
+            // }
+            //
+            // //create a new key list
+            // var eccKeyList = EccKeyListManagement.CreateEccKeyList(NotificationPrivateEncryptionKey.ToSensitiveByteArray(),
+            //     EccKeyListManagement.DefaultMaxOnlineKeys,
+            //     EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
 
-            if (null != existingKeys)
+            // _storage.Upsert(storageKey, eccKeyList);
+            
+            VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
+            _storage.Upsert(storageKey,new NotificationEccKeys
             {
-                throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
-            }
-
-            //create a new key list
-            var eccKeyList = EccKeyListManagement.CreateEccKeyList(NotificationPrivateEncryptionKey.ToSensitiveByteArray(),
-                EccKeyListManagement.DefaultMaxOnlineKeys,
-                EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
-
-            _storage.Upsert(storageKey, eccKeyList);
-
+                PublicKey64 = vapidKeys.PublicKey,
+                PrivateKey64 =  vapidKeys.PrivateKey
+            });
+            
             return Task.CompletedTask;
         }
 
@@ -440,5 +467,6 @@ namespace Odin.Core.Services.EncryptionKeyService
                 KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
             };
         }
+        
     }
 }

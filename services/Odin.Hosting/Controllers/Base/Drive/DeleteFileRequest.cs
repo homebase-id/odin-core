@@ -20,9 +20,3 @@ public class DeleteFileRequest
     /// </summary>
     public List<string> Recipients { get; set; }
 }
-
-public enum AttachmentType
-{
-    Thumbnail = 3,
-    Payload = 1
-}
