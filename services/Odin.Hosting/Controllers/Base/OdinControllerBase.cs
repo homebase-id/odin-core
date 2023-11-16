@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
@@ -25,21 +26,21 @@ public abstract class OdinControllerBase : ControllerBase
     /// <summary />
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
     {
-        return  new InternalDriveFileId()
+        return new InternalDriveFileId()
         {
             FileId = file.FileId,
             DriveId = OdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
-    
+
     protected void AddGuestApiCacheHeader()
     {
-        if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
+        if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme || OdinContext.AuthContext == YouAuthConstants.AppSchemeName)
         {
-            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
+            this.Response.Headers.TryAdd("Cache-Control", "max-age=31536000");
         }
     }
-    
+
     protected FileChunk GetChunk(int? chunkStart, int? chunkLength)
     {
         FileChunk chunk = null;
@@ -74,7 +75,7 @@ public abstract class OdinControllerBase : ControllerBase
 
         return null;
     }
-    
+
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>

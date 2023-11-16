@@ -230,8 +230,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 return NotFound();
             }
 
-            AddGuestApiCacheHeader();
-
             return new JsonResult(result);
         }
 
@@ -298,6 +296,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 return NotFound();
             }
 
+            AddGuestApiCacheHeader();
+            
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
@@ -311,6 +311,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 return NotFound();
             }
+            AddGuestApiCacheHeader();
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);

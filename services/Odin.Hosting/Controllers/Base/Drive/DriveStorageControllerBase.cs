@@ -14,7 +14,6 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
-using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -50,7 +49,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            AddGuestApiCacheHeader();
+            // No caching on header
+            // AddGuestApiCacheHeader();
 
             return new JsonResult(result);
         }

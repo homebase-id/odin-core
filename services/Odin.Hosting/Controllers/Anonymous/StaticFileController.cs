@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -87,8 +88,8 @@ namespace Odin.Hosting.Controllers.Anonymous
             }
 
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
-            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
-
+            this.Response.Headers.TryAdd("Cache-Control", "max-age=31536000");
+            
             return new FileStreamResult(stream, config.ContentType);
         }
 

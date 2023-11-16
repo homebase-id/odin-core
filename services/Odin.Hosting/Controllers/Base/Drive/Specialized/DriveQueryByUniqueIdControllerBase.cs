@@ -32,8 +32,6 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 return NotFound();
             }
 
-            AddGuestApiCacheHeader();
-
             return new JsonResult(result);
         }
 
