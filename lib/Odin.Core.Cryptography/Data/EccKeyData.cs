@@ -65,7 +65,7 @@ namespace Odin.Core.Cryptography.Data
             return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
         }
 
-        private string GetCurveName(ECCurve curve)
+        protected string GetCurveName(ECCurve curve)
         {
             string curveName = null;
             foreach (string name in ECNamedCurveTable.Names)
@@ -164,8 +164,15 @@ namespace Odin.Core.Cryptography.Data
         public bool VerifySignature(byte[] dataThatWasSigned, byte[] signature)
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
 
-            ISigner signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm384);
+            ISigner signer;
+            if (curveName == "P-384")
+                signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm384);
+            else
+                signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm256);
+
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
             signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);
@@ -397,10 +404,22 @@ namespace Odin.Core.Cryptography.Data
         {
             var pk = GetFullKey(key);
 
+
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
+
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
-            // Assuming that 'keys' is your AsymmetricCipherKeyPair
-            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm384);
+            ISigner signer;
+
+            if (curveName == "P-384")
+                signer = SignerUtilities.GetSigner(eccSignatureAlgorithm384);
+            else if (curveName == "P-256")
+                signer = SignerUtilities.GetSigner(eccSignatureAlgorithm256);
+            else
+                throw new Exception("impossible");
+
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
             signer.BlockUpdate(dataToSign, 0, dataToSign.Length);

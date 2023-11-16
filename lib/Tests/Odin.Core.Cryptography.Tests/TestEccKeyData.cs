@@ -132,6 +132,23 @@ namespace Odin.Core.Cryptography.Tests
             Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
         }
 
+        [Test]
+        public void TestJwkPublicSignature256()
+        {
+            SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccFullKeyData.EccKeySize.P256, 2);
+
+            var signature = fullKeySam.Sign(pwdSam, testMessage);
+
+            Assert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
+
+            var jwkSam = fullKeySam.PublicKeyJwk();
+            var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
+
+            Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
+        }
+
+
         /// <summary>
         /// This test shows two Hobbits that get a shared secret using ECC keys and a random salt,
         /// and encrypt a payload with the shared secret. The data transmitted is sent as:
