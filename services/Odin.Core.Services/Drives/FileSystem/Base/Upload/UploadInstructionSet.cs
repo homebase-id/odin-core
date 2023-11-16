@@ -49,7 +49,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 {
                     DriveFileUtility.AssertValidPayloadKey(pd.PayloadKey);
 
-                    var anyMissingThumbnailKey = pd.Thumbnails.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim()));
+                    var anyMissingThumbnailKey = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim())) ?? false;
                     if (anyMissingThumbnailKey)
                     {
                         throw new OdinClientException($"The payload key [{pd.PayloadKey}] as a thumbnail missing a thumbnailKey",

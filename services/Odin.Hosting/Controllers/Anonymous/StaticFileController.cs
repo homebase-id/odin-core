@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Controllers.Home;
@@ -72,10 +73,9 @@ namespace Odin.Hosting.Controllers.Anonymous
 
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
-
-            // TODO: set cache control to 1 year; Needs last modified date on the response headers
-            // this.Response.Headers.Add("Cache-Control", "max-age=31536000");
-            this.Response.Headers.Add("Cache-Control", "max-age=120");
+            
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
+            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
 
             return new FileStreamResult(stream, config.ContentType);
         }

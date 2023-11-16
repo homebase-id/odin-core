@@ -16,6 +16,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Optimization.Cdn;
 
@@ -124,6 +125,7 @@ public class StaticFileContentService
                         {
                             continue;
                         }
+
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
                         payloads.Add(new PayloadStaticFileResponse()
                         {
@@ -156,7 +158,10 @@ public class StaticFileContentService
         string finalTargetPath = Path.Combine(targetFolder, filename);
 
         File.Move(tempTargetPath, finalTargetPath, true);
+
         config.ContentType = MediaTypeNames.Application.Json;
+        config.LastModified = UnixTimeUtc.Now();
+
         _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
@@ -195,6 +200,7 @@ public class StaticFileContentService
         var config = new StaticFileConfiguration()
         {
             ContentType = contentType,
+            LastModified = UnixTimeUtc.Now(),
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
@@ -216,6 +222,7 @@ public class StaticFileContentService
 
         var config = new StaticFileConfiguration()
         {
+            LastModified = UnixTimeUtc.Now(),
             ContentType = MediaTypeNames.Application.Json,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };

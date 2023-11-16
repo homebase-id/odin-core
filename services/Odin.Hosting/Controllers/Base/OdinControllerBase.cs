@@ -36,7 +36,7 @@ public abstract class OdinControllerBase : ControllerBase
     {
         if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme)
         {
-            this.Response.Headers.Add("Cache-Control", "max-age=3600");
+            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
         }
     }
     

@@ -1,3 +1,5 @@
+using Odin.Core.Time;
+
 namespace Odin.Core.Services.Optimization.Cdn;
 
 public class StaticFileConfiguration
@@ -11,4 +13,9 @@ public class StaticFileConfiguration
     /// Specifies the content type header for the file.  This is ignored when set from the client.
     /// </summary>
     public string ContentType { get; set; }
+    
+    /// <summary>
+    /// Set by server
+    /// </summary>
+    public UnixTimeUtc LastModified { get; set; }
 }
