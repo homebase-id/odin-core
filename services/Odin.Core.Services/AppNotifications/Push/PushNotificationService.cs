@@ -77,10 +77,12 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
         var subscriptions = await GetAllSubscriptions();
 
-        var publicKey = await _keyService.GetNotificationsPublicKey();
-
-        var publicKeyBase64 = publicKey.GenerateEcdsaBase64Url();
-        var privateKey = PublicPrivateKeyService.NotificationPrivateEncryptionKey.ToBase64();
+        // var publicKey = await _keyService.GetNotificationsPublicKey();
+        // var publicKeyBase64 = publicKey.GenerateEcdsaBase64Url();
+        // var privateKey = PublicPrivateKeyService.NotificationPrivateEncryptionKey.ToBase64();
+        VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
+        var publicKeyBase64 = vapidKeys.PublicKey;
+        var privateKey = vapidKeys.PrivateKey;
 
         foreach (var deviceSubscription in subscriptions)
         {
