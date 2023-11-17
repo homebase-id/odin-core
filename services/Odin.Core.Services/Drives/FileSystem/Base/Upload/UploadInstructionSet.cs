@@ -59,7 +59,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                     // the width and height of all thumbnails must be unique for a given payload key
                     var hasDuplicates = pd.Thumbnails?.GroupBy(p => $"{p.PixelWidth}{p.PixelHeight}")
                         .Any(group => group.Count() > 1) ?? false;
-
+                    
                     if (hasDuplicates)
                     {
                         throw new OdinClientException($"You have duplicate thumbnails for the " +
