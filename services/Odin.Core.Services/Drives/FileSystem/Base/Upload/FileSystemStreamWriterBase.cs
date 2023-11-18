@@ -96,18 +96,18 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
+        if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
+        {
+            throw new OdinClientException($"Duplicate Payload key with key {key} has already been added", OdinClientErrorCode.InvalidUpload);
+        }
+        
         var descriptor = Package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
         if (null == descriptor)
         {
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
-
-        if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
-        {
-            throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
-        }
-
+        
         string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
         if (bytesWritten > 0)
@@ -141,7 +141,7 @@ public abstract class FileSystemStreamWriterBase
             return new
             {
                 PayloadKey = pd.PayloadKey,
-                ThumbnailDescriptor = pd.Thumbnails.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
+                ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
 

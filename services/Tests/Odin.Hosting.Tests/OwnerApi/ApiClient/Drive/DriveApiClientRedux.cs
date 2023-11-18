@@ -35,7 +35,7 @@ public class TestPayloadDefinition
 
     public UploadManifestPayloadDescriptor ToPayloadDescriptor()
     {
-        var t = this.Thumbnails.Select(thumb => new UploadedManifestThumbnailDescriptor()
+        var t = this.Thumbnails?.Select(thumb => new UploadedManifestThumbnailDescriptor()
         {
             ThumbnailKey = $"{this.Key}{thumb.PixelWidth}{thumb.PixelHeight}", //hulk smash (it all together)
             PixelWidth = thumb.PixelWidth,
@@ -368,7 +368,7 @@ public class DriveApiClientRedux
                 parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
                     Enum.GetName(MultipartUploadParts.Payload)));
 
-                foreach (var thumbnail in payloadDefinition.Thumbnails)
+                foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
                     var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
                     parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,

@@ -103,7 +103,7 @@ public abstract class PayloadStreamWriterBase
             return new
             {
                 PayloadKey = pd.PayloadKey,
-                ThumbnailDescriptor = pd.Thumbnails.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
+                ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
 

@@ -52,7 +52,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         {
             var descriptors = Payloads.Select(p =>
             {
-                var thumbnails = this.Thumbnails.Where(t => t.PayloadKey == p.PayloadKey)
+                var thumbnails = this.Thumbnails?.Where(t => t.PayloadKey == p.PayloadKey)
                     .Select(t => new ThumbnailDescriptor()
                     {
                         ContentType = t.ContentType,

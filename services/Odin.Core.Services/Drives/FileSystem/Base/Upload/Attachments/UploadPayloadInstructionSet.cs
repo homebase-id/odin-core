@@ -39,8 +39,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
             if (!Manifest?.PayloadDescriptors?.Any() ?? false)
             {
-                throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads", OdinClientErrorCode.InvalidPayload);
+                throw new OdinClientException("Whatcha uploading buddy?  You're missing payloads when using the payload only upload method :)", OdinClientErrorCode.InvalidPayload);
             }
+            
+            Manifest?.AssertIsValid();
+
         }
     }
 }

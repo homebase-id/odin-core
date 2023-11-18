@@ -248,7 +248,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
             // Delete the thumbnail files for this payload
-            foreach (var thumb in descriptor.Thumbnails)
+            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
                 await lts.DeleteThumbnailFile(file.FileId, key, thumb.PixelWidth, thumb.PixelHeight);
             }
@@ -407,7 +407,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
                     string payloadKey = descriptor.Key;
 
-                    foreach (var thumb in descriptor.Thumbnails)
+                    foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, payloadKey);
                         var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
@@ -550,7 +550,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 // Delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
                 await storageManager.DeleteMissingThumbnailFiles(targetFile.FileId, descriptor.Thumbnails); //clean up
 
-                foreach (var thumb in descriptor.Thumbnails)
+                foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
                     var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
