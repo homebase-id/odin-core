@@ -41,7 +41,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             //
             // [030] Request authorization code
@@ -122,7 +122,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             //
             // [030] Request authorization code
@@ -202,7 +202,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             //
             // [030] Request authorization code
@@ -305,7 +305,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             //
             // [030] Request authorization code
@@ -404,7 +404,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             var finalRedirectUri = new Uri("https://app/authorization/code/callback");
             var appParams = GetAppPhotosParams();
@@ -655,7 +655,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
@@ -800,7 +800,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // [010] Generate key pair
             //
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            var keyPair = new EccFullKeyData(privateKey, EccFullKeyData.EccKeySize.P384, 1);
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
