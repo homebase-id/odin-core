@@ -40,7 +40,7 @@ namespace Odin.KeyChain
         public SimulatedHobbit(AsciiDomainName hobbit)
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, EccFullKeyData.EccKeySize.P384, 1);
+            _ecc = new EccFullKeyData(_pwd, EccKeySize.P384, 1);
             _identity = hobbit;
         }
 

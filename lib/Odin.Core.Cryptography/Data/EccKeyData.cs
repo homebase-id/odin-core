@@ -20,8 +20,18 @@ using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Data
 {
+    public enum EccKeySize
+    {
+        P256 = 0,
+        P384 = 1
+    }
+
     public class EccPublicKeyData
     {
+        public static string[] eccSignatureAlgorithmNames = new string[2] { "SHA-256withECDSA", "SHA-384withECDSA" };
+        public static string[] eccKeyTypeNames = new string[2] { "P-256", "P-384" };
+        public static string[] eccCurveIdentifiers = new string[2] { "secp256r1", "secp384r1" };
+
         public byte[] publicKey { get; set; } // DER encoded public key
 
         public UInt32 crc32c { get; set; } // The CRC32C of the public key
@@ -65,32 +75,21 @@ namespace Odin.Core.Cryptography.Data
             return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
         }
 
-        protected string GetCurveName(ECCurve curve)
+        protected EccKeySize GetCurveEnum(ECCurve curve)
         {
-            string curveName = null;
-            foreach (string name in ECNamedCurveTable.Names)
+            int bitLength = curve.Order.BitLength;
+
+            if (bitLength == 384)
             {
-                var param = ECNamedCurveTable.GetByName(name);
-                if (param.Curve.Equals(curve))
-                {
-                    curveName = name;
-                    break;
-                }
+                return EccKeySize.P384;
             }
-
-            switch (curveName)
+            else if (bitLength == 256)
             {
-                case "secp384r1":
-                case "NIST P-384":
-                    return "P-384";
-
-                case "secp256r1":
-                case "prime256v1":
-                case "NIST P-256":
-                    return "P-256";
-
-                default:
-                    throw new Exception($"No curve name: [{curveName}] of secp384r1 (P-384) or secp256r1 (P-256) found");
+                return EccKeySize.P256;
+            }
+            else
+            {
+                throw new Exception($"Unsupported ECC key size with bit length: {bitLength}");
             }
         }
 
@@ -103,13 +102,13 @@ namespace Odin.Core.Cryptography.Data
             BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
             BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
 
-            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
+            string curveName = eccKeyTypeNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)];
 
             // Create a JSON object to represent the JWK
             var jwk = new
             {
                 kty = "EC",
-                crv = curveName, // Corresponds to "secp384r1"
+                crv =  curveName, // P-256 or P-384
                 x = Base64UrlEncoder.Encode(x.ToByteArrayUnsigned()),
                 y = Base64UrlEncoder.Encode(y.ToByteArrayUnsigned())
             };
@@ -165,13 +164,8 @@ namespace Odin.Core.Cryptography.Data
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
             ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
-            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
 
-            ISigner signer;
-            if (curveName == "P-384")
-                signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm384);
-            else
-                signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm256);
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
 
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
@@ -203,14 +197,8 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
-        public enum EccKeySize
-        {
-            P256 = 256,
-            P384 = 384
-        }
-
-        public static string eccSignatureAlgorithm384 = "SHA-384withECDSA";
-        public static string eccSignatureAlgorithm256 = "SHA-256withECDSA";
+        //public static string eccSignatureAlgorithm384 = "SHA-384withECDSA";
+        //public static string eccSignatureAlgorithm256 = "SHA-256withECDSA";
 
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
@@ -243,12 +231,7 @@ namespace Odin.Core.Cryptography.Data
         {
             // Generate an EC key with Bouncy Castle, curve secp384r1
             ECKeyPairGenerator generator = new ECKeyPairGenerator();
-            X9ECParameters ecp;
-            
-            if (keySize == EccKeySize.P384)
-                ecp = SecNamedCurves.GetByName("secp384r1");
-            else
-                ecp = SecNamedCurves.GetByName("secp256r1");
+            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int) keySize]);
 
             var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
             generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
@@ -384,41 +367,16 @@ namespace Odin.Core.Cryptography.Data
             return HashUtil.Hkdf(sharedSecretBytes.GetKey(), randomSalt, 16).ToSensitiveByteArray();
         }
 
-        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
-        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] salt)
-        {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
-
-            return (salt, ecdhSS);
-        }
-
-        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
-        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey, byte[] salt)
-        {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
-
-            return ecdhSS;
-        }
-
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {
             var pk = GetFullKey(key);
 
-
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
             ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
-            var curveName = GetCurveName((ECCurve)publicKeyParameters.Parameters.Curve);
-
+            
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
-            ISigner signer;
-
-            if (curveName == "P-384")
-                signer = SignerUtilities.GetSigner(eccSignatureAlgorithm384);
-            else if (curveName == "P-256")
-                signer = SignerUtilities.GetSigner(eccSignatureAlgorithm256);
-            else
-                throw new Exception("impossible");
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int)GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
 
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 

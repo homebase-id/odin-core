@@ -15,7 +15,7 @@ public class YouAuthCryptoTest
         // CLIENT
         //
         var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccFullKeyData.EccKeySize.P384, 1);
+        var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
 
         // Request CLIENT -> HOST
         var queryStringClientPublicKey = clientKeyPair.PublicKeyJwkBase64Url();
@@ -24,7 +24,7 @@ public class YouAuthCryptoTest
         // HOST
         //
         var hostPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var hostKeyPair = new EccFullKeyData(hostPrivateKey, EccFullKeyData.EccKeySize.P384, 1);
+        var hostKeyPair = new EccFullKeyData(hostPrivateKey, EccKeySize.P384, 1);
         var hostSalt = ByteArrayUtil.GetRndByteArray(16);
 
         var remoteClientPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(queryStringClientPublicKey);

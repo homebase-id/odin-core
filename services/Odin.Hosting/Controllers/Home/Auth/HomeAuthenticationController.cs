@@ -112,7 +112,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             var homeClientPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authState.EccPk64);
             var salt = ByteArrayUtil.GetRndByteArray(16);
             var keyPairPassword = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            EccFullKeyData transferKeyPair = new EccFullKeyData(keyPairPassword, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData transferKeyPair = new EccFullKeyData(keyPairPassword, EccKeySize.P384, 2);
             var clientTransferSharedSecret = transferKeyPair.GetEcdhSharedSecret(keyPairPassword, homeClientPublicKey, salt);
 
             var catSharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
