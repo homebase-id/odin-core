@@ -514,7 +514,7 @@ public class DataSubscriptionAndDistributionTests1
         {
             Drives = new List<DriveGrantRequest>()
             {
-                new DriveGrantRequest()
+                new ()
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
@@ -561,7 +561,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Now, have Sam comment on the file
-        var commentFile = new UploadFileMetadata()
+        var commentFileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
             IsEncrypted = false,
@@ -578,14 +578,13 @@ public class DataSubscriptionAndDistributionTests1
         };
 
         // transfer a comment from Sam directly to frodo
-        var transitResult = await samOwnerClient.Transit.TransferFile(
-            FileSystemType.Comment,
-            commentFile,
+        var transitResult = await samOwnerClient.Transit.TransferFileHeader(
+            commentFileMetadata,
             recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
             remoteTargetDrive: frodoChannelDrive,
-            payloadData: "",
             overwriteGlobalTransitFileId: null,
-            thumbnail: null
+            thumbnail: null,
+            fileSystemType:FileSystemType.Comment
         );
 
         //comment should have made it directly to the recipient's server
@@ -620,7 +619,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFileMetadata.AppData.Content));
         //TODO: test the other file parts here
 
 
@@ -718,12 +717,11 @@ public class DataSubscriptionAndDistributionTests1
         };
 
         // transfer a comment from Sam directly to frodo
-        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFile(
+        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFileHeader(
             FileSystemType.Comment,
             commentFile,
             recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
             remoteTargetDrive: frodoChannelDrive,
-            payloadData: "",
             overwriteGlobalTransitFileId: null,
             thumbnail: null
         );
@@ -900,7 +898,8 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -952,7 +951,8 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -1039,7 +1039,8 @@ public class DataSubscriptionAndDistributionTests1
     }
 
     [Test]
-    public async Task UnencryptedStandardFile_UploadedByOwner_DistributeTo_Both_ConnectedAndUnconnected_Followers_And_DeletedFrom_FollowersFeeds_When_Owner_Deletes_File()
+    public async Task
+        UnencryptedStandardFile_UploadedByOwner_DistributeTo_Both_ConnectedAndUnconnected_Followers_And_DeletedFrom_FollowersFeeds_When_Owner_Deletes_File()
     {
         const int fileType = 1117;
 
@@ -1147,8 +1148,7 @@ public class DataSubscriptionAndDistributionTests1
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
         Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
-
-
+    
     private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
     {
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);
@@ -1179,9 +1179,12 @@ public class DataSubscriptionAndDistributionTests1
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
     }
 
-    private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(OwnerApiClient client,
-        TargetDrive targetDrive, string uploadedContent,
-        int fileType)
+    private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)>
+        UploadStandardEncryptedFileToChannel(
+            OwnerApiClient client,
+            TargetDrive targetDrive,
+            string uploadedContent,
+            int fileType)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -1197,7 +1200,9 @@ public class DataSubscriptionAndDistributionTests1
             AccessControlList = AccessControlList.Connected
         };
 
-        return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+        var uploadResult = uploadResponse.response.Content;
+        return (uploadResult, uploadResponse.encryptedJsonContent64, "");
     }
 
     private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType,

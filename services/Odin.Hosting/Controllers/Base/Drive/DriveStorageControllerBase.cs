@@ -227,14 +227,23 @@ namespace Odin.Hosting.Controllers.Base.Drive
         
         protected async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
         {
+            if (null == request)
+            {
+                throw new OdinClientException("Invalid delete payload request");
+            }
+            
             DriveFileUtility.AssertValidPayloadKey(request?.Key);
+            if (request.VersionTag == null)
+            {
+                throw new OdinClientException("Missing version tag", OdinClientErrorCode.MissingVersionTag);
+            }
             
             var file = MapToInternalFile(request.File);
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
             return new DeletePayloadResult()
             {
-                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key)
+                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault())
             };
         }
     }

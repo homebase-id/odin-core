@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class OwnerTransitQueryController : TransitQueryControllerBase
     {
-        public OwnerTransitQueryController(TransitQueryService transitQueryService):base(transitQueryService)
+        public OwnerTransitQueryController(TransitQueryService transitQueryService) : base(transitQueryService)
         {
         }
     }

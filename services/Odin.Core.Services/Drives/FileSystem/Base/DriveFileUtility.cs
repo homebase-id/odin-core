@@ -185,4 +185,12 @@ public static class DriveFileUtility
         string extenstion = $"-{width}x{height}-{payloadKey}.thumb";
         return extenstion.ToLower();
     }
+
+    public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
+    {
+        if (currentVersionTag != versionTagToCompare)
+        {
+            throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
+        }
+    }
 }

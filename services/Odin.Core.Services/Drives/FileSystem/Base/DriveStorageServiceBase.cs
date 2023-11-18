@@ -227,14 +227,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, payloadKey),
                 nextSizeUp);
         }
-        
 
-        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key)
+
+        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid versionTag)
         {
             this.AssertCanWriteToDrive(file.DriveId);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, versionTag);
 
             var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? -1;
 
@@ -243,7 +244,18 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return Guid.Empty;
             }
 
-            await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId, key);
+            var lts = GetLongTermStorageManager(file.DriveId);
+            var descriptor = header.FileMetadata.Payloads![descriptorIndex];
+
+            // Delete the thumbnail files for this payload
+            foreach (var thumb in descriptor.Thumbnails)
+            {
+                await lts.DeleteThumbnailFile(file.FileId, key, thumb.PixelWidth, thumb.PixelHeight);
+            }
+
+            // Delete the payload file
+            await lts.DeletePayloadFile(file.FileId, key);
+
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header);
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
@@ -440,10 +452,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
-            {
-                throw new OdinClientException($"Invalid version tag {newMetadata.VersionTag}", OdinClientErrorCode.VersionTagMismatch);
-            }
+            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
 
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
@@ -557,7 +566,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             // Now Add any that were in the existing server header not already in the list
             var existingFiltered = existingServerHeader.FileMetadata.Payloads.Where(ep => incomingPayloads.All(ip => ip.Key != ep.Key));
             finalPayloads.AddRange(existingFiltered);
-            
+
             existingServerHeader.FileMetadata.Payloads = finalPayloads;
 
             await WriteFileHeaderInternal(existingServerHeader);
@@ -593,10 +602,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
-            {
-                throw new OdinClientException($"Invalid version tag {newMetadata.VersionTag}", OdinClientErrorCode.VersionTagMismatch);
-            }
+            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
 
             newMetadata.File = targetFile;
             newMetadata.Created = existingServerHeader.FileMetadata.Created;

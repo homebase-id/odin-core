@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -16,8 +17,18 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         }
 
         public ExternalFileIdentifier TargetFile { get; set; }
+        
         public UploadManifest Manifest { get; set; }
 
+        /// <summary>
+        /// List of identities that should receive this new payload
+        /// </summary>
+        public List<string> Recipients { get; set; }
+
+        /// <summary>
+        /// The version of the file you're to which you're uploading=
+        /// </summary>
+        public Guid? VersionTag { get; set; }
 
         public void AssertIsValid()
         {

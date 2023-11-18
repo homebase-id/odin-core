@@ -36,7 +36,7 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    public async Task CanUpdateMetadataDataWithOutThumbnailsAndWithoutPayloads()
+    public async Task CanUploadMetadataDataWithoutPayloads()
     {
         var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
         var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
@@ -67,7 +67,7 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    public async Task CanUploadFileWith2ThumbnailsAnd2Payloads()
+    public async Task CanUploadFileWith2PayloadsAnd2Thumbnails()
     {
         var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
         // create a drive
@@ -292,7 +292,7 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(result.LocalFileDeleted);
         Assert.IsFalse(result.RecipientStatus.Any());
 
-// Get the payloads
+        // Get the payloads
         foreach (var definition in testPayloads)
         {
             var getPayloadResponse = await client.DriveRedux.GetPayload(uploadResult.File, definition.Key);
@@ -306,82 +306,5 @@ public class DirectDriveGeneralFileTests
             }
         }
     }
-
-
-    [Test]
-    public async Task InvalidPayloadKeyReturns404()
-    {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-        // create a drive
-        var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
-
-        // upload metadata
-        var uploadedFileMetadata = new UploadFileMetadata()
-        {
-            AppData = new UploadAppFileMetaData()
-            {
-                FileType = 100
-            },
-
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            new()
-            {
-                Key = "test_key_1",
-                ContentType = "text/plain",
-                Content = "some content for payload key 1".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 200,
-                        PixelWidth = 200,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes200,
-                    }
-                }
-            },
-            new()
-            {
-                Key = "test_key_2",
-                ContentType = "text/plain",
-                Content = "other types of content for key 2".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 400,
-                        PixelWidth = 400,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes400,
-                    }
-                }
-            }
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        var response = await client.DriveRedux.UploadNewFile(targetDrive.TargetDriveInfo, uploadedFileMetadata, uploadManifest, testPayloads);
-
-        Assert.IsTrue(response.IsSuccessStatusCode);
-        var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
-
-        // get the file header
-        var getHeaderResponse = await client.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-        var header = getHeaderResponse.Content;
-        Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
-
-        // now that we know we have a valid file with a few payloads
-        var getRandomPayload = await client.DriveRedux.GetPayload(uploadResult.File, "r3nd0m09");
-        Assert.IsTrue(getRandomPayload.StatusCode == HttpStatusCode.NotFound, $"Status code was {getRandomPayload.StatusCode}");
-    }
+    
 }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -7,8 +6,6 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Membership.Circles;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 
 namespace Odin.Hosting.Tests.DriveApi.TransitDrive;
 
@@ -38,7 +35,6 @@ public class TransitMultiPayloadTests
         var targetDrive1 = TargetDrive.NewTargetDrive();
         var targetDrive2 = TargetDrive.NewTargetDrive();
 
-        var identity = TestIdentities.Samwise;
         var ownerSam = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
         await ownerSam.Drive.CreateDrive(targetDrive1, "Drive 1 for Circle Test", "", false);

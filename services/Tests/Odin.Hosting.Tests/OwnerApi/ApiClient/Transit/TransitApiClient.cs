@@ -166,14 +166,13 @@ public class TransitApiClient
     /// <summary>
     /// Directly sends the file to the recipients; does not store on any local drives.  (see DriveApiClient.TransferFile to store it on sender's drive)
     /// </summary>
-    public async Task<TransitResult> TransferFile(
-        FileSystemType fileSystemType,
+    public async Task<TransitResult> TransferFileHeader(
         UploadFileMetadata fileMetadata,
         List<string> recipients,
         TargetDrive remoteTargetDrive,
-        string payloadData = "",
         Guid? overwriteGlobalTransitFileId = null,
-        ThumbnailContent thumbnail = null
+        ThumbnailContent thumbnail = null,
+        FileSystemType fileSystemType = FileSystemType.Standard
     )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -205,9 +204,7 @@ public class TransitApiClient
             List<StreamPart> parts = new()
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), WebScaffold.PAYLOAD_KEY, "application/x-binary",
-                    Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
             };
 
             if (thumbnail != null)
@@ -236,12 +233,11 @@ public class TransitApiClient
     /// <summary>
     /// Directly sends the file to the recipients; does not store on any local drives.  (see DriveApiClient.TransferEncryptedFile to store it on sender's drive)
     /// </summary>
-    public async Task<(TransitResult transitResult, string encryptedJsonContent64)> TransferEncryptedFile(
+    public async Task<(TransitResult transitResult, string encryptedJsonContent64)> TransferEncryptedFileHeader(
         FileSystemType fileSystemType,
         UploadFileMetadata fileMetadata,
         List<string> recipients,
         TargetDrive remoteTargetDrive,
-        string payloadData = "",
         Guid? overwriteGlobalTransitFileId = null,
         ThumbnailContent thumbnail = null
     )
@@ -275,19 +271,10 @@ public class TransitApiClient
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-            //expect a payload if the caller says there should be one
-            byte[] encryptedPayloadBytes = Array.Empty<byte>();
-            if (!string.IsNullOrEmpty(payloadData))
-            {
-                encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
-            }
-
             List<StreamPart> parts = new()
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(encryptedPayloadBytes), WebScaffold.PAYLOAD_KEY, "application/x-binary",
-                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
@@ -302,7 +289,6 @@ public class TransitApiClient
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
             var transitResult = response.Content;
-
 
             foreach (var recipient in recipients)
             {

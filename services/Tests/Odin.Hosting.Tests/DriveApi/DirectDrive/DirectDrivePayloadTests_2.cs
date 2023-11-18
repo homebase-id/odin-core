@@ -17,7 +17,7 @@ namespace Odin.Hosting.Tests.DriveApi.DirectDrive;
 
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
-public class DirectDriveGeneralFileTests_UploadPayloadOnly
+public class DirectDrivePayloadTests_2
 {
     private WebScaffold _scaffold;
 
@@ -35,9 +35,8 @@ public class DirectDriveGeneralFileTests_UploadPayloadOnly
         _scaffold.RunAfterAnyTests();
     }
 
-
     [Test]
-    public async Task CanUploadNewPayloadWithThumbnails()
+    public async Task CanUploadNewPayloadWithThumbnailsOnExistingFileAndMetadataIsAutomaticallyUpdated()
     {
         var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
         // create a drive
@@ -101,7 +100,7 @@ public class DirectDriveGeneralFileTests_UploadPayloadOnly
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var uploadPayloadsResponse = await client.DriveRedux.UploadPayloads(targetFile, uploadManifest, testPayloads);
+        var uploadPayloadsResponse = await client.DriveRedux.UploadPayloads(targetFile, uploadMetadataResult.NewVersionTag, uploadManifest, testPayloads);
         Assert.IsTrue(uploadPayloadsResponse.IsSuccessStatusCode);
         var uploadPayloadsResult = uploadPayloadsResponse.Content;
         Assert.IsNotNull(uploadPayloadsResult);
@@ -149,7 +148,15 @@ public class DirectDriveGeneralFileTests_UploadPayloadOnly
     }
 
     [Test]
-    public Task CanRemovePayloadAndThumbsAreDeletedAsWell()
+    public Task FailToAddPayloadToNonExistingFile()
+    {
+        //should return 400; invalid file
+        Assert.Inconclusive("todos");
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task CanRemovePayloadAndThumbsAreAlsoDeleted()
     {
         Assert.Inconclusive("todos");
         return Task.CompletedTask;

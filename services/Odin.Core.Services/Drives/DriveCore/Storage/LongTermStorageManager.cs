@@ -59,7 +59,21 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
-        public Task DeletePayload(Guid fileId, string key)
+        public Task DeleteThumbnailFile(Guid fileId, string payloadKey, int height, int width)
+        {
+            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey);
+            string dir = GetFilePath(fileId, FilePart.Thumb);
+            string path = Path.Combine(dir, fileName);
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task DeletePayloadFile(Guid fileId, string key)
         {
             string path = GetPayloadFilePath(fileId, key);
             if (File.Exists(path))
@@ -70,7 +84,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        public Task DeleteAllPayloads(Guid fileId)
+        public Task DeleteAllPayloadFiles(Guid fileId)
         {
             string path = GetPayloadPath(fileId);
             var seekPath = this.GetFilename(fileId, "-*", FilePart.Payload);
@@ -157,7 +171,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.FromResult((Stream)fileStream);
         }
 
-
         /// <summary>
         /// Gets a read stream of the thumbnail
         /// </summary>
@@ -173,7 +186,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
         }
-        
+
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(width, height, payloadKey);
@@ -237,7 +250,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task HardDelete(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
-            DeleteAllPayloads(fileId);
+            DeleteAllPayloadFiles(fileId);
 
             string metadata = GetFilenameAndPath(fileId, FilePart.Header);
             if (File.Exists(metadata))
@@ -255,7 +268,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteAttachments(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
-            DeleteAllPayloads(fileId);
+            DeleteAllPayloadFiles(fileId);
             return Task.CompletedTask;
         }
 

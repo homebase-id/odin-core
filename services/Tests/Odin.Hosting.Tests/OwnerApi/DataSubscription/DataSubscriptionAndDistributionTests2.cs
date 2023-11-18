@@ -21,6 +21,7 @@ using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests.OwnerApi.DataSubscription;
 
@@ -306,7 +307,25 @@ public class DataSubscriptionAndDistributionTests2
             }
         };
 
-        return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, payloadContent);
+        var testPayloads = new List<TestPayloadDefinition>()
+        {
+            new()
+            {
+                Key = WebScaffold.PAYLOAD_KEY,
+                ContentType = "text/plain",
+                Content = payloadContent.ToUtf8ByteArray(),
+                Thumbnails = new List<ThumbnailContent>() { }
+            }
+        };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedFile(targetDrive, fileMetadata, uploadManifest, testPayloads, true);
+        var uploadResult = uploadResponse.response.Content;
+        return (uploadResult, uploadResponse.encryptedJsonContent64, uploadResponse.uploadedPayloads.First().EncryptedContent64);
     }
 
     private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType,

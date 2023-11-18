@@ -547,26 +547,24 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFile(
+                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFileHeader(
                     FileSystemType.Comment,
                     fileMetadata,
                     recipients: recipients,
                     remoteTargetDrive: referencedFile.TargetDrive,
-                    payloadData: "",
                     overwriteGlobalTransitFileId: overwriteFile,
                     thumbnail: null
                 );
             }
             else
             {
-                transitResult = await sender.Transit.TransferFile(
-                    FileSystemType.Comment,
+                transitResult = await sender.Transit.TransferFileHeader(
                     fileMetadata,
                     recipients: recipients,
                     remoteTargetDrive: referencedFile.TargetDrive,
-                    payloadData: "",
                     overwriteGlobalTransitFileId: overwriteFile,
-                    thumbnail: null
+                    thumbnail: null,
+                    fileSystemType: FileSystemType.Comment
                 );
             }
 

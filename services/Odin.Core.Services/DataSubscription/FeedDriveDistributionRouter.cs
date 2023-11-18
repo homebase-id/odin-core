@@ -84,7 +84,7 @@ namespace Odin.Core.Services.DataSubscription
 
                     if (isEncryptedFile)
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                         await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
                     else
                     {

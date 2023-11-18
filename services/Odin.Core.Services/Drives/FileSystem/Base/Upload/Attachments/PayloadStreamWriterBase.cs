@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Peer;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -62,7 +64,7 @@ public abstract class PayloadStreamWriterBase
         {
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
-        
+
         if (_package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
@@ -143,6 +145,11 @@ public abstract class PayloadStreamWriterBase
 
         var latestVersionTag = await this.UpdatePayloads(_package, serverHeader);
 
+        if (_package.InstructionSet.Recipients?.Any() ?? false)
+        {
+            throw new NotImplementedException("TODO: Sending a payload not yet supported");
+        }
+
         //TODO: need to send the new payload to the recipient?
         // Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
 
@@ -168,13 +175,20 @@ public abstract class PayloadStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(ServerFileHeader header)
+    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader)
     {
         // Validate the file exists by the Id
         if (!FileSystem.Storage.FileExists(_package.InternalFile))
         {
             throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
         }
+
+        if (_package.InstructionSet.VersionTag == null)
+        {
+            throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
+        }
+
+        DriveFileUtility.AssertVersionTagMatch(existingServerFileHeader.FileMetadata.VersionTag, _package.InstructionSet.VersionTag);
 
         await Task.CompletedTask;
     }

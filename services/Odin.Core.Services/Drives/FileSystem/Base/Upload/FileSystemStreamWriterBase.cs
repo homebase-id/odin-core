@@ -102,7 +102,7 @@ public abstract class FileSystemStreamWriterBase
         {
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
-        
+
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);

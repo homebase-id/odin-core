@@ -37,41 +37,9 @@ public class DirectDriveThumbnailTests
     }
     
     [Test]
-    public void CanAddThumbnailToExistingFileAndMetadataIsAutomaticallyUpdated()
-    {
-        // create a drive
-        // upload metadata, no payload
-        
-        //add payload
-        
-        // get the file header
-        // last modified should be changed
-        // payload should be listed 
-        // get the payload
-        
-        Assert.Inconclusive("TODO");
-    }
-
-    [Test]
-    public void CanRemoveThumbnailToExistingFileAndMetadataIsAutomaticallyUpdated()
-    {
-        // create a drive
-        // upload metadata, no payload
-        
-        //add payload
-        
-        // get the file header
-        // last modified should be changed
-        // payload should be listed 
-        // get the payload
-        
-        Assert.Inconclusive("TODO");
-    }
-    
-    
-    [Test]
     public void ThumbnailLastModifiedTimeUpdatedWhenThumbnailChanges()
     {
+        //upload a payload with a new payload
         Assert.Inconclusive("TODO");
     }
     
@@ -87,6 +55,4 @@ public class DirectDriveThumbnailTests
     {
         Assert.Inconclusive("TODO");
     }
-
-
 }
