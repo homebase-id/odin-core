@@ -197,9 +197,6 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
-        //public static string eccSignatureAlgorithm384 = "SHA-384withECDSA";
-        //public static string eccSignatureAlgorithm256 = "SHA-256withECDSA";
-
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
