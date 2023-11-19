@@ -270,7 +270,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
-        private async Task<OwnerAuthTokenContext> GetOwnerAuthContext(OdinId identity)
+        public async Task<OwnerAuthTokenContext> GetOwnerAuthContext(OdinId identity)
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {

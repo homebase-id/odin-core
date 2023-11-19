@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
+using NodaTime;
+using NodaTime.Text;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
@@ -147,11 +150,25 @@ public static class DriveFileUtility
         {
             var lastModifiedValue = values.FirstOrDefault();
 
-            if (lastModifiedValue != null && DateTime.TryParse(lastModifiedValue, out var lastModifiedDateTime))
+            const string dateTimePattern = "ddd, dd MMM yyyy HH:mm:ss 'GMT'";
+            if (DateTimeOffset.TryParseExact(lastModifiedValue, dateTimePattern, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var result))
             {
-                lastModified = UnixTimeUtc.FromDateTime(lastModifiedDateTime);
+                Instant instant = Instant.FromDateTimeOffset(result);
+                lastModified = new UnixTimeUtc(instant);
                 return true;
             }
+
+            // if (lastModifiedValue != null && DateTime.TryParse(lastModifiedValue, out var lastModifiedDateTime))
+            // {
+            //     InstantPattern pattern = InstantPattern.ExtendedIso;
+            //     ParseResult<Instant> parseResult = pattern.Parse(lastModifiedValue);
+            //     if (parseResult.Success)
+            //     {
+            //         Instant instant = parseResult.Value;
+            //         lastModified = new UnixTimeUtc(instant);
+            //         return true;
+            //     }
+            // }
         }
 
         lastModified = null;
@@ -160,7 +177,8 @@ public static class DriveFileUtility
 
     public static string GetLastModifiedHeaderValue(UnixTimeUtc? lastModified)
     {
-        return lastModified.GetValueOrDefault().ToDateTime().ToString("R");
+        var instant = (Instant)lastModified.GetValueOrDefault();
+        return instant.ToDateTimeUtc().ToString("R");
     }
 
     public static void AssertValidPayloadKey(string payloadKey)

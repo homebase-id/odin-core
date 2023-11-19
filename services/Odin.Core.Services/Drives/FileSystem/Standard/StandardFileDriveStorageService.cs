@@ -29,11 +29,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard
 
         public override void AssertCanWriteToDrive(Guid driveId)
         {
-            var drive = this.DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
-            if (!drive.AllowAnonymousReads)
-            {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
-            }
+            // var drive = this.DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            // if (!drive.AllowAnonymousReads)
+            // {
+            //     ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            // }
+            
+            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+
         }
 
         public override void AssertCanReadOrWriteToDrive(Guid driveId)

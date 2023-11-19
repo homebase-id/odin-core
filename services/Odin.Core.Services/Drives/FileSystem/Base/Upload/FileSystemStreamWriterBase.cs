@@ -64,9 +64,12 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
+        // var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
+        var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
+        // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+        
         bool isUpdateOperation = false;
 
         if (overwriteFileId == Guid.Empty)
