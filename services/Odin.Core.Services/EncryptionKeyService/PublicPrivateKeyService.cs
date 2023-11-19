@@ -426,7 +426,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             //create a new key list
             var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
                 EccKeyListManagement.DefaultMaxOnlineKeys,
-                EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P384);
+                EccKeyListManagement.DefaultHoursOnlineKey);
 
             _storage.Upsert(storageKey, eccKeyList);
 

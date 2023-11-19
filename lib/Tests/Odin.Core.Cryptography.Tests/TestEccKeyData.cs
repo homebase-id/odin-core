@@ -1,18 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Odin.Core.Cryptography.Tests
+﻿namespace Odin.Core.Cryptography.Tests
 {
     using NUnit.Framework;
     using Odin.Core.Cryptography.Crypto;
     using Odin.Core.Cryptography.Data;
-    using Org.BouncyCastle.Crypto;
-    using Org.BouncyCastle.Crypto.Generators;
-    using Org.BouncyCastle.Security;
-    using Org.BouncyCastle.X509;
     using System;
 
     [TestFixture]
@@ -32,7 +22,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestEcdh()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P256, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P256, 2);
 
             EccPublicKeyData pk = (EccPublicKeyData) fullKeyFrodo;
             var s = pk.GenerateEcdsaBase64Url();
@@ -49,7 +39,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicKey()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P384, 2);
 
             var jwk = fullKeyFrodo.PublicKeyJwk();
 
@@ -63,7 +53,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicKey256()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P256, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P256, 2);
 
             var jwk = fullKeyFrodo.PublicKeyJwk();
 
@@ -77,7 +67,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicKeyBase64()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P384, 2);
 
             var jwkBase64Url = fullKeyFrodo.PublicKeyJwkBase64Url();
             var pk = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64Url);
@@ -89,7 +79,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicKeyBase64_256()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P256, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P256, 2);
 
             var jwkBase64Url = fullKeyFrodo.PublicKeyJwkBase64Url();
             var pk = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64Url);
@@ -101,10 +91,10 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicEcdh()
         {
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P384, 2);
 
             SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccKeySize.P384, 2);
 
             var jwkSam = fullKeySam.PublicKeyJwk();
             var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
@@ -120,7 +110,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TestJwkPublicSignature()
         {
             SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccKeySize.P384, 2);
 
             var signature = fullKeySam.Sign(pwdSam, testMessage);
 
@@ -131,6 +121,23 @@ namespace Odin.Core.Cryptography.Tests
 
             Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
         }
+
+        [Test]
+        public void TestJwkPublicSignature256()
+        {
+            SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccKeySize.P256, 2);
+
+            var signature = fullKeySam.Sign(pwdSam, testMessage);
+
+            Assert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
+
+            var jwkSam = fullKeySam.PublicKeyJwk();
+            var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
+
+            Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
+        }
+
 
         /// <summary>
         /// This test shows two Hobbits that get a shared secret using ECC keys and a random salt,
@@ -145,10 +152,10 @@ namespace Odin.Core.Cryptography.Tests
         {
             // We have two hobbits, they each have an ECC key
             SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P384, 2);
 
             SensitiveByteArray pwdSam = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeySam = new EccFullKeyData(pwdSam, EccKeySize.P384, 2);
 
             byte[] message = "Hello World".ToUtf8ByteArray();
 
@@ -191,7 +198,7 @@ namespace Odin.Core.Cryptography.Tests
         public void EccFullKeyDataTest()
         {
             // Generate a new full key
-            var fullKeyData = new EccFullKeyData(key, EccFullKeyData.EccKeySize.P384, 1);
+            var fullKeyData = new EccFullKeyData(key, EccKeySize.P384, 1);
 
             Assert.IsNotNull(fullKeyData.publicKey);
             Assert.IsNotNull(fullKeyData.storedKey);
@@ -214,10 +221,10 @@ namespace Odin.Core.Cryptography.Tests
         {
             // Generate a pair of ECC keys
             SensitiveByteArray keyApwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyA = new EccFullKeyData(keyApwd, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyA = new EccFullKeyData(keyApwd, EccKeySize.P384, 2);
 
             SensitiveByteArray keyBpwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullKeyB = new EccFullKeyData(keyBpwd, EccFullKeyData.EccKeySize.P384, 2);
+            EccFullKeyData fullKeyB = new EccFullKeyData(keyBpwd, EccKeySize.P384, 2);
 
             var salt = ByteArrayUtil.GetRndByteArray(16);
 

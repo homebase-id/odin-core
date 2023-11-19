@@ -28,8 +28,7 @@ namespace Odin.Core.Cryptography.Crypto
         private const int MinimumKeyHours = 24;
 
 
-        public static EccFullKeyListData CreateEccKeyList(SensitiveByteArray key, int maxKeysInList, int hours,
-            EccFullKeyData.EccKeySize keySize = EccFullKeyData.EccKeySize.P384)
+        public static EccFullKeyListData CreateEccKeyList(SensitiveByteArray key, int maxKeysInList, int hours)
         {
             if (maxKeysInList < 1)
                 throw new Exception("Max cannot be less than 1");
@@ -41,7 +40,7 @@ namespace Odin.Core.Cryptography.Crypto
             rkl.ListEcc = new List<EccFullKeyData>();
             rkl.MaxKeys = maxKeysInList;
 
-            GenerateNewKey(key, rkl, hours, keySize);
+            GenerateNewKey(key, rkl, hours);
 
             return rkl;
         }
@@ -54,15 +53,14 @@ namespace Odin.Core.Cryptography.Crypto
         // The precise timing depends on how quickly we want keys to expire,
         // maybe the minimum is 24 hours. Generating a new key takes a significant
         // amount of CPU.
-        public static void GenerateNewKey(SensitiveByteArray key, EccFullKeyListData listEcc, int hours,
-            EccFullKeyData.EccKeySize keySize = EccFullKeyData.EccKeySize.P384)
+        public static void GenerateNewKey(SensitiveByteArray key, EccFullKeyListData listEcc, int hours)
         {
             if (hours < MinimumKeyHours)
                 throw new Exception("Ecc key must live for at least 24 hours");
 
             lock (listEcc)
             {
-                var ecc = new EccFullKeyData(key, keySize, hours);
+                var ecc = new EccFullKeyData(key, EccKeySize.P384, hours);
 
                 listEcc.ListEcc.Insert(0, ecc);
                 if (listEcc.ListEcc.Count > listEcc.MaxKeys)
