@@ -104,6 +104,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
+                IncludeHeaderContent = !excludePreviewThumbnail,
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
