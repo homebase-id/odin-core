@@ -381,6 +381,9 @@ public class AppDriveApiClient : AppApiClientBase
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
+        bool hasPayload = !string.IsNullOrEmpty(payloadData);
+        string payloadKey = WebScaffold.PAYLOAD_KEY;
+
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
@@ -392,15 +395,28 @@ public class AppDriveApiClient : AppApiClientBase
             TransitOptions = new TransitOptions()
             {
                 UseGlobalTransitId = true
-            }
+            },
+            Manifest = new UploadManifest()
         };
 
         var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
+            if(hasPayload)
+            {
+                instructionSet.Manifest.PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                {
+                    new()
+                    {
+                        PayloadKey = payloadKey,
+                        DescriptorContent = "",
+                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
+                    }
+                };
+            }
+            
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-
             fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
@@ -410,16 +426,20 @@ public class AppDriveApiClient : AppApiClientBase
             };
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-            var payloadStream = new MemoryStream(payloadData.ToUtf8ByteArray());
-
+            
             // var bytesUploaded = instructionStream.Length + fileDescriptorCipher.Length + payloadData.Length;
             List<StreamPart> parts = new()
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(payloadStream, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
             };
+            
+            var payloadStream = new MemoryStream(payloadData.ToUtf8ByteArray());
+            if(hasPayload)
+            {
+                parts.Add(new StreamPart(payloadStream, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+            }
+
 
             if (thumbnails?.Any() ?? false)
             {

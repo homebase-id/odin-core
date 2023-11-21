@@ -106,6 +106,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                    }
                 }
             };
 
@@ -370,7 +377,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1) 
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1) 
                     }
                 }
             };
@@ -733,6 +740,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                    }
                 }
             };
 
@@ -865,7 +879,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
                     }
                 }
             };
@@ -1130,7 +1144,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
                     }
                 }
             };
@@ -1415,8 +1429,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
-
-
+        
         [Test]
         public async Task FailToTransferComment_When_Missing_DrivePermission_WriteReactionAndComment()
         {
@@ -1490,6 +1503,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                    }
                 }
             };
 
@@ -1633,7 +1653,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                  {
                      PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                      {
-                         CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
+                         WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
                      }
                  }
             };
@@ -1709,7 +1729,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
-
 
         [Test]
         public async Task CanGetDrivesByType()
@@ -1810,22 +1829,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
-
-        private UploadManifestPayloadDescriptor CreatePayloadDescriptorFrom(string payloadKey, params ThumbnailDescriptor[] thumbs)
-        {
-            var thumbList = thumbs?.Select(t => new UploadedManifestThumbnailDescriptor()
-            {
-                ThumbnailKey = t.GetFilename(WebScaffold.PAYLOAD_KEY),
-                PixelWidth = t.PixelWidth,
-                PixelHeight = t.PixelHeight
-            });
-
-
-            return new()
-            {
-                PayloadKey = payloadKey,
-                Thumbnails = thumbList
-            };
-        }
+        
     }
 }

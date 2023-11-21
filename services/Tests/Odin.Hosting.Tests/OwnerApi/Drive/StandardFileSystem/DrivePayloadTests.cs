@@ -61,7 +61,7 @@ public class DrivePayloadTests
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
         Assert.IsTrue(payloadContent == payload.Data);
 
-        var deleteResult = await ownerClient.Drive.DeletePayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key);
+        var deleteResult = await ownerClient.Drive.DeletePayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key, uploadedContentResult.NewVersionTag);
         Assert.IsTrue(deleteResult.NewVersionTag != uploadedContentResult.NewVersionTag);
 
         //validate the payload is gone

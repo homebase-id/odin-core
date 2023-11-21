@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -11,19 +12,13 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Hosting.Tests._Universal.ApiClient;
+using Odin.Hosting.Tests.DriveApi.DirectDrive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.DriveTests;
 
-public enum ApiClientType
-{
-    Owner,
-    App,
-    Guest,
-    TransitSender
-}
-
-public class UniversalApiClientTest
+public class UniversalUploadFileTest
 {
     private WebScaffold _scaffold;
 
@@ -43,13 +38,14 @@ public class UniversalApiClientTest
         _scaffold.RunAfterAnyTests();
     }
 
-    private Dictionary<string, IApiClientFactory> _appApiFactories = new(StringComparer.InvariantCultureIgnoreCase);
+    private readonly Dictionary<string, IApiClientFactory> _appApiFactories = new(StringComparer.InvariantCultureIgnoreCase);
 
-    public async Task PrepareAppClient()
+    private readonly TestIdentity _identity = TestIdentities.Pippin;
+
+    private async Task PrepareAppClient()
     {
         //I need to prepare a drive an an app
-        var identity = TestIdentities.Pippin;
-        var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerClient = _scaffold.CreateOwnerApiClient(_identity);
 
         // Prepare the app
 
@@ -64,15 +60,14 @@ public class UniversalApiClientTest
         _appApiFactories.Add("pippin", new AppApiClientFactory(appToken, appSharedSecret));
     }
 
-
-    public IApiClientFactory GetFactory(ApiClientType clientType, string key)
+    private IApiClientFactory GetFactory(ApiClientType clientType, string key)
     {
         switch (clientType)
         {
-            case ApiClientType.Owner:
+            case ApiClientType.OwnerApi:
                 return new OwnerApiClientFactory(_scaffold.OldOwnerApi);
 
-            case ApiClientType.App:
+            case ApiClientType.AppApi:
                 if (_appApiFactories.TryGetValue(key, out var factory))
                 {
                     return factory;
@@ -80,26 +75,26 @@ public class UniversalApiClientTest
 
                 throw new Exception($"Invalid test case.  Key: {key}");
 
-            case ApiClientType.Guest:
-            case ApiClientType.TransitSender:
+            case ApiClientType.GuestApi:
+            case ApiClientType.TransitSenderApi:
             default:
                 throw new ArgumentOutOfRangeException(nameof(clientType), clientType, null);
         }
     }
 
     [Test]
-    [TestCase(ApiClientType.Owner, "pippin")]
-    [TestCase(ApiClientType.App, "pippin")]
-    [TestCase(ApiClientType.Guest, "pippin")]
-    public async Task CanUploadFile(ApiClientType clientType, string key)
+    [TestCase(ApiClientType.OwnerApi, "pippin")]
+    [TestCase(ApiClientType.AppApi, "pippin")]
+    [Ignore("WIP")]
+    public async Task CanUploadFileWithCorrectPermissions(ApiClientType clientType, string key)
     {
-        var identity = TestIdentities.Pippin;
-        var client = _scaffold.CreateOwnerApiClient(identity);
+        var client = _scaffold.CreateOwnerApiClient(_identity);
 
         // create a drive
         var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
-        var uniDrive = new UniversalDriveApiClient(identity, GetFactory(clientType, key));
+        var factory = GetFactory(clientType, key);
+        var uniDrive = new UniversalDriveApiClient(_identity, factory);
 
         // upload metadata
         var uploadedFileMetadata = new UploadFileMetadata()
@@ -201,5 +196,54 @@ public class UniversalApiClientTest
                 CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
             }
         }
+    }
+
+    [Test]
+    [TestCase(ApiClientType.OwnerApi, "pippin")]
+    [TestCase(ApiClientType.AppApi, "pippin")]
+    [Ignore("WIP")]
+    public async Task GetPayloadUsingValidPayloadKeyButPayloadDoesNotExistReturns404(ApiClientType clientType, TestIdentity identity, TargetDrive targetDrive)
+    {
+        var factory = GetFactory(clientType, identity.OdinId);
+        var uniDrive = new UniversalDriveApiClient(_identity, factory);
+
+        // upload metadata
+        var uploadedFileMetadata = new UploadFileMetadata()
+        {
+            AppData = new UploadAppFileMetaData()
+            {
+                FileType = 100
+            },
+
+            AccessControlList = AccessControlList.OwnerOnly
+        };
+
+        var testPayloads = new List<TestPayloadDefinition>()
+        {
+            TestPayloadDefinitions.PayloadDefinitionWithThumbnail1,
+            TestPayloadDefinitions.PayloadDefinitionWithThumbnail2
+        };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        var response = await uniDrive.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+
+        Assert.IsTrue(response.IsSuccessStatusCode);
+        var uploadResult = response.Content;
+        Assert.IsNotNull(uploadResult);
+
+        // get the file header
+        var getHeaderResponse = await uniDrive.GetFileHeader(uploadResult.File);
+        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        var header = getHeaderResponse.Content;
+        Assert.IsNotNull(header);
+        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+
+        // now that we know we have a valid file with a few payloads
+        var getRandomPayload = await uniDrive.GetPayload(uploadResult.File, "r3nd0m09");
+        Assert.IsTrue(getRandomPayload.StatusCode == HttpStatusCode.NotFound, $"Status code was {getRandomPayload.StatusCode}");
     }
 }

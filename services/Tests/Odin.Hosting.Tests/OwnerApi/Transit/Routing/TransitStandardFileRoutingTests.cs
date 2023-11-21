@@ -16,6 +16,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 {
@@ -201,7 +202,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
             Assert.IsFalse(batch.SearchResults.Any());
-            
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -240,29 +241,28 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 RemoteTargetDrive = default
             };
 
-            UploadResult uploadResult;
+            ApiResponse<UploadResult> uploadResponse;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await sender.Drive.UploadAndTransferEncryptedFile(
-                    FileSystemType.Standard,
+                (uploadResponse, encryptedJsonContent64) = await sender.DriveRedux.UploadNewEncryptedMetadata(
                     fileMetadata,
                     storageOptions,
                     transitOptions,
-                    payloadData: string.Empty
+                    FileSystemType.Standard
                 );
             }
             else
             {
-                uploadResult = await sender.Drive.UploadAndTransferFile(
-                    FileSystemType.Standard,
+                uploadResponse = await sender.DriveRedux.UploadNewMetadata(
                     fileMetadata,
                     storageOptions,
                     transitOptions,
-                    payloadData: string.Empty
+                    FileSystemType.Standard
                 );
             }
 
+            var uploadResult = uploadResponse.Content;
             //
             // Basic tests first which apply to all calls
             //

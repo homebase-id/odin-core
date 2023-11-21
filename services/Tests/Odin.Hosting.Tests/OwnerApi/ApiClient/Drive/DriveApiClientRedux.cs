@@ -76,21 +76,36 @@ public class DriveApiClientRedux
         bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
+        var storageOptions = new StorageOptions()
+        {
+            Drive = targetDrive,
+        };
+
+        var transitOptions = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+
+        return await UploadNewMetadata(fileMetadata, storageOptions, transitOptions, fileSystemType);
+    }
+
+    /// <summary>
+    /// Uploads a new file, unencrypted with metadata only; without any attachments (payload, thumbnails, etc.)
+    /// </summary>
+    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(
+        UploadFileMetadata fileMetadata,
+        StorageOptions storageOptions,
+        TransitOptions transitOptions,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = targetDrive,
-                OverwriteFileId = default
-            },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            StorageOptions = storageOptions,
+            TransitOptions = transitOptions
         };
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -121,6 +136,7 @@ public class DriveApiClientRedux
             return response;
         }
     }
+
 
     public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag, UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
@@ -178,20 +194,33 @@ public class DriveApiClientRedux
         bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
+        var storageOptions = new StorageOptions()
+        {
+            Drive = targetDrive,
+        };
+
+        var transitOptions = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+
+        return await UploadNewEncryptedMetadata(fileMetadata, storageOptions, transitOptions, fileSystemType);
+    }
+
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
+        UploadFileMetadata fileMetadata,
+        StorageOptions storageOptions,
+        TransitOptions transitOptions,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = targetDrive,
-            },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            StorageOptions = storageOptions,
+            TransitOptions = transitOptions
         };
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -228,7 +257,9 @@ public class DriveApiClientRedux
     /// <summary>
     /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult> uploadedThumbnails,
+    public async Task<(ApiResponse<UploadResult> response,
+            string encryptedJsonContent64,
+            List<EncryptedAttachmentUploadResult> uploadedThumbnails,
             List<EncryptedAttachmentUploadResult> uploadedPayloads)>
         UploadNewEncryptedFile(TargetDrive targetDrive,
             UploadFileMetadata fileMetadata,

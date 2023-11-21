@@ -38,16 +38,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             _scaffold.RunAfterAnyTests();
         }
         
-        [Test]
-        [Ignore("TODO: reconcile with multi-paylod changes")]
-        public Task CanAddAndUpdateThumbnailToExistingFile()
-        {
-           
-            
-            return Task.CompletedTask;
-
-        }
-
         // 
 
         private async Task<(AppApiClient appApiClient, TargetDrive drive)> CreateApp(TestIdentity identity)

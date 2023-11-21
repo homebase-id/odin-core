@@ -11,6 +11,8 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Util;
@@ -308,6 +310,25 @@ namespace Odin.Hosting.Tests
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
             }
+        }
+
+        /// <summary>
+        /// Total transitionary hack method until i refactor the API clients 
+        /// </summary>
+        public static UploadManifestPayloadDescriptor CreatePayloadDescriptorFrom(string payloadKey, params ThumbnailDescriptor[] thumbs)
+        {
+            var thumbList = thumbs?.Select(t => new UploadedManifestThumbnailDescriptor()
+            {
+                ThumbnailKey = t.GetFilename(WebScaffold.PAYLOAD_KEY),
+                PixelWidth = t.PixelWidth,
+                PixelHeight = t.PixelHeight
+            });
+            
+            return new()
+            {
+                PayloadKey = payloadKey,
+                Thumbnails = thumbList
+            };
         }
     }
 }

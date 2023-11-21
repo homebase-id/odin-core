@@ -21,7 +21,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.ApiClient;
 
 public class UniversalDriveApiClient
 {

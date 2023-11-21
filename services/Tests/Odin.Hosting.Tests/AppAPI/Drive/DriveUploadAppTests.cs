@@ -52,6 +52,16 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 StorageOptions = new StorageOptions()
                 {
                     Drive = testContext.TargetDrive
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        new ()
+                        {
+                            PayloadKey = WebScaffold.PAYLOAD_KEY
+                        }
+                    }
                 }
             };
 
@@ -82,8 +92,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext);
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
+                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await svc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));

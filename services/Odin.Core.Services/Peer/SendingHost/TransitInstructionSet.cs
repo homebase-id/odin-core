@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Core.Services.Peer.SendingHost
 {
@@ -33,5 +34,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         /// Optionally specified if you are overwriting a remote file
         /// </summary>
         public Guid? GlobalTransitFileId { get; set; }
+
+        public UploadManifest Manifest { get; set; }
     }
 }
