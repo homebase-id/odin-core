@@ -391,7 +391,7 @@ public class DriveApiClient
         }
     }
 
-    public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file, string key)
+    public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file, string key, Guid versionTag)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -401,7 +401,8 @@ public class DriveApiClient
             var apiResponse = await svc.DeletePayload(new DeletePayloadRequest()
             {
                 File = file,
-                Key = key
+                Key = key,
+                VersionTag = versionTag
             });
 
             return apiResponse.Content;

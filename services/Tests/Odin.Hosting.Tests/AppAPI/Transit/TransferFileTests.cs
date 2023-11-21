@@ -104,6 +104,16 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                     Recipients = new List<string>() { recipient.OdinId },
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
                     UseGlobalTransitId = true
+                },
+                Manifest = new UploadManifest()
+                {
+                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                     {
+                         new UploadManifestPayloadDescriptor()
+                         {
+                             PayloadKey = WebScaffold.PAYLOAD_KEY
+                         }
+                     }
                 }
             };
 

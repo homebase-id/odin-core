@@ -10,7 +10,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
-namespace Odin.Hosting.Tests._Universal
+namespace Odin.Hosting.Tests._Universal.ApiClient
 {
     public interface IUniversalDriveHttpClientApi
     {

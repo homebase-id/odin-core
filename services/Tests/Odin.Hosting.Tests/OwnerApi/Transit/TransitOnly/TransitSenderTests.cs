@@ -15,6 +15,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
 {
@@ -651,18 +652,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 AccessControlList = AccessControlList.Connected
             };
 
-            UploadResult uploadResult;
+            ApiResponse<UploadResult> uploadResponse;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64, _) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                (uploadResponse, encryptedJsonContent64) =
+                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
             }
             else
             {
-                uploadResult = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
             }
 
-            return (uploadResult, encryptedJsonContent64);
+            return (uploadResponse.Content, encryptedJsonContent64);
         }
 
         private async Task DeleteScenario(OwnerApiClient senderOwnerClient, OwnerApiClient recipientOwnerClient)

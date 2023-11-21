@@ -52,12 +52,24 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            const string payloadKey = WebScaffold.PAYLOAD_KEY;
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
                     Drive = testContext.TargetDrive
+                },
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        new UploadManifestPayloadDescriptor()
+                        {
+                            PayloadKey = payloadKey
+                        }
+                    }
                 }
             };
 
@@ -86,7 +98,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
-            const string payloadKey = WebScaffold.PAYLOAD_KEY;
             var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext);
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
