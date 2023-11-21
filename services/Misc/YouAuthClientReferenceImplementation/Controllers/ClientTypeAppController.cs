@@ -58,7 +58,7 @@ public class ClientTypeAppController : BaseController
             var dqr = new DriveQueryProvider();
             var response = await dqr.QueryBatch(
                 LoggedInIdentity,
-                new Cookie("BX0900", Cat),
+                Cat,
                 SharedSecret,
                 WhateverDriveAlias,
                 WhateverDriveType);

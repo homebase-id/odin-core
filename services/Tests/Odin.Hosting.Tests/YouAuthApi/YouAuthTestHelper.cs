@@ -123,11 +123,32 @@ public static class YouAuthTestHelper
     {
         return await DecryptContent<T>(response, Base64.Decode(sharedSecretBase64));
     }
-    
+
     public static async Task<T> DecryptContent<T>(HttpResponseMessage response, byte[] sharedSecret)
     {
         var cipherJson = await response.Content.ReadAsStringAsync();
-        var payload = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(cipherJson);
+        return DecryptContent<T>(cipherJson, sharedSecret);
+    }
+
+    public static T DecryptContent<T>(string content, string sharedSecretBase64)
+    {
+        return DecryptContent<T>(content, Base64.Decode(sharedSecretBase64));
+    }
+
+    public static T DecryptContent<T>(string content, byte[] sharedSecret)
+    {
+        var plainText = DecryptContent(content, sharedSecret);
+        return Deserialize<T>(plainText);
+    }
+
+    public static string DecryptContent(string content, string sharedSecretBase64)
+    {
+        return DecryptContent(content, Base64.Decode(sharedSecretBase64));
+    }
+
+    public static string DecryptContent(string content, byte[] sharedSecret)
+    {
+        var payload = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(content);
         if (payload == null)
         {
             throw new Exception("Error deserializing");
@@ -138,9 +159,7 @@ public static class YouAuthTestHelper
         var plainBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
         var plainJson = System.Text.Encoding.UTF8.GetString(plainBytes);
 
-        var result = Deserialize<T>(plainJson);
-
-        return result;
+        return plainJson;
     }
 
 

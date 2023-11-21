@@ -8,14 +8,15 @@ public class DriveQueryProvider
 {
     public async Task<QueryBatchResponse> QueryBatch(
         string domain,
-        Cookie cat,
+        string clientAuthToken,
         string sharedSecret,
         string driveAlias,
         string driveType)
     {
+        var catCookie = new Cookie("BX0900", clientAuthToken);
         var client = new HttpClient();
         client.DefaultRequestHeaders.Add("X-ODIN-FILE-SYSTEM-TYPE", "Standard");
-        client.DefaultRequestHeaders.Add("Cookie", cat.ToString());
+        client.DefaultRequestHeaders.Add("Cookie", catCookie.ToString());
 
         var qs = HttpUtility.ParseQueryString(string.Empty);
         qs["maxRecords"] = "1000";
