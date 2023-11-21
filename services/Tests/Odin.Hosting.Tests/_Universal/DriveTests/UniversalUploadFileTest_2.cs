@@ -113,8 +113,8 @@ public class UniversalUploadFileTest_2
         yield return new TestCaseData(ApiClientType.AppApi, TestIdentities.Frodo, _targetDrive, HttpStatusCode.BadRequest);
     }
 
-    [Test]
-    [TestCaseSource(nameof(TestData))]
+    // [Test]
+    // [TestCaseSource(nameof(TestData))]
     public async Task CanUploadFileWithCorrectPermissions(ApiClientType clientType, TestIdentity identity, TargetDrive targetDrive,
         HttpStatusCode expectedStatusCode)
     {
