@@ -33,11 +33,13 @@ public abstract class OdinControllerBase : ControllerBase
         };
     }
 
-    protected void AddGuestApiCacheHeader()
+    protected void AddGuestApiCacheHeader(int? minutes = null)
     {
         if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme || OdinContext.AuthContext == YouAuthConstants.AppSchemeName)
         {
-            this.Response.Headers.TryAdd("Cache-Control", "max-age=31536000");
+            var seconds = minutes == null ? TimeSpan.FromDays(365).TotalSeconds : TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
+            
+            this.Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
         }
     }
 

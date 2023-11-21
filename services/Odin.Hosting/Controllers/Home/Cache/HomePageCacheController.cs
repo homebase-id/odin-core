@@ -62,8 +62,9 @@ public class HomePageCacheController : OdinControllerBase
 
     private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request)
     {
-        // No caching on query batch
-        // AddGuestApiCacheHeader();
+        // tell the browser to check in ever 1 minutes
+        const int minutes = 1;
+        AddGuestApiCacheHeader(minutes);
         return await _cachingService.GetResult(request);
     }
 }

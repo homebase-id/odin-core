@@ -110,6 +110,7 @@ public class UniversalUploadFileTest_2
     {
         yield return new TestCaseData(ApiClientType.OwnerApi, TestIdentities.Pippin, _targetDrive, HttpStatusCode.OK);
         yield return new TestCaseData(ApiClientType.AppApi, TestIdentities.Pippin, _targetDrive, HttpStatusCode.OK);
+        yield return new TestCaseData(ApiClientType.AppApi, TestIdentities.Frodo, _targetDrive, HttpStatusCode.BadRequest);
     }
 
     [Test]
