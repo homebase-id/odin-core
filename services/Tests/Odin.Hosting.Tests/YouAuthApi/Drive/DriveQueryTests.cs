@@ -98,7 +98,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 },
                 RequiredSecurityGroup = SecurityGroupType.Connected
             };
-            
+
             var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
             var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
             var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl, "payload 2");
@@ -190,13 +190,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
+            var (uploadResult, uploadFileMetadata) = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
-                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadResult.File.TargetDrive,
                     TagsMatchAtLeastOne = new List<Guid>() { tag }
                 };
 
@@ -228,13 +228,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
+            var (uploadResult, uploadFileMetadata) = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
-                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadResult.File.TargetDrive,
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -268,9 +268,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 Assert.NotNull(firstResult.FileMetadata.AppData.Content);
                 Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
-                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.UploadFileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.UploadFileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.UploadFileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -283,13 +283,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
+            var (uploadResult,uploadFileMetadata) = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
-                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadResult.File.TargetDrive,
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -316,7 +316,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             }
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
+        private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata )> UploadFile(OdinId identity, Guid tag,
+            SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
 
@@ -338,17 +339,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 }
             };
 
-            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
-            {
-                EncryptPayload = false,
-                PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
-                DisconnectIdentitiesAfterTransfer = false,
-                DriveAllowAnonymousReads = true
-            };
-
-            return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
+            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+            var td = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "a drive", "", true);
+            var response = await client.DriveRedux.UploadNewMetadata(td.TargetDriveInfo, uploadFileMetadata);
+            var uploadResult = response.Content;
+            return (uploadResult, uploadFileMetadata);
         }
 
         private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag,
@@ -381,6 +376,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 AccessControlList = acl
             };
 
+            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+            client.DriveRedux.UploadNewMetadata(drive, )
             return await _scaffold.OldOwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
         }
     }
