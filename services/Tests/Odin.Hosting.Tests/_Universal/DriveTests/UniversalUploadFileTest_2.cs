@@ -118,7 +118,7 @@ public class UniversalUploadFileTest_2
         HttpStatusCode expectedStatusCode)
     {
         var factory = GetFactory(clientType, identity.OdinId);
-        var uniDrive = new UniversalDriveApiClient(identity, factory);
+        var uniDrive = new UniversalDriveApiClient(identity.OdinId, factory);
 
         // upload metadata
         var uploadedFileMetadata = new UploadFileMetadata()

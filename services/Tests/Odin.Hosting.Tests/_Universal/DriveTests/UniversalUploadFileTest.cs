@@ -94,7 +94,7 @@ public class UniversalUploadFileTest
         var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         var factory = GetFactory(clientType, key);
-        var uniDrive = new UniversalDriveApiClient(_identity, factory);
+        var uniDrive = new UniversalDriveApiClient(_identity.OdinId, factory);
 
         // upload metadata
         var uploadedFileMetadata = new UploadFileMetadata()
@@ -205,7 +205,7 @@ public class UniversalUploadFileTest
     public async Task GetPayloadUsingValidPayloadKeyButPayloadDoesNotExistReturns404(ApiClientType clientType, TestIdentity identity, TargetDrive targetDrive)
     {
         var factory = GetFactory(clientType, identity.OdinId);
-        var uniDrive = new UniversalDriveApiClient(_identity, factory);
+        var uniDrive = new UniversalDriveApiClient(_identity.OdinId, factory);
 
         // upload metadata
         var uploadedFileMetadata = new UploadFileMetadata()

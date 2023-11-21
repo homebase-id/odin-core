@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Configuration;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -9,6 +10,8 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
+using Odin.Hosting.Tests._Universal;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Refit;
 using Guid = System.Guid;
@@ -40,18 +43,23 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
+            // var client = new UniversalDriveApiClient(identity.OdinId, new GuestApiClientFactory());
+            // var getHeaderResponse = await client.GetFileHeader(
+            //     new ExternalFileIdentifier()
+            //     {
+            //         TargetDrive = uploadContext.UploadResult.File.TargetDrive,
+            //         FileId = uploadContext.UploadResult.File.FileId
+            //     });
+            
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
-            {
-                var svc = RestService.For<IRefitGuestDriveQuery>(client);
-
-                var getHeaderResponse = await svc.GetFileHeader(
-                    new ExternalFileIdentifier()
-                    {
-                        TargetDrive = uploadContext.UploadedFile.TargetDrive,
-                        FileId = uploadContext.UploadedFile.FileId
-                    });
-                Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
-            }
+            var svc = RestService.For<IRefitGuestDriveQuery>(client);
+            var getHeaderResponse = await svc.GetFileHeader(
+                new ExternalFileIdentifier()
+                {
+                    TargetDrive = uploadContext.UploadResult.File.TargetDrive,
+                    FileId = uploadContext.UploadResult.File.FileId
+                });
+            Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
         }
 
         [Test]
@@ -60,27 +68,68 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
+            
+            // var client = new UniversalDriveApiClient(identity.OdinId, new GuestApiClientFactory());
+            // var getPayloadStreamResponse = await client.GetPayload(
+            //     new ExternalFileIdentifier()
+            //     {
+            //         TargetDrive = uploadContext.UploadResult.File.TargetDrive,
+            //         FileId = uploadContext.UploadResult.File.FileId
+            //     },
+            //     WebScaffold.PAYLOAD_KEY);
+            //
+            // Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
-            {
-                var svc = RestService.For<IRefitGuestDriveQuery>(client);
-
-                var getPayloadStreamResponse = await svc.GetPayload(
-                    new GetPayloadRequest()
+            var svc = RestService.For<IRefitGuestDriveQuery>(client);
+            
+            var getPayloadStreamResponse = await svc.GetPayload(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
                     {
-                        File = new ExternalFileIdentifier()
-                        {
-                            TargetDrive = uploadContext.UploadedFile.TargetDrive,
-                            FileId = uploadContext.UploadedFile.FileId
-                        }, 
-                        Key = WebScaffold.PAYLOAD_KEY
-                    });
-                Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
-                Assert.IsNull(getPayloadStreamResponse.Content);
-            }
+                        TargetDrive = uploadContext.UploadResult.File.TargetDrive,
+                        FileId = uploadContext.UploadResult.File.FileId
+                    },
+                    Key = WebScaffold.PAYLOAD_KEY
+                });
+
+            Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
+            Assert.IsNull(getPayloadStreamResponse.Content);
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
+        private async Task<(UploadResult UploadResult, UploadFileMetadata UploadedFileMetadata)> UploadFile(OdinId identity, Guid tag,
+            SecurityGroupType requiredSecurityGroup)
+        {
+            List<Guid> tags = new List<Guid>() { tag };
+
+            var uploadFileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = false,
+                IsEncrypted = false,
+                AppData = new()
+                {
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    Tags = tags
+                },
+                AccessControlList = new AccessControlList()
+                {
+                    RequiredSecurityGroup = requiredSecurityGroup
+                }
+            };
+
+            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+            var td = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "a drive", "", true);
+            var response = await client.DriveRedux.UploadNewMetadata(td.TargetDriveInfo, uploadFileMetadata);
+            var uploadResult = response.Content;
+            return (uploadResult, uploadFileMetadata);
+        }
+
+
+        private async Task<UploadTestUtilsContext> UploadFilexx(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
 

@@ -15,6 +15,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient
     public interface IUniversalDriveHttpClientApi
     {
         private const string RootStorageEndpoint = "/drive/files";
+        private const string RootQueryEndpoint = "/query";
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
@@ -35,13 +36,13 @@ namespace Odin.Hosting.Tests._Universal.ApiClient
         Task<ApiResponse<DeletePayloadResult>> DeletePayload([Body] DeletePayloadRequest request);
 
         [Post(RootStorageEndpoint + "/header")]
-        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost([Body]ExternalFileIdentifier file);
 
         [Post(RootStorageEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadPost(GetPayloadRequest request);
+        Task<ApiResponse<HttpContent>> GetPayloadPost([Body]GetPayloadRequest request);
 
         [Post(RootStorageEndpoint + "/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnailPost(GetThumbnailRequest request);
+        Task<ApiResponse<HttpContent>> GetThumbnailPost([Body]GetThumbnailRequest request);
 
         [Get(RootStorageEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail(Guid fileId, Guid alias, Guid type, int width, int height);
@@ -52,13 +53,13 @@ namespace Odin.Hosting.Tests._Universal.ApiClient
         [Get(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
-        [Post(RootStorageEndpoint + "/modified")]
-        Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
+        [Post(RootQueryEndpoint + "/modified")]
+        Task<ApiResponse<QueryModifiedResult>> GetModified([Body]QueryModifiedRequest request);
 
-        [Post(RootStorageEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
+        [Post(RootQueryEndpoint + "/batch")]
+        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body]QueryBatchRequest request);
 
-        [Post(RootStorageEndpoint + "/batchcollection")]
-        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
+        [Post(RootQueryEndpoint + "/batchcollection")]
+        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body]QueryBatchCollectionRequest request);
     }
 }

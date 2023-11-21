@@ -183,6 +183,12 @@ public static class DriveFileUtility
 
     public static void AssertValidPayloadKey(string payloadKey)
     {
+        if (null == payloadKey)
+        {
+            throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
+                OdinClientErrorCode.InvalidPayloadNameOrKey);
+        }
+
         bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
         if (!isMatch)
         {

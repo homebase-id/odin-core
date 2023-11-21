@@ -4,15 +4,15 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
+using Odin.Hosting.Tests._Universal;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
@@ -44,39 +44,38 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             Guid tag = Guid.NewGuid();
 
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
+
+            await _scaffold.CreateOwnerApiClient(identity).Drive.CreateDrive(targetDrive, "test drive", "", allowAnonymousReads: true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            var qp = new FileQueryParams()
             {
-                var qp = new FileQueryParams()
-                {
-                    TargetDrive = securedFileUploadContext.UploadedFile.TargetDrive,
-                    TagsMatchAtLeastOne = new List<Guid>() { tag }
-                };
+                TargetDrive = targetDrive,
+                TagsMatchAtLeastOne = new List<Guid>() { tag }
+            };
 
-                var resultOptions = new QueryBatchResultOptionsRequest()
-                {
-                    MaxRecords = 10,
-                    IncludeMetadataHeader = false
-                };
+            var resultOptions = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = 10,
+                IncludeMetadataHeader = false
+            };
 
-                var svc = RestService.For<IRefitGuestDriveQuery>(client);
-                var request = new QueryBatchRequest()
-                {
-                    QueryParams = qp,
-                    ResultOptionsRequest = resultOptions
-                };
+            var svc = RestService.For<IRefitGuestDriveQuery>(client);
+            var request = new QueryBatchRequest()
+            {
+                QueryParams = qp,
+                ResultOptionsRequest = resultOptions
+            };
 
-                var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                var batch = response.Content;
+            var response = await svc.GetBatch(request);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            var batch = response.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
-            }
+            Assert.IsNotNull(batch);
+            Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+            Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
         }
 
         [Test]
@@ -99,39 +98,39 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 RequiredSecurityGroup = SecurityGroupType.Connected
             };
 
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
-            var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl, "payload 2");
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
+            var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl);
 
-            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            var qp = new FileQueryParams()
             {
-                var qp = new FileQueryParams()
-                {
-                    TargetDrive = targetDrive,
-                    TagsMatchAtLeastOne = new List<Guid>() { tag }
-                };
+                TargetDrive = targetDrive,
+                TagsMatchAtLeastOne = new List<Guid>() { tag }
+            };
 
-                var resultOptions = new QueryBatchResultOptionsRequest()
-                {
-                    MaxRecords = 10,
-                    IncludeMetadataHeader = false
-                };
+            var resultOptions = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = 10,
+                IncludeMetadataHeader = false
+            };
 
-                var svc = RestService.For<IRefitGuestDriveQuery>(client);
-                var request = new QueryBatchRequest()
-                {
-                    QueryParams = qp,
-                    ResultOptionsRequest = resultOptions
-                };
+            var request = new QueryBatchRequest()
+            {
+                QueryParams = qp,
+                ResultOptionsRequest = resultOptions
+            };
 
-                var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                var batch = response.Content;
+            // var anonymousApiClient = new UniversalDriveApiClient(identity.OdinId, new GuestApiClientFactory());
+            // var response = await anonymousApiClient.QueryBatch(request);
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
+            var svc = RestService.For<IRefitGuestDriveQuery>(client);
+            var response = await svc.GetBatch(request);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            var batch = response.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
-            }
+            Assert.IsNotNull(batch);
+            Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+            Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
         }
 
         [Test]
@@ -139,17 +138,24 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous, "another payload");
+
+            var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+            await ownerApiClient.Drive.CreateDrive(targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
 
             //overwrite them to ensure the updated timestamp is set
-            securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag,
-                AccessControlList.Connected, "payload", versionTag: securedFileUploadContext.UploadResult.NewVersionTag);
-            anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag,
-                AccessControlList.Anonymous, "payload", versionTag: anonymousFileUploadContext.UploadResult.NewVersionTag);
+            await this.UploadFile2(identity.OdinId, targetDrive,
+                overwriteFileId: securedFileUploadContext.uploadResult.File.FileId,
+                tag,
+                AccessControlList.Connected, versionTag: securedFileUploadContext.uploadResult.NewVersionTag);
+
+            anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive,
+                overwriteFileId: anonymousFileUploadContext.uploadResult.File.FileId,
+                tag,
+                AccessControlList.Anonymous, versionTag: anonymousFileUploadContext.uploadResult.NewVersionTag);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
@@ -179,9 +185,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 var batch = getModifiedResponse.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.True(batch.SearchResults.Count() == 1,
-                    $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.uploadResult.File.FileId);
             }
         }
 
@@ -283,7 +288,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var (uploadResult,uploadFileMetadata) = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
+            var (uploadResult, uploadFileMetadata) = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
@@ -316,7 +321,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             }
         }
 
-        private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata )> UploadFile(OdinId identity, Guid tag,
+        private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata)> UploadFile(OdinId identity, Guid tag,
             SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
@@ -346,20 +351,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             return (uploadResult, uploadFileMetadata);
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag,
-            AccessControlList acl, string payload, Guid? versionTag = null)
+        private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedFileMetadata)> UploadFile2(OdinId identity,
+            TargetDrive drive,
+            Guid? overwriteFileId,
+            Guid tag,
+            AccessControlList acl,
+            Guid? versionTag = null)
         {
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = ByteArrayUtil.GetRndByteArray(16),
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = drive,
-                    OverwriteFileId = overwriteFileId
-                },
-                TransitOptions = null
-            };
-
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
@@ -377,8 +375,25 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             };
 
             var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
-            // client.DriveRedux.UploadNewMetadata(drive, )
-            return await _scaffold.OldOwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
+
+            if (overwriteFileId.HasValue)
+            {
+                var targetFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = drive,
+                    FileId = overwriteFileId.GetValueOrDefault()
+                };
+                
+                var response = await client.DriveRedux.UpdateExistingMetadata(targetFile, versionTag.GetValueOrDefault(), uploadFileMetadata);
+                var uploadResult = response.Content;
+                return (uploadResult, uploadFileMetadata);
+            }
+            else
+            {
+                var response = await client.DriveRedux.UploadNewMetadata(drive, uploadFileMetadata);
+                var uploadResult = response.Content;
+                return (uploadResult, uploadFileMetadata);
+            }
         }
     }
 }
