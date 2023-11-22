@@ -1,14 +1,17 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Drives;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
 
-public class DeleteFileRequest
+public class DeleteFileByGroupIdRequest
 {
     /// <summary>
-    /// The file to be deleted
+    /// The groupId of all files to be deleted
     /// </summary>
-    public ExternalFileIdentifier File { get; set; }
+    public Guid GroupId { get; set; }
+
+    public TargetDrive TargetDrive { get; set; }
 
     /// <summary>
     /// List of recipients to receive the delete-file notification

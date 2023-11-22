@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -13,7 +12,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
-namespace Odin.Hosting.Tests.DriveApi.DirectDrive;
+namespace Odin.Hosting.Tests._Redux.DriveApi.DirectDrive;
 
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features

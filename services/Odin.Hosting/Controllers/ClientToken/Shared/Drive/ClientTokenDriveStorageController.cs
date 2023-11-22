@@ -115,7 +115,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [HttpGet("files/thumb")]
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
-            [FromQuery] Guid type, 
+            [FromQuery] Guid type,
             [FromQuery] int width, [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
@@ -145,6 +145,20 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
             return await base.DeleteFile(request);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("deletefileidbatch")]
+        public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
+        {
+            return await base.DeleteFileIdBatch(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("deletegroupidbatch")]
+        public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
+        {
+            return await base.DeleteFilesByGroupIdBatch(request);
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]

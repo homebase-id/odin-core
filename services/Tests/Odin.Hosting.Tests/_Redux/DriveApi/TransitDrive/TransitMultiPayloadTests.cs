@@ -7,7 +7,7 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Hosting.Tests.DriveApi.TransitDrive;
+namespace Odin.Hosting.Tests._Redux.DriveApi.TransitDrive;
 
 public class TransitMultiPayloadTests
 {

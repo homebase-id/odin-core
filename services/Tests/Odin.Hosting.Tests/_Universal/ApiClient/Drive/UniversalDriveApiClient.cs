@@ -460,7 +460,7 @@ public class UniversalDriveApiClient
         }
     }
 
-    public async Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
+    public async Task<ApiResponse<DeleteFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);

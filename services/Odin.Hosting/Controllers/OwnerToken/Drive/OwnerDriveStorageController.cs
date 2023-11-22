@@ -149,7 +149,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
-
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("deletefileidbatch")]
+        public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
+        {
+            return await base.DeleteFileIdBatch(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("deletegroupidbatch")]
+        public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
+        {
+            return await base.DeleteFilesByGroupIdBatch(request);
+        }
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
@@ -177,7 +191,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
+            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
     }

@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Hosting.Tests.DriveApi
+namespace Odin.Hosting.Tests._Redux.DriveApi
 {
     public class DriveTypeTests
     {
