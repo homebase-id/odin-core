@@ -1,3 +1,5 @@
+using Odin.Core.Exceptions;
+
 namespace Odin.Core.Time;
 
 public class UnixTimeUtcRange
@@ -8,7 +10,9 @@ public class UnixTimeUtcRange
     public UnixTimeUtcRange(UnixTimeUtc start, UnixTimeUtc end)
     {
         if (start > end)
-            throw new System.IO.InvalidDataException("Start date must be less than end date");
+        {
+            throw new OdinSystemException("Start date must be less than end date");
+        }
 
         Start = start;
         End = end;
@@ -23,8 +27,7 @@ public class UnixTimeUtcRange
     {
         if (!IsValid())
         {
-            //TODO: change to Odin data exception
-            throw new System.IO.InvalidDataException("Start date must be less than end date");
+            throw new OdinSystemException("Start date must be less than end date");
         }
     }
 }

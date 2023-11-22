@@ -27,6 +27,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests;
 public abstract class YouAuthIntegrationTestBase
 {
     protected WebScaffold Scaffold = null!;
+    protected IServiceProvider Services => Scaffold.Services;
 
     [SetUp]
     public void Init()
