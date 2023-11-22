@@ -10,16 +10,12 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient
+namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
     public interface IUniversalDriveHttpClientApi
     {
         private const string RootStorageEndpoint = "/drive/files";
         private const string RootQueryEndpoint = "/query";
-
-        [Multipart]
-        [Post(RootStorageEndpoint + "/upload")]
-        Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]

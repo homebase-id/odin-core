@@ -28,9 +28,15 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 public class TestPayloadDefinition
 {
     public string Key { get; set; }
+  
     public string ContentType { get; set; }
+  
     public byte[] Content { get; set; }
 
+    public string DescriptorContent { get; set; }
+
+    public ThumbnailContent PreviewThumbnail { get; set; }
+    
     public List<ThumbnailContent> Thumbnails { get; set; }
 
     public UploadManifestPayloadDescriptor ToPayloadDescriptor()
@@ -45,9 +51,12 @@ public class TestPayloadDefinition
         return new UploadManifestPayloadDescriptor()
         {
             PayloadKey = this.Key,
+            DescriptorContent = this.DescriptorContent,
+            PreviewThumbnail = this.PreviewThumbnail,
             Thumbnails = t
         };
     }
+
 }
 
 public class EncryptedAttachmentUploadResult

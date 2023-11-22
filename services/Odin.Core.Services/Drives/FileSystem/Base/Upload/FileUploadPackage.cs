@@ -67,7 +67,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),
                     BytesWritten = p.BytesWritten,
-                    DescriptorContent = p.DescriptorContent
+                    DescriptorContent = p.DescriptorContent,
+                    PreviewThumbnail = p.PreviewThumbnail
                 };
             });
 

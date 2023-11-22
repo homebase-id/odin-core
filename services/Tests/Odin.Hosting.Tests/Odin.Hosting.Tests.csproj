@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <Folder Include="Extensions\" />
+    <Folder Include="_Universal\ApiClient\PeerDirect\" />
   </ItemGroup>
 
 

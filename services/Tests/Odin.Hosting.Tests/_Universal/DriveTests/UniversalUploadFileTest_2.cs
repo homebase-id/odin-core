@@ -13,6 +13,8 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
@@ -100,7 +102,7 @@ public class UniversalUploadFileTest_2
                 throw new Exception($"Invalid test case.  Key: {key}");
 
             case ApiClientType.GuestApi:
-            case ApiClientType.TransitSenderApi:
+            case ApiClientType.PeerDirectApi:
             default:
                 throw new ArgumentOutOfRangeException(nameof(clientType), clientType, null);
         }

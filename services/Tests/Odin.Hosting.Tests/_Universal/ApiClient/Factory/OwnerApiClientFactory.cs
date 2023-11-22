@@ -7,7 +7,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 public class OwnerApiClientFactory : IApiClientFactory
 {

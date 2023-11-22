@@ -3,7 +3,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 public interface IApiClientFactory
 {

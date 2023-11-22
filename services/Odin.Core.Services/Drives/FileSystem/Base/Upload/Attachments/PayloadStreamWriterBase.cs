@@ -80,7 +80,8 @@ public abstract class PayloadStreamWriterBase
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
-                DescriptorContent = descriptor.DescriptorContent
+                DescriptorContent = descriptor.DescriptorContent,
+                PreviewThumbnail = descriptor.PreviewThumbnail
             });
         }
     }
