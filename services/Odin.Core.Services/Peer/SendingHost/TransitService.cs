@@ -148,7 +148,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             }
         }
 
-        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
+        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
             SendFileOptions sendFileOptions, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();

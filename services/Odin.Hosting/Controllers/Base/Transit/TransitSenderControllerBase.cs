@@ -43,7 +43,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var driveUploadService = this.GetFileSystemResolver().ResolveFileSystemWriter();
+            var driveUploadService = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
 
             // Note: comparing this to a drive upload - 
             // We receive TransitInstructionSet from the client then
@@ -116,7 +116,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             //TODO: send the delete request for request.File
 
             //send the deleted file
-            var map = await _transitService.SendDeleteLinkedFileRequest(request.GlobalTransitIdFileIdentifier,
+            var map = await _transitService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
                 new SendFileOptions()
                 {
                     FileSystemType = request.FileSystemType,

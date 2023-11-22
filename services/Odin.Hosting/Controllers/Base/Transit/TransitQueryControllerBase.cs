@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> GetBatchCollection([FromBody] TransitQueryBatchCollectionRequest request)
         {
-            var result = await _transitQueryService.GetBatchCollection((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
+            var result = await _transitQueryService.GetBatchCollection((OdinId)request.OdinId, request, GetHttpFileSystemResolver().GetFileSystemType());
             return result;
         }
 
@@ -41,7 +41,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("modified")]
         public async Task<QueryModifiedResponse> GetModified([FromBody] TransitQueryModifiedRequest request)
         {
-            var result = await _transitQueryService.GetModified((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
+            var result = await _transitQueryService.GetModified((OdinId)request.OdinId, request, GetHttpFileSystemResolver().GetFileSystemType());
             return QueryModifiedResponse.FromResult(result);
         }
 
@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {
-            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
+            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request, GetHttpFileSystemResolver().GetFileSystemType());
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -65,9 +65,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
         {
-            var fst = base.GetFileSystemResolver().GetFileSystemType();
+            var fst = base.GetHttpFileSystemResolver().GetFileSystemType();
             SharedSecretEncryptedFileHeader result =
-                await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
+                await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetHttpFileSystemResolver().GetFileSystemType());
 
             if (null == result)
             {
@@ -113,7 +113,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitGetPayloadRequest request)
         {
             var (encryptedKeyHeader, isEncrypted, payloadStream) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId,
-                request.File, request.Key, request.Chunk, GetFileSystemResolver().GetFileSystemType());
+                request.File, request.Key, request.Chunk, GetHttpFileSystemResolver().GetFileSystemType());
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
@@ -159,7 +159,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
                 await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height,
                     request.PayloadKey,
-                    GetFileSystemResolver().GetFileSystemType());
+                    GetHttpFileSystemResolver().GetFileSystemType());
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
@@ -193,7 +193,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetFileSystemResolver().GetFileSystemType());
+            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType());
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {
@@ -212,7 +212,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            var fst = GetFileSystemResolver().GetFileSystemType();
+            var fst = GetHttpFileSystemResolver().GetFileSystemType();
             var file = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = globalTransitId,
@@ -240,7 +240,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            var fst = GetFileSystemResolver().GetFileSystemType();
+            var fst = GetHttpFileSystemResolver().GetFileSystemType();
             var file = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = globalTransitId,
@@ -271,7 +271,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             [FromQuery] bool directMatchOnly,
             [FromQuery] string payloadKey)
         {
-            var fst = GetFileSystemResolver().GetFileSystemType();
+            var fst = GetHttpFileSystemResolver().GetFileSystemType();
             var file = new GlobalTransitIdFileIdentifier()
             {
                 GlobalTransitId = globalTransitId,

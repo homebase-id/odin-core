@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.Base;
 public abstract class OdinControllerBase : ControllerBase
 {
     /// <summary />
-    protected FileSystemHttpRequestResolver GetFileSystemResolver()
+    protected FileSystemHttpRequestResolver GetHttpFileSystemResolver()
     {
         return this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
     }

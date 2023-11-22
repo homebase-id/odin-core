@@ -3,7 +3,7 @@ using Odin.Core;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
-namespace Odin.Hosting.Tests.DriveApi.DirectDrive;
+namespace Odin.Hosting.Tests._Redux.DriveApi.DirectDrive;
 
 public static class TestPayloadDefinitions
 {

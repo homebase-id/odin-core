@@ -530,7 +530,37 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
+    public async Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdList(DeleteFilesByGroupIdBatchRequest batch,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var apiResponse = await svc.DeleteFilesByGroupIdBatch(batch);
+
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<DeleteFileIdBatchResult>> DeleteFileList(List<DeleteFileRequest> requests,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var batch = new DeleteFileIdBatchRequest()
+        {
+            Requests = requests
+        };
+
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var apiResponse = await svc.DeleteFileIdBatch(batch);
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<DeleteFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);

@@ -1,8 +1,9 @@
 using System.Collections.Generic;
+using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Apps;
+namespace Odin.Hosting.Controllers.Base.Drive;
 
-public class DeleteLinkedFileResult
+public class DeleteFileResult
 {
     public Dictionary<string, DeleteLinkedFileStatus> RecipientStatus { get; set; }
 
@@ -15,4 +16,11 @@ public class DeleteLinkedFileResult
     /// If true, the local file was successfully deleted
     /// </summary>
     public bool LocalFileDeleted { get; set; }
+
+    public ExternalFileIdentifier File { get; set; }
+}
+
+public class DeleteFileIdBatchResult
+{
+    public List<DeleteFileResult> Results { get; set; }
 }

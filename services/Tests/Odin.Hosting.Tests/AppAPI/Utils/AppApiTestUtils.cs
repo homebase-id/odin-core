@@ -435,7 +435,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
                 {
                     File = fileId,
-                    DeleteLinkedFiles = recipients2.Any(),
                     Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
                 });
 

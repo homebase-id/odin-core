@@ -35,8 +35,14 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
         
         [Post(RootStorageEndpoint + "/delete")]
-        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
+        Task<ApiResponse<DeleteFileResult>> DeleteFile([Body] DeleteFileRequest file);
         
+        [Post(RootStorageEndpoint + "/deletefileidbatch")]
+        Task<ApiResponse<DeleteFileIdBatchResult>> DeleteFileIdBatch([Body] DeleteFileIdBatchRequest request);
+
+        [Post(RootStorageEndpoint + "/deletegroupidbatch")]
+        Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdBatch([Body] DeleteFilesByGroupIdBatchRequest request);
+
         [Post(RootStorageEndpoint + "/deletepayload")]
         Task<ApiResponse<DeletePayloadResult>> DeletePayload([Body] DeletePayloadRequest request);
         

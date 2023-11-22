@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var driveUploadService = this.GetFileSystemResolver().ResolveFileSystemWriter();
+            var driveUploadService = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var writer = this.GetFileSystemResolver().ResolvePayloadStreamWriter();
+            var writer = this.GetHttpFileSystemResolver().ResolvePayloadStreamWriter();
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);

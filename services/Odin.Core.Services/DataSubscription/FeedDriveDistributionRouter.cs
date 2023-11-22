@@ -323,7 +323,7 @@ namespace Odin.Core.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _transitService.SendDeleteLinkedFileRequest(
+                var map = await _transitService.SendDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         TargetDrive = SystemDriveConstants.FeedDrive,

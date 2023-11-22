@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
@@ -16,6 +17,6 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files
         Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] streamdata);
 
         [Post(RootEndpoint + "/files/senddeleterequest")]
-        Task<ApiResponse<DeleteLinkedFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);
+        Task<ApiResponse<DeleteFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);
     }
 }

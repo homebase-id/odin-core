@@ -64,11 +64,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(QueryBatchCollectionRequest request);
 
         [Post(RootEndpoint + "/files/delete")]
-        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest request);
-        
-
-        [Post(RootEndpoint + "/files/deletepayload")]
-        Task<ApiResponse<DeleteAttachmentsResult>> DeletePayload([Body] DeletePayloadRequest request);
+        Task<ApiResponse<DeleteFileResult>> DeleteFile([Body] DeleteFileRequest request);
         
     }
 }

@@ -12,7 +12,7 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
 
-namespace Odin.Hosting.Tests.DriveApi.DirectDrive
+namespace Odin.Hosting.Tests._Redux.DriveApi.DirectDrive
 {
     public class DirectDriveQueryTests
     {

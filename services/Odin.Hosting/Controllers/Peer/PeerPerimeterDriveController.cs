@@ -270,7 +270,7 @@ namespace Odin.Hosting.Controllers.Peer
                 Type = file.TargetDrive.Type
             });
 
-            var queryService = GetFileSystemResolver().ResolveFileSystem().Query;
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
             return result;
         }
@@ -278,7 +278,7 @@ namespace Odin.Hosting.Controllers.Peer
         private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
-            var queryService = GetFileSystemResolver().ResolveFileSystem().Query;
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false);
             return result;
         }
@@ -286,7 +286,7 @@ namespace Odin.Hosting.Controllers.Peer
 
         private TransitPerimeterService GetPerimeterService()
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var fileSystem = base.GetHttpFileSystemResolver().ResolveFileSystem();
             return new TransitPerimeterService(_contextAccessor,
                 _driveManager,
                 fileSystem,
