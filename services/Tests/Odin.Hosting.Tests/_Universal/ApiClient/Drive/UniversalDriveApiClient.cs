@@ -18,11 +18,12 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
 
 public class UniversalDriveApiClient
 {

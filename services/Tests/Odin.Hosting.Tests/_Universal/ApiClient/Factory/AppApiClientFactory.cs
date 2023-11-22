@@ -9,7 +9,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 public class AppApiClientFactory : IApiClientFactory
 {

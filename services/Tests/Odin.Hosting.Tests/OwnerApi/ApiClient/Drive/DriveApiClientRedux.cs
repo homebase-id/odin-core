@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
@@ -28,8 +27,14 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 public class TestPayloadDefinition
 {
     public string Key { get; set; }
+
     public string ContentType { get; set; }
+
     public byte[] Content { get; set; }
+
+    public string DescriptorContent { get; set; }
+
+    public ThumbnailContent PreviewThumbnail { get; set; }
 
     public List<ThumbnailContent> Thumbnails { get; set; }
 
@@ -45,6 +50,8 @@ public class TestPayloadDefinition
         return new UploadManifestPayloadDescriptor()
         {
             PayloadKey = this.Key,
+            DescriptorContent = this.DescriptorContent,
+            PreviewThumbnail = this.PreviewThumbnail,
             Thumbnails = t
         };
     }

@@ -28,6 +28,8 @@ public class PayloadDescriptor
     /// Content describing this payload (in what ever format you want)
     /// </summary>
     public string DescriptorContent { get; set; }
+    
+    public ThumbnailContent PreviewThumbnail { get; set; }
 
     /// <summary>
     /// Set of thumbnails for this payload in addition to the Appdata.PreviewThumbnail

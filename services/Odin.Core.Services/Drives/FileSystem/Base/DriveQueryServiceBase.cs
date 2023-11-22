@@ -216,6 +216,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                         if (options.ExcludePreviewThumbnail)
                         {
                             header.FileMetadata.AppData.PreviewThumbnail = null;
+                            foreach (var pd in header.FileMetadata.Payloads)
+                            {
+                                pd.PreviewThumbnail = null;
+                            }
+                        }
+
+                        if (options.ExcludeServerMetaData)
+                        {
+                            header.ServerMetadata = null;
                         }
 
                         if (options.ExcludeServerMetaData)

@@ -3,9 +3,9 @@ using Odin.Core;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
-namespace Odin.Hosting.Tests.DriveApi.DirectDrive;
+namespace Odin.Hosting.Tests._Universal.DriveTests;
 
-public static class TestPayloadDefinitions
+public static class SamplePayloadDefinitions
 {
     public static TestPayloadDefinition PayloadDefinitionWithThumbnail1 =
         new()

@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Net.Http;
-using HttpClientFactoryLite;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -11,7 +10,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 
-namespace Odin.Hosting.Tests._Universal;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 public class GuestApiClientFactory : IApiClientFactory
 {

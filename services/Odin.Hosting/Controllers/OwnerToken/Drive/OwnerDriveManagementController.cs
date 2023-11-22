@@ -51,14 +51,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             var _ = await _driveManager.CreateDrive(request);
             return true;
         }
-
-        [HttpPost("setdrivemode")]
-        public async Task<bool> SetDriveReadMode([FromBody] UpdateDriveDefinitionRequest request)
-        {
-            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, true);
-            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
-            return true;
-        }
+        
 
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
