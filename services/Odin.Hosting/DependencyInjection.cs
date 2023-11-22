@@ -5,8 +5,9 @@ using System.Reflection;
 using Autofac;
 using MediatR;
 using MediatR.Pipeline;
-using Odin.Core.Services.AppNotifications;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authentication.Transit;
@@ -61,7 +62,7 @@ namespace Odin.Hosting
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
-            cb.RegisterType<AppNotificationHandler>()
+            cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
@@ -75,6 +76,20 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
+            cb.RegisterType<AppNotificationHandler>()
+                .As<INotificationHandler<FileAddedNotification>>()
+                .As<INotificationHandler<ConnectionRequestReceived>>()
+                .As<INotificationHandler<ConnectionRequestAccepted>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<TransitFileReceivedNotification>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
@@ -113,7 +128,7 @@ namespace Odin.Hosting
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileAttachmentStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFilePayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
@@ -121,7 +136,7 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentAttachmentStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentPayloadStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();

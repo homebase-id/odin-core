@@ -7,25 +7,25 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 namespace Odin.Core.Services.Drives.FileSystem.Comment.Attachments;
 
 /// <summary />
-public class CommentAttachmentStreamWriter : AttachmentStreamWriterBase
+public class CommentPayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public CommentAttachmentStreamWriter(
+    public CommentPayloadStreamWriter(
         CommentFileSystem fileSystem,
         OdinContextAccessor contextAccessor)
         : base(fileSystem, contextAccessor)
     {
     }
 
-    protected override Task ValidateAttachments(AttachmentPackage package, ServerFileHeader header)
+    protected override Task ValidatePayloads(PayloadOnlyPackage package, ServerFileHeader header)
     {
         return Task.CompletedTask;
     }
 
-    protected override async Task<Guid> UpdateAttachments(AttachmentPackage package, ServerFileHeader header)
+    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header)
     {
-        return await FileSystem.Storage.UpdateAttachments(package.InternalFile,
+        return await FileSystem.Storage.UpdatePayloads(package.InternalFile,
             targetFile: package.InternalFile,
-            incomingThumbnails: package.InstructionSet.Thumbnails);
+            incomingPayloads: package.GetFinalPayloadDescriptors());
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -25,6 +26,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             };
 
             this.AppData = new AppFileMetaData();
+            this.Payloads = new List<PayloadDescriptor>();
         }
 
         public FileMetadata(InternalDriveFileId file)
@@ -54,35 +56,25 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public ReactionSummary ReactionPreview { get; set; }
 
         /// <summary>
-        /// Specifies the app which last updated this file
-        /// </summary>
-        //public Guid LastUpdatedAppId { get; set; }
-        
-        public string ContentType { get; set; }
-
-        /// <summary>
         /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
         /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
         /// </summary>
-        public bool PayloadIsEncrypted { get; set; }
+        public bool IsEncrypted { get; set; }
         
         /// <summary>
         /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
         public string SenderOdinId { get; set; }
 
-        /// <summary>
-        /// The size of the payload on disk
-        /// </summary>
-        public long PayloadSize { get; set; }
-        
-        /// <summary>
-        /// Specifies the list of recipients set when the file was uploaded
-        /// </summary>
-        public List<string> OriginalRecipientList { get; set; }
-        
         public AppFileMetaData AppData { get; set; }
 
+        public List<PayloadDescriptor> Payloads { get; set; }
+
         public Guid? VersionTag { get; set; }
+        
+        public PayloadDescriptor GetPayloadDescriptor(string key)
+        {
+            return Payloads?.SingleOrDefault(pk => pk.Key == key);
+        }
     }
 }

@@ -16,6 +16,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         {
             TransitOptions = new TransitOptions();
             StorageOptions = new StorageOptions();
+            Manifest = new UploadManifest();
         }
 
         /// <summary>
@@ -26,6 +27,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         public StorageOptions StorageOptions { get; set; }
 
         public TransitOptions TransitOptions { get; set; }
+
+        public UploadManifest Manifest { get; set; }
 
         public void AssertIsValid()
         {
@@ -39,6 +42,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             {
                 throw new OdinClientException("Target drive is invalid", OdinClientErrorCode.InvalidTargetDrive);
             }
+
+            Manifest?.AssertIsValid();
 
             //Removed because this conflicts with AllowDistribution flag.
             //Having UseGlobalTransitId with a transient file does not hurt anything;  
@@ -73,7 +78,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = recipients.ToList()
-                }
+                },
+                Manifest = new UploadManifest()
             };
         }
 

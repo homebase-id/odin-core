@@ -16,6 +16,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 {
@@ -87,8 +88,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == uploadedContent);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == uploadedContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -146,8 +147,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -201,7 +202,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
             Assert.IsFalse(batch.SearchResults.Any());
-            
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -215,12 +216,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = uploadedContent,
+                    Content = uploadedContent,
                     FileType = default,
                     GroupId = default,
                     Tags = default
@@ -242,29 +241,28 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 RemoteTargetDrive = default
             };
 
-            UploadResult uploadResult;
+            ApiResponse<UploadResult> uploadResponse;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await sender.Drive.UploadAndTransferEncryptedFile(
-                    FileSystemType.Standard,
+                (uploadResponse, encryptedJsonContent64) = await sender.DriveRedux.UploadNewEncryptedMetadata(
                     fileMetadata,
                     storageOptions,
                     transitOptions,
-                    payloadData: string.Empty
+                    FileSystemType.Standard
                 );
             }
             else
             {
-                uploadResult = await sender.Drive.UploadAndTransferFile(
-                    FileSystemType.Standard,
+                uploadResponse = await sender.DriveRedux.UploadNewMetadata(
                     fileMetadata,
                     storageOptions,
                     transitOptions,
-                    payloadData: string.Empty
+                    FileSystemType.Standard
                 );
             }
 
+            var uploadResult = uploadResponse.Content;
             //
             // Basic tests first which apply to all calls
             //

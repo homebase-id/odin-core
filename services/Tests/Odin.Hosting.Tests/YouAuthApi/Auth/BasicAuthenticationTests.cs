@@ -76,7 +76,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
             var getFileHeaderResponse = await youAuthApiClient.Drives.GetFileHeader(uploadResult.File);
             Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode, $"Status code returned: {getFileHeaderResponse.StatusCode}");
             var fileHeader = getFileHeaderResponse.Content;
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.JsonContent == jsonContent);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.Content == jsonContent);
         }
 
         private async Task<UploadResult> UploadFile(TestIdentity identity, TargetDrive targetDrive, GuidId circleId, string jsonContent)
@@ -85,13 +85,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
 
             var standardFile = new UploadFileMetadata()
             {
-                ContentType = "application/json",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = jsonContent,
+                    Content = jsonContent,
                     FileType = 101,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),

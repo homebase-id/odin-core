@@ -9,6 +9,11 @@ public class TransitGetThumbRequest : GetThumbnailRequest
     public string OdinId { get; set; }
 }
 
+public class TransitGetPayloadRequest : GetPayloadRequest
+{  
+    public string OdinId { get; set; }
+}
+
 public class TransitExternalFileIdentifier
 {
     public string OdinId { get; set; }

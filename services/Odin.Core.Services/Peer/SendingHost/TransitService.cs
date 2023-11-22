@@ -16,6 +16,7 @@ using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
@@ -47,7 +48,8 @@ namespace Odin.Core.Services.Peer.SendingHost
             CircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAclAuthorizationService) : base(odinHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAclAuthorizationService) : base(
+            odinHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -92,12 +94,11 @@ namespace Odin.Core.Services.Peer.SendingHost
 
         // 
 
-        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
-            KeyHeader keyHeaderToBeEncrypted,
+        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
             TransferFileType transferFileType,
-            FileSystemType fileSystemType)
+            FileSystemType fileSystemType, TransitOptions transitOptions)
         {
             var sharedSecret = clientAccessToken.SharedSecret;
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -108,6 +109,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
+                ContentsProvided = transitOptions.SendContents,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
@@ -186,7 +188,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             var tasks = new List<Task<SendResult>>();
             var results = new List<SendResult>();
 
-            tasks.AddRange(items.Select(SendAsync));
+            tasks.AddRange(items.Select(SendFileAsync));
 
             await Task.WhenAll(tasks);
 
@@ -221,7 +223,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             return results;
         }
 
-        private async Task<SendResult> SendAsync(TransitOutboxItem outboxItem)
+        private async Task<SendResult> SendFileAsync(TransitOutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -229,15 +231,14 @@ namespace Odin.Core.Services.Peer.SendingHost
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            //enforce ACL at the last possible moment before shipping the file out of the identty
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
-
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
             try
             {
+                // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
                 if (!await _driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
                 {
                     return new SendResult()
@@ -268,6 +269,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                     };
                 }
 
+                var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
+
                 var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
                 decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
@@ -292,25 +295,25 @@ namespace Odin.Core.Services.Peer.SendingHost
                     };
                 }
 
-                var metadata = header.FileMetadata;
+                var sourceMetadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
                 //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
-                    //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
+                    //TODO: here I am removing the file and drive id from the stream but we need
+                    // to resolve this by moving the file information to the server header
                     File = InternalDriveFileId.Redacted(),
-                    Created = metadata.Created,
-                    Updated = metadata.Updated,
-                    AppData = metadata.AppData,
-                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                    ContentType = metadata.ContentType,
-                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(metadata.GlobalTransitId.GetValueOrDefault()),
-                    ReactionPreview = metadata.ReactionPreview,
-                    SenderOdinId = string.Empty,
-                    OriginalRecipientList = null,
-                    ReferencedFile = metadata.ReferencedFile,
-                    VersionTag = metadata.VersionTag
+                    Created = sourceMetadata.Created,
+                    Updated = sourceMetadata.Updated,
+                    AppData = sourceMetadata.AppData,
+                    IsEncrypted = sourceMetadata.IsEncrypted,
+                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
+                    ReactionPreview = sourceMetadata.ReactionPreview,
+                    SenderOdinId = sourceMetadata.SenderOdinId,
+                    ReferencedFile = sourceMetadata.ReferencedFile,
+                    VersionTag = sourceMetadata.VersionTag,
+                    Payloads = sourceMetadata.Payloads
                 };
 
                 var json = OdinSystemSerializer.Serialize(redactedMetadata);
@@ -319,22 +322,36 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 var additionalStreamParts = new List<StreamPart>();
 
-                if (options.SendContents.HasFlag(SendContents.Payload))
+                if (shouldSendPayload)
                 {
-                    var payloadStream = metadata.AppData.ContentIsComplete
-                        ? Stream.Null
-                        : await fs.Storage.GetPayloadStream(file, null);
-                    var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
-                    additionalStreamParts.Add(payload);
-                }
-
-                if (options.SendContents.HasFlag(SendContents.Thumbnails))
-                {
-                    foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                    foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
                     {
-                        var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbHeader.GetFilename(), thumbHeader.ContentType,
-                            Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        var payloadKey = descriptor.Key;
+
+                        string contentType = "application/unknown";
+
+                        //TODO: consider what happens if the payload has been delete from disk
+                        var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                        var payloadStream = p.Stream;
+
+                        var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
+                        additionalStreamParts.Add(payload);
+
+                        foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
+                        {
+                            var (thumbStream, thumbHeader) =
+                                await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+
+                            var thumbnailKey =
+                                $"{payloadKey}" +
+                                $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                                $"{thumb.PixelWidth}" +
+                                $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                                $"{thumb.PixelHeight}";
+                            
+                            additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                                Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        }
                     }
                 }
 
@@ -409,7 +426,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
-            var keyHeader = header.FileMetadata.PayloadIsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
+            var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
 
             foreach (var r in options.Recipients!)
@@ -437,7 +454,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                             clientAuthToken,
                             targetDrive,
                             sendFileOptions.TransferFileType,
-                            sendFileOptions.FileSystemType)
+                            sendFileOptions.FileSystemType,
+                            options)
                     });
                 }
                 catch (Exception)
@@ -510,15 +528,15 @@ namespace Odin.Core.Services.Peer.SendingHost
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
 
-                        
+
                         case TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientDoesNotHavePermissionToFileAcl;
                             break;
-                        
+
                         case TransferFailureReason.FileDoesNotAllowDistribution:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
-                        
+
                         case TransferFailureReason.RecipientServerReturnedAccessDenied:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientReturnedAccessDenied;
 

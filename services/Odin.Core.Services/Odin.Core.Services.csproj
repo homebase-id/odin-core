@@ -24,6 +24,7 @@
     <PackageReference Include="Refit" Version="6.0.38" />
     <PackageReference Include="System.Data.Sqlite" Version="1.0.116" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+    <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
   <ItemGroup>

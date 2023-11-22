@@ -55,13 +55,11 @@ public class ReactionPreviewTests
         var commentFile1 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 1" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "a reply comment 1" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),
@@ -74,13 +72,11 @@ public class ReactionPreviewTests
         var commentFile2 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 2" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "a reply comment 2" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),
@@ -93,13 +89,11 @@ public class ReactionPreviewTests
         var commentFile3 = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 3" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "a reply comment 3" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),
@@ -116,9 +110,9 @@ public class ReactionPreviewTests
         Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Reactions.Count == 0);
         Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 3);
 
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.JsonContent));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile2.AppData.JsonContent));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile1.AppData.Content));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile2.AppData.Content));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile3.AppData.Content));
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)
@@ -126,12 +120,10 @@ public class ReactionPreviewTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = 200,
                 GroupId = default,
                 Tags = default

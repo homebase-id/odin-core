@@ -15,6 +15,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
 {
@@ -82,8 +83,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
@@ -115,8 +116,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -167,8 +168,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
             var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
@@ -200,8 +201,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedCommentJsonContent64);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
@@ -253,8 +254,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
             var (commentTransitResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
@@ -287,8 +288,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedCommentJsonContent64);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
 
@@ -308,8 +309,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var updatedReceivedFile = updatedBatch.SearchResults.First();
             Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
             Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.JsonContent == encryptedUpdatedCommentJsonContent64);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == encryptedUpdatedCommentJsonContent64);
 
             Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 "should still match original global transit id");
@@ -361,8 +362,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
@@ -395,8 +396,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
 
@@ -415,8 +416,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var updatedReceivedFile = updatedBatch.SearchResults.First();
             Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
             Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.JsonContent == updatedCommentFileContent);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == updatedCommentFileContent);
 
             Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 "should still match original global transit id");
@@ -452,8 +453,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(frodoOwnerClient,
@@ -481,8 +482,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
+            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //
@@ -526,16 +527,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             {
                 VersionTag = versionTag,
                 AllowDistribution = true,
-                ContentType = "application/json",
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
 
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = uploadedContent,
+                    Content = uploadedContent,
                     FileType = default,
                     GroupId = default,
                     Tags = default
@@ -549,26 +548,24 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFile(
+                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFileHeader(
                     FileSystemType.Comment,
                     fileMetadata,
                     recipients: recipients,
                     remoteTargetDrive: referencedFile.TargetDrive,
-                    payloadData: "",
                     overwriteGlobalTransitFileId: overwriteFile,
                     thumbnail: null
                 );
             }
             else
             {
-                transitResult = await sender.Transit.TransferFile(
-                    FileSystemType.Comment,
+                transitResult = await sender.Transit.TransferFileHeader(
                     fileMetadata,
                     recipients: recipients,
                     remoteTargetDrive: referencedFile.TargetDrive,
-                    payloadData: "",
                     overwriteGlobalTransitFileId: overwriteFile,
-                    thumbnail: null
+                    thumbnail: null,
+                    fileSystemType: FileSystemType.Comment
                 );
             }
 
@@ -644,12 +641,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
-                ContentType = "application/json",
-                PayloadIsEncrypted = encrypted,
+                IsEncrypted = encrypted,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = uploadedContent,
+                    Content = uploadedContent,
                     FileType = 200,
                     GroupId = default,
                     Tags = default
@@ -657,18 +652,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 AccessControlList = AccessControlList.Connected
             };
 
-            UploadResult uploadResult;
+            ApiResponse<UploadResult> uploadResponse;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64, _) = await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                (uploadResponse, encryptedJsonContent64) =
+                    await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
             }
             else
             {
-                uploadResult = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+                uploadResponse = await client.DriveRedux.UploadNewMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
             }
 
-            return (uploadResult, encryptedJsonContent64);
+            return (uploadResponse.Content, encryptedJsonContent64);
         }
 
         private async Task DeleteScenario(OwnerApiClient senderOwnerClient, OwnerApiClient recipientOwnerClient)

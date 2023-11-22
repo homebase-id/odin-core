@@ -46,17 +46,17 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false);
     }
 
-    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -74,7 +74,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                serverMetadata: serverMetadata,
+                ignorePayload: false);
 
             return;
         }
@@ -82,7 +83,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
@@ -95,13 +96,12 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         return recipientStatus;
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(UploadPackage package, UploadFileDescriptor uploadDescriptor)
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor)
     {
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
-            ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             //Note: this intentionally does not map ReferenceToFile; this can only be done through the comment system
             // ReferencedFile = null,
@@ -116,19 +116,16 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
-
-                JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
-
-                PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
-                AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
+                Content = uploadDescriptor.FileMetadata.AppData.Content,
+                PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail
             },
 
-            PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-            OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
+            IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
 
-            VersionTag = uploadDescriptor.FileMetadata.VersionTag
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag,
+
+            Payloads = package.GetFinalPayloadDescriptors()
         };
 
         return Task.FromResult(metadata);

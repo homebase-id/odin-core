@@ -56,5 +56,10 @@ namespace Odin.Core.Services.Drives
         {
             return HashCode.Combine(TargetDrive, FileId);
         }
+
+        public override string ToString()
+        {
+            return $"File:[{this.FileId}]\tTargetDrive:[{this.TargetDrive}]";
+        }
     }
 }

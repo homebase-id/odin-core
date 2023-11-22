@@ -34,33 +34,33 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var blogMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
             Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == commentMetadata.AppData.JsonContent);
+            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
             Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
         }
 
@@ -72,40 +72,40 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var blogMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult =
+                await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                    payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload", payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
             Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == commentMetadata.AppData.JsonContent);
+            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
             Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
 
             var blogPostHeaderWith1Comment = await client.Drive.GetFileHeader(FileSystemType.Standard, blogPostUploadResult.File);
 
             Assert.IsNotNull(blogPostHeaderWith1Comment);
             Assert.IsTrue(blogPostHeaderWith1Comment.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-            
+
             //
             // Now delete the comment
             //
@@ -125,28 +125,28 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var blogMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 333,
-                    JsonContent = "some blog content here but really in json format",
+                    Content = "some blog content here but really in json format",
                 }
             };
 
-            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload");
+            var blogPostUploadResult = await client.Drive.UploadFile(FileSystemType.Standard, drive.TargetDriveInfo, blogMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             var commentMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
                 ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
-                    JsonContent = "this is a comment about the blog post",
+                    Content = "this is a comment about the blog post",
                 }
             };
 
-            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload");
+            var commentUploadResult = await client.Drive.UploadFile(FileSystemType.Comment, drive.TargetDriveInfo, commentMetadata, "some payload",
+                payloadKey: WebScaffold.PAYLOAD_KEY);
 
             try
             {

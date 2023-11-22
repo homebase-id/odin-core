@@ -91,12 +91,12 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayload(TransitExternalFileIdentifier file, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> GetPayload(TransitGetPayloadRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
-            var apiResponse = await svc.GetPayload(file);
+            var apiResponse = await svc.GetPayload(request);
             return apiResponse;
         }
     }

@@ -5,6 +5,7 @@ using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
@@ -28,6 +29,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly CircleMembershipApiClient _circleMembershipApiClient;
         private readonly TransitApiClient _transitApiClient;
         private readonly DriveApiClient _driveApiClient;
+        private readonly DriveApiClientRedux _driveApiClientRedux;
         private readonly OwnerFollowerApiClient _ownerFollowerApiClient;
         private readonly CronApiClient _cronApiClient;
         private readonly SecurityApiClient _securityApiClient;
@@ -44,6 +46,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _circleNetworkApiClient = new CircleNetworkApiClient(ownerApi, identity);
             _transitApiClient = new TransitApiClient(ownerApi, identity);
             _driveApiClient = new DriveApiClient(ownerApi, identity);
+            _driveApiClientRedux = new DriveApiClientRedux(ownerApi, identity);
             _ownerFollowerApiClient = new OwnerFollowerApiClient(ownerApi, identity);
             _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
@@ -53,7 +56,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _ownerConfigurationApiClient = new OwnerConfigurationApiClient(ownerApi, identity);
 
             TransitQuery = new OwnerTransitQueryApiClient(ownerApi, identity);
-
         }
 
         public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
@@ -67,13 +69,13 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public CronApiClient Cron => _cronApiClient;
 
         public OwnerFollowerApiClient OwnerFollower => _ownerFollowerApiClient;
-        
+
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;
 
         public TransitApiClient Transit => _transitApiClient;
-        
+
         public OwnerTransitQueryApiClient TransitQuery { get; }
 
         public YouAuthDomainApiClient YouAuth => _youAuthDomainApiClient;
@@ -81,6 +83,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public PublicPrivateKeyApiClient PublicPrivateKey => _publicPrivateKey;
 
         public DriveApiClient Drive => _driveApiClient;
+
+        public DriveApiClientRedux DriveRedux => _driveApiClientRedux;
 
         public async Task InitializeIdentity(InitialSetupRequest setupConfig)
         {

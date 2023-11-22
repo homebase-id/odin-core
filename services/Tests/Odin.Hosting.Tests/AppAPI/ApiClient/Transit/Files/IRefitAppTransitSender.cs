@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]
-        Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] parts);
+        Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] streamdata);
 
         [Post(RootEndpoint + "/files/senddeleterequest")]
         Task<ApiResponse<DeleteLinkedFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);

@@ -72,7 +72,7 @@ namespace Odin.Core.Cryptography.Data
 
         public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
         {
-            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url) , hours);
+            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url), hours);
         }
 
         protected EccKeySize GetCurveEnum(ECCurve curve)
@@ -143,7 +143,6 @@ namespace Odin.Core.Cryptography.Data
             return Base64UrlEncoder.Encode(uncompressedKey);
         }
 
-
         public string PublicKeyJwkBase64Url()
         {
             return Base64UrlEncoder.Encode(PublicKeyJwk());
@@ -202,7 +201,7 @@ namespace Odin.Core.Cryptography.Data
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
 
         public byte[] iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] keyHash { get; set; }  // The hash of the encryption key 
+        public byte[] keyHash { get; set; }  // The hash of the encryption key
         public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
 
 
@@ -309,7 +308,7 @@ namespace Odin.Core.Cryptography.Data
             return Convert.ToBase64String(pk.GetKey());
         }
 
-        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration, 
+        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration,
         // then the key is considered dead and will be removed
         public bool IsDead()
         {

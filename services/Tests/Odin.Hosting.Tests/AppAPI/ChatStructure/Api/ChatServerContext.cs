@@ -63,7 +63,7 @@ public class ChatServerContext
 
             //Note: intentionally left out decryption
             var items = batch.SearchResults.Select(item =>
-                OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.Content));
 
             return (items, batch.CursorState);
         }
@@ -100,7 +100,7 @@ public class ChatServerContext
             //Note: intentionally left out decryption for this prototype
             var items = batch.SearchResults.ToDictionary(
                 item => item.FileId,
-                item => OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                item => OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.Content));
 
             return (items, batch.CursorState);
         }
@@ -162,7 +162,7 @@ public class ChatServerContext
 
             var sharedSecret = _appContext.SharedSecret.ToSensitiveByteArray();
 
-            fileMetadata.PayloadIsEncrypted = true;
+            fileMetadata.IsEncrypted = true;
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
@@ -176,7 +176,7 @@ public class ChatServerContext
             var response = await transitSvc.Upload(
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);

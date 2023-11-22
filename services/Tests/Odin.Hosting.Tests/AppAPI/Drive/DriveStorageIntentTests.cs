@@ -46,25 +46,23 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                ContentType = "text/unknown",
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1,
-                    ContentIsComplete = true
+                    Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content
-            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.AppData.Content = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
 
             var updateResult = await appApiClient.Drive.UpdateMetadata(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
@@ -72,7 +70,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updateResult.NewVersionTag != uploadResult.NewVersionTag);
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
         }
 
@@ -87,27 +85,24 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = false,
-                ContentType = "text/unknown",
                 AppData = new()
                 {
                     FileType = 101,
-                    JsonContent = content1,
-                    ContentIsComplete = true
+                    Content = content1
                 },
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AccessControlList = AccessControlList.Connected
             };
 
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content; indicate the payload changed
-            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.AppData.Content = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
-            fileMetadata.AppData.ContentIsComplete = false;
 
             var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
 
@@ -116,60 +111,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.ContentIsComplete == firstHeader.FileMetadata.AppData.ContentIsComplete);
+            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
         }
-
-
-        [Test]
-        public async Task FailToUpdateMetadata_WhenThumbnailsAreAddedInMetadata_StorageIntentMedata()
-        {
-            var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
-
-            var content1 = OdinSystemSerializer.Serialize(new { data = "nom nom nom" });
-            var content2 = OdinSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AllowDistribution = false,
-                ContentType = "text/unknown",
-                AppData = new()
-                {
-                    FileType = 101,
-                    JsonContent = content1,
-                    ContentIsComplete = true
-                },
-                PayloadIsEncrypted = false,
-                AccessControlList = AccessControlList.Connected
-            };
-
-            //upload normal
-            var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
-            var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
-            //validate normal
-
-            //update the content; add a thumbnail
-            fileMetadata.AppData.JsonContent = content2;
-            fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
-
-            fileMetadata.AppData.AdditionalThumbnails = new List<ImageDataHeader>()
-            {
-                new()
-                {
-                    PixelHeight = 100,
-                    PixelWidth = 100,
-                    ContentType = "image/jpeg"
-                }
-            };
-            var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
-
-            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
-            var code= _scaffold.GetErrorCode(updateResultResponse.Error);
-            Assert.IsTrue(code == OdinClientErrorCode.MalformedMetadata);
-        }
-
+        
         // 
 
         private async Task<(AppApiClient appApiClient, TargetDrive drive)> CreateApp(TestIdentity identity)

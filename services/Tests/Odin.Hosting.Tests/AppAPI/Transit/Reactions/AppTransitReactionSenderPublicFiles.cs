@@ -190,13 +190,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var commentFileMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = "This is a Comment",
-                    ContentIsComplete = true,
+                    Content = "This is a Comment",
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -221,7 +219,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var getTransitFileHeaderResponse = await merryAppClient.TransitQuery.GetFileHeader(remoteFile, FileSystemType.Comment);
             Assert.IsTrue(getTransitFileHeaderResponse.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
-            Assert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.JsonContent == commentFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
         }
 
         
@@ -250,14 +248,12 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var commentFileMetadata = new UploadFileMetadata()
             {
                 ReferencedFile = targetFile.uploadResult.GlobalTransitIdFileIdentifier,
-                ContentType = "text/plain",
                 AllowDistribution = true,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = "This is a Comment",
-                    ContentIsComplete = true,
+                    Content = "This is a Comment",
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = AccessControlList.Anonymous
@@ -300,7 +296,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var theRemoteComment = getTransitBatchResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(theRemoteComment);
-            Assert.IsTrue(theRemoteComment.FileMetadata.AppData.JsonContent == commentFileMetadata.AppData.JsonContent);
+            Assert.IsTrue(theRemoteComment.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
 
             await pippinOwnerClient.Network.DisconnectFrom(merryOwnerClient.Identity);
         }
@@ -347,20 +343,17 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomPublicFileHeader(TestIdentity identity,
-            TargetDrive targetDrive, string payload = null, ImageDataContent thumbnail = null)
+            TargetDrive targetDrive, string payload = null, ThumbnailContent thumbnail = null)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = payload == null,
-                    UniqueId = Guid.NewGuid(),
-                    AdditionalThumbnails = thumbnail == null ? default : new[] { thumbnail }
+                    Content = $"some json content {Guid.NewGuid()}",
+                    UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
             };
@@ -379,13 +372,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended",
-                    ContentIsComplete = true
+                    Content = header.FileMetadata.AppData.Content + " something i appended"
                 },
                 VersionTag = header.FileMetadata.VersionTag,
                 AccessControlList = AccessControlList.Anonymous

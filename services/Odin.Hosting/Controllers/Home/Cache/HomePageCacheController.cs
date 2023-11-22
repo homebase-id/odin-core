@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.Home.Cache;
 public class HomePageCacheController : OdinControllerBase
 {
     private readonly HomeCachingService _cachingService;
-    
+
     public HomePageCacheController(HomeCachingService cachingService)
     {
         _cachingService = cachingService;
@@ -59,11 +59,12 @@ public class HomePageCacheController : OdinControllerBase
         var result = await this.GetOrCache(request);
         return result;
     }
-    
+
     private async Task<QueryBatchCollectionResponse> GetOrCache(QueryBatchCollectionRequest request)
     {
-        AddGuestApiCacheHeader();
+        // tell the browser to check in ever 1 minutes
+        const int minutes = 1;
+        AddGuestApiCacheHeader(minutes);
         return await _cachingService.GetResult(request);
     }
-    
 }

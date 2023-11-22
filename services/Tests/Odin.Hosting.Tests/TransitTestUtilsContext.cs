@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Hosting.Tests
 {
@@ -12,5 +13,7 @@ namespace Odin.Hosting.Tests
         public Dictionary<OdinId, TestAppContext> RecipientContexts { get; set; }
 
         public Guid? GlobalTransitId { get; set; }
+
+        public List<ThumbnailDescriptor> Thumbnails { get; set; }
     }
 }

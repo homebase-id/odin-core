@@ -56,13 +56,13 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata)
     {
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader,
+    protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
         FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //
@@ -70,10 +70,10 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false);
     }
 
-    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
@@ -95,7 +95,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 targetFile: targetFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                serverMetadata: serverMetadata,
+                ignorePayload: false);
 
             return;
         }
@@ -103,7 +104,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
@@ -116,7 +117,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         return recipientStatus;
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(UploadPackage package,
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         var metadata = new FileMetadata()
@@ -125,8 +126,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
                 ? Guid.NewGuid()
                 : null,
-            ContentType = uploadDescriptor.FileMetadata.ContentType,
-
+            
             ReferencedFile = uploadDescriptor.FileMetadata.ReferencedFile,
 
             //TODO: need an automapper *sigh
@@ -137,21 +137,20 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
-                JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
+                Content = uploadDescriptor.FileMetadata.AppData.Content,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
-                AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
                 ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
-                //Hijack the groupId by setting it to referenced file
+                //Hijack the groupId by setting it to referenced file so the feed app can query by this transitId
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
-            PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-            OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
+            IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
 
-            VersionTag = uploadDescriptor.FileMetadata.VersionTag
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag,
+            
+            Payloads = package.GetFinalPayloadDescriptors()
         };
 
         return Task.FromResult(metadata);

@@ -13,7 +13,7 @@ public class QueryModifiedResultOptions : ResultOptions
             ExcludePreviewThumbnail = true,
             MaxRecords = 100,
             Cursor = default,
-            IncludeJsonContent = true
+            IncludeHeaderContent = true
         };
     }
 }

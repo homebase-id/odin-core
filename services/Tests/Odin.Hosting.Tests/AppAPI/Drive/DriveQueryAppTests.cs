@@ -45,13 +45,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -105,13 +103,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             const int archivalStatus = 1;
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -164,13 +160,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)
@@ -222,13 +216,12 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
-                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.Content);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -252,13 +245,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata_not_archived = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -270,13 +261,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata_archived = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -322,14 +311,13 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var theFileResult = batch.SearchResults.Single();
 
                 //ensure file content was sent 
-                Assert.NotNull(theFileResult.FileMetadata.AppData.JsonContent);
-                Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.JsonContent);
+                Assert.NotNull(theFileResult.FileMetadata.AppData.Content);
+                Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.Content);
 
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.FileType == uploadFileMetadata_archived.AppData.FileType);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
-                Assert.IsTrue(theFileResult.FileMetadata.ContentType == uploadFileMetadata_archived.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(theFileResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
@@ -344,13 +332,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)
@@ -392,7 +378,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
             }
         }
 

@@ -142,7 +142,7 @@ public class ChatSynchronizer
         //     {
         //         Cursor = null, //?
         //         ExcludePreviewThumbnail = true,
-        //         IncludeJsonContent = true,
+        //         IncludeHeaderContent = true,
         //         MaxRecords = int.MaxValue //??
         //     };
         //

@@ -1,4 +1,5 @@
 using MediatR;
+using Odin.Core.Services.AppNotifications.WebSocket;
 
 namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {

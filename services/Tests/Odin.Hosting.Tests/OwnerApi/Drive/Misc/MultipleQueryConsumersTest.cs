@@ -39,13 +39,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var standardFile = new UploadFileMetadata()
             {
-                ContentType = "application/json",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = true,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 101,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -57,14 +55,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var commentFile = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = true,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
-                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 909,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -72,7 +68,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
                 }
             };
 
-            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data");
+            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data", payloadKey:WebScaffold.PAYLOAD_KEY);
 
             var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Standard, new FileQueryParams()
             {

@@ -63,11 +63,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
-            var result = ClientAuthenticationToken.Parse(value);
-            _authService.ExpireToken(result.Id);
-
+            if (ClientAuthenticationToken.TryParse(value, out var result))
+            {
+                _authService.ExpireToken(result.Id);
+            }
+            
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
-
             return Task.FromResult(new JsonResult(true));
         }
 

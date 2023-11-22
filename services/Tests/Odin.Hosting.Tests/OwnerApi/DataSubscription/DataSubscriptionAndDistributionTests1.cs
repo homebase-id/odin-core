@@ -83,7 +83,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var originalFile = batch.SearchResults.First();
         Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == firstUploadResult.GlobalTransitId);
 
         //Now change the file as if someone edited a post
@@ -111,8 +111,8 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(updatedFile.FileState == FileState.Active);
         Assert.IsTrue(updatedFile.FileMetadata.Created == originalFile.FileMetadata.Created);
         Assert.IsTrue(updatedFile.FileMetadata.Updated > originalFile.FileMetadata.Updated);
-        Assert.IsTrue(updatedFile.FileMetadata.AppData.JsonContent == updatedContent);
-        Assert.IsTrue(updatedFile.FileMetadata.AppData.JsonContent != originalFile.FileMetadata.AppData.JsonContent);
+        Assert.IsTrue(updatedFile.FileMetadata.AppData.Content == updatedContent);
+        Assert.IsTrue(updatedFile.FileMetadata.AppData.Content != originalFile.FileMetadata.AppData.Content);
         Assert.IsTrue(updatedFile.FileMetadata.GlobalTransitId == originalFile.FileMetadata.GlobalTransitId);
         Assert.IsTrue(updatedFile.FileMetadata.ReactionPreview == null, "ReactionPreview should be null on initial file upload; even tho it was updated");
 
@@ -162,7 +162,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var originalFile = batch.SearchResults.First();
         Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Frodo now deletes the file
@@ -233,19 +233,17 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -335,20 +333,18 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Expected 1 but count was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Now, have sam comment on the file
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -383,10 +379,10 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch2.SearchResults.Count() == 1);
         var theFile2 = batch2.SearchResults.First();
         Assert.IsTrue(theFile2.FileState == FileState.Active);
-        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
 
         //All done
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
@@ -437,20 +433,18 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Now, have sam comment on the file
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -489,10 +483,10 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch2.SearchResults.Count() == 1);
         var theFile2 = batch2.SearchResults.First();
         Assert.IsTrue(theFile2.FileState == FileState.Active);
-        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFile.AppData.Content));
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -520,7 +514,7 @@ public class DataSubscriptionAndDistributionTests1
         {
             Drives = new List<DriveGrantRequest>()
             {
-                new DriveGrantRequest()
+                new ()
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
@@ -563,20 +557,18 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Now, have Sam comment on the file
-        var commentFile = new UploadFileMetadata()
+        var commentFileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -586,14 +578,13 @@ public class DataSubscriptionAndDistributionTests1
         };
 
         // transfer a comment from Sam directly to frodo
-        var transitResult = await samOwnerClient.Transit.TransferFile(
-            FileSystemType.Comment,
-            commentFile,
+        var transitResult = await samOwnerClient.Transit.TransferFileHeader(
+            commentFileMetadata,
             recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
             remoteTargetDrive: frodoChannelDrive,
-            payloadData: "",
             overwriteGlobalTransitFileId: null,
-            thumbnail: null
+            thumbnail: null,
+            fileSystemType:FileSystemType.Comment
         );
 
         //comment should have made it directly to the recipient's server
@@ -624,11 +615,11 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch2.SearchResults.Count() == 1);
         var theFile2 = batch2.SearchResults.First();
         Assert.IsTrue(theFile2.FileState == FileState.Active);
-        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == commentFileMetadata.AppData.Content));
         //TODO: test the other file parts here
 
 
@@ -705,20 +696,18 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == encryptedStandardFileJsonContent64);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedStandardFileJsonContent64);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //Now, have Sam comment on the file
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                Content = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -728,12 +717,11 @@ public class DataSubscriptionAndDistributionTests1
         };
 
         // transfer a comment from Sam directly to frodo
-        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFile(
+        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFileHeader(
             FileSystemType.Comment,
             commentFile,
             recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
             remoteTargetDrive: frodoChannelDrive,
-            payloadData: "",
             overwriteGlobalTransitFileId: null,
             thumbnail: null
         );
@@ -766,12 +754,12 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch2.SearchResults.Count() == 1);
         var theFile2 = batch2.SearchResults.First();
         Assert.IsTrue(theFile2.FileState == FileState.Active);
-        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == encryptedStandardFileJsonContent64);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.Content == encryptedStandardFileJsonContent64);
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.IsEncrypted));
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == ""));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.Content == ""));
         // Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
         //TODO: test the other file parts here
 
@@ -825,7 +813,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
@@ -877,7 +865,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
@@ -910,7 +898,8 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -929,7 +918,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
@@ -962,7 +951,8 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var (uploadResult, encryptedJsonContent64, _) = await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var (uploadResult, encryptedJsonContent64, _) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -1049,7 +1039,8 @@ public class DataSubscriptionAndDistributionTests1
     }
 
     [Test]
-    public async Task UnencryptedStandardFile_UploadedByOwner_DistributeTo_Both_ConnectedAndUnconnected_Followers_And_DeletedFrom_FollowersFeeds_When_Owner_Deletes_File()
+    public async Task
+        UnencryptedStandardFile_UploadedByOwner_DistributeTo_Both_ConnectedAndUnconnected_Followers_And_DeletedFrom_FollowersFeeds_When_Owner_Deletes_File()
     {
         const int fileType = 1117;
 
@@ -1157,15 +1148,14 @@ public class DataSubscriptionAndDistributionTests1
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
         Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
-
-
+    
     private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
     {
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == expectedContent);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == expectedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == expectedUploadResult.GlobalTransitId);
     }
 
@@ -1175,12 +1165,10 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
                 Tags = default
@@ -1191,19 +1179,20 @@ public class DataSubscriptionAndDistributionTests1
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
     }
 
-    private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(OwnerApiClient client,
-        TargetDrive targetDrive, string uploadedContent,
-        int fileType)
+    private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)>
+        UploadStandardEncryptedFileToChannel(
+            OwnerApiClient client,
+            TargetDrive targetDrive,
+            string uploadedContent,
+            int fileType)
     {
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
                 Tags = default
@@ -1211,7 +1200,9 @@ public class DataSubscriptionAndDistributionTests1
             AccessControlList = AccessControlList.Connected
         };
 
-        return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata, useGlobalTransitId: true);
+        var uploadResult = uploadResponse.response.Content;
+        return (uploadResult, uploadResponse.encryptedJsonContent64, "");
     }
 
     private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType,
@@ -1220,13 +1211,11 @@ public class DataSubscriptionAndDistributionTests1
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
                 Tags = default

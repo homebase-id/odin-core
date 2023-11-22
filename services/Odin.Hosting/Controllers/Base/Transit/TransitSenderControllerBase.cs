@@ -54,6 +54,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
+
+            //
+            // re-map to transit instruction set.  this is the critical point of this feature
+            //
             var uploadInstructionSet = await MapTransitInstructionSet(section!.Body);
 
             await driveUploadService.StartUpload(uploadInstructionSet);
@@ -64,15 +68,20 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             //
             section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(section!.Body);
-
-            //
-            section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
-                AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                if (IsPayloadPart(section))
+                {
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await driveUploadService.AddPayload(payloadKey, contentType, fileSection.FileStream);
+                }
+
+                if (IsThumbnail(section))
+                {
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream);
+                }
+
                 section = await reader.ReadNextSectionAsync();
             }
 
@@ -148,7 +157,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
                     Schedule = transitInstructionSet.Schedule
-                }
+                },
+                Manifest =  transitInstructionSet.Manifest
             };
 
             return uploadInstructionSet;

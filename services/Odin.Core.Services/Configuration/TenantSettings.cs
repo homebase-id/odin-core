@@ -13,7 +13,7 @@ public class TenantSettings
     {
         AnonymousVisitorsCanViewConnections = false,
         AuthenticatedIdentitiesCanViewConnections = false,
-        AllConnectedIdentitiesCanViewConnections = false,
+        AllConnectedIdentitiesCanViewConnections = true,
         AnonymousVisitorsCanViewWhoIFollow = false,
         AuthenticatedIdentitiesCanViewWhoIFollow = false,
         AllConnectedIdentitiesCanViewWhoIFollow = false,

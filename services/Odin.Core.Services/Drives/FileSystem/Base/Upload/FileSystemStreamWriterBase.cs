@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -41,7 +42,7 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public UploadPackage Package { get; private set; }
+    public FileUploadPackage Package { get; private set; }
 
     public virtual async Task StartUpload(Stream data)
     {
@@ -63,9 +64,12 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
+        // var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
+        var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
+        // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+        
         bool isUpdateOperation = false;
 
         if (overwriteFileId == Guid.Empty)
@@ -84,7 +88,7 @@ public abstract class FileSystemStreamWriterBase
             };
         }
 
-        this.Package = new UploadPackage(file, instructionSet!, isUpdateOperation);
+        this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
         await Task.CompletedTask;
     }
 
@@ -93,26 +97,79 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
-
-    public virtual async Task AddPayload(Stream data)
+    public virtual async Task AddPayload(string key, string contentType, Stream data)
     {
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Payload.ToString(), data);
-        Package.HasPayload = bytesWritten > 0;
+        if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
+        {
+            throw new OdinClientException($"Duplicate Payload key with key {key} has already been added", OdinClientErrorCode.InvalidUpload);
+        }
+        
+        var descriptor = Package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
+
+        if (null == descriptor)
+        {
+            throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
+        }
+        
+        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+        if (bytesWritten > 0)
+        {
+            Package.Payloads.Add(new PackagePayloadDescriptor()
+            {
+                PayloadKey = key,
+                ContentType = contentType,
+                LastModified = UnixTimeUtc.Now(),
+                BytesWritten = bytesWritten,
+                DescriptorContent = descriptor.DescriptorContent
+            });
+        }
     }
 
-    public virtual async Task AddThumbnail(int width, int height, string contentType, Stream data)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data)
     {
-        //TODO: How to store the content type for later usage?  is it even needed?
+        //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
+
+        // if you're adding a thumbnail, there must be a manifest
+        var descriptors = Package.InstructionSet.Manifest?.PayloadDescriptors;
+        if (null == descriptors)
+        {
+            throw new OdinClientException("An upload manifest with payload descriptors is required when you're adding thumbnails");
+        }
+
+        //find the thumbnail details for the given key
+        //TODO: I'm not so sure this is gonna work out...
+        var result = descriptors.Select(pd =>
+        {
+            return new
+            {
+                PayloadKey = pd.PayloadKey,
+                ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
+            };
+        }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
+
+        if (null == result)
+        {
+            throw new OdinClientException(
+                $"Error while adding thumbnail; the upload manifest does not " +
+                $"have a thumbnail descriptor matching key {thumbnailUploadKey}",
+                OdinClientErrorCode.InvalidUpload);
+        }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
+        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+            result.ThumbnailDescriptor.PixelWidth,
+            result.ThumbnailDescriptor.PixelHeight,
+            result.PayloadKey);
+
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
 
-        Package.UploadedThumbnails.Add(new ImageDataHeader()
+        Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
-            PixelHeight = height,
-            PixelWidth = width,
-            ContentType = contentType
+            PixelHeight = result.ThumbnailDescriptor.PixelHeight,
+            PixelWidth = result.ThumbnailDescriptor.PixelWidth,
+            ContentType = contentType,
+            PayloadKey = result.PayloadKey
         });
     }
 
@@ -179,8 +236,6 @@ public abstract class FileSystemStreamWriterBase
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata);
         }
 
-        // _uploadLock.ReleaseLock(metadata.File);
-
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package);
 
         var uploadResult = new UploadResult()
@@ -205,31 +260,31 @@ public abstract class FileSystemStreamWriterBase
     /// <returns></returns>
     protected abstract Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor);
 
-    protected abstract Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
+    protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata);
 
     /// <summary>
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package);
+    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package);
 
     /// <summary>
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<FileMetadata> MapUploadToMetadata(UploadPackage package, UploadFileDescriptor uploadDescriptor);
+    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor);
 
-    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
+    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
         var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
@@ -254,7 +309,8 @@ public abstract class FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled storage intent");
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package,
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
+        FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
@@ -265,7 +321,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
+        KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
 
@@ -282,7 +338,7 @@ public abstract class FileSystemStreamWriterBase
         return (keyHeader, metadata, serverMetadata);
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(UploadPackage package,
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
         if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
@@ -295,9 +351,9 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
 
-        if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
+        if (metadata.Payloads?.Any() ?? false)
         {
-            throw new OdinClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
+            throw new OdinClientException($"Cannot specify additional payloads when storage intent is {StorageIntent.MetadataOnly}",
                 OdinClientErrorCode.MalformedMetadata);
         }
 
@@ -313,7 +369,7 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    private async Task ValidateUploadCore(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         if (null == serverMetadata.AccessControlList)
         {
@@ -322,22 +378,26 @@ public abstract class FileSystemStreamWriterBase
 
         serverMetadata.AccessControlList.Validate();
 
-        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
+        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.IsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to anonymous visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
-        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.PayloadIsEncrypted)
+        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.IsEncrypted)
         {
             throw new OdinClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
-        if (string.IsNullOrEmpty(metadata.ContentType) || string.IsNullOrWhiteSpace(metadata.ContentType))
+        if (metadata.Payloads?.Any() ?? false)
         {
-            throw new OdinClientException("ContentType is required", OdinClientErrorCode.InvalidFile);
+            var hasInvalidPayloads = metadata.Payloads.Any(pd => !pd.IsValid());
+            if (hasInvalidPayloads)
+            {
+                throw new OdinClientException("One or more payload descriptors is invalid", OdinClientErrorCode.InvalidFile);
+            }
         }
 
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
@@ -357,24 +417,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            if (metadata.AppData.ContentIsComplete && package.HasPayload)
-            {
-                throw new OdinClientException("Content is marked complete in metadata but there is also a payload", OdinClientErrorCode.InvalidPayload);
-            }
-
-            if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
-            {
-                throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
-            }
-
-            if ((metadata.AppData.AdditionalThumbnails?.Count() ?? 0) != (package.UploadedThumbnails?.Count() ?? 0))
-            {
-                //TODO: technically we could just detect the thumbnails instead of making the user specify AdditionalThumbnails
-                throw new OdinClientException("The number of additional thumbnails in your appData section does not match the number of thumbnails uploaded.",
-                    OdinClientErrorCode.InvalidThumnbnailName);
-            }
-
-            if (metadata.PayloadIsEncrypted)
+            if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {

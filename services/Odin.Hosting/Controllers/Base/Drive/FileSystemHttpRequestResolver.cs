@@ -28,7 +28,7 @@ public class FileSystemHttpRequestResolver
         _contextAccessor = contextAccessor;
     }
 
-    public AttachmentStreamWriterBase ResolveAttachmentStreamWriter()
+    public PayloadStreamWriterBase ResolvePayloadStreamWriter()
     {
         var ctx = _contextAccessor.HttpContext;
 
@@ -36,12 +36,12 @@ public class FileSystemHttpRequestResolver
 
         if (fst == FileSystemType.Standard)
         {
-            return ctx.RequestServices.GetRequiredService<StandardFileAttachmentStreamWriter>();
+            return ctx.RequestServices.GetRequiredService<StandardFilePayloadStreamWriter>();
         }
 
         if (fst == FileSystemType.Comment)
         {
-            return ctx.RequestServices.GetRequiredService<CommentAttachmentStreamWriter>();
+            return ctx.RequestServices.GetRequiredService<CommentPayloadStreamWriter>();
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);

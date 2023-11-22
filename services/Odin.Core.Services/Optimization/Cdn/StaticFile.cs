@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -8,10 +9,22 @@ public class StaticFile
 {
     public SharedSecretEncryptedFileHeader Header { get; set; }
 
-    public IEnumerable<ImageDataContent> AdditionalThumbnails { get; set; }
+    public IEnumerable<ThumbnailContent> AdditionalThumbnails { get; set; }
 
+    public List<PayloadStaticFileResponse> Payloads { get; set; }
+}
+
+public class PayloadStaticFileResponse
+{
+    /// <summary>
+    /// A text value specified by the app to define the payload
+    /// </summary>
+    public string Key { get; set; }
+
+    public string ContentType { get; set; }
+    
     /// <summary>
     /// Base64 encoded byte array of the payload
     /// </summary>
-    public byte[] Payload { get; set; }
+    public string Data { get; set; }
 }
