@@ -65,7 +65,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
+    public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
     {
         Guard.Argument(clientIdOrDomain, nameof(clientIdOrDomain)).NotEmpty().NotWhiteSpace();
         Guard.Argument(consentRequirements, nameof(consentRequirements)).NotNull();
@@ -80,7 +80,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientIdOrDomain);
 
-            var existingDomain = _domainRegistrationService.GetRegistration(domain).GetAwaiter().GetResult();
+            var existingDomain = await _domainRegistrationService.GetRegistration(domain);
             if (null == existingDomain)
             {
                 var request = new YouAuthDomainRegistrationRequest()
@@ -92,18 +92,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                _domainRegistrationService.RegisterDomain(request).GetAwaiter().GetResult();
+                await _domainRegistrationService.RegisterDomain(request);
             }
             else
             {
-                _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements).GetAwaiter().GetResult();
+                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements);
             }
             
             //so for now i'll just use this dictionary
             _tempConsent[clientIdOrDomain] = true;
         }
-
-        return Task.CompletedTask;
     }
 
     //
