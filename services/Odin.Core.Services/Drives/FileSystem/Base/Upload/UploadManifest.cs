@@ -61,7 +61,6 @@ public class UploadManifest
 public class UploadManifestPayloadDescriptor
 {
     public string PayloadKey { get; set; }
-    
     public string DescriptorContent { get; set; }
     
     public ThumbnailContent PreviewThumbnail { get; set; }

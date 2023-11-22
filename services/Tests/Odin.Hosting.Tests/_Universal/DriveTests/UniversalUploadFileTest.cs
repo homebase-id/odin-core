@@ -36,7 +36,6 @@ public class UniversalUploadFileTest
 
         PrepareContext();
         PrepareAppClient().GetAwaiter().GetResult();
-        PrepareGuestClient().GetAwaiter().GetResult();
     }
 
     [OneTimeTearDown]

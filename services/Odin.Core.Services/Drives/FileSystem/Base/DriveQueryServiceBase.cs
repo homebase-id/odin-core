@@ -227,6 +227,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                             header.ServerMetadata = null;
                         }
 
+                        if (options.ExcludeServerMetaData)
+                        {
+                            header.ServerMetadata = null;
+                        }
+
                         results.Add(header);
                     }
                     else
