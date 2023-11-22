@@ -20,11 +20,6 @@ namespace Odin.Hosting.Middleware
 
         public Task Invoke(HttpContext context, OdinContext odinContext)
         {
-            return BeginInvoke(context, odinContext);
-        }
-
-        private Task BeginInvoke(HttpContext context, OdinContext odinContext)
-        {
             if (context.Request.Method == "OPTIONS")
             {
                 //handled by a controller

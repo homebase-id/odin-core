@@ -10,25 +10,31 @@ namespace Odin.Hosting.Multitenant
     internal class MultiTenantContainerMiddleware
     {
         private readonly RequestDelegate _next;
-        
+        private readonly ILogger<MultiTenantContainerMiddleware> _logger;
+        private readonly MultiTenantContainerDisposableAccessor _container;
+        private readonly IIdentityRegistry _identityRegistry;
+
         //
 
-        public MultiTenantContainerMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
-        
-        //
-
-        public async Task Invoke(
-            HttpContext context,
+        public MultiTenantContainerMiddleware(
+            RequestDelegate next,
             ILogger<MultiTenantContainerMiddleware> logger,
             MultiTenantContainerDisposableAccessor container,
             IIdentityRegistry identityRegistry)
         {
+            _next = next;
+            _logger = logger;
+            _container = container;
+            _identityRegistry = identityRegistry;
+        }
+        
+        //
+
+        public async Task Invoke(HttpContext context)
+        {
             // Bail if we don't know the hostname/tenant
             var host = context.Request.Host.Host;
-            var registration = identityRegistry.ResolveIdentityRegistration(host, out _);
+            var registration = _identityRegistry.ResolveIdentityRegistration(host, out _);
             if (registration == null)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -44,7 +50,7 @@ namespace Odin.Hosting.Multitenant
             }
             
             // Begin new scope for request as ASP.NET Core standard scope is per-request
-            var scope = container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope"); 
+            var scope = _container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
             context.RequestServices = new AutofacServiceProvider(scope);
             
             await _next(context);
