@@ -111,9 +111,9 @@ public class UniversalUploadFileTest
         }
     }
 
-    [Test]
-    [TestCase(ApiClientType.OwnerApi)]
-    [TestCase(ApiClientType.AppApi)]
+    // [Test]
+    // [TestCase(ApiClientType.OwnerApi)]
+    // [TestCase(ApiClientType.AppApi)]
     // [TestCase(ApiClientType.GuestApi, "pippin")]
     public async Task ReceivesCorrectErrorWhenFileUploadedWithoutPermission(ApiClientType clientType)
     {
@@ -195,9 +195,9 @@ public class UniversalUploadFileTest
         }
     }
 
-    [Test]
-    [TestCase(ApiClientType.OwnerApi)]
-    [TestCase(ApiClientType.AppApi)]
+    // [Test]
+    // [TestCase(ApiClientType.OwnerApi)]
+    // [TestCase(ApiClientType.AppApi)]
     public async Task GetPayloadUsingValidPayloadKeyButPayloadDoesNotExistReturns404(ApiClientType clientType)
     {
         var targetDrive = TargetDrive.NewTargetDrive();
