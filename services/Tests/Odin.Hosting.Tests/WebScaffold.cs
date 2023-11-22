@@ -13,7 +13,6 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
@@ -51,6 +50,8 @@ namespace Odin.Hosting.Tests
         private string _testInstancePrefix;
         
         public Guid SystemProcessApiKey = Guid.NewGuid();
+
+        public IServiceProvider Services => _webserver.Services;
         
         static WebScaffold()
         {

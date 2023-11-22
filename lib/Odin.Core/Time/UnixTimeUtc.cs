@@ -50,6 +50,11 @@ namespace Odin.Core.Time
             _milliseconds = nodaTime.ToUnixTimeMilliseconds();
         }
 
+        public UnixTimeUtc(DateTimeOffset dto)
+        {
+            _milliseconds = dto.ToUnixTimeMilliseconds();
+        }
+
 
         // Define cast to Int64
         public static implicit operator UnixTimeUtc(Int64 milliseconds)
