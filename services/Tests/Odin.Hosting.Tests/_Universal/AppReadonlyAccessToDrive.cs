@@ -10,7 +10,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class AppReadonlyAccessToDrive : IScenarioContext
+public class AppReadonlyAccessToDrive //: IApiClientContext
 {
     private AppApiClientFactory _factory;
 

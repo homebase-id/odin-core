@@ -10,9 +10,14 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class AppNoAccessToDrive : IScenarioContext
+public class AppNoAccessToDrive //: IApiClientContext
 {
     private AppApiClientFactory _factory;
+
+    public Task Initialize()
+    {
+        throw new NotImplementedException();
+    }
 
     public async Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive)
     {

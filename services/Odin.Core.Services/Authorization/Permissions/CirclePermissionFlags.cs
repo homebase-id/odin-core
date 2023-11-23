@@ -6,19 +6,19 @@ namespace Odin.Core.Services.Authorization.Permissions
 {
     public static class PermissionKeys
     {
-        public static readonly int ReadConnections = 10;
+        public const int ReadConnections = 10;
 
-        public static readonly int ReadConnectionRequests = 30;
+        public const int ReadConnectionRequests = 30;
 
-        public static readonly int ReadCircleMembership = 50;
+        public const int ReadCircleMembership = 50;
 
-        public static readonly int ReadWhoIFollow = 80;
+        public const int ReadWhoIFollow = 80;
 
-        public static readonly int ReadMyFollowers = 130;
-        
-        public static readonly int UseTransitWrite = 210;
-        
-        public static readonly int UseTransitRead = 305;
+        public const int ReadMyFollowers = 130;
+
+        public const int UseTransitWrite = 210;
+
+        public const int UseTransitRead = 305;
 
         public static readonly List<int> All = new List<int>()
         {
@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.Permissions
         {
             return Circles.Any(k => k == key);
         }
-        
+
         public static ReadOnlyCollection<int> Apps { get; }
 
         public static ReadOnlyCollection<int> Circles { get; }

@@ -1,26 +1,26 @@
 using System;
 using System.Threading.Tasks;
-using System.Xml.Schema;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public interface IScenarioContext
+public interface IApiClientContext
 {
     // Create the app and setup permissions
     // Create the guest domain and setup permissions
-    Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
-
+    // Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
+    Task Initialize(OwnerApiClient ownerApiClient);
+    
     IApiClientFactory GetFactory();
 }
 
 public static class ScenarioUtil
 {
-    public static IScenarioContext Instantiate(Type scenarioType)
+    public static IApiClientContext Instantiate(Type scenarioType, PermissionKeyTestList permissionKeyTestList)
     {
-        var scenario = (IScenarioContext)Activator.CreateInstance(scenarioType);
+        var scenario = (IApiClientContext)Activator.CreateInstance(scenarioType, permissionKeyTestList);
         return scenario;
     }
 }
