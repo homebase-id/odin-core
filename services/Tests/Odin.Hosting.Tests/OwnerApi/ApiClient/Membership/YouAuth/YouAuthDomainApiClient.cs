@@ -25,7 +25,8 @@ public class YouAuthDomainApiClient
 
 
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain(
-        AsciiDomainName domain, List<GuidId> circleIds = null,
+        AsciiDomainName domain, 
+        List<GuidId> circleIds = null,
         ConsentRequirementType consentRequirement = ConsentRequirementType.Never,
         UnixTimeUtc consentExpiration = default)
     {
