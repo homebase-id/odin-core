@@ -97,6 +97,9 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.TransitQueryV1}/payload",
                 $"{AppApiPathConstants.TransitQueryV1}/thumb",
 
+                $"{AppApiPathConstants.TransitQueryV1}/payload_byglobaltransitid",
+                $"{AppApiPathConstants.TransitQueryV1}/thumb_byglobaltransitid",
+
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
