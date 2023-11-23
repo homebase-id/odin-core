@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
+using Dawn;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -9,11 +11,20 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class GuestDomainReadonlyAccessToDrive // : IApiClientContext
+public class GuestWriteOnlyAccessToDrive : IApiClientContext
 {
+    private readonly TestPermissionKeyList _keys;
     private GuestApiClientFactory _factory;
 
-    public async Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive)
+    public GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null)
+    {
+        TargetDrive = targetDrive;
+        _keys = keys;
+    }
+
+    public TargetDrive TargetDrive { get; }
+
+    public async Task Initialize(OwnerApiClient ownerApiClient)
     {
         var domain = new AsciiDomainName("test.org");
 
@@ -22,11 +33,11 @@ public class GuestDomainReadonlyAccessToDrive // : IApiClientContext
             {
                 Drives = new List<DriveGrantRequest>()
                 {
-                    new ()
+                    new()
                     {
-                        PermissionedDrive = new ()
+                        PermissionedDrive = new()
                         {
-                            Drive = targetDrive,
+                            Drive = TargetDrive,
                             Permission = DrivePermission.Read
                         }
                     }
@@ -46,6 +57,12 @@ public class GuestDomainReadonlyAccessToDrive // : IApiClientContext
 
     public IApiClientFactory GetFactory()
     {
+        Guard.Argument(_factory, nameof(_factory)).NotNull("did you call initialize?");
         return _factory;
+    }
+
+    public override string ToString()
+    {
+        return MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

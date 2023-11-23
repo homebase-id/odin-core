@@ -58,6 +58,12 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             TransitQuery = new OwnerTransitQueryApiClient(ownerApi, identity);
         }
 
+        public OwnerAuthTokenContext GetTokenContext()
+        {
+            var t = this._ownerApi.GetOwnerAuthContext(_identity.OdinId).ConfigureAwait(false).GetAwaiter().GetResult();
+            return t;
+        }
+
         public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
 
         public TestIdentity Identity => _identity;

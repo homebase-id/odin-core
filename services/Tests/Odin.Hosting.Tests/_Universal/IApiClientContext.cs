@@ -13,14 +13,16 @@ public interface IApiClientContext
     // Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive);
     Task Initialize(OwnerApiClient ownerApiClient);
     
+    TargetDrive TargetDrive { get; }
+
     IApiClientFactory GetFactory();
 }
 
 public static class ScenarioUtil
 {
-    public static IApiClientContext Instantiate(Type scenarioType, PermissionKeyTestList permissionKeyTestList)
+    public static IApiClientContext Instantiate(Type scenarioType, TestPermissionKeyList testPermissionKeyList)
     {
-        var scenario = (IApiClientContext)Activator.CreateInstance(scenarioType, permissionKeyTestList);
+        var scenario = (IApiClientContext)Activator.CreateInstance(scenarioType, testPermissionKeyList);
         return scenario;
     }
 }

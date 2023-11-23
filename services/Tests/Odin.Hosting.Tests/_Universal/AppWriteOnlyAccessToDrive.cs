@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -13,34 +11,18 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class PermissionKeyTestList
-{
-    private List<int> _permissionKeys;
-
-    
-    public PermissionKeyTestList(params int[] pk)
-    {
-        _permissionKeys = pk.ToList();
-    }
-
-    public List<int> PermissionKeys
-    {
-        get => _permissionKeys;
-        set => _permissionKeys = value;
-    }
-}
-
 public class AppWriteOnlyAccessToDrive : IApiClientContext
 {
-    private readonly OdinId _odinId;
-    private readonly PermissionKeyTestList _keys;
+    private readonly TestPermissionKeyList _keys;
     private AppApiClientFactory _factory;
 
-    public AppWriteOnlyAccessToDrive(OdinId odinId, PermissionKeyTestList keys)
+    public AppWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList? keys = null)
     {
-        _odinId = odinId;
+        TargetDrive = targetDrive;
         _keys = keys;
     }
+
+    public TargetDrive TargetDrive { get; }
 
     public async Task Initialize(OwnerApiClient ownerApiClient)
     {
@@ -54,12 +36,12 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
-                        Drive = TargetDrive.NewTargetDrive(),
+                        Drive = TargetDrive,
                         Permission = DrivePermission.Write
                     }
                 }
             },
-            PermissionSet = new PermissionSet(_keys.PermissionKeys ?? new List<int>())
+            PermissionSet = new PermissionSet(_keys?.PermissionKeys ?? new List<int>())
         };
 
         var circles = new List<Guid>();
@@ -74,5 +56,10 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
     {
         Guard.Argument(_factory, nameof(_factory)).NotNull("did you call initialize?");
         return _factory;
+    }
+
+    public override string ToString()
+    {
+        return nameof(AppWriteOnlyAccessToDrive);
     }
 }
