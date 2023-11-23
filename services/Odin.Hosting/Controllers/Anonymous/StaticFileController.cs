@@ -7,7 +7,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.FileSystem.Base;
@@ -79,12 +81,11 @@ namespace Odin.Hosting.Controllers.Anonymous
 
             if (config.CrossOriginBehavior == CrossOriginBehavior.AllowAllOrigins)
             {
-                if (this.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
+                if (Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
                 {
-                    this.Response.Headers.Remove("Access-Control-Allow-Origin");
+                    Response.Headers.Remove("Access-Control-Allow-Origin");
                 }
-
-                this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+                Response.Headers.Append("Access-Control-Allow-Origin", "*");
             }
 
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);

@@ -290,7 +290,7 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {
-                throw new OdinSecurityException();
+                throw new OdinSecurityException("Auth token entry is invalid");
             }
         }
 

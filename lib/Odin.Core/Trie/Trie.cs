@@ -224,10 +224,10 @@ namespace Odin.Core.Trie
         private void AddName(string asciiName, T Key)
         {
             if (asciiName.Length < 1)
-                throw new DomainTooShortException();
+                throw new DomainTooShortException("DomainTooShort");
 
             if (EqualityComparer<T>.Default.Equals(Key, default))
-                throw new EmptyKeyNotAllowedException();
+                throw new EmptyKeyNotAllowedException("EmptyKeyNotAllowed");
 
             // Add the domain name to the Trie - backwards (important)
             //
@@ -243,7 +243,7 @@ namespace Odin.Core.Trie
                 c = m_aTrieMap[asciiName[i]]; // Map and ignore case
 
                 if (c == 128) // Illegal character
-                    throw new DomainIllegalCharacterException();
+                    throw new DomainIllegalCharacterException("DomainIllegalCharacter");
 
                 if (p.NodeArray == null)
                     CreateArray(ref p);
@@ -253,7 +253,7 @@ namespace Odin.Core.Trie
                 if (i == 0)
                 {
                     if (!EqualityComparer<T>.Default.Equals(p.DataClass, default))
-                        throw new DomainNameDuplicateInsertedException();
+                        throw new DomainNameDuplicateInsertedException("DomainNameDuplicateInserted");
 
                     p.DataClass = Key;
                     // Finished
@@ -281,7 +281,7 @@ namespace Odin.Core.Trie
             {
                 if (InternalIsDomainUniqueInHierarchy(asciiName) == false)
                 {
-                    throw new DomainHierarchyNotUniqueException();
+                    throw new DomainHierarchyNotUniqueException("DomainHierarchyNotUnique");
                 }
                 AddName(asciiName, Key);
             }
@@ -295,7 +295,7 @@ namespace Odin.Core.Trie
         private void RemoveName(string asciiName)
         {
             if (asciiName.Length < 1)
-                throw new DomainTooShortException();
+                throw new DomainTooShortException("DomainTooShort");
 
             // Remove the domain name to the Trie - backwards (important)
             //

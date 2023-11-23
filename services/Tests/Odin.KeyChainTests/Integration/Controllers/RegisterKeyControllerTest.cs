@@ -37,6 +37,13 @@ public class RegisterKeyControllerTest
     {
         _factory.Dispose(); // we need this to correctly dispose of the key chain database
         _uglyKludge.Release();
+        _client.Dispose();
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _uglyKludge.Dispose();
     }
 
     [Test]

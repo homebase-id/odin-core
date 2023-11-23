@@ -42,6 +42,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Quartz;
+using Quartz.AspNetCore;
 
 namespace Odin.Hosting
 {
@@ -235,6 +236,8 @@ namespace Odin.Hosting
                 config.Admin.Domain));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
+
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         }
 
         // ConfigureContainer is where you can register things directly

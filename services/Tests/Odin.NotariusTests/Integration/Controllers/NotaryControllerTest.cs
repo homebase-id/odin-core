@@ -33,8 +33,14 @@ public class NotaryControllerTest
     {
         _factory.Dispose(); // we need this to correctly dispose of the key chain database
         _uglyKludge.Release();
+        _client.Dispose();
     }
 
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _uglyKludge.Dispose();
+    }
 
     [Test]
     // Test that we can successfully begin a key registration
