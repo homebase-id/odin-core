@@ -19,10 +19,4 @@
       <ProjectReference Include="..\..\Odin.Core\Odin.Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Reference Include="BouncyCastle.Crypto, Version=1.9.0.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
-        <HintPath>..\..\Odin.Core.Cryptography\Assemblies\BouncyCastle.Crypto.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
 </Project>
