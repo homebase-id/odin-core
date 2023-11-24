@@ -85,8 +85,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
                                   throw new OdinSystemException("Invalid payload key");
 
                 var to = request.Chunk.Start + request.Chunk.Length - 1;
+
+                // Sanity
+                if (to >= payloadSize)
+                {
+                    throw new OdinSystemException($"{to} >= {payloadSize}");
+                }
+
                 HttpContext.Response.Headers.Add("Content-Range",
-                    new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, payloadSize), payloadSize)
+                    new ContentRangeHeaderValue(request.Chunk.Start, to, payloadSize)
                         .ToString());
             }
 

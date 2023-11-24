@@ -113,8 +113,8 @@ public class DrivePayloadTests
         //get a chunk of the payload
         var chunk1 = new FileChunk()
         {
-            Start = 27,
-            Length = expectedChunk.Length + 10
+            Start = payload.Data.IndexOf(expectedChunk, StringComparison.Ordinal),
+            Length = expectedChunk.Length
         };
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key, chunk1);
