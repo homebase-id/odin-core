@@ -2,7 +2,7 @@
 # https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
 # https://github.com/dotnet/dotnet-docker/issues/4388
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
 
 # Silicon:
@@ -41,7 +41,7 @@ RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-
 RUN dotnet publish --no-restore --warnaserror -r linux-$CPU_ARCHITECTURE --self-contained false services/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
 
 # Create runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
 RUN echo "alias l='ls -lah'" >> ~/.bashrc
 RUN echo "alias ll='ls -lh'" >> ~/.bashrc
@@ -50,7 +50,7 @@ RUN apt-get update -q && \
     apt-get install -yq \
     curl \
     less \
-    netcat \
+    netcat-openbsd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

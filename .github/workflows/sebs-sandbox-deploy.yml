@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [dns-parallel]
+    branches: [net8-upgrade]
 
 permissions:
   contents: read
