@@ -1,0 +1,92 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Hosting.Tests._Redux.DriveApi.DirectDrive;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+
+namespace Odin.Hosting.Tests._Universal.DriveTests;
+
+// Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
+// Does not test security but rather drive features
+public class DirectDrivePayload_Notfound_Tests
+{
+    private WebScaffold _scaffold;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        _scaffold = new WebScaffold(folder);
+        _scaffold.RunBeforeAnyTests();
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _scaffold.RunAfterAnyTests();
+    }
+
+    public static IEnumerable TestCases()
+    {
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
+        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task GetPayloadUsingValidPayloadKeyButPayloadDoesNotExistReturns404(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        // upload metadata
+        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var testPayloads = new List<TestPayloadDefinition>()
+        {
+            TestPayloadDefinitions.PayloadDefinitionWithThumbnail1,
+            TestPayloadDefinitions.PayloadDefinitionWithThumbnail2
+        };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+
+        Assert.IsTrue(response.IsSuccessStatusCode);
+        var uploadResult = response.Content;
+        Assert.IsNotNull(uploadResult);
+
+        // get the file header
+        var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
+        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        var header = getHeaderResponse.Content;
+        Assert.IsNotNull(header);
+        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+
+        await callerContext.Initialize(ownerApiClient);
+        var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+
+        // now that we know we have a valid file with a few payloads
+        var getRandomPayload = await uniDriveClient.GetPayload(uploadResult.File, "r3nd0m09");
+        Assert.IsTrue(getRandomPayload.StatusCode == expectedStatusCode, $"Status code was {getRandomPayload.StatusCode}");
+    }
+
+}

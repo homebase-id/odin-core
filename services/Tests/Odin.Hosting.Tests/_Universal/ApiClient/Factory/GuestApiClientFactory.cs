@@ -3,6 +3,7 @@ using System;
 using System.Net.Http;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Storage;
@@ -37,7 +38,7 @@ public class GuestApiClientFactory : IApiClientFactory
         {
             if (_token != null && _sharedSecret != null)
             {
-                var cookieValue = $"{YouAuthConstants.AppCookieName}={_token}";
+                var cookieValue = $"{YouAuthDefaults.XTokenCookieName}={_token}";
                 client.DefaultRequestHeaders.Add("Cookie", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(_sharedSecret));

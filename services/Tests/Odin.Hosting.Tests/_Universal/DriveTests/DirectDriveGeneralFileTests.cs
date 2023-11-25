@@ -6,9 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Cryptography;
-using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
@@ -60,63 +58,26 @@ public class DirectDriveGeneralFileTests
         // Act
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UploadNewMetadata(targetDrive.TargetDriveInfo, uploadedFileMetadata);
-        
+
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
     }
 
     [Test]
-    public async Task CanUploadFileWith2PayloadsAnd2Thumbnails()
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanUploadFileWith2PayloadsAnd2Thumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-        // create a drive
-        var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.Drive.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         // upload metadata
-        var uploadedFileMetadata = new UploadFileMetadata()
-        {
-            AppData = new UploadAppFileMetaData()
-            {
-                FileType = 100
-            },
-
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
+        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            new()
-            {
-                Key = "test_key_1",
-                ContentType = "text/plain",
-                Content = "some content for payload key 1".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 200,
-                        PixelWidth = 200,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes200,
-                    }
-                }
-            },
-            new()
-            {
-                Key = "test_key_2",
-                ContentType = "text/plain",
-                Content = "other types of content for key 2".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 400,
-                        PixelWidth = 400,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes400,
-                    }
-                }
-            }
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
         };
 
         var uploadManifest = new UploadManifest()
@@ -124,108 +85,79 @@ public class DirectDriveGeneralFileTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var response = await client.DriveRedux.UploadNewFile(targetDrive.TargetDriveInfo, uploadedFileMetadata, uploadManifest, testPayloads);
+        await callerContext.Initialize(ownerApiClient);
 
-        Assert.IsTrue(response.IsSuccessStatusCode);
-        var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
-        // get the file header
-        var getHeaderResponse = await client.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-        var header = getHeaderResponse.Content;
-        Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
-
-        //test the headers payload info
-        foreach (var testPayload in testPayloads)
+        // Let's test more
+        if (expectedStatusCode == HttpStatusCode.OK)
         {
-            var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
-            Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
-            Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-            //Assert.IsTrue(payload.LastModified); //TODO: how to test?
-        }
+            var uploadResult = response.Content;
+            Assert.IsNotNull(uploadResult);
 
-        // Get the payloads
-        foreach (var definition in testPayloads)
-        {
-            var getPayloadResponse = await client.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
-            Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+            // use the owner api client to validate the file that was uploaded
+            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            var header = getHeaderResponse.Content;
+            Assert.IsNotNull(header);
+            Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
 
-            var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
-            CollectionAssert.AreEqual(content, definition.Content);
-
-            // Check all the thumbnails
-            foreach (var thumbnail in definition.Thumbnails)
+            //test the headers payload info
+            foreach (var testPayload in testPayloads)
             {
-                var getThumbnailResponse = await client.DriveRedux.GetThumbnail(uploadResult.File,
-                    thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
+                var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
+                Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
+                Assert.IsTrue(testPayload.ContentType == payload.ContentType);
+                //Assert.IsTrue(payload.LastModified); //TODO: how to test?
+            }
 
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+            // Get the payloads
+            foreach (var definition in testPayloads)
+            {
+                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
+                Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+                Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
+                Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
-                var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
+                var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
+                CollectionAssert.AreEqual(content, definition.Content);
+
+                // Check all the thumbnails
+                foreach (var thumbnail in definition.Thumbnails)
+                {
+                    var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
+                        thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
+
+                    Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+                    Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
+                    Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+
+                    var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
+                    CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
+                }
             }
         }
     }
 
     [Test]
-    public async Task DeletingFileDeletesAllPayloadsAndThumbnails()
+    [TestCaseSource(nameof(TestCases))]
+    public async Task DeletingFileDeletesAllPayloadsAndThumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var targetDrive = callerContext.TargetDrive;
 
-        var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        await ownerApiClient.Drive.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = new UploadFileMetadata()
-        {
-            AppData = new UploadAppFileMetaData()
-            {
-                FileType = 100
-            },
-
-            AccessControlList = AccessControlList.OwnerOnly
-        };
-
+        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            new()
-            {
-                Key = "test_key_1",
-                ContentType = "text/plain",
-                Content = "some content for payload key 1".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 200,
-                        PixelWidth = 200,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes200,
-                    }
-                }
-            },
-            new()
-            {
-                Key = "test_key_2",
-                ContentType = "text/plain",
-                Content = "other types of content for key 2".ToUtf8ByteArray(),
-                Thumbnails = new List<ThumbnailContent>()
-                {
-                    new ThumbnailContent()
-                    {
-                        PixelHeight = 400,
-                        PixelWidth = 400,
-                        ContentType = "image/png",
-                        Content = TestMedia.ThumbnailBytes400,
-                    }
-                }
-            }
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
         };
 
         var uploadManifest = new UploadManifest()
@@ -233,94 +165,61 @@ public class DirectDriveGeneralFileTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var response = await client.DriveRedux.UploadNewFile(targetDrive.TargetDriveInfo, uploadedFileMetadata, uploadManifest, testPayloads);
-
+        var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
         Assert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
         Assert.IsNotNull(uploadResult);
-
-        // get the file header
-        var getHeaderResponse = await client.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-        var header = getHeaderResponse.Content;
-        Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
-
-        //test the headers payload info
-        foreach (var testPayload in testPayloads)
-        {
-            var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
-            Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
-            Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-            //Assert.IsTrue(payload.LastModified); //TODO: how to test?
-        }
-
-        // Get the payloads
-        foreach (var definition in testPayloads)
-        {
-            var getPayloadResponse = await client.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
-            Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-            var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
-            CollectionAssert.AreEqual(content, definition.Content);
-
-            foreach (var thumbnail in definition.Thumbnails)
-            {
-                var getThumbnailResponse =
-                    await client.DriveRedux.GetThumbnail(uploadResult.File, thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                var thumbnailContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                CollectionAssert.AreEqual(thumbnailContent, thumbnail.Content);
-            }
-        }
-
 
         // Now that we know all are there, let's delete stuff
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
-        var deleteFileResponse = await client.DriveRedux.DeleteFile(uploadResult.File);
-        Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-        var result = deleteFileResponse.Content;
-        Assert.IsNotNull(result);
+        var deleteFileResponse = await callerDriveClient.DeleteFile(uploadResult.File);
+        Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
-        Assert.IsTrue(result.LocalFileDeleted);
-        Assert.IsFalse(result.RecipientStatus.Any());
-
-        // Get the payloads
-        foreach (var definition in testPayloads)
+        // Test more if we can
+        if (expectedStatusCode == HttpStatusCode.OK)
         {
-            var getPayloadResponse = await client.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-            Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+            var result = deleteFileResponse.Content;
+            Assert.IsNotNull(result);
 
-            foreach (var thumbnail in definition.Thumbnails)
+            Assert.IsTrue(result.LocalFileDeleted);
+            Assert.IsFalse(result.RecipientStatus.Any());
+
+            // Get the payloads
+            foreach (var definition in testPayloads)
             {
-                var getThumbnailResponse =
-                    await client.DriveRedux.GetThumbnail(uploadResult.File, thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-                Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
+                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+
+                foreach (var thumbnail in definition.Thumbnails)
+                {
+                    var getThumbnailResponse =
+                        await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File, thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
+                    Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+                }
             }
         }
     }
 
     [Test]
-    public async Task CanDeleteByMultipleFileIds()
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanDeleteByMultipleFileIds(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
 
-        var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.Drive.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         // upload metadata and validate they're uploaded
         var f1 = SampleMetadataDataDefinitions.Create(fileType: 101);
         var f2 = SampleMetadataDataDefinitions.Create(fileType: 202);
         var f3 = SampleMetadataDataDefinitions.Create(fileType: 203);
 
-        UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive.TargetDriveInfo);
-        UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive.TargetDriveInfo);
-        UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive.TargetDriveInfo);
+        UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
+        UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
+        UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive);
 
         var deleteList = new List<DeleteFileRequest>()
         {
@@ -341,7 +240,10 @@ public class DirectDriveGeneralFileTests
             }
         };
 
-        var deleteListResult = await client.DriveRedux.DeleteFileList(deleteList);
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var deleteListResult = await ownerApiClient.DriveRedux.DeleteFileList(deleteList);
         Assert.IsTrue(deleteListResult.IsSuccessStatusCode);
         var deleteBatchResult = deleteListResult.Content;
         Assert.IsNotNull(deleteBatchResult);
@@ -354,7 +256,7 @@ public class DirectDriveGeneralFileTests
 
         foreach (var request in deleteList)
         {
-            var getDeletedHeader = await client.DriveRedux.GetFileHeader(request.File);
+            var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(request.File);
 
             Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
             Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
@@ -362,11 +264,13 @@ public class DirectDriveGeneralFileTests
     }
 
     [Test]
-    public async Task CanDeleteMultipleFilesByGroupIdList()
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanDeleteMultipleFilesByGroupIdList(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-
-        var targetDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.Drive.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         var groupId1 = Guid.NewGuid(); // Will delete
         var groupId2 = Guid.NewGuid(); // Will delete
@@ -378,10 +282,10 @@ public class DirectDriveGeneralFileTests
         var f3 = SampleMetadataDataDefinitions.Create(fileType: 203, groupId: groupId2);
         var f4 = SampleMetadataDataDefinitions.Create(fileType: 203, groupId: groupId3);
 
-        UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive.TargetDriveInfo);
-        UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive.TargetDriveInfo);
-        UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive.TargetDriveInfo);
-        UploadResult uploadResult4 = await this.UploadAndValidate(f4, targetDrive.TargetDriveInfo);
+        UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
+        UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
+        UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive);
+        UploadResult uploadResult4 = await this.UploadAndValidate(f4, targetDrive);
 
         //
         // perform the deletes
@@ -392,77 +296,84 @@ public class DirectDriveGeneralFileTests
             new()
             {
                 GroupId = groupId1,
-                TargetDrive = targetDrive.TargetDriveInfo,
+                TargetDrive = targetDrive,
                 Recipients = default
             },
             new()
             {
                 GroupId = groupId2,
-                TargetDrive = targetDrive.TargetDriveInfo,
+                TargetDrive = targetDrive,
                 Recipients = default
             }
         };
 
-        var deleteFilesByGroupIdListResponse = await client.DriveRedux.DeleteFilesByGroupIdList(new DeleteFilesByGroupIdBatchRequest()
+        await callerContext.Initialize(ownerApiClient);
+        var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var deleteFilesByGroupIdListResponse = await uniDriveClient.DeleteFilesByGroupIdList(new DeleteFilesByGroupIdBatchRequest()
         {
             Requests = deleteRequests
         });
 
-        Assert.IsTrue(deleteFilesByGroupIdListResponse.IsSuccessStatusCode);
-        var deleteBatchResult = deleteFilesByGroupIdListResponse.Content;
-        Assert.IsNotNull(deleteBatchResult);
+        Assert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode);
 
-        //
-        // check group 1
-        //
-
-        var deletesForGroupId1 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId1);
-        Assert.IsNotNull(deletesForGroupId1);
-
-        Assert.IsTrue(deletesForGroupId1.DeleteFileResults.Count == 2);
-        Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult1.File));
-        Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult2.File));
-
-        foreach (var fileDeleteResult in deletesForGroupId1.DeleteFileResults)
+        if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
-            Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
+            var deleteBatchResult = deleteFilesByGroupIdListResponse.Content;
+            Assert.IsNotNull(deleteBatchResult);
 
-            var getDeletedHeader = await client.DriveRedux.GetFileHeader(fileDeleteResult.File);
+            //
+            // check group 1
+            //
 
-            Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
-            Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+            var deletesForGroupId1 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId1);
+            Assert.IsNotNull(deletesForGroupId1);
+
+            Assert.IsTrue(deletesForGroupId1.DeleteFileResults.Count == 2);
+            Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult1.File));
+            Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult2.File));
+
+            foreach (var fileDeleteResult in deletesForGroupId1.DeleteFileResults)
+            {
+                Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
+                Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
+
+                var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
+
+                Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
+                Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+            }
+
+
+            //
+            // check group 2
+            //
+            var deletesForGroupId2 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId2);
+            Assert.IsNotNull(deletesForGroupId2);
+
+
+            Assert.IsTrue(deletesForGroupId2.DeleteFileResults.Count == 1);
+            Assert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult3.File));
+
+            foreach (var fileDeleteResult in deletesForGroupId2.DeleteFileResults)
+            {
+                Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
+                Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
+
+                var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
+
+                Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
+                Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+            }
+
+            var deletesForGroupId3 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId3);
+            Assert.IsNull(deletesForGroupId3, "there should be no deletes for group id 3");
+
+            //
+            var getHeader = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult4.File);
+            Assert.IsTrue(getHeader.IsSuccessStatusCode);
+            Assert.IsTrue(getHeader.Content.FileState == FileState.Active);
         }
-
-
-        //
-        // check group 2
-        //
-        var deletesForGroupId2 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId2);
-        Assert.IsNotNull(deletesForGroupId2);
-
-
-        Assert.IsTrue(deletesForGroupId2.DeleteFileResults.Count == 1);
-        Assert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult3.File));
-
-        foreach (var fileDeleteResult in deletesForGroupId2.DeleteFileResults)
-        {
-            Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
-            Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
-
-            var getDeletedHeader = await client.DriveRedux.GetFileHeader(fileDeleteResult.File);
-
-            Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
-            Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
-        }
-
-        var deletesForGroupId3 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId3);
-        Assert.IsNull(deletesForGroupId3, "there should be no deletes for group id 3");
-
-        //
-        var getHeader = await client.DriveRedux.GetFileHeader(uploadResult4.File);
-        Assert.IsTrue(getHeader.IsSuccessStatusCode);
-        Assert.IsTrue(getHeader.Content.FileState == FileState.Active);
     }
 
     private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)

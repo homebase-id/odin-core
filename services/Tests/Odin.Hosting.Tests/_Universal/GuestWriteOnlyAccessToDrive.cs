@@ -38,7 +38,7 @@ public class GuestWriteOnlyAccessToDrive : IApiClientContext
                         PermissionedDrive = new()
                         {
                             Drive = TargetDrive,
-                            Permission = DrivePermission.Read
+                            Permission = DrivePermission.Write
                         }
                     }
                 },
