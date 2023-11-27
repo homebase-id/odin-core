@@ -74,12 +74,12 @@ jobs:
       #
       # Build Docker image
       #
-      - name: Get CPU architecture
-        working-directory: dotyoucore
-        run: |
-          output=$(./.github/scripts/get-cpu-architecture.sh)
-          echo "Silocon is: $output"
-          echo "CPU_ARCHITECTURE=${output}" >> $GITHUB_ENV
+      # - name: Get CPU architecture
+      #   working-directory: dotyoucore
+      #   run: |
+      #     output=$(./.github/scripts/get-cpu-architecture.sh)
+      #     echo "Silocon is: $output"
+      #     echo "CPU_ARCHITECTURE=${output}" >> $GITHUB_ENV
 
       - name: Log in to the Container registry
         uses: docker/login-action@v2
@@ -88,6 +88,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
@@ -95,15 +98,16 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/Docker/Dockerfile-identity-host
+          file: ./dotyoucore/Docker/Dockerfile-identity-host-net8
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          # build-args: |
+          #   CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
 
       #
       # Deploy
@@ -120,10 +124,10 @@ jobs:
         run: |
           echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
-      - name: Deploy to bleeding edge host using Ansible
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.ANSIBLE_HOST }}
-          username: ${{ secrets.ANSIBLE_USERNAME }}
-          key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+      # - name: Deploy to sandbox
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.ANSIBLE_HOST }}
+      #     username: ${{ secrets.ANSIBLE_USERNAME }}
+      #     key: ${{ secrets.ANSIBLE_SSH_KEY }}
+      #     script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
