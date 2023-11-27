@@ -13,10 +13,6 @@ public class AdminException : OdinSystemException
     public AdminException(string message, Exception innerException) : base(message, innerException)
     {
     }
-
-    protected AdminException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }
 
 //
@@ -30,10 +26,6 @@ public class AdminValidationException : AdminException
     }
 
     public AdminValidationException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
-
-    protected AdminValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

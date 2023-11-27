@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Core;
@@ -135,6 +136,12 @@ namespace Odin.Hosting.Multitenant
 
         public ILifetimeScope BeginLifetimeScope(object tag, Action<ContainerBuilder> configurationAction) =>
             GetCurrentTenantScope().BeginLifetimeScope(tag, configurationAction);
+
+        public ILifetimeScope BeginLoadContextLifetimeScope(AssemblyLoadContext loadContext, Action<ContainerBuilder> configurationAction) =>
+            GetCurrentTenantScope().BeginLoadContextLifetimeScope(loadContext, configurationAction);
+
+        public ILifetimeScope BeginLoadContextLifetimeScope(object tag, AssemblyLoadContext loadContext, Action<ContainerBuilder> configurationAction) =>
+            GetCurrentTenantScope().BeginLoadContextLifetimeScope(tag, loadContext, configurationAction);
 
         public IDisposer Disposer =>
             GetCurrentTenantScope().Disposer;

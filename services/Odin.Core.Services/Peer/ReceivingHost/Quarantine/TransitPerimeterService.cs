@@ -170,7 +170,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                     //requester must be the original commenter
                     if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
                     {
-                        throw new OdinSecurityException();
+                        throw new OdinSecurityException("Requester must be the original commenter");
                     }
 
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()

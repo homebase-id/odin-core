@@ -1,10 +1,7 @@
 using System;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Reflection;
 using Autofac;
 using MediatR;
-using MediatR.Pipeline;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.AppNotifications.WebSocket;
@@ -30,7 +27,6 @@ using Odin.Core.Services.Drives.Statistics;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
-using Odin.Core.Services.Membership;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
@@ -57,8 +53,6 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            RegisterMediator(ref cb);
-
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
@@ -215,40 +209,6 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
-        }
-
-        private static void RegisterMediator(ref ContainerBuilder cb)
-        {
-            //TODO: following the docs here but should we pull in everything from this assembly?
-            cb.RegisterAssemblyTypes(typeof(IMediator).GetTypeInfo().Assembly).AsImplementedInterfaces().SingleInstance();
-
-            var mediatrOpenTypes = new[]
-            {
-                typeof(IRequestHandler<,>),
-                typeof(IRequestExceptionHandler<,,>),
-                typeof(IRequestExceptionAction<,>),
-                typeof(INotificationHandler<>),
-                typeof(IStreamRequestHandler<,>)
-            };
-
-            foreach (var mediatrOpenType in mediatrOpenTypes)
-            {
-                cb
-                    .RegisterAssemblyTypes(typeof(Ping).GetTypeInfo().Assembly)
-                    .AsClosedTypesOf(mediatrOpenType)
-                    // when having a single class implementing several handler types
-                    // this call will cause a handler to be called twice
-                    // in general you should try to avoid having a class implementing for instance `IRequestHandler<,>` and `INotificationHandler<>`
-                    // the other option would be to remove this call
-                    // see also https://github.com/jbogard/MediatR/issues/462
-                    .AsImplementedInterfaces();
-            }
-
-            cb.Register<ServiceFactory>(ctx =>
-            {
-                var c = ctx.Resolve<IComponentContext>();
-                return t => c.Resolve(t);
-            });
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

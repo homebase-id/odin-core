@@ -1,7 +1,6 @@
 
-CPU_ARCHITECTURE=$(./.github/scripts/get-cpu-architecture.sh)
-
-docker build \
+docker buildx build \
     -f Docker/Dockerfile-identity-host \
-    --build-arg CPU_ARCHITECTURE=$CPU_ARCHITECTURE \
+    --platform linux/arm64,linux/arm,linux/amd64 \
     --tag dotyou:local .
+

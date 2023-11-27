@@ -26,8 +26,8 @@ namespace Odin.Hosting.Authentication.System
     public class SystemAuthenticationHandler : AuthenticationHandler<SystemAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         public SystemAuthenticationHandler(IOptionsMonitor<SystemAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, ISystemClock clock, OdinConfiguration config)
-            : base(options, logger, encoder, clock)
+            UrlEncoder encoder, OdinConfiguration config)
+            : base(options, logger, encoder)
         {
         }
 

@@ -16,9 +16,5 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
         public HostToHostTransferException(string message, Exception innerException) : base(message, innerException)
         {
         }
-
-        protected HostToHostTransferException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
     }
 }

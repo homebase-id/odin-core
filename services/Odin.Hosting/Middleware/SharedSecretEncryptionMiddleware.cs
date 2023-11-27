@@ -211,7 +211,7 @@ namespace Odin.Hosting.Middleware
                 typeof(SharedSecretEncryptedPayload),
                 OdinSystemSerializer.JsonSerializerOptions);
 
-            // context.Response.Headers.Add("X-SSE", "1");
+            // context.Response.Headers.Append("X-SSE", "1");
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
