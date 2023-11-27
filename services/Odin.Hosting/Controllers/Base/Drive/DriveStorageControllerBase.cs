@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
@@ -73,11 +74,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
             if (null != request.Chunk)
             {
@@ -92,7 +93,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     throw new OdinSystemException($"{to} >= {payloadSize}");
                 }
 
-                HttpContext.Response.Headers.Add("Content-Range",
+                HttpContext.Response.Headers.Append("Content-Range",
                     new ContentRangeHeaderValue(request.Chunk.Start, to, payloadSize)
                         .ToString());
             }
@@ -134,10 +135,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, header.SharedSecretEncryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, header.SharedSecretEncryptedKeyHeader.ToBase64());
 
             AddGuestApiCacheHeader();
 
@@ -218,7 +219,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     DeleteFileResults = batchResults.Results
                 });
             }
-            
+
             return new JsonResult(deleteBatchFinalResult);
         }
 

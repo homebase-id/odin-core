@@ -126,7 +126,7 @@ namespace Odin.Core.Services.Authorization.Acl
         {
             if (eval == false)
             {
-                throw new OdinSecurityException();
+                throw new OdinSecurityException("I'm throwing because it's false!");
             }
         }
     }

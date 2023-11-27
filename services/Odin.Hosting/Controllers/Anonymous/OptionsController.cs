@@ -1,13 +1,12 @@
 ﻿#nullable enable
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
-using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {
@@ -20,17 +19,17 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpOptions("{**thePath}")]
         public IActionResult Options(string thePath)
         {
-            this.Response.Headers.Add("Access-Control-Allow-Origin", (string)this.Request.Headers["Origin"]);
-            this.Response.Headers.Add("Access-Control-Allow-Headers",
+            Response.Headers.Append("Access-Control-Allow-Origin", Request.Headers["Origin"]);
+            Response.Headers.Append("Access-Control-Allow-Headers",
                 new[]
                 {
                     "Content-Type", "Accept", YouAuthConstants.AppCookieName,
                     OdinHeaderNames.FileSystemTypeHeader
                 });
-            this.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            this.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-            this.Response.Headers.Add("Access-Control-Expose-Headers", "*");
-            this.Response.Headers.Add("Access-Control-Max-Age", "86400");
+            Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+            Response.Headers.Append("Access-Control-Expose-Headers", "*");
+            Response.Headers.Append("Access-Control-Max-Age", "86400");
 
             return Ok();
         }

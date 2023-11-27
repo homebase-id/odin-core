@@ -1,24 +1,15 @@
 ﻿using System;
-using System.Runtime.Serialization;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util.Fluff
 {
-    [Serializable]
-    public class DomainTooLongException : Exception
+    public class DomainTooLongException : OdinSystemException
     {
-        public DomainTooLongException()
-        {
-        }
-
         public DomainTooLongException(string message) : base(message)
         {
         }
 
         public DomainTooLongException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected DomainTooLongException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

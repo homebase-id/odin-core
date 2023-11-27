@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Registry;
@@ -29,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         public async Task<IActionResult> GetInfo()
         {
             var tenant = _odinContextAccessor.GetCurrent().Tenant;
-            HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+            HttpContext.Response.Headers.Append("Access-Control-Allow-Origin", "*");
 
             if (string.IsNullOrEmpty(tenant))
             {

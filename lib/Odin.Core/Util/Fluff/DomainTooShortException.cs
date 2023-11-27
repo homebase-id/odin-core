@@ -1,24 +1,16 @@
 ﻿using System;
 using System.Runtime.Serialization;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util.Fluff
 {
-    [Serializable]
-    public class DomainTooShortException : Exception
+    public class DomainTooShortException : OdinSystemException
     {
-        public DomainTooShortException()
-        {
-        }
-
         public DomainTooShortException(string message) : base(message)
         {
         }
 
         public DomainTooShortException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected DomainTooShortException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -298,10 +299,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             AddGuestApiCacheHeader();
             
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 
@@ -313,11 +314,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
             }
             AddGuestApiCacheHeader();
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
     }

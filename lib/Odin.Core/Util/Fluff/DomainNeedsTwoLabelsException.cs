@@ -1,24 +1,15 @@
 ﻿using System;
-using System.Runtime.Serialization;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util.Fluff
 {
-    [Serializable]
-    internal class DomainNeedsTwoLabelsException : Exception
+    internal class DomainNeedsTwoLabelsException : OdinSystemException
     {
-        public DomainNeedsTwoLabelsException()
-        {
-        }
-
         public DomainNeedsTwoLabelsException(string message) : base(message)
         {
         }
 
         public DomainNeedsTwoLabelsException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected DomainNeedsTwoLabelsException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

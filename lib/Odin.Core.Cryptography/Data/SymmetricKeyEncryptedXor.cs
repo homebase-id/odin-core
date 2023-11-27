@@ -62,7 +62,7 @@ namespace Odin.Core.Cryptography.Data
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref remoteHalfKey)))
             {
-                throw new OdinSecurityException()
+                throw new OdinSecurityException("Byte arrays don't match")
                 {
                     IsRemoteIcrIssue = true
                 };

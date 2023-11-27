@@ -15,7 +15,7 @@ public static class ConfigurationExtensions
             throw new OdinSystemException($"Missing config '{path}'");
         }
 
-        return section.Get<T>();
+        return section.Get<T>()!;
     }
     
     //
@@ -30,7 +30,7 @@ public static class ConfigurationExtensions
         }
 
         var value = section.Get<T>();
-        return value;
+        return value!;
     }
 
     //
