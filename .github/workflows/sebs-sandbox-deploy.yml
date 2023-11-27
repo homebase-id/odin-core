@@ -71,16 +71,6 @@ jobs:
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
           mv packages/provisioning-app/dist ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
 
-      #
-      # Build Docker image
-      #
-      # - name: Get CPU architecture
-      #   working-directory: dotyoucore
-      #   run: |
-      #     output=$(./.github/scripts/get-cpu-architecture.sh)
-      #     echo "Silocon is: $output"
-      #     echo "CPU_ARCHITECTURE=${output}" >> $GITHUB_ENV
-
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:
@@ -106,8 +96,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          # build-args: |
-          #   CPU_ARCHITECTURE=${{ env.CPU_ARCHITECTURE }}"
 
       #
       # Deploy
@@ -124,10 +112,10 @@ jobs:
         run: |
           echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
-      # - name: Deploy to sandbox
-      #   uses: appleboy/ssh-action@master
-      #   with:
-      #     host: ${{ secrets.ANSIBLE_HOST }}
-      #     username: ${{ secrets.ANSIBLE_USERNAME }}
-      #     key: ${{ secrets.ANSIBLE_SSH_KEY }}
-      #     script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+      - name: Deploy to sandbox
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
