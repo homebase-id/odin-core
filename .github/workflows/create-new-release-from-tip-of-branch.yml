@@ -113,3 +113,4 @@ jobs:
           tags: ${{ env.IMAGE_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
