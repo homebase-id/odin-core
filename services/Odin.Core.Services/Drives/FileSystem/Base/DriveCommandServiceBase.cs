@@ -47,6 +47,10 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
             };
 
             var serverFileHeader = await _storage.GetServerFileHeader(file);
+            if (null == serverFileHeader)
+            {
+                continue;
+            }
             var commandFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             var command = OdinSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.Content);
 
