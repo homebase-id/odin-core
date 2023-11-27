@@ -34,7 +34,7 @@ jobs:
           TOKEN=${{ secrets.GITHUB_TOKEN }}
           registry_token=$(curl -u $USERNAME:$TOKEN -s https://${{ env.REGISTRY }}/token\?scope\="repository:${{ env.REPO }}:pull" | jq -r .token)
           echo "registry_token: $registry_token"
-          latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+-${{ env.ARCHITECTURE }}$" | sort -V | tail -n1)
+          latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n1)
           echo "latest_version_tag: $latest_version_tag"
           echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
 
@@ -64,4 +64,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"

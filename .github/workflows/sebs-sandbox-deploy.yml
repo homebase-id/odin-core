@@ -91,7 +91,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/Docker/Dockerfile-identity-host-net8
+          file: ./dotyoucore/Docker/Dockerfile-identity-host
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
