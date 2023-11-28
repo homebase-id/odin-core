@@ -66,6 +66,9 @@ namespace Odin.Hosting
             AssertValidRenewalConfiguration(config.CertificateRenewal);
 
             //
+            // We are using HttpClientFactoryLite because we have to be able to create HttpClientHandlers on the fly.
+            // This is not possible with the baked in HttpClientFactory.
+            //
             // IHttpClientFactory rules when creating a HttpClient:
             // - It is not the HttpClient that is managed by IHttpClientFactory, it is the HttpClientHandler
             //   that is explictly or implicitly attached to the HttpClient instance that is managed and shared by
@@ -78,7 +81,7 @@ namespace Odin.Hosting
             // - Use SetHandlerLifetime to control how long a connections are pooled (this also controls when existing
             //   HttpClientHandlers are called)
             //
-            services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
+            services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
             services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();

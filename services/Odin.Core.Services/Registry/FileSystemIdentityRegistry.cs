@@ -480,7 +480,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var shards = Directory.GetDirectories(ShardablePayloadRoot);
             foreach (var shard in shards)
             {
-                var payloadPath = Path.Combine(shard, identity.Id.ToString());
+                var id = identity.Id.ToString();
+
+                // Sanity
+                if (string.IsNullOrEmpty(shard) || string.IsNullOrEmpty(id))
+                {
+                    throw new OdinSystemException("I just stopped you in wiping the wrong stuff!");
+                }
+
+                var payloadPath = Path.Combine(shard, id);
                 if (Directory.Exists(payloadPath))
                 {
                     try
