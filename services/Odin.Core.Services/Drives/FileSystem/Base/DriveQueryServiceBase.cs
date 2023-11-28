@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.Management;
@@ -54,7 +53,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
                 {
-                    IncludesJsonContent = o.IncludeJsonContent,
+                    IncludeHeaderContent = o.IncludeHeaderContent,
                     Cursor = updatedCursor,
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows
@@ -82,7 +81,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return new QueryBatchResult()
                 {
                     QueryTime = queryTime.uniqueTime,
-                    IncludeMetadataHeader = options.IncludeJsonContent,
+                    IncludeMetadataHeader = options.IncludeHeaderContent,
                     Cursor = cursor,
                     SearchResults = headers,
                     HasMoreRows = hasMoreRows
@@ -105,6 +104,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
+                IncludeHeaderContent = !excludePreviewThumbnail,
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
@@ -135,7 +135,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     var driveId = driveIdValue.GetValueOrDefault();
                     var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
                     {
-                        IncludeJsonContent = true,
+                        IncludeHeaderContent = true,
                         ExcludePreviewThumbnail = false
                     };
 
@@ -154,7 +154,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
+            bool excludePreviewThumbnail = true)
         {
             AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
@@ -166,7 +167,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 Cursor = null,
                 MaxRecords = 10,
-                ExcludePreviewThumbnail = true
+                ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
             var results = await this.GetBatch(driveId, qp, options, forceIncludeServerMetadata);
@@ -190,36 +191,58 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search index but does not have read access to the file {file}.");
+                    Log.Warning("Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
+                        ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
                 }
                 else
                 {
                     var serverFileHeader = await _storage.GetServerFileHeader(file);
-                    var isEncrypted = serverFileHeader.FileMetadata.PayloadIsEncrypted;
+                    var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
-                    
+
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
-                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;  
+                    var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
                     if (shouldReceiveFile)
                     {
-                        var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
-                        if (!options.IncludeJsonContent)
+                        var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(
+                            serverFileHeader,
+                            ContextAccessor,
+                            forceIncludeServerMetadata);
+                        if (!options.IncludeHeaderContent)
                         {
-                            header.FileMetadata.AppData.JsonContent = string.Empty;
+                            header.FileMetadata.AppData.Content = string.Empty;
                         }
 
                         if (options.ExcludePreviewThumbnail)
                         {
                             header.FileMetadata.AppData.PreviewThumbnail = null;
+                            foreach (var pd in header.FileMetadata.Payloads)
+                            {
+                                pd.PreviewThumbnail = null;
+                            }
+                        }
+
+                        if (options.ExcludeServerMetaData)
+                        {
+                            header.ServerMetadata = null;
+                        }
+
+                        if (options.ExcludeServerMetaData)
+                        {
+                            header.ServerMetadata = null;
                         }
 
                         results.Add(header);
                     }
                     else
                     {
-                        Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive search " +
-                                  $"index with (isPayloadEncrypted: {serverFileHeader.FileMetadata.PayloadIsEncrypted}) but does not have the " +
-                                  $"storage key to decrypt the file {file}.");
+                        Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
+                                  "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
+                                  "storage key to decrypt the file {file} on drive {drive}.",
+                            ContextAccessor.GetCurrent().Caller.OdinId,
+                            serverFileHeader.FileMetadata.IsEncrypted,
+                            file.FileId,
+                            file.DriveId);
                     }
                 }
             }

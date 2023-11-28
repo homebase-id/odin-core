@@ -145,9 +145,14 @@ namespace Odin.Hosting
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
-                .UseSerilog((context, services, loggerConfiguration) => { CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration); })
-                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
-                    DependencyInjection.InitializeTenant))
+                .UseSerilog((context, services, loggerConfiguration) =>
+                {
+                    CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
+                })
+                .UseServiceProviderFactory(
+                    new MultiTenantServiceProviderFactory(
+                        DependencyInjection.ConfigureMultiTenantServices,
+                        DependencyInjection.InitializeTenant))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions =>

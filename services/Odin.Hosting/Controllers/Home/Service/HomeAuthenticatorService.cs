@@ -119,7 +119,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         {
             try
             {
-                var ctx = _contextAccessor.GetCurrent().Caller.YouAuthClientContext;
+                var ctx = _contextAccessor.GetCurrent().Caller.OdinClientContext;
 
                 if (null != ctx)
                 {
@@ -243,7 +243,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 securityLevel: SecurityGroupType.Authenticated,
                 masterKey: null,
                 circleIds: null,
-                youAuthClientContext: new OdinYouAuthClientContext()
+                odinClientContext: new OdinClientContext()
                 {
                     ClientIdOrDomain = client.OdinId,
                     CorsHostName = "",
@@ -357,7 +357,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                     masterKey: null,
                     securityLevel: SecurityGroupType.Connected,
                     circleIds: enabledCircles,
-                    youAuthClientContext: new OdinYouAuthClientContext()
+                    odinClientContext: new OdinClientContext()
                     {
                         ClientIdOrDomain = client.OdinId,
                         CorsHostName = "",

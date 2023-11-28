@@ -32,43 +32,16 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 return NotFound();
             }
 
-            AddGuestApiCacheHeader();
-
             return new JsonResult(result);
         }
 
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayloadStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            FileChunk chunk = null;
-            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
-                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
-            {
-                var firstRange = range.Ranges.First();
-                if (firstRange.From != null && firstRange.To != null)
-                {
-                    HttpContext.Response.StatusCode = 206;
-
-                    int start = Convert.ToInt32(firstRange.From ?? 0);
-                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
-
-                    chunk = new FileChunk()
-                    {
-                        Start = start,
-                        Length = end - start + 1
-                    };
-                }
-            }
-            else if (chunkStart.HasValue)
-            {
-                chunk = new FileChunk()
-                {
-                    Start = chunkStart.GetValueOrDefault(),
-                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
-                };
-            }
-
+            
+            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
             {
@@ -87,6 +60,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }
@@ -94,7 +68,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         [HttpGet("thumb")]
         public async Task<IActionResult> GetThumbnailStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] int width,
-            [FromQuery] int height)
+            [FromQuery] int height,
+            [FromQuery] string payloadKey)
         {
             var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
@@ -114,13 +89,14 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
+                PayloadKey = payloadKey
             });
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
         {
-            var queryService = GetFileSystemResolver().ResolveFileSystem().Query;
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
             var driveId = OdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {

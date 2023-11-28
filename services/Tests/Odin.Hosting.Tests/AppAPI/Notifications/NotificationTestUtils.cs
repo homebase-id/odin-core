@@ -16,13 +16,11 @@ public static class NotificationTestUtils
         var encryptedJsonContents = keyHeader.EncryptDataAesAsStream(jsonContents);
         var fileMetadata = new UploadFileMetadata()
         {
-            ContentType = "application/json",
             AllowDistribution = true,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = OdinSystemSerializer.Serialize(encryptedJsonContents),
+                Content = OdinSystemSerializer.Serialize(encryptedJsonContents),
                 FileType = 150
             },
             AccessControlList = AccessControlList.OwnerOnly

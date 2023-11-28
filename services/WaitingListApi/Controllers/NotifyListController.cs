@@ -33,7 +33,7 @@ public class NotifyListController : ControllerBase
         {
             if (sqliteException.SqliteErrorCode == 19)
             {
-                return BadRequest("");
+                return BadRequest("Email address is already signed up");
             }
         }
         catch

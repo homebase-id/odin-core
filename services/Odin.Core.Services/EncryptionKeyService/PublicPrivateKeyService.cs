@@ -14,9 +14,17 @@ using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using WebPush;
 
 namespace Odin.Core.Services.EncryptionKeyService
 {
+
+    public class NotificationEccKeys
+    {
+        public string PublicKey64 { get; set; }
+        public string PrivateKey64 { get; set; }
+    }
+    
     public class PublicPrivateKeyService : INotificationHandler<OwnerIsOnlineNotification>
     {
         private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
@@ -24,6 +32,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
         private readonly Guid _onlineEccKeyStorageId = Guid.Parse("0d4cbb31-bd2e-4910-806c-42a516e63174");
         private readonly Guid _offlineEccKeyStorageId = Guid.Parse("09529956-bf97-43e8-9822-ad3ecf26819d");
+        private readonly Guid _offlineNotificationsKeyStorageId = Guid.Parse("22165337-1ff5-4e92-87f2-95fc9ce424c3");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
@@ -32,7 +41,10 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private static readonly SemaphoreSlim RsaRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
-        private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        public static readonly byte[] NotificationPrivateEncryptionKey =
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         private readonly SingleKeyValueStorage _storage;
 
@@ -44,10 +56,9 @@ namespace Odin.Core.Services.EncryptionKeyService
             _contextAccessor = contextAccessor;
             _odinHttpClientFactory = odinHttpClientFactory;
             _mediator = mediator;
-            
+
             const string icrKeyStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
             _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
-
         }
 
         /// <summary>
@@ -168,6 +179,24 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
+        // public Task<EccPublicKeyData> GetNotificationsPublicKey()
+        // {
+        //     var keyPair = this.GetCurrentEccKeyFromStorage(_offlineNotificationsKeyStorageId);
+        //     return Task.FromResult((EccPublicKeyData)keyPair);
+        // }
+
+        public Task<string> GetNotificationsPublicKey()
+        {
+            return Task.FromResult(this.GetNotificationsKeys().PublicKey64);
+
+        }
+        
+        public NotificationEccKeys GetNotificationsKeys()
+        {
+            var keys = _storage.Get<NotificationEccKeys>(_offlineNotificationsKeyStorageId);
+            return keys;
+        }
+        
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
             var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
@@ -203,7 +232,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             Guard.Argument(payload.KeyHeaderEncryptedData, nameof(payload.KeyHeaderEncryptedData)).NotNull();
             Guard.Argument(payload.RsaEncryptedKeyHeader, nameof(payload.RsaEncryptedKeyHeader)).NotNull();
             Guard.Argument(payload.Crc32, nameof(payload.Crc32)).Require(c => c > 0);
-            
+
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32);
 
             if (!isValidPublicKey)
@@ -276,9 +305,11 @@ namespace Odin.Core.Services.EncryptionKeyService
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
                 await this.CreateNewEccKeys(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId);
-                
+
                 await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
+
+                await this.CreateNotificationEccKeys();
             }
             finally
             {
@@ -356,6 +387,33 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
+        private Task CreateNotificationEccKeys()
+        {
+            var storageKey = _offlineNotificationsKeyStorageId;
+            // var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
+            //
+            // if (null != existingKeys)
+            // {
+            //     throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
+            // }
+            //
+            // //create a new key list
+            // var eccKeyList = EccKeyListManagement.CreateEccKeyList(NotificationPrivateEncryptionKey.ToSensitiveByteArray(),
+            //     EccKeyListManagement.DefaultMaxOnlineKeys,
+            //     EccKeyListManagement.DefaultHoursOnlineKey, EccFullKeyData.EccKeySize.P256);
+
+            // _storage.Upsert(storageKey, eccKeyList);
+            
+            VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
+            _storage.Upsert(storageKey,new NotificationEccKeys
+            {
+                PublicKey64 = vapidKeys.PublicKey,
+                PrivateKey64 =  vapidKeys.PrivateKey
+            });
+            
+            return Task.CompletedTask;
+        }
+
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
             var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
@@ -409,5 +467,6 @@ namespace Odin.Core.Services.EncryptionKeyService
                 KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
             };
         }
+        
     }
 }

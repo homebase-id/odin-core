@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -20,32 +21,13 @@ using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
-//
-// OWNER AUTHENTICATION:
-//   COOKIE 'DY0810':
-//     - Half-key (byte array): Half of the zero-knowledge key to "access" identity's resources on the server.
-//       The half-key is stored in the ```DY0810``` by the authentication controller.
-//     - Session ID (uuid)
-
-//
-//   Response when cookie is created:
-//     Shared secret: the shared key for doing symmetric encryption client<->server (on top of TLS).
-//     It is generated as part of authentication and is returned to the client by the authentication controller.
-//     
-// HOME AUTHENTICATION:
-//
-//    COOKIE 'XT32':    
-// 
-//   
-// APP HEADER: BX0900
-//
-
 #nullable enable
 namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests;
 
 public abstract class YouAuthIntegrationTestBase
 {
     protected WebScaffold Scaffold = null!;
+    protected IServiceProvider Services => Scaffold.Services;
 
     [SetUp]
     public void Init()
@@ -140,11 +122,20 @@ public abstract class YouAuthIntegrationTestBase
 
     //
 
-    protected async Task<RedactedAppRegistration> RegisterApp(string identity, Guid appId)
+    protected async Task<RedactedAppRegistration> RegisterApp(
+        string identity,
+        Guid appId,
+        Guid driveAlias,
+        Guid driveType)
     {
         var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
 
-        var drive = TargetDrive.NewTargetDrive();
+        var drive = new TargetDrive
+        {
+            Alias = driveAlias,
+            Type = driveType
+        };
+
         var _ = await ownerClient.Drive.CreateDrive(drive, "Test Drive", "Test Drive", false, false, false);
 
         var appPermissionsGrant = new PermissionSetGrantRequest()
@@ -222,5 +213,86 @@ public abstract class YouAuthIntegrationTestBase
     }
 
     //
+
+    protected YouAuthAppParameters GetAppParams(Guid appId, Guid driveAlias, Guid driveType)
+    {
+        var driveParams = new[]
+        {
+            new
+            {
+                a = driveAlias.ToString("N"),
+                t = driveType.ToString("N"),
+                n = "Short app name",
+                d = "Longer app description",
+                p = 3
+            },
+        };
+        var appParams = new YouAuthAppParameters
+        {
+            AppName = "Odin - Some App",
+            AppOrigin = "dev.dotyou.cloud:3005",
+            AppId = appId.ToString(),
+            ClientFriendly = "Firefox | macOS",
+            DrivesParam = OdinSystemSerializer.Serialize(driveParams),
+            Return = "backend-will-decide",
+        };
+
+        return appParams;
+    }
+
+    //
+
+    protected async Task<QueryBatchResponse> QueryBatch(
+        string domain,
+        string clientAuthToken,
+        string sharedSecret,
+        string driveAlias,
+        string driveType)
+    {
+        var catCookie = new Cookie("BX0900", clientAuthToken);
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("X-ODIN-FILE-SYSTEM-TYPE", "Standard");
+        client.DefaultRequestHeaders.Add("Cookie", catCookie.ToString());
+
+        var qs = HttpUtility.ParseQueryString(string.Empty);
+        qs["maxRecords"] = "1000";
+        qs["includeMetadataHeader"] = "true";
+        qs["alias"] = driveAlias;
+        qs["type"] = driveType;
+        qs["fileState"] = "1";
+
+        var url = $"https://{domain}/api/apps/v1/drive/query/batch?{qs}";
+
+        url = YouAuthTestHelper.UriWithEncryptedQueryString(url, sharedSecret);
+        var response = await client.GetAsync(url);
+        var content = await response.Content.ReadAsStringAsync();
+
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            try
+            {
+                return YouAuthTestHelper.DecryptContent<QueryBatchResponse>(content, sharedSecret);
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Oh no {(int)response.StatusCode}: {e.Message}", e);
+            }
+        }
+
+        string json;
+        try
+        {
+            json = YouAuthTestHelper.DecryptContent(content, sharedSecret);
+        }
+        catch (Exception e)
+        {
+            throw new Exception($"Oh no {(int)response.StatusCode}: {content}", e);
+        }
+        throw new Exception($"Oh no {(int)response.StatusCode}: {json}");
+    }
+
+    //
+
+
 
 }

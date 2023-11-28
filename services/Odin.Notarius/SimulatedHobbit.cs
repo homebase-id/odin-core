@@ -47,7 +47,7 @@ namespace Odin.Notarius
         public SimulatedHobbit(AsciiDomainName hobbit)
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _ecc = new EccFullKeyData(_pwd, EccKeySize.P384, 1);
             _identity = hobbit;
         }
 
@@ -67,7 +67,7 @@ namespace Odin.Notarius
         {
             _identity = new AsciiDomainName(identity);
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _ecc = new EccFullKeyData(_pwd, EccKeySize.P384, 1);
         }
 
         // This creates a "Key Registration" instruction

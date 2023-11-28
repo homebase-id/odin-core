@@ -296,14 +296,12 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AllowDistribution = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"Some json content {Guid.NewGuid()}",
-                    ContentIsComplete = true,
+                    Content = $"Some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid(),
                 },
                 AccessControlList = acl ?? AccessControlList.OwnerOnly

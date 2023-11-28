@@ -65,7 +65,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
+    public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
     {
         Guard.Argument(clientIdOrDomain, nameof(clientIdOrDomain)).NotEmpty().NotWhiteSpace();
         Guard.Argument(consentRequirements, nameof(consentRequirements)).NotNull();
@@ -80,7 +80,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             var domain = new AsciiDomainName(clientIdOrDomain);
 
-            var existingDomain = _domainRegistrationService.GetRegistration(domain).GetAwaiter().GetResult();
+            var existingDomain = await _domainRegistrationService.GetRegistration(domain);
             if (null == existingDomain)
             {
                 var request = new YouAuthDomainRegistrationRequest()
@@ -92,18 +92,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                _domainRegistrationService.RegisterDomain(request).GetAwaiter().GetResult();
+                await _domainRegistrationService.RegisterDomain(request);
             }
             else
             {
-                _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements).GetAwaiter().GetResult();
+                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements);
             }
             
             //so for now i'll just use this dictionary
             _tempConsent[clientIdOrDomain] = true;
         }
-
-        return Task.CompletedTask;
     }
 
     //
@@ -156,7 +154,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, 1);
+        var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
         var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);
 
         var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKey);
@@ -200,7 +198,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
     {
-        var appId = Guid.Parse(clientIdOrDomain);
+        if (!Guid.TryParse(clientIdOrDomain, out var appId))
+        {
+            throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
+        }
+
         var appReg = await _appRegistrationService.GetAppRegistration(appId);
         if (appReg == null)
         {
@@ -209,7 +211,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (appReg.IsRevoked)
         {
-            throw new OdinSecurityException("App is revoked");
+            throw new OdinClientException("App is revoked", OdinClientErrorCode.AppRevoked);
         }
 
         return false;

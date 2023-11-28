@@ -21,6 +21,7 @@ using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests.OwnerApi.DataSubscription;
 
@@ -72,7 +73,8 @@ public class DataSubscriptionAndDistributionTests2
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
+        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
+            allowSubscriptions: true);
 
         //
         // Frodo creates a circle named Mordor and puts Sam in it
@@ -121,7 +123,8 @@ public class DataSubscriptionAndDistributionTests2
     }
 
     [Test]
-    public async Task EncryptedFile_UploadedByTheOwner_IsOnlyDistributedTo_ConnectedFollowers_WithAccessInFileAcl_Of_A_SingleCircle_And_Deleted_When_Owner_Deletes_File()
+    public async Task
+        EncryptedFile_UploadedByTheOwner_IsOnlyDistributedTo_ConnectedFollowers_WithAccessInFileAcl_Of_A_SingleCircle_And_Deleted_When_Owner_Deletes_File()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
@@ -149,9 +152,10 @@ public class DataSubscriptionAndDistributionTests2
 
         var x = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
+        await frodoOwnerClient.Drive.CreateDrive(frodoSecureChannel, "A Secured channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
+            allowSubscriptions: true);
         var x2 = (await frodoOwnerClient.Drive.GetDrives(1, 100)).Content.Results;
-      
+
         //
         // Frodo creates a circle named Mordor and puts Sam in it
         //
@@ -201,15 +205,16 @@ public class DataSubscriptionAndDistributionTests2
 
     private async Task AssertPayloadIs404(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.NotFound);
     }
-    
+
     private async Task AssertFeedDriveHasHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
     {
         var qp = new FileQueryParams()
@@ -222,16 +227,17 @@ public class DataSubscriptionAndDistributionTests2
         Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var originalFile = batch.SearchResults.First();
         Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == encryptedJsonContent64);
         Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
     }
 
     private async Task AssertCanGetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult, string encryptedPayloadContent64)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
@@ -255,10 +261,11 @@ public class DataSubscriptionAndDistributionTests2
 
     private async Task AssertCan_Not_GetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
     {
-        var payloadResponse = await client.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+        var payloadResponse = await client.TransitQuery.GetPayload(new TransitGetPayloadRequest()
         {
             OdinId = identity.OdinId,
-            File = uploadResult.File
+            File = uploadResult.File,
+            Key = WebScaffold.PAYLOAD_KEY
         });
 
         Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.Forbidden);
@@ -273,9 +280,9 @@ public class DataSubscriptionAndDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c=>c.FileState== FileState.Deleted));
+        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
-    
+
     private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(
         OwnerApiClient client,
         TargetDrive targetDrive,
@@ -286,12 +293,10 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = string.IsNullOrEmpty(payloadContent),
-                JsonContent = headerContent,
+                Content = headerContent,
                 GroupId = default,
                 Tags = default
             },
@@ -302,7 +307,25 @@ public class DataSubscriptionAndDistributionTests2
             }
         };
 
-        return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, payloadContent);
+        var testPayloads = new List<TestPayloadDefinition>()
+        {
+            new()
+            {
+                Key = WebScaffold.PAYLOAD_KEY,
+                ContentType = "text/plain",
+                Content = payloadContent.ToUtf8ByteArray(),
+                Thumbnails = new List<ThumbnailContent>() { }
+            }
+        };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        var uploadResponse = await client.DriveRedux.UploadNewEncryptedFile(targetDrive, fileMetadata, uploadManifest, testPayloads, true);
+        var uploadResult = uploadResponse.response.Content;
+        return (uploadResult, uploadResponse.encryptedJsonContent64, uploadResponse.uploadedPayloads.First().EncryptedContent64);
     }
 
     private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType,
@@ -311,13 +334,11 @@ public class DataSubscriptionAndDistributionTests2
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             VersionTag = versionTag,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
                 Tags = default

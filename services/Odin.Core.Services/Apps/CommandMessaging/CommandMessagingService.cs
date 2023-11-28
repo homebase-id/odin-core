@@ -48,17 +48,14 @@ public class CommandMessagingService
         var keyHeader = KeyHeader.NewRandom16();
         var fileMetadata = new FileMetadata(internalFile)
         {
-            ContentType = "application/json",
             GlobalTransitId = null,
             Created = UnixTimeUtc.Now().milliseconds,
-            OriginalRecipientList = null,
-            PayloadIsEncrypted = true,
+            IsEncrypted = true,
             AppData = new AppFileMetaData()
             {
                 FileType = ReservedFileTypes.CommandMessage,
-                JsonContent = OdinSystemSerializer.Serialize(msg),
-                DataType = command.Code,
-                ContentIsComplete = true
+                Content = OdinSystemSerializer.Serialize(msg),
+                DataType = command.Code
             }
         };
 

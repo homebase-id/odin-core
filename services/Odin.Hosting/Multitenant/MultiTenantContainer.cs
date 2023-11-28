@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Core;
@@ -29,8 +30,7 @@ namespace Odin.Hosting.Multitenant
         public MultiTenantContainer(
             IContainer applicationContainer, 
             Action<ContainerBuilder, Tenant> serviceConfiguration,
-            Action<ILifetimeScope, Tenant> tenantInitialization
-            )
+            Action<ILifetimeScope, Tenant> tenantInitialization)
         {
             _applicationContainer = applicationContainer;
             _tenantServiceConfiguration = serviceConfiguration;
@@ -69,18 +69,18 @@ namespace Odin.Hosting.Multitenant
                 return _applicationContainer;
             }
 
-            if (_tenantLifetimeScopes.ContainsKey(tenantId))
+            if (_tenantLifetimeScopes.TryGetValue(tenantId, out var scope))
             {
-                return _tenantLifetimeScopes[tenantId];
+                return scope;
             }
 
             Tenant? tenant;
             ILifetimeScope lifetimeScope;
-            lock (_lock) // SEB:TODO swap this for a ReaderWriterLockSlim 
+            lock (_lock)
             {
-                if (_tenantLifetimeScopes.ContainsKey(tenantId))
+                if (_tenantLifetimeScopes.TryGetValue(tenantId, out var tenantScope))
                 {
-                    return _tenantLifetimeScopes[tenantId];
+                    return tenantScope;
                 }
                 
                 tenant = GetCurrentTenant();
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Multitenant
 
         public void Dispose()
         {
-            lock (_lock) // SEB:TODO swap this for a ReaderWriterLockSlim
+            lock (_lock)
             {
                 foreach (var scope in _tenantLifetimeScopes)
                 {
@@ -136,6 +136,12 @@ namespace Odin.Hosting.Multitenant
 
         public ILifetimeScope BeginLifetimeScope(object tag, Action<ContainerBuilder> configurationAction) =>
             GetCurrentTenantScope().BeginLifetimeScope(tag, configurationAction);
+
+        public ILifetimeScope BeginLoadContextLifetimeScope(AssemblyLoadContext loadContext, Action<ContainerBuilder> configurationAction) =>
+            GetCurrentTenantScope().BeginLoadContextLifetimeScope(loadContext, configurationAction);
+
+        public ILifetimeScope BeginLoadContextLifetimeScope(object tag, AssemblyLoadContext loadContext, Action<ContainerBuilder> configurationAction) =>
+            GetCurrentTenantScope().BeginLoadContextLifetimeScope(tag, loadContext, configurationAction);
 
         public IDisposer Disposer =>
             GetCurrentTenantScope().Disposer;

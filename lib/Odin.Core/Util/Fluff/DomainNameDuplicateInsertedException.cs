@@ -1,26 +1,16 @@
 ﻿using System;
-using System.Runtime.Serialization;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util.Fluff
 {
-    [Serializable]
-    public class DomainNameDuplicateInsertedException : Exception
+    public class DomainNameDuplicateInsertedException : OdinSystemException
     {
-        public DomainNameDuplicateInsertedException()
-        {
-        }
-
         public DomainNameDuplicateInsertedException(string message) : base(message)
         {
         }
 
         public DomainNameDuplicateInsertedException(string message, Exception innerException) : base(message,
             innerException)
-        {
-        }
-
-        protected DomainNameDuplicateInsertedException(SerializationInfo info, StreamingContext context) : base(info,
-            context)
         {
         }
     }

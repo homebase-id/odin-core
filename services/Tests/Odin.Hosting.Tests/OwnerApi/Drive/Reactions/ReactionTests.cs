@@ -65,7 +65,7 @@ public class ReactionTests
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
         Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == comment);
+        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
         Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == targetReferenceFile, "target reference file not referenced");
     }
 
@@ -98,7 +98,7 @@ public class ReactionTests
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
         Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == comment);
+        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
         Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.GlobalTransitIdFileIdentifier, "target reference file not referenced");
 
         // Get the target file and validate reaction was updated
@@ -106,7 +106,7 @@ public class ReactionTests
         var targetFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsNotNull(targetFileHeader);
         Assert.IsNotNull(targetFileHeader.FileMetadata.ReactionPreview);
-        Assert.IsTrue(targetFileHeader.FileMetadata.ReactionPreview.Comments.Any(c => c.JsonContent == comment));
+        Assert.IsTrue(targetFileHeader.FileMetadata.ReactionPreview.Comments.Any(c => c.Content == comment));
     }
 
     [Test]
@@ -166,12 +166,10 @@ public class ReactionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = uploadedContent,
+                Content = uploadedContent,
                 FileType = default,
                 GroupId = default,
                 Tags = default
@@ -187,16 +185,14 @@ public class ReactionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = allowDistribution,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
 
             //indicates the file about which this file is giving feed back
             ReferencedFile = referencedFile,
 
             AppData = new()
             {
-                ContentIsComplete = true,
-                JsonContent = commentContent,
+                Content = commentContent,
                 FileType = default,
                 GroupId = default,
                 Tags = default

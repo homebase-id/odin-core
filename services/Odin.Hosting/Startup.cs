@@ -42,6 +42,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Quartz;
+using Quartz.AspNetCore;
 
 namespace Odin.Hosting
 {
@@ -235,6 +236,8 @@ namespace Odin.Hosting
                 config.Admin.Domain));
 
             services.AddSingleton<ITenantAdmin, TenantAdmin>();
+
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         }
 
         // ConfigureContainer is where you can register things directly
@@ -332,7 +335,7 @@ namespace Odin.Hosting
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/"); }); });
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });
                 
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,

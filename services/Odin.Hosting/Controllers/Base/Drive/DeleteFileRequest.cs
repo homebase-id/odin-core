@@ -11,18 +11,7 @@ public class DeleteFileRequest
     public ExternalFileIdentifier File { get; set; }
 
     /// <summary>
-    /// If the file has a GlobalTransitId, all Recipients will receive a notification to delete the file
-    /// </summary>
-    public bool DeleteLinkedFiles { get; set; }
-
-    /// <summary>
     /// List of recipients to receive the delete-file notification
     /// </summary>
     public List<string> Recipients { get; set; }
-}
-
-public enum AttachmentType
-{
-    Thumbnail = 3,
-    Payload = 1
 }

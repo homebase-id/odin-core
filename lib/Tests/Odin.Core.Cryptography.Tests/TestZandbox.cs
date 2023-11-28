@@ -27,7 +27,7 @@ namespace Odin.Core.Cryptography.Tests
             var pwd = new SensitiveByteArray(ByteArrayUtil.GetRandomCryptoGuid().ToByteArray());
             for (int i = 0; i < 10; i++)
             {
-                var fk = new EccFullKeyData(pwd, 1);
+                var fk = new EccFullKeyData(pwd, EccKeySize.P384, 1);
             }
         }
 

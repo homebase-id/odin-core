@@ -21,7 +21,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         /// <summary>
         /// Notifies the recipients the file with the <param name="remoteGlobalTransitIdentifier"/> must be deleted
         /// </summary>
-        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, SendFileOptions sendFileOptions,
+        Task<Dictionary<string, TransitResponseCode>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, SendFileOptions sendFileOptions,
             IEnumerable<string> recipients);
     }
 }

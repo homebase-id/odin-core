@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
@@ -41,15 +42,14 @@ namespace Odin.Hosting.Controllers.Peer
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
         }
-        
-        
+
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var perimeterService = GetPerimeterService();
             return await perimeterService.QueryBatchCollection(request);
         }
-        
+
         [HttpPost("querymodified")]
         public async Task<QueryModifiedResponse> QueryModified(QueryModifiedRequest request)
         {
@@ -57,7 +57,7 @@ namespace Odin.Hosting.Controllers.Peer
             var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions);
             return QueryModifiedResponse.FromResult(result);
         }
-            
+
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
@@ -91,18 +91,19 @@ namespace Odin.Hosting.Controllers.Peer
         public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
-                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Chunk);
+            var (encryptedKeyHeader64, isEncrypted, payloadStream) =
+                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Key, request.Chunk);
 
-            if (payload == Stream.Null)
+            if (payloadStream == null)
             {
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
-            return new FileStreamResult(payload, "application/octet-stream");
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
 
         /// <summary>
@@ -116,17 +117,18 @@ namespace Odin.Hosting.Controllers.Peer
         {
             var perimeterService = GetPerimeterService();
 
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, thumb) =
-                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
+            var (encryptedKeyHeader64, isEncrypted, decryptedContentType, lastModified, thumb) =
+                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey);
 
-            if (thumb == Stream.Null)
+            if (thumb == null)
             {
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 
@@ -148,9 +150,144 @@ namespace Odin.Hosting.Controllers.Peer
                 transitRequest.FileSystemType);
         }
 
+        ///
+        [HttpPost("header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromBody] GlobalTransitIdFileIdentifier file)
+        {
+            var result = await LookupFileHeaderByGlobalTransitId(file);
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
+        [HttpPost("header_byuniqueid")]
+        public async Task<IActionResult> GetFileHeaderByUniqueId([FromBody] GetFileHeaderByUniqueIdRequest request)
+        {
+            var result = await LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
+        [HttpPost("payload_byglobaltransitid")]
+        public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromBody] GetPayloadByGlobalTransitIdRequest request)
+        {
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = header.FileId,
+                        TargetDrive = request.File.TargetDrive
+                    },
+                    Key = request.Key,
+                    Chunk = request.Chunk
+                });
+        }
+
+        [HttpPost("payload_byuniqueid")]
+        public async Task<IActionResult> GetPayloadStreamByUniqueId([FromBody] GetPayloadByUniqueIdRequest request)
+        {
+            var header = await this.LookupHeaderByUniqueId(request.UniqueId, request.TargetDrive);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = header.FileId,
+                        TargetDrive = request.TargetDrive
+                    },
+                    Key = request.Key,
+                    Chunk = request.Chunk
+                });
+        }
+
+        [HttpPost("thumb_byglobaltransitid")]
+        public async Task<IActionResult> GetThumbnailStreamByGlobalTransitId([FromBody] GetThumbnailByGlobalTransitIdRequest request)
+        {
+            var header = await this.LookupFileHeaderByGlobalTransitId(request.File);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header.FileId,
+                    TargetDrive = request.File.TargetDrive
+                },
+                Width = request.Width,
+                Height = request.Height,
+                PayloadKey = request.PayloadKey
+            });
+        }
+
+        [HttpPost("thumb_byuniqueid")]
+        public async Task<IActionResult> GetThumbnailStreamByUniqueId(GetThumbnailByUniqueIdRequest request)
+        {
+            var header = await this.LookupHeaderByUniqueId(request.ClientUniqueId, request.TargetDrive);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = header.FileId,
+                    TargetDrive = request.TargetDrive
+                },
+                Width = request.Width,
+                Height = request.Height,
+                PayloadKey = request.PayloadKey
+            });
+        }
+
+        private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(new TargetDrive()
+            {
+                Alias = file.TargetDrive.Alias,
+                Type = file.TargetDrive.Type
+            });
+
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
+            return result;
+        }
+
+        private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false);
+            return result;
+        }
+
+
         private TransitPerimeterService GetPerimeterService()
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var fileSystem = base.GetHttpFileSystemResolver().ResolveFileSystem();
             return new TransitPerimeterService(_contextAccessor,
                 _driveManager,
                 fileSystem,

@@ -65,13 +65,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = "some content",
+                    Content = "some content",
                     FileType = 101,
                     GroupId = default,
                     // UniqueId = message.Id,
@@ -119,13 +117,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = false,
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = "some content",
+                    Content = "some content",
                     FileType = 101,
                     GroupId = default,
                     // UniqueId = message.Id,

@@ -5,10 +5,19 @@
 }
 
 <div class="row mt-5">
-    <div class="col-4">
-        <strong><p>@Model.LoggedInMessage</p></strong>
+    <div class="col-10">
+        <strong>@Model.LoggedInMessage</strong>
     </div>
 </div>
+
+@if (Model.DriveStatus != "")
+{
+    <div class="row mt-5">
+        <div class="col-10">
+            Drive status:<br/> <strong>@Model.DriveStatus</strong>
+        </div>
+    </div>
+}
 
 <div class="row mt-5">
     <div class="col-4">

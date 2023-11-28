@@ -239,8 +239,4 @@ public class AuthorativeDnsLookupException : OdinSystemException
     public AuthorativeDnsLookupException(string message, Exception innerException) : base(message, innerException)
     {
     }
-
-    protected AuthorativeDnsLookupException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }

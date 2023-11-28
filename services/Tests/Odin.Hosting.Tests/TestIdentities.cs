@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Odin.Core.Identity;
 using Odin.Core.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests
 {
+    [DebuggerDisplay("{OdinId.DomainName}")]
     public class TestIdentity
     {
         public OdinId OdinId { get; set; }

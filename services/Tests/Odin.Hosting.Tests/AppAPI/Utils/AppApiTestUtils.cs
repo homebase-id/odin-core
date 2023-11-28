@@ -63,13 +63,12 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret));
             }
-            
+
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
-            
+
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
-            
         }
 
         public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext, FileSystemType fileSystemType = FileSystemType.Standard)
@@ -100,7 +99,11 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     Drive = targetDrive,
                     OverwriteFileId = null
                 },
-                TransitOptions = null
+                TransitOptions = null,
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                }
             };
 
             return (AppTransitTestUtilsContext)await CreateAppAndTransferFile(identity, instructionSet, fileMetadata,
@@ -112,6 +115,8 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             UploadInstructionSet instructionSet,
             UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
+            var keyHeader = KeyHeader.NewRandom16();
+
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
             Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
@@ -120,46 +125,68 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
                 throw new Exception(
-                    "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+                    "Options not valid. There must be at least one recipient and" +
+                    " ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
-            var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
-
+            var payloadData = options.PayloadData ?? "{payload:true, image:'b64 data'}";
+            var payloadKey = WebScaffold.PAYLOAD_KEY;
             var client = this.CreateAppApiHttpClient(senderAppContext);
             {
-                var keyHeader = KeyHeader.NewRandom16();
+                fileMetadata.IsEncrypted = true;
+                
+                if (options.IncludeThumbnail && string.IsNullOrEmpty(payloadData))
+                {
+                    throw new Exception("Test data error - you cannot add thumbnails w/o a payload");
+                }
+
+                var thumbnails = new List<StreamPart>();
+                var thumbnailsAdded = new List<ThumbnailDescriptor>();
+                var payloadDescriptors = new List<UploadManifestPayloadDescriptor>();
+
+                if (payloadData.Length > 0)
+                {
+                    var thumbs = new List<UploadedManifestThumbnailDescriptor>();
+                    var uploadManifestPayloadDescriptor = new UploadManifestPayloadDescriptor()
+                    {
+                        PayloadKey = WebScaffold.PAYLOAD_KEY,
+                        Thumbnails = thumbs
+                    };
+
+                    if (options.IncludeThumbnail)
+                    {
+                        var thumbnail1 = new ThumbnailDescriptor()
+                        {
+                            PixelHeight = 300,
+                            PixelWidth = 300,
+                            ContentType = "image/jpeg"
+                        };
+                        
+                        thumbs.Add(new UploadedManifestThumbnailDescriptor()
+                        {
+                            PixelHeight = thumbnail1.PixelHeight,
+                            PixelWidth = thumbnail1.PixelWidth,
+                            ThumbnailKey = thumbnail1.GetFilename(payloadKey)
+                        });
+
+                        var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
+                        thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(payloadKey), thumbnail1.ContentType,
+                            Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        thumbnailsAdded.Add(thumbnail1);
+                    }
+
+                    payloadDescriptors.Add(uploadManifestPayloadDescriptor);
+                }
+
                 var transferIv = instructionSet.TransferIv;
+                
+                instructionSet.Manifest.PayloadDescriptors ??= new List<UploadManifestPayloadDescriptor>();
+                instructionSet.Manifest.PayloadDescriptors.AddRange(payloadDescriptors);
 
                 var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = senderAppContext.SharedSecret.ToSensitiveByteArray();
-
-                var thumbnails = new List<StreamPart>();
-                var thumbnailsAdded = new List<ImageDataHeader>();
-                if (options.IncludeThumbnail)
-                {
-                    var thumbnail1 = new ImageDataHeader()
-                    {
-                        PixelHeight = 300,
-                        PixelWidth = 300,
-                        ContentType = "image/jpeg"
-                    };
-
-                    var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
-                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
-                    thumbnailsAdded.Add(thumbnail1);
-                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
-                }
-
-                fileMetadata.PayloadIsEncrypted = true;
-
-                payloadData = options?.PayloadData ?? payloadData;
-                if (payloadData.Length > 0)
-                {
-                    fileMetadata.AppData.ContentIsComplete = false;
-                }
 
                 var descriptor = new UploadFileDescriptor()
                 {
@@ -176,7 +203,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, payloadKey, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     thumbnails.ToArray());
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -245,6 +272,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     TestAppContext = senderAppContext,
                     UploadResult = transferResult,
                     GlobalTransitId = transferResult.GlobalTransitId,
+                    Thumbnails = thumbnailsAdded
                 };
             }
         }
@@ -268,10 +296,10 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var sharedSecret = identityAppContext.SharedSecret.ToSensitiveByteArray();
 
                 var thumbnails = new List<StreamPart>();
-                var thumbnailsAdded = new List<ImageDataHeader>();
+                var thumbnailsAdded = new List<ThumbnailDescriptor>();
                 if (includeThumbnail)
                 {
-                    var thumbnail1 = new ImageDataHeader()
+                    var thumbnail1 = new ThumbnailDescriptor()
                     {
                         PixelHeight = 300,
                         PixelWidth = 300,
@@ -282,14 +310,12 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
-                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
 
-                fileMetadata.PayloadIsEncrypted = true;
+                fileMetadata.IsEncrypted = true;
 
                 if (payloadData.Length > 0)
                 {
-                    fileMetadata.AppData.ContentIsComplete = false;
                 }
 
                 var descriptor = new UploadFileDescriptor()
@@ -307,7 +333,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     thumbnails.ToArray());
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -409,7 +435,6 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
                 {
                     File = fileId,
-                    DeleteLinkedFiles = recipients2.Any(),
                     Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
                 });
 
@@ -455,12 +480,12 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             var client = this.CreateAppApiHttpClient(appContext);
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = file });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = file, Key = WebScaffold.PAYLOAD_KEY });
                 return payloadResponse;
             }
         }
 
-        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height)
+        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height, string payloadKey)
         {
             var client = this.CreateAppApiHttpClient(appContext);
             {
@@ -470,7 +495,8 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 {
                     File = file,
                     Height = height,
-                    Width = width
+                    Width = width,
+                    PayloadKey = payloadKey
                 });
 
                 return thumbnailResponse;

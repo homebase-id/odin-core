@@ -6,7 +6,7 @@ namespace Odin.Core.Services.Drives
         Metadata,
         Payload,
         Thumbnail,
-        ThumbnailInstructions,
+        PayloadUploadInstructions,
         
     }
 }

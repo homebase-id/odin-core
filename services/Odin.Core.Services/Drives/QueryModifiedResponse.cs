@@ -10,7 +10,7 @@ public class QueryModifiedResponse
     /// </summary>
     public string Name { get; set; }
 
-    public bool IncludesJsonContent { get; set; }
+    public bool IncludeHeaderContent { get; set; }
     
     public long Cursor { get; set; }
 
@@ -22,7 +22,7 @@ public class QueryModifiedResponse
     {
         var response = new QueryModifiedResponse()
         {
-            IncludesJsonContent = result.IncludesJsonContent,
+            IncludeHeaderContent = result.IncludeHeaderContent,
             Cursor = result.Cursor,
             SearchResults = result.SearchResults
         };

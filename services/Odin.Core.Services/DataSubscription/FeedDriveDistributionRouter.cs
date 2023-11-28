@@ -79,12 +79,12 @@ namespace Odin.Core.Services.DataSubscription
                 {
                     var deleteNotification = notification as DriveFileDeletedNotification;
                     var isEncryptedFile =
-                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.PayloadIsEncrypted) ||
-                        notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted;
+                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
+                        notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
                     if (isEncryptedFile)
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                         await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
                     else
                     {
@@ -323,7 +323,7 @@ namespace Odin.Core.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _transitService.SendDeleteLinkedFileRequest(
+                var map = await _transitService.SendDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         TargetDrive = SystemDriveConstants.FeedDrive,

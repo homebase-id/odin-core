@@ -17,9 +17,9 @@ namespace Odin.Core.Cryptography.Crypto
         public static readonly byte[] zero16 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         public static SensitiveByteArray zeroSensitiveKey = new SensitiveByteArray(zero16);
 
-        public const int DefaultHoursOfflineKey = 1 * 24;   // 1 day
-        public const int DefaultHoursOnlineKey = 365 * 24;  // 2 years
-        public const int DefaultHoursSignatureKey = 5 * 365 * 24;  // 5 years
+        public const int DefaultHoursOfflineKey = 1 * 24; // 1 day
+        public const int DefaultHoursOnlineKey = 365 * 24; // 2 years
+        public const int DefaultHoursSignatureKey = 5 * 365 * 24; // 5 years
 
         public const int DefaultMaxOfflineKeys = 2;
         public const int DefaultMaxOnlineKeys = 2;
@@ -60,7 +60,7 @@ namespace Odin.Core.Cryptography.Crypto
 
             lock (listEcc)
             {
-                var ecc = new EccFullKeyData(key, hours);
+                var ecc = new EccFullKeyData(key, EccKeySize.P384, hours);
 
                 listEcc.ListEcc.Insert(0, ecc);
                 if (listEcc.ListEcc.Count > listEcc.MaxKeys)
@@ -101,7 +101,6 @@ namespace Odin.Core.Cryptography.Crypto
                 {
                     if (listEcc.ListEcc[i].crc32c == publicKeyCrc)
                         return listEcc.ListEcc[i];
-
                 }
 
                 return null;

@@ -73,13 +73,12 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "application/json",
                 AllowDistribution = true,
-                PayloadIsEncrypted = true,
+                IsEncrypted = true,
                 AppData = new()
                 {
                     FileType = someFileType,
-                    JsonContent = "{some:'file content'}",
+                    Content = "{some:'file content'}",
                 },
                 AccessControlList = AccessControlList.Connected
             };

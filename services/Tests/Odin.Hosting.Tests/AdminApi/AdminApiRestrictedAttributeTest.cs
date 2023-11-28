@@ -41,7 +41,7 @@ public class AdminApiRestrictedAttributeTest
         var apiClient = WebScaffold.CreateDefaultHttpClient();
         var exception = Assert.ThrowsAsync<HttpRequestException>(() =>
             apiClient.GetAsync("https://admin.dotyou.cloud:4444/api/admin/v1/ping"));
-        Assert.That(exception.Message, Contains.Substring("Connection refused"));
+        Assert.That(exception.Message, Contains.Substring("refused"));
     }
 
     //

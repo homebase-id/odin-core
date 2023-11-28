@@ -5,4 +5,5 @@ public class ClientTypeAppIndexViewModel
     public string LoggedInMessage { get; set; } = "";
     public string LoggedInIdentity { get; set; } = "";
     public string ButtonCaption { get; set; } = "";
+    public string DriveStatus { get; set; } = "";
 }

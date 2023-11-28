@@ -9,5 +9,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
         public const string Salt = "salt";
         public const string State = "state";
         public const string Identity = "identity";
+        public const string Error = "error";
     }
 }

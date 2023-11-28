@@ -20,7 +20,7 @@ namespace Odin.KeyChainTests
             db.CreateDatabase();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var ecc = new EccFullKeyData(pwd, 1);
+            var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
             var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
             var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());

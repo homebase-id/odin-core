@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Crypto;
@@ -15,55 +14,29 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
-using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Data
 {
+    public enum EccKeySize
+    {
+        P256 = 0,
+        P384 = 1
+    }
+
     public class EccPublicKeyData
     {
+        public static string[] eccSignatureAlgorithmNames = new string[2] { "SHA-256withECDSA", "SHA-384withECDSA" };
+        public static string[] eccKeyTypeNames = new string[2] { "P-256", "P-384" };
+        public static string[] eccCurveIdentifiers = new string[2] { "secp256r1", "secp384r1" };
+
         public byte[] publicKey { get; set; } // DER encoded public key
 
         public UInt32 crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
-
-        //
-        // Perhaps move to other lib/ class
-        // 
-
-        public static string Base64UrlEncode(byte[] input)
-        {
-            return Convert.ToBase64String(input).Split('=')[0].Replace('+', '-').Replace('/', '_');
-        }
- 
-        public static string Base64UrlEncode(string input)
-        {
-            return Base64UrlEncode(input.ToUtf8ByteArray());
-        }
-
-        public static byte[] Base64UrlDecode(string input)
-        {
-            string base64 = input.Replace('-', '+').Replace('_', '/');
-            switch (base64.Length % 4)
-            {
-                case 2: base64 += "=="; break;
-                case 3: base64 += "="; break;
-            }
-            return Convert.FromBase64String(base64);
-        }
-
-        public static string Base64UrlDecodeString(string input)
-        {
-            return Base64UrlDecode(input).ToStringFromUtf8Bytes();
-        }
-
-
-        //
-        // End of stuff to be put in another class
-        //
         public static EccPublicKeyData FromJwkPublicKey(string jwk, int hours = 1)
         {
             var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
@@ -71,13 +44,14 @@ namespace Odin.Core.Cryptography.Data
             if (jwkObject["kty"] != "EC")
                 throw new InvalidOperationException("Invalid key type, kty must be EC");
 
-            if (jwkObject["crv"] != "P-384")
-                throw new InvalidOperationException("Invalid curve, crv must be P-384");
+            string curveName = jwkObject["crv"];
+            if ((curveName != "P-384") && (curveName != "P-256"))
+                throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
 
-            byte[] x = Base64UrlDecode(jwkObject["x"]);
-            byte[] y = Base64UrlDecode(jwkObject["y"]);
+            byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
+            byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
 
-            X9ECParameters x9ECParameters = NistNamedCurves.GetByName("P-384");
+            X9ECParameters x9ECParameters = NistNamedCurves.GetByName(curveName);
             ECCurve curve = x9ECParameters.Curve;
             ECPoint ecPoint = curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y));
 
@@ -98,7 +72,25 @@ namespace Odin.Core.Cryptography.Data
 
         public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
         {
-            return FromJwkPublicKey(Base64UrlDecodeString(jwkbase64Url) , hours);
+            return FromJwkPublicKey(Base64UrlEncoder.DecodeString(jwkbase64Url), hours);
+        }
+
+        protected EccKeySize GetCurveEnum(ECCurve curve)
+        {
+            int bitLength = curve.Order.BitLength;
+
+            if (bitLength == 384)
+            {
+                return EccKeySize.P384;
+            }
+            else if (bitLength == 256)
+            {
+                return EccKeySize.P256;
+            }
+            else
+            {
+                throw new Exception($"Unsupported ECC key size with bit length: {bitLength}");
+            }
         }
 
         public string PublicKeyJwk()
@@ -110,13 +102,15 @@ namespace Odin.Core.Cryptography.Data
             BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
             BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
 
+            string curveName = eccKeyTypeNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)];
+
             // Create a JSON object to represent the JWK
             var jwk = new
             {
                 kty = "EC",
-                crv = "P-384", // Corresponds to "secp384r1"
-                x = Base64UrlEncode(x.ToByteArrayUnsigned()),
-                y = Base64UrlEncode(y.ToByteArrayUnsigned())
+                crv =  curveName, // P-256 or P-384
+                x = Base64UrlEncoder.Encode(x.ToByteArrayUnsigned()),
+                y = Base64UrlEncoder.Encode(y.ToByteArrayUnsigned())
             };
 
             var options = new JsonSerializerOptions
@@ -130,9 +124,28 @@ namespace Odin.Core.Cryptography.Data
             return jwkJson;
         }
 
+        public string GenerateEcdsaBase64Url()
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+
+            // Extract X and Y coordinates
+            byte[] x = publicKeyParameters.Q.AffineXCoord.GetEncoded();
+            byte[] y = publicKeyParameters.Q.AffineYCoord.GetEncoded();
+
+            // Uncompressed key format: 0x04 | X | Y
+            byte[] uncompressedKey = new byte[1 + x.Length + y.Length];
+            uncompressedKey[0] = 0x04;
+            Buffer.BlockCopy(x, 0, uncompressedKey, 1, x.Length);
+            Buffer.BlockCopy(y, 0, uncompressedKey, 1 + x.Length, y.Length);
+
+            // Encode to URL-safe Base64 without padding
+            return Base64UrlEncoder.Encode(uncompressedKey);
+        }
+
         public string PublicKeyJwkBase64Url()
         {
-            return Base64UrlEncode(PublicKeyJwk());
+            return Base64UrlEncoder.Encode(PublicKeyJwk());
         }
 
 
@@ -149,8 +162,10 @@ namespace Odin.Core.Cryptography.Data
         public bool VerifySignature(byte[] dataThatWasSigned, byte[] signature)
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
 
-            ISigner signer = SignerUtilities.GetSigner(EccFullKeyData.eccSignatureAlgorithm);
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
+
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
             signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);
@@ -181,13 +196,12 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
-        public static string eccSignatureAlgorithm = "SHA-384withECDSA";
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
 
         public byte[] iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] keyHash { get; set; }  // The hash of the encryption key 
+        public byte[] keyHash { get; set; }  // The hash of the encryption key
         public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
 
 
@@ -205,14 +219,16 @@ namespace Odin.Core.Cryptography.Data
         /// Use this constructor. Key is the encryption key used to encrypt the private key
         /// </summary>
         /// <param name="key">The key used to (AES) encrypt the private key</param>
+        /// <param name="size"></param>
         /// <param name="hours">Lifespan of the key, required</param>
         /// <param name="minutes">Lifespan of the key, optional</param>
         /// <param name="seconds">Lifespan of the key, optional</param>
-        public EccFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
+        public EccFullKeyData(SensitiveByteArray key, EccKeySize keySize, int hours, int minutes = 0, int seconds = 0)
         {
             // Generate an EC key with Bouncy Castle, curve secp384r1
             ECKeyPairGenerator generator = new ECKeyPairGenerator();
-            var ecp = SecNamedCurves.GetByName("secp384r1");
+            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int) keySize]);
+
             var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
             generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
             AsymmetricCipherKeyPair keys = generator.GenerateKeyPair();
@@ -292,7 +308,7 @@ namespace Odin.Core.Cryptography.Data
             return Convert.ToBase64String(pk.GetKey());
         }
 
-        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration, 
+        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration,
         // then the key is considered dead and will be removed
         public bool IsDead()
         {
@@ -347,30 +363,17 @@ namespace Odin.Core.Cryptography.Data
             return HashUtil.Hkdf(sharedSecretBytes.GetKey(), randomSalt, 16).ToSensitiveByteArray();
         }
 
-        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
-        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] salt)
-        {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
-
-            return (salt, ecdhSS);
-        }
-
-        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
-        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey, byte[] salt)
-        {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
-
-            return ecdhSS;
-        }
-
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {
             var pk = GetFullKey(key);
 
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+            ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
+            
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
-            // Assuming that 'keys' is your AsymmetricCipherKeyPair
-            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm);
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int)GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
+
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
             signer.BlockUpdate(dataToSign, 0, dataToSign.Length);

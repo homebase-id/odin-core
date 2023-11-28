@@ -33,7 +33,7 @@ namespace Odin.Hosting.Middleware
 
             if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)) && !isDev)
             {
-                httpContext.Response.Headers.Add("Cache-Control", "max-age=31536000");
+                httpContext.Response.Headers.Append("Cache-Control", "max-age=31536000");
             }
 
             await _next(httpContext);

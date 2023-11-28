@@ -20,11 +20,6 @@ namespace Odin.Hosting.Middleware
 
         public Task Invoke(HttpContext context, OdinContext odinContext)
         {
-            return BeginInvoke(context, odinContext);
-        }
-
-        private Task BeginInvoke(HttpContext context, OdinContext odinContext)
-        {
             if (context.Request.Method == "OPTIONS")
             {
                 //handled by a controller
@@ -37,11 +32,11 @@ namespace Odin.Hosting.Middleware
 
             if (odinContext.AuthContext == YouAuthConstants.AppSchemeName)
             {
-                string appHostName = odinContext.Caller.YouAuthClientContext.CorsHostName;
+                string appHostName = odinContext.Caller.OdinClientContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;
-                    context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
+                    context.Response.Headers.Append("Access-Control-Allow-Origin", $"https://{appHostName}");
                     allowHeaders.Add(YouAuthConstants.AppCookieName);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }
@@ -49,9 +44,9 @@ namespace Odin.Hosting.Middleware
 
             if (shouldSetHeaders)
             {
-                context.Response.Headers.Add("Access-Control-Allow-Credentials", new[] { "true" });
-                context.Response.Headers.Add("Access-Control-Allow-Headers", allowHeaders.ToArray());
-                context.Response.Headers.Add("Access-Control-Expose-Headers",
+                context.Response.Headers.Append("Access-Control-Allow-Credentials", new[] { "true" });
+                context.Response.Headers.Append("Access-Control-Allow-Headers", allowHeaders.ToArray());
+                context.Response.Headers.Append("Access-Control-Expose-Headers",
                     new[]
                     {
                         HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted, HttpHeaderConstants.DecryptedContentType

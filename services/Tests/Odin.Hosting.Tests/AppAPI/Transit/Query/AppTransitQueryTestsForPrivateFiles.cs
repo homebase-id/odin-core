@@ -49,7 +49,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //Connected merry and pippin; also grant RW to the remote drive
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive);
 
-            var thumbnail = new ImageDataContent()
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -58,7 +58,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: "far and wide", thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -99,7 +100,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //Connected merry and pippin; also grant RW to the remote drive
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive);
 
-            var thumbnail = new ImageDataContent()
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -107,9 +108,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Content = TestMedia.ThumbnailBytes300
             };
 
+            const string payloadData = "far and wide";
+
             // Pippin uploads file
-            var randomFile1 = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
-            var randomFile2 = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile1 =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
+            var randomFile2 =
+                await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -182,7 +187,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //Connected merry and pippin; also grant RW to the remote drive
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive);
 
-            var thumbnail = new ImageDataContent()
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -190,15 +195,16 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Content = TestMedia.ThumbnailBytes300
             };
 
+            const string payloadData = "yea, another payload";
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive,payload:payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
             Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
-            Assert.IsFalse(randomFile.uploadedMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent, "file was not modified");
+            Assert.IsFalse(randomFile.uploadedMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content, "file was not modified");
 
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
@@ -213,7 +219,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 },
                 ResultOptions = new QueryModifiedResultOptions()
                 {
-                    IncludeJsonContent = true,
+                    IncludeHeaderContent = true,
                     MaxRecords = 100
                 }
             };
@@ -223,7 +229,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(getBatchResponse.Content);
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
             Assert.IsNotNull(theModifiedFile);
-            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
+            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content);
 
             await _scaffold.Scenarios.DisconnectHobbits();
         }
@@ -251,7 +257,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             Assert.IsTrue(response.IsSuccessStatusCode);
             Assert.IsNotNull(response.Content);
-            Assert.IsTrue(response.Content.FileMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent);
+            Assert.IsTrue(response.Content.FileMetadata.AppData.Content == randomFile.uploadedMetadata.AppData.Content);
 
             await _scaffold.Scenarios.DisconnectHobbits();
         }
@@ -274,10 +280,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                File = randomFile.uploadResult.File
+                File = randomFile.uploadResult.File,
+                Key = WebScaffold.PAYLOAD_KEY
             });
 
             Assert.IsTrue(response.IsSuccessStatusCode);
@@ -298,7 +305,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //Connected merry and pippin; also grant RW to the remote drive
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive);
 
-            var thumbnail = new ImageDataContent()
+            const string payloadData = "far and wide";
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -307,7 +315,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             // Pippin uploads file
-            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, thumbnail: thumbnail);
+            var randomFile = await UploadStandardRandomSecureConnectedFile(pippinOwnerClient.Identity, remoteDrive, payload: payloadData, thumbnail: thumbnail);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -317,6 +325,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 File = randomFile.uploadResult.File,
                 Width = thumbnail.PixelWidth,
                 Height = thumbnail.PixelHeight,
+                PayloadKey = WebScaffold.PAYLOAD_KEY,
                 DirectMatchOnly = true
             });
 
@@ -339,13 +348,15 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Alias = Guid.NewGuid(),
                 Type = driveType
             };
-            
+
             await _scaffold.Scenarios.CreateConnectedHobbits(remoteDrive1GrantedViaCircle);
 
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
-            var remoteDrive2AnonymousDrive = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive allow anonymous=true", "", allowAnonymousReads: true);
-            var remoteDrive3NeverGrantedToMerry = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: false);
+            var remoteDrive2AnonymousDrive = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive allow anonymous=true", "", allowAnonymousReads: true);
+            var remoteDrive3NeverGrantedToMerry = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive 2", "", allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
@@ -365,7 +376,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1GrantedViaCircle));
             Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2AnonymousDrive.TargetDriveInfo));
-            
+
             Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3NeverGrantedToMerry.TargetDriveInfo));
 
             await _scaffold.Scenarios.DisconnectHobbits();
@@ -404,27 +415,25 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomSecureConnectedFile(TestIdentity identity,
-            TargetDrive targetDrive, string payload = null, ImageDataContent thumbnail = null)
+            TargetDrive targetDrive, string payload = null, ThumbnailContent thumbnail = null)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = payload == null,
+                    Content = $"some json content {Guid.NewGuid()}",
                     UniqueId = Guid.NewGuid(),
-                    AdditionalThumbnails = thumbnail == null ? default : new[] { thumbnail }
                 },
                 AccessControlList = AccessControlList.Connected
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
                 payloadData: payload ?? "",
-                thumbnail: thumbnail);
+                thumbnail: thumbnail,
+                payloadKey: payload == null ? "" : WebScaffold.PAYLOAD_KEY);
             return (result, fileMetadata);
         }
 
@@ -436,13 +445,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended",
-                    ContentIsComplete = true
+                    Content = header.FileMetadata.AppData.Content + " something i appended"
                 },
                 VersionTag = header.FileMetadata.VersionTag,
                 AccessControlList = AccessControlList.Anonymous

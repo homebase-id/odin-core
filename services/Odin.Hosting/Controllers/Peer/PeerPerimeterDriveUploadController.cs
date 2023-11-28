@@ -14,6 +14,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
@@ -21,6 +22,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 
@@ -91,17 +93,26 @@ namespace Odin.Hosting.Controllers.Peer
                 var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync());
 
                 //
-
-                await ProcessPayloadSection(await reader.ReadNextSectionAsync());
-
-                //
-
-                var section = await reader.ReadNextSectionAsync();
-                while (null != section)
+                var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+                if (shouldExpectPayload)
                 {
-                    await ProcessThumbnailSection(section);
-                    section = await reader.ReadNextSectionAsync();
+                    var section = await reader.ReadNextSectionAsync();
+                    while (null != section)
+                    {
+                        if (IsPayloadPart(section))
+                        {
+                            await ProcessPayloadSection(section, metadata);
+                        }
+
+                        if (IsThumbnail(section))
+                        {
+                            await ProcessThumbnailSection(section, metadata);
+                        }
+
+                        section = await reader.ReadNextSectionAsync();
+                    }
                 }
+                //
 
                 if (!await _perimeterService.IsFileValid(_stateItemId))
                 {
@@ -142,6 +153,36 @@ namespace Odin.Hosting.Controllers.Peer
             }
         }
 
+        private bool IsPayloadPart(MultipartSection section)
+        {
+            if (section == null)
+            {
+                return false;
+            }
+
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartHostTransferParts.Payload;
+        }
+
+        private bool IsThumbnail(MultipartSection section)
+        {
+            if (section == null)
+            {
+                return false;
+            }
+
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartHostTransferParts.Thumbnail;
+        }
+
         private async Task<EncryptedRecipientTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
@@ -171,17 +212,23 @@ namespace Odin.Hosting.Controllers.Peer
             return metadata;
         }
 
-        private async Task ProcessPayloadSection(MultipartSection section)
+        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
         {
-            if (null == section)
+            AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
+
+            // Validate the payload key is defined in the set being sent
+            var payloadDescriptor = fileMetadata.GetPayloadDescriptor(payloadKey);
+            if (null == payloadDescriptor)
             {
-                return;
+                throw new HostToHostTransferException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            AssertIsPart(section, MultipartHostTransferParts.Payload);
+            string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Payload, "payload", section.Body);
+            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Payload, extension,
+                fileSection.FileStream);
+
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -189,13 +236,32 @@ namespace Odin.Hosting.Controllers.Peer
             }
         }
 
-        private async Task ProcessThumbnailSection(MultipartSection section)
+        private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata)
         {
-            AssertIsValidThumbnailPart(section, MultipartHostTransferParts.Thumbnail, out var fileSection, out var width, out var height);
+            AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
 
-            // section.ContentType
-            string extenstion = _fileSystem.Storage.GetThumbnailFileExtension(width, height);
-            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extenstion, section.Body);
+            var parts = thumbnailUploadKey.Split(DriveFileUtility.TransitThumbnailKeyDelimiter);
+            if (parts.Length != 3)
+            {
+                throw new HostToHostTransferException($"The thumbnail upload key provided is invalid {thumbnailUploadKey}");
+            }
+
+            var payloadKey = parts[0];
+            var width = int.Parse(parts[1]);
+            var height = int.Parse(parts[2]);
+            DriveFileUtility.AssertValidPayloadKey(payloadKey);
+            var payloadDescriptor = fileMetadata.GetPayloadDescriptor(payloadKey);
+
+            if (null == payloadDescriptor)
+            {
+                throw new HostToHostTransferException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
+            }
+
+            string extension = DriveFileUtility.GetThumbnailFileExtension(width, height, payloadKey);
+
+            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension,
+                fileSection.FileStream);
+
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -203,9 +269,59 @@ namespace Odin.Hosting.Controllers.Peer
             }
         }
 
-        private void AssertIsValidThumbnailPart(MultipartSection section, MultipartHostTransferParts expectedPart, out FileMultipartSection fileSection,
+        private void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection, out string payloadKey)
+        {
+            var expectedPart = MultipartHostTransferParts.Payload;
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidPayloadNameOrKey);
+            }
+
+            fileSection = section.AsFileSection();
+            DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
+            payloadKey = fileSection?.FileName;
+        }
+
+        private protected void AssertIsValidThumbnailPart(MultipartSection section, out FileMultipartSection fileSection,
+            out string thumbnailUploadKey, out string contentType)
+        {
+            var expectedPart = MultipartHostTransferParts.Thumbnail;
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            fileSection = section.AsFileSection();
+            if (null == fileSection)
+            {
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            fileSection = section.AsFileSection();
+
+            contentType = section.ContentType;
+            if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
+            {
+                throw new OdinClientException(
+                    "Thumbnails must include a valid contentType in the multi-part upload.",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+
+            thumbnailUploadKey = fileSection?.FileName;
+            if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))
+            {
+                throw new OdinClientException(
+                    "Thumbnails must include the thumbnailKey, which matches the key in the InstructionSet.UploadManifest.",
+                    OdinClientErrorCode.InvalidThumnbnailName);
+            }
+        }
+
+        private void AssertIsValidThumbnailPart_old(MultipartSection section, out FileMultipartSection fileSection,
             out int width, out int height)
         {
+            var expectedPart = MultipartHostTransferParts.Thumbnail;
+
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
                 throw new OdinClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);

@@ -37,6 +37,13 @@ public class RegisterKeyControllerTest
     {
         _factory.Dispose(); // we need this to correctly dispose of the key chain database
         _uglyKludge.Release();
+        _client.Dispose();
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _uglyKludge.Dispose();
     }
 
     [Test]
@@ -399,7 +406,7 @@ public class RegisterKeyControllerTest
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
 
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-        var ecc = new EccFullKeyData(pwd, 1);
+        var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
         var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
         var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());

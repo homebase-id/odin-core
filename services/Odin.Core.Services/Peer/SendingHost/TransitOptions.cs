@@ -33,7 +33,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         /// Specifies which parts of the file to send
         /// </summary>
         public SendContents SendContents { get; set; } = SendContents.All;
-        
+
         /// <summary>
         /// If set, the target drive will be this one instead of that from the file
         /// </summary>
@@ -46,14 +46,13 @@ namespace Odin.Core.Services.Peer.SendingHost
         public Guid? OverrideRemoteGlobalTransitId { get; set; }
     }
 
-    
+
     [Flags]
     public enum SendContents
     {
         Header = 1,
-        Thumbnails = 2,
-        Payload = 4,
-        All = Header | Thumbnails | Payload
+        Payload = 2,
+        All = Header | Payload
     }
 
     public enum ScheduleOptions

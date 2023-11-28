@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -171,7 +170,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                     //requester must be the original commenter
                     if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
                     {
-                        throw new OdinSecurityException();
+                        throw new OdinSecurityException("Requester must be the original commenter");
                     }
 
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
@@ -227,12 +226,13 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var results = _fileSystem.Query.GetModified(driveId, qp, options);
             return results;
         }
-        
+
         public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var results = _fileSystem.Query.GetBatchCollection(request);
             return results;
         }
+
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
@@ -253,8 +253,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(
-            TargetDrive targetDrive, Guid fileId, FileChunk chunk)
+        public async Task<(string encryptedKeyHeader64, bool isEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive, Guid fileId,
+            string key, FileChunk chunk)
         {
             var file = new InternalDriveFileId()
             {
@@ -266,17 +266,27 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 
             if (header == null)
             {
-                return (null, default, null, null);
+                return (null, default, null);
+            }
+
+            if (!(header.FileMetadata.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
+            {
+                return (null, default, null);
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _fileSystem.Storage.GetPayloadStream(file, chunk);
+            var ps = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
 
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
+            if (null == ps)
+            {
+                throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
+            }
+
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, ps);
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(
-            TargetDrive targetDrive, Guid fileId, int height, int width)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)>
+            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey)
         {
             var file = new InternalDriveFileId()
             {
@@ -285,17 +295,23 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             };
 
             var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
-            var thumbnail = Utility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
-            if (null == thumbnail)
+            var descriptor = header.FileMetadata.GetPayloadDescriptor(payloadKey);
+            if (descriptor == null)
             {
-                return (null, default, null, null);
+                return (null, default, null, null, null);
             }
 
-            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
+            var thumbs = descriptor.Thumbnails?.ToList();
+            var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
+            if (null == thumbnail)
+            {
+                return (null, default, null, null, null);
+            }
+
+            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, thumbnail.ContentType, descriptor.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
@@ -359,17 +375,16 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
 
-            if (metadata.PayloadIsEncrypted == false)
+            if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                    stateItem.TransferInstructionSet.FileSystemType, stateItem.TransferInstructionSet.TransferFileType);
+                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet);
 
                 return true;
             }
 
             //S1100
-            if (metadata.PayloadIsEncrypted)
+            if (metadata.IsEncrypted)
             {
                 // Next determine if we can direct write the file
                 var hasStorageKey = _contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out var _);
@@ -378,9 +393,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 if (hasStorageKey)
                 {
                     //S1205
-                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                        stateItem.TransferInstructionSet.FileSystemType,
-                        stateItem.TransferInstructionSet.TransferFileType);
+                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet);
                     return true;
                 }
 
@@ -401,15 +414,6 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return decryptedKeyHeader;
         }
 
-        private async Task<FileMetadata> LoadMetadataFromTemp(InternalDriveFileId file)
-        {
-            var metadataStream = await _fileSystem.Storage.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
-            var json = await new StreamReader(metadataStream).ReadToEndAsync();
-            metadataStream.Close();
-
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-            return metadata;
-        }
 
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
@@ -425,8 +429,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 InstructionType = TransferInstructionType.SaveFile,
                 DriveId = stateItem.TempFile.DriveId,
                 FileId = stateItem.TempFile.FileId,
+                TransferInstructionSet = stateItem.TransferInstructionSet,
+
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 

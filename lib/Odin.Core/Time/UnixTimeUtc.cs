@@ -32,7 +32,7 @@ namespace Odin.Core.Time
 
         public UnixTimeUtc()
         {
-            _milliseconds = (Int64) DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
+            _milliseconds = (Int64)DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
         }
 
         public UnixTimeUtc(Int64 milliseconds)
@@ -48,6 +48,11 @@ namespace Odin.Core.Time
         public UnixTimeUtc(Instant nodaTime)
         {
             _milliseconds = nodaTime.ToUnixTimeMilliseconds();
+        }
+
+        public UnixTimeUtc(DateTimeOffset dto)
+        {
+            _milliseconds = dto.ToUnixTimeMilliseconds();
         }
 
 
@@ -124,6 +129,20 @@ namespace Odin.Core.Time
             return new UnixTimeUtc(nodaTime.ToUnixTimeMilliseconds());
         }
 
+        public DateTime ToDateTime()
+        {
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime dateTime = unixEpoch.AddMilliseconds(this.milliseconds);
+            return dateTime;
+        }
+
+        public static UnixTimeUtc FromDateTime(DateTime dateTime)
+        {
+            DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            long millisecondsSinceEpoch = (long)(dateTime - unixEpoch).TotalMilliseconds;
+            return new UnixTimeUtc(millisecondsSinceEpoch);
+        }
+
         public bool IsBetween(UnixTimeUtc start, UnixTimeUtc end, bool inclusive = true)
         {
             if (inclusive)
@@ -177,8 +196,15 @@ namespace Odin.Core.Time
             return this.milliseconds.GetHashCode();
         }
 
-        public Int64 milliseconds { get { return _milliseconds; } }
-        public Int64 seconds { get { return _milliseconds / 1000; } }
+        public Int64 milliseconds
+        {
+            get { return _milliseconds; }
+        }
+
+        public Int64 seconds
+        {
+            get { return _milliseconds / 1000; }
+        }
 
         private readonly Int64 _milliseconds;
     }
@@ -208,7 +234,10 @@ namespace Odin.Core.Time
             return new UnixTimeUtc(_millisecondsUniqueWithCounter >> 16);
         }
 
-        public Int64 uniqueTime { get { return _millisecondsUniqueWithCounter; } }
+        public Int64 uniqueTime
+        {
+            get { return _millisecondsUniqueWithCounter; }
+        }
 
         private Int64 _millisecondsUniqueWithCounter;
     }
@@ -253,7 +282,7 @@ namespace Odin.Core.Time
                 }
             }
 
-            Int64 r = (ms.milliseconds << 16) | (UInt16) _counter;
+            Int64 r = (ms.milliseconds << 16) | (UInt16)_counter;
 
             return new UnixTimeUtcUnique(r);
         }

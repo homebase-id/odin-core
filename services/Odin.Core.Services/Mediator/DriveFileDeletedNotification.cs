@@ -1,6 +1,7 @@
 using System;
 using MediatR;
 using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;

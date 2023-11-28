@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Odin.Core.Services.Optimization.Cdn;
 
 /// <summary>
@@ -6,19 +9,14 @@ namespace Odin.Core.Services.Optimization.Cdn;
 public class SectionResultOptions
 {
     /// <summary>
-    /// If true, the content of the additional thumbnails defined in the metadata will be included in each file.
-    /// </summary>
-    public bool IncludeAdditionalThumbnails { get; set; }
-
-    /// <summary>
     /// If true, the metadata.JsonContent field will be included in each file
     /// </summary>
-    public bool IncludeJsonContent { get; set; }
-
+    public bool IncludeHeaderContent { get; set; }
+    
     /// <summary>
-    /// If true, the payload of each file will be included.
+    /// If included, the payloads of the given keys will be included
     /// </summary>
-    public bool IncludePayload { get; set; }
+    public List<string> PayloadKeys { get; set; }
 
     /// <summary>
     /// If true, the preview thumbnail will not be included in the f    ile

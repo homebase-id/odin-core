@@ -207,12 +207,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                ContentType = "application/json",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = uploadedContent,
+                    Content = uploadedContent,
                     FileType = default,
                     GroupId = default,
                     Tags = default
@@ -229,16 +227,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = allowDistribution,
-                ContentType = "application/json",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
 
                 //indicates the file about which this file is giving feed back
                 ReferencedFile = referencedFile,
 
                 AppData = new()
                 {
-                    ContentIsComplete = true,
-                    JsonContent = commentContent,
+                    Content = commentContent,
                     FileType = default,
                     GroupId = default,
                     Tags = default

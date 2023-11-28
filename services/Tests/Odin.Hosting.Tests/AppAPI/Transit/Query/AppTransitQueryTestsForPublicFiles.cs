@@ -162,7 +162,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
             Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
-            Assert.IsFalse(randomFile.uploadedMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent, "file was not modified");
+            Assert.IsFalse(randomFile.uploadedMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content, "file was not modified");
 
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
@@ -173,7 +173,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 QueryParams = FileQueryParams.FromFileType(randomFile.uploadResult.File.TargetDrive, randomFile.uploadedMetadata.AppData.FileType),
                 ResultOptions = new QueryModifiedResultOptions()
                 {
-                    IncludeJsonContent = true,
+                    IncludeHeaderContent = true,
                     MaxRecords = 100
                 }
             };
@@ -183,7 +183,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             Assert.IsNotNull(getBatchResponse.Content);
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
             Assert.IsNotNull(theModifiedFile);
-            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.JsonContent == modifiedResult.modifiedMetadata.AppData.JsonContent);
+            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content);
         }
 
         [Test]
@@ -206,7 +206,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             Assert.IsTrue(response.IsSuccessStatusCode);
             Assert.IsNotNull(response.Content);
-            Assert.IsTrue(response.Content.FileMetadata.AppData.JsonContent == randomFile.uploadedMetadata.AppData.JsonContent);
+            Assert.IsTrue(response.Content.FileMetadata.AppData.Content == randomFile.uploadedMetadata.AppData.Content);
         }
 
         [Test]
@@ -223,10 +223,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             // Pippin uploads file
             var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo, uploadedPayload);
 
-            var response = await merryAppClient.TransitQuery.GetPayload(new TransitExternalFileIdentifier()
+            var response = await merryAppClient.TransitQuery.GetPayload(new TransitGetPayloadRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                File = randomFile.uploadResult.File
+                File = randomFile.uploadResult.File,
+                Key = WebScaffold.PAYLOAD_KEY
             });
 
             Assert.IsTrue(response.IsSuccessStatusCode);
@@ -244,7 +245,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
 
-            var thumbnail = new ImageDataContent()
+            var thumbnail = new ThumbnailContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -254,7 +255,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             // Pippin uploads file
             var randomFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo,
-                payload: null, thumbnail: thumbnail);
+                payload: "le payload", thumbnail: thumbnail);
 
             var response = await merryAppClient.TransitQuery.GetThumbnail(new TransitGetThumbRequest()
             {
@@ -262,6 +263,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 File = randomFile.uploadResult.File,
                 Width = thumbnail.PixelWidth,
                 Height = thumbnail.PixelHeight,
+                PayloadKey = WebScaffold.PAYLOAD_KEY,
                 DirectMatchOnly = true
             });
 
@@ -276,9 +278,12 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var driveType = Guid.NewGuid();
-            var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1", "", allowAnonymousReads: true);
-            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2", "", allowAnonymousReads: true);
-            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 3 - no anonymous reads", "",
+            var remoteDrive1 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 1",
+                "", allowAnonymousReads: true);
+            var remoteDrive2 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType }, "Some target drive 2",
+                "", allowAnonymousReads: true);
+            var remoteDrive3 = await pippinOwnerClient.Drive.CreateDrive(new TargetDrive() { Alias = Guid.NewGuid(), Type = driveType },
+                "Some target drive 3 - no anonymous reads", "",
                 allowAnonymousReads: false);
 
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitRead);
@@ -335,27 +340,25 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         }
 
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomPublicFileHeader(TestIdentity identity,
-            TargetDrive targetDrive, string payload = null, ImageDataContent thumbnail = null)
+            TargetDrive targetDrive, string payload = null, ThumbnailContent thumbnail = null)
         {
             var client = _scaffold.CreateOwnerApiClient(identity);
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = $"some json content {Guid.NewGuid()}",
-                    ContentIsComplete = payload == null,
-                    UniqueId = Guid.NewGuid(),
-                    AdditionalThumbnails = thumbnail == null ? default : new[] { thumbnail }
+                    Content = $"some json content {Guid.NewGuid()}",
+                    UniqueId = Guid.NewGuid()
                 },
                 AccessControlList = AccessControlList.Anonymous
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata,
                 payloadData: payload ?? "",
-                thumbnail: thumbnail);
+                thumbnail: thumbnail,
+                payloadKey: payload == null ? "" : WebScaffold.PAYLOAD_KEY);
             return (result, fileMetadata);
         }
 
@@ -367,20 +370,18 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var fileMetadata = new UploadFileMetadata()
             {
-                ContentType = "text/plain",
-                PayloadIsEncrypted = false,
+                IsEncrypted = false,
                 AppData = new()
                 {
                     FileType = 777,
-                    JsonContent = header.FileMetadata.AppData.JsonContent + " something i appended",
-                    ContentIsComplete = true
+                    Content = header.FileMetadata.AppData.Content + " something i appended"
                 },
                 VersionTag = header.FileMetadata.VersionTag,
                 AccessControlList = AccessControlList.Anonymous
             };
 
             var result = await client.Drive.UploadFile(FileSystemType.Standard, file.TargetDrive, fileMetadata, overwriteFileId: file.FileId);
-            
+
             var modifiedFile = await client.Drive.GetFileHeader(FileSystemType.Standard, file);
             return (result, modifiedFile.FileMetadata);
         }

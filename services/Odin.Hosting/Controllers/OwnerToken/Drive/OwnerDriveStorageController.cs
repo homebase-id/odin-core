@@ -80,28 +80,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] string key)
         {
-            FileChunk chunk = null;
-            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
-                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
-            {
-                var firstRange = range.Ranges.First();
-                if (firstRange.From != null && firstRange.To != null)
-                {
-                    HttpContext.Response.StatusCode = 206;
-
-                    int start = Convert.ToInt32(firstRange.From ?? 0);
-                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
-
-                    chunk = new FileChunk()
-                    {
-                        Start = start,
-                        Length = end - start + 1
-                    };
-                }
-            }
-
+            FileChunk chunk = this.GetChunk(null, null);
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -114,6 +95,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }
@@ -136,7 +118,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey, [FromQuery] Guid alias,
+            [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
             return await base.GetThumbnail(new GetThumbnailRequest()
@@ -151,7 +134,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
+                PayloadKey = payloadKey,
             });
         }
 
@@ -165,16 +149,23 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
-
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("attachments/deletethumbnail")]
-        public async Task<DeleteThumbnailResult> DeleteThumbnailC(DeleteThumbnailRequest request)
+        [HttpPost("deletefileidbatch")]
+        public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
-            return await base.DeleteThumbnail(request);
+            return await base.DeleteFileIdBatch(request);
         }
-
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("attachments/deletepayload")]
+        [HttpPost("deletegroupidbatch")]
+        public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
+        {
+            return await base.DeleteFilesByGroupIdBatch(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {
             return await base.DeletePayload(request);
@@ -200,7 +191,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
+            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
     }

@@ -1,4 +1,5 @@
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer.Encryption
@@ -19,5 +20,10 @@ namespace Odin.Core.Services.Peer.Encryption
         /// The file's KeyHeader encrypt4ed with the shared secret indicated by the recipient
         /// </summary>
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
+
+        /// <summary>
+        /// The file parts provided by the sender
+        /// </summary>
+        public SendContents ContentsProvided { get; set; }
     }
 }

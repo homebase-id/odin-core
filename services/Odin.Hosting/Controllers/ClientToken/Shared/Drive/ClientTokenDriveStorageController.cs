@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
@@ -13,6 +14,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Quartz.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -79,37 +81,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key,
+            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            FileChunk chunk = null;
-            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
-                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
-            {
-                var firstRange = range.Ranges.First();
-                if (firstRange.From != null && firstRange.To != null)
-                {
-                    HttpContext.Response.StatusCode = 206;
-
-                    int start = Convert.ToInt32(firstRange.From ?? 0);
-                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
-
-                    chunk = new FileChunk()
-                    {
-                        Start = start,
-                        Length = end - start + 1
-                    };
-                }
-            }
-            else if (chunkStart.HasValue)
-            {
-
-                chunk = new FileChunk()
-                {
-                    Start = chunkStart.GetValueOrDefault(),
-                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
-                };
-            }
-
+            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -122,6 +98,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                             Type = type
                         }
                     },
+                    Key = key,
                     Chunk = chunk
                 });
         }
@@ -138,8 +115,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [HttpGet("files/thumb")]
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
-            [FromQuery] Guid type, [FromQuery] int width,
-            [FromQuery] int height)
+            [FromQuery] Guid type,
+            [FromQuery] int width, [FromQuery] int height,
+            [FromQuery] string payloadKey)
         {
             return await GetThumbnail(new GetThumbnailRequest()
             {
@@ -153,7 +131,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     }
                 },
                 Width = width,
-                Height = height
+                Height = height,
+                PayloadKey = payloadKey
             });
         }
 
@@ -166,6 +145,27 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
             return await base.DeleteFile(request);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("deletefileidbatch")]
+        public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
+        {
+            return await base.DeleteFileIdBatch(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("deletegroupidbatch")]
+        public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
+        {
+            return await base.DeleteFilesByGroupIdBatch(request);
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/deletepayload")]
+        public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
+        {
+            return await base.DeletePayload(request);
         }
     }
 }

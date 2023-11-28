@@ -49,7 +49,7 @@ public class TransitBadCATDetectionTests
 
         var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
         var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-        
+
         var (publicFileUploadResult, publicPayloadContent) = await MerryPostPublicFile();
         var (securedFileUploadResult, securedPayloadContent) = await MerryPostSecureFileAndAuthorizePippin();
 
@@ -137,18 +137,17 @@ public class TransitBadCATDetectionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "plain/text",
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,
-                JsonContent = headerContent,
-                ContentIsComplete = false
+                Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Connected
         };
 
-        var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merrySecuredDrive, fileMetadata, payloadContent);
+        var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merrySecuredDrive, fileMetadata, payloadContent,
+            payloadKey: WebScaffold.PAYLOAD_KEY);
         return (publicFile, payloadContent);
     }
 
@@ -164,18 +163,17 @@ public class TransitBadCATDetectionTests
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "plain/text",
             AppData = new UploadAppFileMetaData()
             {
                 FileType = 10101,
-                JsonContent = headerContent,
-                ContentIsComplete = false
+                Content = headerContent
             },
-            PayloadIsEncrypted = false,
+            IsEncrypted = false,
             AccessControlList = AccessControlList.Anonymous
         };
 
-        var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merryPublicDrive, fileMetadata, payloadContent);
+        var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merryPublicDrive, fileMetadata, payloadData: payloadContent,
+            payloadKey: WebScaffold.PAYLOAD_KEY);
         return (publicFile, payloadContent);
     }
 }

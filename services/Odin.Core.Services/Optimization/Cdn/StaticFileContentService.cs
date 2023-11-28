@@ -16,7 +16,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
-using Odin.Core.Util;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Optimization.Cdn;
 
@@ -42,6 +42,7 @@ public class StaticFileContentService
     private readonly TenantContext _tenantContext;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
+
     public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem)
     {
@@ -90,7 +91,7 @@ public class StaticFileContentService
 
             var options = new QueryBatchResultOptions()
             {
-                IncludeJsonContent = section.ResultOptions.IncludeJsonContent,
+                IncludeHeaderContent = section.ResultOptions.IncludeHeaderContent,
                 ExcludePreviewThumbnail = section.ResultOptions.ExcludePreviewThumbnail,
                 Cursor = null, //TODO?
                 MaxRecords = int.MaxValue //TODO: Consider
@@ -108,43 +109,38 @@ public class StaticFileContentService
 
             foreach (var fileHeader in filteredHeaders)
             {
-                byte[] payload = null;
-                var thumbnails = new List<ImageDataContent>();
+                var thumbnails = new List<ThumbnailContent>();
                 var internalFileId = new InternalDriveFileId()
                 {
                     FileId = fileHeader.FileId,
                     DriveId = driveId
                 };
 
-                if (section.ResultOptions.IncludeAdditionalThumbnails)
+                var payloads = new List<PayloadStaticFileResponse>();
+                if (section.ResultOptions.PayloadKeys?.Any() ?? false)
                 {
-                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
-                                                new List<ImageDataHeader>())
+                    foreach (var pd in fileHeader.FileMetadata.Payloads)
                     {
-                        var (thumbnailStream, thumbnailHeader) = await _fileSystem.Storage.GetThumbnailPayloadStream(
-                            internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-
-                        thumbnails.Add(new ImageDataContent()
+                        if (pd.Key == null || !section.ResultOptions.PayloadKeys.Contains(pd.Key))
                         {
-                            PixelHeight = thumbnailHeader.PixelHeight,
-                            PixelWidth = thumbnailHeader.PixelWidth,
-                            ContentType = thumbnailHeader.ContentType,
-                            Content = thumbnailStream.ToByteArray()
+                            continue;
+                        }
+
+                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
+                        payloads.Add(new PayloadStaticFileResponse()
+                        {
+                            Key = ps.Key,
+                            ContentType = ps.ContentType,
+                            Data = ps.Stream.ToByteArray().ToBase64()
                         });
                     }
-                }
-
-                if (section.ResultOptions.IncludePayload)
-                {
-                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId, null);
-                    payload = payloadStream.ToByteArray();
                 }
 
                 sectionOutput.Files.Add(new StaticFile()
                 {
                     Header = fileHeader,
                     AdditionalThumbnails = thumbnails,
-                    Payload = payload
+                    Payloads = payloads
                 });
             }
 
@@ -162,26 +158,13 @@ public class StaticFileContentService
         string finalTargetPath = Path.Combine(targetFolder, filename);
 
         File.Move(tempTargetPath, finalTargetPath, true);
+
         config.ContentType = MediaTypeNames.Application.Json;
+        config.LastModified = UnixTimeUtc.Now();
+
         _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
-    }
-
-    public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
-    {
-        Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
-        string targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
-        
-        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
-
-        if (!File.Exists(targetFile))
-        {
-            return Task.FromResult((config, (Stream)null));
-        }
-
-        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return Task.FromResult((config, (Stream)fileStream));
     }
 
     public async Task PublishProfileImage(string image64, string contentType)
@@ -201,6 +184,7 @@ public class StaticFileContentService
         var config = new StaticFileConfiguration()
         {
             ContentType = contentType,
+            LastModified = UnixTimeUtc.Now(),
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
@@ -222,6 +206,7 @@ public class StaticFileContentService
 
         var config = new StaticFileConfiguration()
         {
+            LastModified = UnixTimeUtc.Now(),
             ContentType = MediaTypeNames.Application.Json,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
@@ -233,6 +218,31 @@ public class StaticFileContentService
     private GuidId GetConfigKey(string filename)
     {
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
+    }
+
+    public Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename, UnixTimeUtc? ifModifiedSince = null)
+    {
+        Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
+
+        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
+
+        if (config == null || !File.Exists(targetFile))
+        {
+            return Task.FromResult(((StaticFileConfiguration)null, false, Stream.Null));
+        }
+
+        if (ifModifiedSince != null) //I was asked to check...
+        {
+            bool wasModified = config.LastModified > ifModifiedSince;
+            if (!wasModified)
+            {
+                return Task.FromResult((config, fileExists: true, Stream.Null));
+            }
+        }
+
+        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult((config, fileExists: true, (Stream)fileStream));
     }
 
     private string EnsurePath()
@@ -251,7 +261,7 @@ public class StaticFileContentService
     {
         return headers.Where(r =>
             r.FileState == FileState.Active &&
-            r.FileMetadata.PayloadIsEncrypted == false &&
+            r.FileMetadata.IsEncrypted == false &&
             r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
     }
 }

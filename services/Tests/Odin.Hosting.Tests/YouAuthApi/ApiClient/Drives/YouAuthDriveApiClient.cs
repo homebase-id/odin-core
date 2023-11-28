@@ -67,7 +67,7 @@ public class YouAuthDriveApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, bool directMatchOnly = false,
+    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height,string payloadKey, bool directMatchOnly = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = CreateYouAuthApiHttpClient(_token, fileSystemType);
@@ -80,32 +80,14 @@ public class YouAuthDriveApiClient
                 File = file,
                 Height = height,
                 Width = width,
+                PayloadKey = payloadKey,
                 DirectMatchOnly = directMatchOnly
             });
 
             return thumbnailResponse;
         }
     }
-
-    public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, FileChunk chunk = null,
-        FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var client = CreateYouAuthApiHttpClient(_token, fileSystemType);
-        {
-            var sharedSecret = _token.SharedSecret;
-            var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, sharedSecret);
-
-            var thumbnailResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
-            {
-                File = file,
-                Chunk = chunk
-            });
-
-            return thumbnailResponse;
-        }
-    }
-
-
+    
     private HttpClient CreateYouAuthApiHttpClient(ClientAccessToken token, FileSystemType fileSystemType)
     {
         // var client = WebScaffold.CreateHttpClient<YouAuthDriveApiClient>();

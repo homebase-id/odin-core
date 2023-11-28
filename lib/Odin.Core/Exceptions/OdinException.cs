@@ -12,8 +12,4 @@ public abstract class OdinException : Exception
     public OdinException(string message, Exception inner) : base(message, inner)
     {
     }        
-    
-    protected OdinException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }

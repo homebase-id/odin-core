@@ -9,6 +9,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
@@ -50,12 +51,12 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 
         Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
 
-        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId, FileChunk chunk);
+        Task<(string encryptedKeyHeader64, bool isEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive,
+            Guid fileId, string key, FileChunk chunk);
 
-        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width);
+        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)> GetThumbnail(TargetDrive targetDrive,
+            Guid fileId, int height, int width, string payloadKey);
 
         Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType);
     }
-    
-    
 }

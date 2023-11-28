@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.EncryptionKeyService;
-
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
@@ -26,7 +25,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
                 Crc32 = key.crc32c
             };
         }
-        
+
         [HttpGet("online")]
         public async Task<GetPublicKeyResponse> GetOnlineKey()
         {
@@ -38,7 +37,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
                 Crc32 = key.crc32c
             };
         }
-        
+
         [HttpGet("online_ecc")]
         public async Task<GetPublicKeyResponse> GetOnlineEccKey()
         {
@@ -50,13 +49,28 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
                 Crc32 = key.crc32c
             };
         }
-        
+
         [HttpGet("offline_ecc")]
         public async Task<string> GetOfflineEccPublicKey()
         {
             var key = await _publicKeyService.GetOfflineEccPublicKey();
             return key.PublicKeyJwkBase64Url();
 
+            // return new GetPublicKeyResponse()
+            // {
+            //     PublicKey = key.publicKey,
+            //     Crc32 = key.crc32c
+            // };
+        }
+
+        [HttpGet("notifications_pk")]
+        public async Task<string> GetNotificationsPk()
+        {
+            // var key = await _publicKeyService.GetNotificationsPublicKey();
+            // return key.GenerateEcdsaBase64Url();
+
+            return await _publicKeyService.GetNotificationsPublicKey();
+            
             // return new GetPublicKeyResponse()
             // {
             //     PublicKey = key.publicKey,

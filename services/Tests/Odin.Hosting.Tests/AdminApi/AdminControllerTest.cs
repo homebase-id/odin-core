@@ -274,12 +274,8 @@ public class AdminControllerTest
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
             AppData = new()
             {
-                ContentIsComplete = string.IsNullOrEmpty(payload),
-                JsonContent = uploadedContent,
                 FileType = 200,
                 GroupId = default,
                 Tags = default
@@ -287,7 +283,7 @@ public class AdminControllerTest
             AccessControlList = AccessControlList.OwnerOnly
         };
 
-        return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, payload);
+        return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, payload, null, null, WebScaffold.PAYLOAD_KEY);
     }
 
 

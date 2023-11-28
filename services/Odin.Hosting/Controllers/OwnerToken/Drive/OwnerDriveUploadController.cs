@@ -24,13 +24,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Adds a thumbnail to an existing file
+        /// Adds/updates a payload to an existing file w/o need to resend the metadata 
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("attachments/upload")]
-        public async Task<UploadAttachmentsResult> AddAttachment()
+        [HttpPost("uploadpayload")]
+        public async Task<UploadPayloadResult> UploadPayload()
         {
-            return await base.ReceiveAttachmentStream();
+            return await base.ReceivePayloadStream();
         }
     }
 }

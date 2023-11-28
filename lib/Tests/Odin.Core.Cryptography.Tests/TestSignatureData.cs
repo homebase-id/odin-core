@@ -17,7 +17,7 @@ public class SignatureDataTest
         byte[] testData = System.Text.Encoding.UTF8.GetBytes("Test data");
         OdinId testIdentity = new OdinId("odin.valhalla.com");
         SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
+        EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, EccKeySize.P384, 1);
 
         // Act
         SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
@@ -35,7 +35,7 @@ public class SignatureDataTest
         byte[] testData = System.Text.Encoding.UTF8.GetBytes("Test data");
         OdinId testIdentity = new OdinId("odin.valhalla.com");
         SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
+        EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, EccKeySize.P384, 1);
 
         // Sign data
         SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
