@@ -10,7 +10,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  ARCHITECTURE: x64
 
 jobs:
   deploy:
@@ -64,4 +63,4 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit sandbox --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
