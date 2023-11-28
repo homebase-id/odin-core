@@ -144,7 +144,6 @@ namespace Odin.Hosting
             services.AddResponseCompression(options =>
             {
                 options.EnableForHttps = true;
-                options.MimeTypes = new[] { "application/json" };
             });
 
             services.AddEndpointsApiExplorer();
@@ -289,8 +288,9 @@ namespace Odin.Hosting
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
 
-            // app.UseHsts(); // SEB:TODO will hsts break something?
             app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
+            app.UseResponseCompression();
+            app.UseHsts();
 
             // Provisioning mapping
             app.MapWhen(
@@ -313,7 +313,6 @@ namespace Odin.Hosting
             app.UseAuthorization();
 
             app.UseMiddleware<OdinContextMiddleware>();
-            app.UseResponseCompression();
             app.UseCors();
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
