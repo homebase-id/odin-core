@@ -151,7 +151,6 @@ public class AdminControllerTest
     //
 
     [Test]
-    [Ignore("SEB:TODO Waiting for multi-payload rewrite. This has problems with database disposal.")]
     public async Task ItShouldDeleteTenant()
     {
         await CreatePayload(TestIdentities.Frodo);

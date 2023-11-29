@@ -36,6 +36,7 @@ public class DeleteTenantJob : IExclusiveJob
             _logger.LogDebug("Starting delete tenant {domain}", domain);
 
             var sw = Stopwatch.StartNew();
+            await _identityRegistry.ToggleDisabled(domain, true);
             await _identityRegistry.DeleteRegistration(domain);
             _state.Status = JobStatusEnum.Completed;
 

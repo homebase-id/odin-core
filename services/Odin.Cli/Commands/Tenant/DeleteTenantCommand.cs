@@ -32,8 +32,6 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
 
     public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
     {
-        throw new Exception("SEB:TODO Waiting for multi-payload rewrite. This has problems with database disposal.");
-
         if (!settings.IgnorePrompts)
         {
             if (!AnsiConsole.Confirm($"Really delete tenant {settings.TenantDomain}?", defaultValue: false))
@@ -80,6 +78,10 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     if (state.Status == JobStatusEnum.Failed)
                     {
                         throw new Exception($"Error deleting tenant {settings.TenantDomain}: {state.Error}");
+                    }
+                    if (state.Status == JobStatusEnum.Completed)
+                    {
+                        AnsiConsole.MarkupLine("[green]Done[/]");
                     }
                 } while (state.Status == JobStatusEnum.Unknown);
 

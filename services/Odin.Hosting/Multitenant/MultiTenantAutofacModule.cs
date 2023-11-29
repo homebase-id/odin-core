@@ -1,9 +1,9 @@
-﻿#nullable enable
-using Autofac;
+﻿using Autofac;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Odin.Core.Services.Tenant;
 
+#nullable enable
 namespace Odin.Hosting.Multitenant
 {
     public class MultiTenantAutofacModule : Module

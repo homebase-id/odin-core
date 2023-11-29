@@ -1,17 +1,18 @@
-﻿#nullable enable
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Tenant.Container;
 
+#nullable enable
 namespace Odin.Hosting.Multitenant
 {
     internal class MultiTenantContainerMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<MultiTenantContainerMiddleware> _logger;
-        private readonly MultiTenantContainerDisposableAccessor _container;
+        private readonly IMultiTenantContainerAccessor _container;
         private readonly IIdentityRegistry _identityRegistry;
 
         //
@@ -19,7 +20,7 @@ namespace Odin.Hosting.Multitenant
         public MultiTenantContainerMiddleware(
             RequestDelegate next,
             ILogger<MultiTenantContainerMiddleware> logger,
-            MultiTenantContainerDisposableAccessor container,
+            IMultiTenantContainerAccessor container,
             IIdentityRegistry identityRegistry)
         {
             _next = next;
@@ -50,7 +51,7 @@ namespace Odin.Hosting.Multitenant
             }
             
             // Begin new scope for request as ASP.NET Core standard scope is per-request
-            var scope = _container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
+            var scope = _container.Container().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
             context.RequestServices = new AutofacServiceProvider(scope);
             
             await _next(context);

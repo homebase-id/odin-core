@@ -31,6 +31,7 @@ using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Services.Tenant.Container;
 using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
@@ -196,6 +197,7 @@ namespace Odin.Hosting
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
+                sp.GetRequiredService<IMultiTenantContainerAccessor>(),
                 config));
 
             services.AddSingleton(new AcmeAccountConfig

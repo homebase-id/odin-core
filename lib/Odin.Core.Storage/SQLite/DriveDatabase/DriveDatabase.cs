@@ -101,7 +101,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         public override void Dispose()
         {
 #if DEBUG
-            Console.WriteLine($"DriveDatabase Dispose: Line:{_line} in file:{_file}");
+            Console.WriteLine($"DriveDatabase was correctly disposed: Line:{_line} in file:{_file}");
 #endif
             Commit();
 

@@ -22,7 +22,7 @@ using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
-using Odin.Hosting.Multitenant;
+using Odin.Core.Services.Tenant.Container;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
 

@@ -1,5 +1,4 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
@@ -9,11 +8,11 @@ using Autofac;
 using Autofac.Core;
 using Autofac.Core.Lifetime;
 using Autofac.Core.Resolving;
-using Odin.Core.Services.Tenant;
 
-namespace Odin.Hosting.Multitenant
+#nullable enable
+namespace Odin.Core.Services.Tenant.Container
 {
-    public class MultiTenantContainer : IContainer
+    public sealed class MultiTenantContainer : IContainer
     {
         // This is the base application container
         private readonly  IContainer _applicationContainer;
@@ -47,6 +46,20 @@ namespace Odin.Hosting.Multitenant
         {
             var tenant = GetCurrentTenant();
             return GetTenantScope(tenant?.Name);
+        }
+
+        //
+
+        /// <summary>
+        /// Remove scope of tenant
+        /// </summary>
+        /// <returns></returns>
+        public void RemoveTenantScope(string tenant)
+        {
+            if (_tenantLifetimeScopes.TryRemove(tenant, out var scope))
+            {
+                scope.Value.Dispose();
+            }
         }
 
         //
