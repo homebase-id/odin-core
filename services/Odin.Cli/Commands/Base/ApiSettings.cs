@@ -6,10 +6,6 @@ namespace Odin.Cli.Commands.Base;
 
 public class ApiSettings : BaseSettings
 {
-    // [Description("Identity host(:port) (alt: set env var ODIN_ADMIN_IDENTITY_HOST)")]
-    // [CommandArgument(0, "[identity-host]")]
-    // public string IdentityHost { get; init; } = Environment.GetEnvironmentVariable("ODIN_ADMIN_IDENTITY_HOST") ?? "";
-
     [Description("Identity host(:port) (alt: set env var ODIN_ADMIN_IDENTITY_HOST)")]
     [CommandOption("-I|--identity-host <VALUE>")]
     public string IdentityHost { get; set; } = "";

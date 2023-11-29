@@ -2,11 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Odin.Cli.Commands.Base;
-using Odin.Cli.Extensions;
 using Odin.Cli.Factories;
-using Odin.Cli.Services;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Quartz;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -64,6 +61,8 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                 JobState? state;
                 do
                 {
+                    await Task.Delay(TimeSpan.FromMilliseconds(200));
+
                     response = await httpClient.GetAsync(location);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
@@ -72,7 +71,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     state = OdinSystemSerializer.Deserialize<JobState>(await response.Content.ReadAsStringAsync());
                     if (state == null)
                     {
-                        throw new Exception("Error deserializing reponse");
+                        throw new Exception("Error deserializing response");
                     }
 
                     if (state.Status == JobStatusEnum.Failed)
@@ -83,8 +82,8 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         AnsiConsole.MarkupLine("[green]Done[/]");
                     }
-                } while (state.Status == JobStatusEnum.Unknown);
 
+                } while (state.Status == JobStatusEnum.Unknown);
             });
 
         return 0;

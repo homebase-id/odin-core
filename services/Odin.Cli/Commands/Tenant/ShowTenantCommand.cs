@@ -4,7 +4,6 @@ using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Extensions;
 using Odin.Cli.Factories;
-using Odin.Cli.Services;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
 using Spectre.Console;

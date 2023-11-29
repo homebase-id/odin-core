@@ -2,12 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Odin.Cli.Commands.Base;
-using Odin.Cli.Extensions;
 using Odin.Cli.Factories;
-using Odin.Cli.Services;
-using Odin.Core.Serialization;
-using Odin.Core.Services.Admin.Tenants;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Odin.Cli.Commands.Tenant;
