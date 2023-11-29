@@ -1,9 +1,11 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Time;
-using Refit;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
@@ -19,24 +21,23 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             _notificationService = notificationService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddNotification([FromBody] AddNotificationRequest request)
+        [HttpPost("list")]
+        public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            await _notificationService.AddNotification(request);
-            return Ok();
+            return await _notificationService.AddNotification(request);
         }
 
-        [HttpGet]
-        public async Task<NotificationsListResult> GetList([Query] int count, [Query] UnixTimeUtcUnique cursor)
+        [HttpGet("list")]
+        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64 cursor)
         {
             return await _notificationService.GetList(new GetNotificationListRequest()
             {
                 Count = count,
-                Cursor = cursor
+                Cursor = new UnixTimeUtcUnique(cursor)
             });
         }
 
-        [HttpPut]
+        [HttpPut("list")]
         public async Task<IActionResult> UpdateNotification([FromBody] UpdateNotificationListRequest request)
         {
             if (null == request)
@@ -48,7 +49,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             return Ok();
         }
 
-        [HttpDelete()]
+        [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
             await _notificationService.Delete(request);

@@ -18,28 +18,33 @@ public class NotificationDataService
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly TableAppNotifications _storage;
+    private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public NotificationDataService(TenantSystemStorage storage, OdinContextAccessor contextAccessor)
+    public NotificationDataService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
-        _storage = storage.AppNotifications;
+        _storage = tenantSystemStorage.AppNotifications;
+        _tenantSystemStorage = tenantSystemStorage;
     }
 
-    public Task AddNotification(AddNotificationRequest request)
+    public Task<AddNotificationResult> AddNotification(AddNotificationRequest request)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+        var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
         {
-            notificationId = Guid.NewGuid(),
-            created = UnixTimeUtcUnique.Now(),
+            notificationId = id,
             senderId = senderId.DomainName,
             unread = 1,
             data = request.Payload.ToUtf8ByteArray()
         };
 
         _storage.Insert(record);
-        return Task.CompletedTask;
+        return Task.FromResult(new AddNotificationResult()
+        {
+            NotificationId = id
+        });
     }
 
     public Task<NotificationsListResult> GetList(GetNotificationListRequest request)
@@ -51,6 +56,7 @@ public class NotificationDataService
             Cursor = cursor,
             Results = results.Select(r => new AppNotification()
             {
+                Id = r.notificationId,
                 SenderId = r.senderId,
                 Unread = r.unread == 1,
                 Data = r.data.ToStringFromUtf8Bytes()

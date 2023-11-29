@@ -21,7 +21,7 @@ public class AppNotificationsApiClient
         _factory = factory;
     }
 
-    public async Task<ApiResponse<HttpContent>> AddNotification(string payload)
+    public async Task<ApiResponse<AddNotificationResult>> AddNotification(string payload)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         {
@@ -35,7 +35,7 @@ public class AppNotificationsApiClient
         }
     }
 
-    public async Task<ApiResponse<NotificationsListResult>> GetList(int count, UnixTimeUtcUnique? cursor = null)
+    public async Task<ApiResponse<NotificationsListResult>> GetList(int count, Int64? cursor = null)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         {

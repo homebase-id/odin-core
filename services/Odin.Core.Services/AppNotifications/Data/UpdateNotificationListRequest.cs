@@ -9,9 +9,15 @@ namespace Odin.Core.Services.AppNotifications.Data;
 
 public class AppNotification
 {
+    public Guid Id { get; set; }
     public string SenderId { get; set; }
     public bool Unread { get; set; }
     public string Data { get; set; }
+}
+
+public class AddNotificationResult
+{
+    public Guid NotificationId { get; set; }
 }
 
 public class NotificationsListResult

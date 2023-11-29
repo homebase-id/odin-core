@@ -1,14 +1,14 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
-using Odin.Hosting.Tests._Universal.DriveTests;
 
 namespace Odin.Hosting.Tests._Universal.NotificationTests.Lists;
 
@@ -74,31 +74,81 @@ public class NotificationListTests
         }
     }
 
-    // [Test]
-    // [TestCaseSource(nameof(TestCases))]
-    // public async Task CanMarkNotificationsRead(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    // {
-    // }
-    //
-    // [Test]
-    // [TestCaseSource(nameof(TestCases))]
-    // public async Task CanMarkNotificationsUnread(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    // {
-    // }
-    //
-    // [Test]
-    // [TestCaseSource(nameof(TestCases))]
-    // public async Task CanRemoveNotifications(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    // {
-    // }
-
-    private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanMarkNotificationsRead(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-        var response1 = await client.DriveRedux.UploadNewMetadata(targetDrive, f1);
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        const string payload1 = "some payload1";
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
         Assert.IsTrue(response1.IsSuccessStatusCode);
-        var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response1.Content!.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
-        return response1.Content;
+        var notificationId = response1.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var updates = new List<UpdateNotificationRequest>()
+        {
+            new()
+            {
+                Id = notificationId,
+                Unread = false
+            }
+        };
+
+        var response = await client.Update(updates);
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var getListResponse = await ownerApiClient.AppNotifications.GetList(10);
+            var results = getListResponse.Content.Results;
+            Assert.IsNotNull(results);
+            var notification = results.SingleOrDefault();
+            Assert.IsNotNull(notification);
+            Assert.IsTrue(notification.Id == notificationId);
+            Assert.IsTrue(notification.Unread == false);
+        }
+    }
+
+
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanRemoveNotifications(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        const string payload1 = "some payload1";
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+        var notificationId = response1.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var response = await client.Delete(new List<Guid>() { notificationId });
+
+        // Assert
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var getListResponse = await ownerApiClient.AppNotifications.GetList(10);
+            var results = getListResponse.Content.Results;
+            Assert.IsNotNull(results);
+            var notification = results.SingleOrDefault();
+            Assert.IsNull(notification);
+        }
     }
 }

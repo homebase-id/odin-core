@@ -48,7 +48,6 @@
 
         public const string NotificationsV1 = BasePathV1 + "/notify";
         
-        public const string NotificationListV1 = BasePathV1 + NotificationsV1 + "/list";
 
         public const string PushNotificationsV1 = BasePathV1 + "/notify/push";
 
