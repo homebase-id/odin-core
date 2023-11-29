@@ -1,7 +1,8 @@
 ﻿#nullable enable
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Autofac;
@@ -14,17 +15,16 @@ namespace Odin.Hosting.Multitenant
 {
     public class MultiTenantContainer : IContainer
     {
-        //This is the base application container
+        // This is the base application container
         private readonly  IContainer _applicationContainer;
 
-        //This action configures a container builder
+        // This action configures a container builder
         private readonly Action<ContainerBuilder, Tenant> _tenantServiceConfiguration;
         private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
         
-        //This dictionary keeps track of all of the tenant scopes that we have created
-        private readonly Dictionary<string, ILifetimeScope> _tenantLifetimeScopes = new();
-        
-        private readonly object _lock = new();
+        // This dictionary keeps track of all of the tenant scopes that we have created
+        private readonly ConcurrentDictionary<string, Lazy<ILifetimeScope>> _tenantLifetimeScopes = new();
+
         private const string MultiTenantTag = "multitenantcontainer";
 
         public MultiTenantContainer(
@@ -37,14 +37,7 @@ namespace Odin.Hosting.Multitenant
             _tenantInitialization = tenantInitialization;
         }
 
-        /// <summary>
-        /// Get the current teanant from the application container
-        /// </summary>
-        /// <returns></returns>
-        private Tenant? GetCurrentTenant()
-        {
-            return  _applicationContainer.Resolve<ITenantProvider>().GetCurrentTenant();
-        }
+        //
         
         /// <summary>
         /// Get the scope of the current tenant
@@ -56,6 +49,19 @@ namespace Odin.Hosting.Multitenant
             return GetTenantScope(tenant?.Name);
         }
 
+        //
+
+        /// <summary>
+        /// Get the current teanant from the application container
+        /// </summary>
+        /// <returns></returns>
+        private Tenant? GetCurrentTenant()
+        {
+            return  _applicationContainer.Resolve<ITenantProvider>().GetCurrentTenant();
+        }
+
+        //
+
         /// <summary>
         /// Get (configure on missing)
         /// </summary>
@@ -63,58 +69,56 @@ namespace Odin.Hosting.Multitenant
         /// <returns></returns>
         private ILifetimeScope GetTenantScope(string? tenantId)
         {
-            //If no tenant (e.g. early on in the pipeline, we just use the application container)
+            // If no tenant (e.g. early on in the pipeline, we just use the application container)
             if (tenantId == null)
             {
                 return _applicationContainer;
             }
 
-            if (_tenantLifetimeScopes.TryGetValue(tenantId, out var scope))
+            if (_tenantLifetimeScopes.TryGetValue(tenantId, out var lazyScope))
             {
-                return scope;
+                return lazyScope.Value;
             }
 
-            Tenant? tenant;
-            ILifetimeScope lifetimeScope;
-            lock (_lock)
+            var tenant = GetCurrentTenant();
+            if (tenant == null) // sanity check
             {
-                if (_tenantLifetimeScopes.TryGetValue(tenantId, out var tenantScope))
-                {
-                    return tenantScope;
-                }
-                
-                tenant = GetCurrentTenant();
-                if (tenant == null) // sanity
-                {
-                    return _applicationContainer; 
-                }
+                return _applicationContainer;
+            }
 
-                // This is a new tenant, configure a new lifetimescope for it using our tenant sensitive configuration method
-                lifetimeScope = _applicationContainer.BeginLifetimeScope(
+            // SEB:NOTE
+            // The valueFactory is not run under lock, so we use Lazy<> to make sure that it is only executed once
+            lazyScope = _tenantLifetimeScopes.GetOrAdd(tenantId, _ => new Lazy<ILifetimeScope>(() =>
+            {
+                // Configure a new lifetime scope for the tenant
+                var lifetimeScope = _applicationContainer.BeginLifetimeScope(
                     MultiTenantTag,
                     cb => _tenantServiceConfiguration(cb, tenant));
-                
-                _tenantLifetimeScopes.Add(tenantId, lifetimeScope); 
-            }
 
-            _tenantInitialization(lifetimeScope, tenant);    
-            
-            return _tenantLifetimeScopes[tenantId];
+                _tenantInitialization(lifetimeScope, tenant);
+                return lifetimeScope;
+            }));
+
+            return lazyScope.Value;
         }
+
+        //
 
         public void Dispose()
         {
-            lock (_lock)
+            var keys = _tenantLifetimeScopes.Keys.ToArray();
+            foreach (var key in keys)
             {
-                foreach (var scope in _tenantLifetimeScopes)
+                if (_tenantLifetimeScopes.TryRemove(key, out var scope))
                 {
                     scope.Value.Dispose();
                 }
-                _tenantLifetimeScopes.Clear();
-                _applicationContainer.Dispose(); // SEB:TODO really? _applicationContainer is injected
             }
+            _applicationContainer.Dispose(); // SEB:TODO really? _applicationContainer is injected
             GC.SuppressFinalize(this);
         }
+
+        //
 
         public object ResolveComponent(ResolveRequest request) => 
             GetCurrentTenantScope().ResolveComponent(request);
