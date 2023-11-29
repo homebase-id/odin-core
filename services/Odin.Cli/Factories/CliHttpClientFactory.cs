@@ -1,29 +1,28 @@
 using System.Security.Authentication;
 
 namespace Odin.Cli.Factories;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
+using HttpClientFactory = HttpClientFactoryLite.HttpClientFactory;
 
-public interface ICliHttpClientFactory
-{
-    HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey);
-}
+// public interface ICliHttpClientFactory
+// {
+//     HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey);
+// }
 
 //
 
-public class CliHttpClientFactory : ICliHttpClientFactory
+public static class CliHttpClientFactory
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private static readonly HttpClientFactory HttpClientFactory;
 
-    public CliHttpClientFactory(IHttpClientFactory httpClientFactory)
+    static CliHttpClientFactory()
     {
-        _httpClientFactory = httpClientFactory;
-        _httpClientFactory.Register(nameof(CliHttpClientFactory), builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
+        HttpClientFactory = new HttpClientFactory();
+        HttpClientFactory.Register(nameof(CliHttpClientFactory), builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
         {
             var handler = new HttpClientHandler
             {
                 UseCookies = false,
                 AllowAutoRedirect = false,
-                SslProtocols = SslProtocols.None, //allow OS to choose;
             };
             return handler;
         }));
@@ -31,10 +30,10 @@ public class CliHttpClientFactory : ICliHttpClientFactory
 
     //
 
-    public HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey)
+    public static HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey)
     {
 
-        var httpClient = _httpClientFactory.CreateClient(nameof(CliHttpClientFactory));
+        var httpClient = HttpClientFactory.CreateClient(nameof(CliHttpClientFactory));
         httpClient.BaseAddress = CreateUriFromHostname(hostAndPort);
         httpClient.DefaultRequestHeaders.Add(apiKeyHeader, apiKey);
         return httpClient;

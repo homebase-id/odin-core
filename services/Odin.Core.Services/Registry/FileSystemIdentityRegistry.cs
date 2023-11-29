@@ -13,6 +13,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Services.Tenant.Container;
 using Odin.Core.Trie;
 using Serilog;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
@@ -33,6 +34,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
+    private readonly IMultiTenantContainerAccessor _tenantContainer;
     private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tempFolderRoot;
@@ -42,7 +44,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
-        OdinConfiguration config)
+        IMultiTenantContainerAccessor tenantContainer,
+        OdinConfiguration config
+        )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
@@ -60,6 +64,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _certificateServiceFactory = certificateServiceFactory;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
+        _tenantContainer = tenantContainer;
         _config = config;
 
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
@@ -209,6 +214,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
+            _tenantContainer.Container().RemoveTenantScope(domain);
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
@@ -480,7 +486,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var shards = Directory.GetDirectories(ShardablePayloadRoot);
             foreach (var shard in shards)
             {
-                var payloadPath = Path.Combine(shard, identity.Id.ToString());
+                var id = identity.Id.ToString();
+
+                // Sanity
+                if (string.IsNullOrEmpty(shard) || string.IsNullOrEmpty(id))
+                {
+                    throw new OdinSystemException("I just stopped you in wiping the wrong stuff!");
+                }
+
+                var payloadPath = Path.Combine(shard, id);
                 if (Directory.Exists(payloadPath))
                 {
                     try

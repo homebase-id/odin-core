@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Quartz;
@@ -89,7 +90,7 @@ public class AdminController : ControllerBase
             var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
             return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
         }
-        catch (AdminValidationException e)
+        catch (OdinException e)
         {
             return BadRequest(new ProblemDetails
             {
