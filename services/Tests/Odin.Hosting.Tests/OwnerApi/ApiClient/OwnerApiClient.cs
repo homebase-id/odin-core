@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;

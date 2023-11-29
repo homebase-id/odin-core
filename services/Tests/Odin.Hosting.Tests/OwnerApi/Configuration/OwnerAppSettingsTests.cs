@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration
 {

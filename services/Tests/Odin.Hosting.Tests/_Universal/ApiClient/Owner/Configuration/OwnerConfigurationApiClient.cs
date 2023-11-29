@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Configuration.Eula;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 
 public class OwnerConfigurationApiClient
 {

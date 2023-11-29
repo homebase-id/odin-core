@@ -364,6 +364,24 @@ namespace Odin.Hosting
                             return;
                         });
                     });
+                
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
+                    chatApp =>
+                    {
+                        var chatPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat");
+                        chatApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(chatPath),
+                            RequestPath = "/apps/chat"
+                        });
+
+                        chatApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(chatPath, "index.html"));
+                            return;
+                        });
+                    });
 
                 // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,

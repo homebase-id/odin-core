@@ -6,7 +6,7 @@ using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Configuration.Eula;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Configuration
+namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration
 {
     public interface IRefitOwnerConfiguration
     {

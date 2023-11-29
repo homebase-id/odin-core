@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         private const string RootEndpoint = OwnerApiPathConstants.DriveManagementV1;
 
         [Post(RootEndpoint + "/create")]
-        Task<ApiResponse<HttpContent>> CreateDrive([Body] CreateDriveRequest request);
+        Task<ApiResponse<bool>> CreateDrive([Body] CreateDriveRequest request);
 
         [Post(RootEndpoint)]
         Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives([Body] GetDrivesRequest request);

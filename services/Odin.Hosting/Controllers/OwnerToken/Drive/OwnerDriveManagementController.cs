@@ -51,7 +51,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             var _ = await _driveManager.CreateDrive(request);
             return true;
         }
-        
 
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)

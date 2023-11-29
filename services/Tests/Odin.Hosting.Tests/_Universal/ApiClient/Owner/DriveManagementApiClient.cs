@@ -22,7 +22,7 @@ public class DriveManagementApiClient
         _identity = identity;
     }
 
-    public async Task<OwnerClientDriveData> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
+    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
         bool allowSubscriptions = false)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -44,20 +44,7 @@ public class DriveManagementApiClient
                 OwnerOnly = ownerOnly
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
-
-            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
-            var page = getDrivesResponse.Content;
-
-            Assert.NotNull(page);
-            var theDrive = page.Results.SingleOrDefault(drive =>
-                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(theDrive);
-
-            return theDrive;
+            return response;
         }
     }
 
