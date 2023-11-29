@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Serialization;
 using Odin.Hosting.ApiExceptions;
 using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.ApiExceptions.Server;
@@ -128,7 +129,7 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }
 
-            var result = JsonSerializer.Serialize(problemDetails);
+            var result = OdinSystemSerializer.Serialize(problemDetails);
 
             if (!context.Response.HasStarted)
             {
