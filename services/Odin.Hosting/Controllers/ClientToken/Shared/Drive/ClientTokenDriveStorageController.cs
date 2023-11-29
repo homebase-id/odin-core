@@ -148,14 +148,14 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("deletefileidbatch")]
+        [HttpPost("files/deletefileidbatch")]
         public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
             return await base.DeleteFileIdBatch(request);
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("deletegroupidbatch")]
+        [HttpPost("files/deletegroupidbatch")]
         public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
             return await base.DeleteFilesByGroupIdBatch(request);

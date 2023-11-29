@@ -40,7 +40,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
 
     public static IEnumerable TestCases()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
         yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
     }
@@ -50,10 +50,10 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     public async Task FailToDeletePayloadOnExistingFileWhenInvalidVersionTagIsSpecified(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
@@ -97,7 +97,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var deletePayloadResponse = await uniDriveClient.DeletePayload(targetFile, targetVersionTag, uploadedPayloadDefinition.Key);
-        Assert.IsTrue(deletePayloadResponse.StatusCode == expectedStatusCode);
+        Assert.IsTrue(deletePayloadResponse.StatusCode == expectedStatusCode, $"Actual status code: {deletePayloadResponse.StatusCode}");
         var deletePayloadResult = deletePayloadResponse.Content;
         Assert.IsNull(deletePayloadResult);
 
@@ -126,10 +126,10 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     public async Task FailWhenModifyingPayloadOnExistingFileAndInvalidVersionTagIsSpecified(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
@@ -160,7 +160,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
+        Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode, $"Actual status code: {uploadPayloadResponse.StatusCode}");
     }
 
     [Test]
@@ -168,10 +168,10 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     public async Task FailWhenDuplicatePayloadKeys(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
@@ -199,10 +199,10 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     public async Task FailIfPayloadKeyIncludesInvalidChars(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 

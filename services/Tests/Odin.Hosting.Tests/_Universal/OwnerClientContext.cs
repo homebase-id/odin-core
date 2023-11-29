@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
@@ -16,7 +17,7 @@ public class OwnerClientContext : IApiClientContext
 
     public TargetDrive TargetDrive { get; }
 
-    public async Task Initialize(OwnerApiClient ownerApiClient)
+    public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var t = ownerApiClient.GetTokenContext();
         _factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());

@@ -7,7 +7,7 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
@@ -24,7 +24,7 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
 
     public TargetDrive TargetDrive { get; }
 
-    public async Task Initialize(OwnerApiClient ownerApiClient)
+    public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app
         Guid appId = Guid.NewGuid();
@@ -46,9 +46,9 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
 
         var circles = new List<Guid>();
         var circlePermissions = new PermissionSetGrantRequest();
-        await ownerApiClient.Apps.RegisterApp(appId, permissions, circles, circlePermissions);
+        await ownerApiClient.AppManager.RegisterApp(appId, permissions, circles, circlePermissions);
 
-        var (appToken, appSharedSecret) = await ownerApiClient.Apps.RegisterAppClient(appId);
+        var (appToken, appSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
         _factory = new AppApiClientFactory(appToken, appSharedSecret);
     }
 

@@ -7,6 +7,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
@@ -24,7 +25,7 @@ public class GuestWriteOnlyAccessToDrive : IApiClientContext
 
     public TargetDrive TargetDrive { get; }
 
-    public async Task Initialize(OwnerApiClient ownerApiClient)
+    public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var domain = new AsciiDomainName("test.org");
 

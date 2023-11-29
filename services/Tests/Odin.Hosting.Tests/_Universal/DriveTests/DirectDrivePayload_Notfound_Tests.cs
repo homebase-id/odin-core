@@ -50,10 +50,10 @@ public class DirectDrivePayload_Notfound_Tests
     public async Task GetPayloadUsingValidPayloadKeyButPayloadDoesNotExistReturns404(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);

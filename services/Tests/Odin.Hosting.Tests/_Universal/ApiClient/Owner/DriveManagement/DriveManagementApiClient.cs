@@ -1,7 +1,5 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
@@ -9,7 +7,7 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Owner;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 
 public class DriveManagementApiClient
 {
@@ -27,7 +25,7 @@ public class DriveManagementApiClient
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ownerSharedSecret);
 
             if (ownerOnly && allowAnonymousReads)
             {
@@ -52,7 +50,7 @@ public class DriveManagementApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
 
-        var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, sharedSecret);
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
         return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
     }
 }

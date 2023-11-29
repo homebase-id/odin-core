@@ -472,7 +472,7 @@ public class UniversalDriveApiClient
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
-        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.DeleteFilesByGroupIdBatch(batch);
 
         return apiResponse;
@@ -487,7 +487,7 @@ public class UniversalDriveApiClient
         };
 
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
-        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.DeleteFileIdBatch(batch);
         return apiResponse;
     }

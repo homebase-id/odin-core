@@ -50,10 +50,10 @@ public class DirectDrivePayloadTests_1
     public async Task CanGetPayloadByKeyIncludesCorrectHeaders(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
@@ -116,10 +116,10 @@ public class DirectDrivePayloadTests_1
     public async Task CanModifyPayloadOnExistingFileAndMetadataIsAutomaticallyUpdated(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
@@ -198,10 +198,10 @@ public class DirectDrivePayloadTests_1
     public async Task CanDeletePayloadOnExistingFileAndMetadataIsAutomaticallyUpdated(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.Drive.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 

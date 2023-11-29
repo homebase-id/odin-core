@@ -1,14 +1,13 @@
-﻿using System.Net.Http;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
+namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
 {
-    public interface IDriveManagementHttpClient
+    public interface IRefitDriveManagement
     {
         private const string RootEndpoint = OwnerApiPathConstants.DriveManagementV1;
 

@@ -3,6 +3,7 @@ using System.Linq;
 using Autofac;
 using MediatR;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Apps.CommandMessaging;
@@ -56,6 +57,8 @@ namespace Odin.Hosting
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
+            cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
@@ -83,7 +86,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
