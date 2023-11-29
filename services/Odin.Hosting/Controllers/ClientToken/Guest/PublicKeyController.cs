@@ -21,8 +21,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 
             return new GetPublicKeyResponse()
             {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
+                PublicKey = key?.publicKey,
+                Crc32 = key?.crc32c ?? 0
             };
         }
 
@@ -45,8 +45,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 
             return new GetPublicKeyResponse()
             {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
+                PublicKey = key?.publicKey,
+                Crc32 = key?.crc32c ?? 0
             };
         }
 
@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         public async Task<string> GetOfflineEccPublicKey()
         {
             var key = await _publicKeyService.GetOfflineEccPublicKey();
-            return key.PublicKeyJwkBase64Url();
+            return key?.PublicKeyJwkBase64Url();
 
             // return new GetPublicKeyResponse()
             // {

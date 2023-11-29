@@ -16,7 +16,7 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
     private readonly TestPermissionKeyList _keys;
     private AppApiClientFactory _factory;
 
-    public AppWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList? keys = null)
+    public AppWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null)
     {
         TargetDrive = targetDrive;
         _keys = keys;
