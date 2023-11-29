@@ -163,6 +163,7 @@ namespace Odin.Core.Services.Authorization.Apps
                 AppId = oldRegistration.AppId,
                 Name = oldRegistration.Name,
                 Grant = oldRegistration.Grant,
+                CorsHostName = oldRegistration.CorsHostName,
 
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
                 AuthorizedCircles = request.AuthorizedCircles

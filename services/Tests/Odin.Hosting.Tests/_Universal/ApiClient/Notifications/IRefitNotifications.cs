@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Time;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
@@ -9,19 +11,16 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
     {
         private const string RootPath = "/notify/list";
 
-        [Post(RootPath + "")]
+        [Post(RootPath)]
         Task<ApiResponse<HttpContent>> AddNotification([Body] AddNotificationRequest request);
 
-        [Get(RootPath + "/list")]
-        Task<ApiResponse<HttpContent>> GetNotificationsList();
+        [Get(RootPath)]
+        Task<ApiResponse<NotificationsListResult>> GetList([Query] int count, [Query] UnixTimeUtcUnique? cursor);
 
-        [Get(RootPath + "/{id}")]
-        Task<ApiResponse<HttpContent>> GetNotification(Guid id);
+        [Put(RootPath)]
+        Task<ApiResponse<HttpContent>> Update([Body] UpdateNotificationListRequest request);
 
-        [Put(RootPath + "/{id}")]
-        Task<ApiResponse<HttpContent>> Update();
-
-        [Delete(RootPath + "/{id}")]
-        Task<ApiResponse<HttpContent>> DeleteNotification([Query] Guid id);
+        [Delete(RootPath)]
+        Task<ApiResponse<HttpContent>> DeleteNotification([Body] DeleteNotificationsRequest request);
     }
 }

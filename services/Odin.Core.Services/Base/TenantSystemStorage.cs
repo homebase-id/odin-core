@@ -43,11 +43,14 @@ namespace Odin.Core.Services.Base
             WhoIFollow = _db.tblImFollowing;
             Followers = _db.tblFollowsMe;
             Feedbox = _db.tblFeedDistributionOutbox;
+            AppNotifications = _db.appNotificationsTable;
         }
 
         public TableAppGrants AppGrants { get; }
 
         public TableConnections Connections { get; }
+
+        public TableAppNotifications AppNotifications { get; }
 
         public TableFeedDistributionOutbox Feedbox { get; }
 
@@ -65,7 +68,7 @@ namespace Odin.Core.Services.Base
         {
             return _db.CreateCommitUnitOfWork();
         }
-        
+
         /// <summary>
         /// Store values using a single key
         /// </summary>
@@ -73,6 +76,7 @@ namespace Odin.Core.Services.Base
         {
             return new SingleKeyValueStorage(_db.tblKeyValue, contextKey);
         }
+
         public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
         {
             return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
@@ -86,11 +90,10 @@ namespace Odin.Core.Services.Base
         {
             return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
         }
-        
+
         public void Dispose()
         {
             _db.Dispose();
         }
-
     }
 }

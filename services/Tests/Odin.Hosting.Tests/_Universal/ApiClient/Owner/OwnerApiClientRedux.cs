@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
@@ -37,7 +38,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         private readonly CircleMembershipApiClient _circleMembershipApiClient;
         private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
         private readonly UniversalDriveApiClient _driveApiClientRedux;
-
+        private readonly AppNotificationsApiClient _appNotificationsApi;
 
         public OwnerApiClientRedux(OwnerApiTestUtils ownerApi, TestIdentity identity, Guid? systemApiKey = null)
         {
@@ -55,6 +56,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             _youAuthDomainApiClient = new YouAuthDomainApiClient(ownerApi, identity);
 
             _driveApiClientRedux = new UniversalDriveApiClient(identity.OdinId, factory);
+            _appNotificationsApi = new AppNotificationsApiClient(identity.OdinId, factory);
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -67,10 +69,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public AppManagementApiClient AppManager => _appManagerApiClient;
 
+        public AppNotificationsApiClient AppNotifications => _appNotificationsApi;
+        
         public DriveManagementApiClient DriveManager => _driveManagementApiClient;
 
         public UniversalDriveApiClient DriveRedux => _driveApiClientRedux;
-        
+
         public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
 
         public CircleMembershipApiClient Membership => _circleMembershipApiClient;

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.DriveTests;
 
 namespace Odin.Hosting.Tests._Universal.NotificationTests.Lists;
@@ -45,17 +47,31 @@ public class NotificationListTests
         var identity = TestIdentities.Samwise;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
-        await callerContext.Initialize(ownerApiClient);
+        const string payload1 = "some payload1";
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
+
+        const string payload2 = "some payload2";
+        var response2 = await ownerApiClient.AppNotifications.AddNotification(payload2);
+        Assert.IsTrue(response2.IsSuccessStatusCode);
 
         // Act
-        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await client.GetList(10);
 
         // Assert
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var results = response.Content?.Results;
+            Assert.IsNotNull(results);
+            Assert.IsTrue(results.Count == 2);
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Data == payload1));
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Data == payload2));
+        }
     }
 
     // [Test]

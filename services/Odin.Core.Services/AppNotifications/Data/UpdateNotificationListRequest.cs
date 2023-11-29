@@ -1,26 +1,50 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.AppNotifications.Data;
 
-public class NotificationData
+public class AppNotification
 {
-    public ExternalFileIdentifier File { get; set; }
+    public string SenderId { get; set; }
+    public bool Unread { get; set; }
+    public string Data { get; set; }
+}
+
+public class NotificationsListResult
+{
+    public UnixTimeUtcUnique? Cursor { get; set; }
+    public List<AppNotification> Results { get; set; }
+    
+}
+
+public class GetNotificationListRequest
+{
+    public int Count { get; set; }
+    public UnixTimeUtcUnique? Cursor { get; set; }
 }
 
 public class AddNotificationRequest
 {
-    public ExternalFileIdentifier File { get; set; }
+    public string Payload { get; set; }
+}
+
+
+public class DeleteNotificationsRequest
+{
+    public List<Guid> IdList { get; set; }
 }
 public class UpdateNotificationListRequest
 {
-    private List<UpdateNotificationRequest> Updates { get; set; }
+    public List<UpdateNotificationRequest> Updates { get; set; }
 }
 
 public class UpdateNotificationRequest
 {
     public Guid Id { get; set; }
 
-    public bool Read { get; set; }
+    public bool Unread { get; set; }
 }
