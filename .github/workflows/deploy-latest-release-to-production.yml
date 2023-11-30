@@ -2,14 +2,12 @@ name: Deploy latest release to production
 
 on:
   workflow_dispatch:
-    # inputs:
-    #   reason:
-    #     description: "Reason for manual run"
-    #     required: true
-    #     default: "Just because"
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAME_WITH_TAG: ""
+  LATEST_VERSION_TAG: ""
+  REPO: ""
 
 jobs:
   deploy:
@@ -57,10 +55,21 @@ jobs:
           fi
           echo "Deploying: ${{ env.IMAGE_NAME_WITH_TAG }}"
 
-      - name: Deploy
+      - name: Deploy to production servers
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+          script_stop: true
+          script: |
+            source $HOME/.profile
+            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo work folder: $ANSIBLE_WORK_FOLDER
+            mkdir $ANSIBLE_WORK_FOLDER
+            cd $ANSIBLE_WORK_FOLDER
+            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+            cd $ANSIBLE_WORK_FOLDER/ansible
+            ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+            cd /tmp
+            rm -rf $ANSIBLE_WORK_FOLDER
