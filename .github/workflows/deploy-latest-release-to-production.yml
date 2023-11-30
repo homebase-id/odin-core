@@ -70,6 +70,6 @@ jobs:
             cd $ANSIBLE_WORK_FOLDER
             git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
             cd $ANSIBLE_WORK_FOLDER/ansible
-            ansible-playbook deploy-identity-hosts.yml --limit sandbox --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+            ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
             cd /tmp
             rm -rf $ANSIBLE_WORK_FOLDER
