@@ -119,11 +119,12 @@ jobs:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script_stop: true
           script: |
             export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
             mkdir $ANSIBLE_WORK_FOLDER
             cd $ANSIBLE_WORK_FOLDER
-            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+            git clone --depth 1 git@github.com:YouFoundation/DevOpsXXX.git .
             echo $PWD
             ls -l
 
