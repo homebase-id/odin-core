@@ -12,9 +12,6 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  IMAGE_NAME_WITH_TAG: ""
-  LATEST_VERSION_TAG: ""
-  REPO: ""
   BRANCH_NAME: ""
   DEPLOY_IMAGE: ""
 
