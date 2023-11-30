@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Crypto;
@@ -16,6 +17,7 @@ using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Data
@@ -93,6 +95,18 @@ namespace Odin.Core.Cryptography.Data
             }
         }
 
+
+        // Method to ensure byte array length
+        private byte[] EnsureLength(byte[] bytes, int length)
+        {
+            if (bytes.Length >= length) return bytes;
+
+            byte[] paddedBytes = new byte[length];
+            Array.Copy(bytes, 0, paddedBytes, length - bytes.Length, bytes.Length);
+            return paddedBytes;
+        }
+
+
         public string PublicKeyJwk()
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
@@ -102,15 +116,26 @@ namespace Odin.Core.Cryptography.Data
             BigInteger x = publicKeyParameters.Q.AffineXCoord.ToBigInteger();
             BigInteger y = publicKeyParameters.Q.AffineYCoord.ToBigInteger();
 
-            string curveName = eccKeyTypeNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)];
+            var curveSize = GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve);
+
+            int expectedBytes;
+            if (curveSize == EccKeySize.P384)
+                expectedBytes = 384 / 8;
+            else
+                expectedBytes = 256 / 8;
+
+            var xBytes = EnsureLength(x.ToByteArrayUnsigned(), expectedBytes);
+            var yBytes = EnsureLength(y.ToByteArrayUnsigned(), expectedBytes);
+
+            string curveName = eccKeyTypeNames[(int) curveSize];
 
             // Create a JSON object to represent the JWK
             var jwk = new
             {
                 kty = "EC",
                 crv =  curveName, // P-256 or P-384
-                x = Base64UrlEncoder.Encode(x.ToByteArrayUnsigned()),
-                y = Base64UrlEncoder.Encode(y.ToByteArrayUnsigned())
+                x = Base64UrlEncoder.Encode(xBytes),
+                y = Base64UrlEncoder.Encode(yBytes)
             };
 
             var options = new JsonSerializerOptions
