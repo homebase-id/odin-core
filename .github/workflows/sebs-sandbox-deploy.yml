@@ -124,7 +124,7 @@ jobs:
             export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
             mkdir $ANSIBLE_WORK_FOLDER
             cd $ANSIBLE_WORK_FOLDER
-            git clone --depth 1 git@github.com:YouFoundation/DevOpsXXX.git .
+            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
             echo $PWD
             ls -l
 
