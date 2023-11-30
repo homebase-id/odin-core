@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [net8-upgrade]
+    branches: [deploy-auto-stuff]
 
 permissions:
   contents: read
@@ -12,6 +12,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # ANSIBLE_WORK_FOLDER: "/tmp" # overwritten below
 
 jobs:
   build:
@@ -21,10 +22,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-          registry-url: 'https://npm.pkg.github.com'
+          node-version: "18.x"
+          registry-url: "https://npm.pkg.github.com"
           # Defaults to the user or organization that owns the workflow file
-          scope: '@octocat'
+          scope: "@octocat"
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -113,10 +114,21 @@ jobs:
         run: |
           echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
+      # - name: Generate UUID
+      #   run: echo "ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)" >> $GITHUB_ENV
+
       - name: Deploy to sandbox
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ANSIBLE_HOST }}
           username: ${{ secrets.ANSIBLE_USERNAME }}
           key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script: cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+          script: |
+            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo $ANSIBLE_WORK_FOLDER
+            cd $HOME/DevOps/ansible
+            echo $PWD
+
+#            mkdir ${{ env.ANSIBLE_WORK_FOLDER }}
+#            git clone --depth 1 git@github.com:YouFoundation/DevOps.git ${{ env.ANSIBLE_WORK_FOLDER }}
+#            cd $HOME/DevOps/ansible && ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
