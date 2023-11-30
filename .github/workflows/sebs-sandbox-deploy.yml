@@ -128,7 +128,7 @@ jobs:
           script: |
             export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
             echo work folder: $ANSIBLE_WORK_FOLDER
-            echo secret path: $ANSIBLE_VAULT_PASSWORD_FILE
+            env
             mkdir $ANSIBLE_WORK_FOLDER
             cd $ANSIBLE_WORK_FOLDER
             git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
