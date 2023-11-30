@@ -127,10 +127,11 @@ jobs:
           script_stop: true
           script: |
             export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo work folder: $ANSIBLE_WORK_FOLDER
             mkdir $ANSIBLE_WORK_FOLDER
             cd $ANSIBLE_WORK_FOLDER
             git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
-            cd $ANSIBLE_WORK_FOLDER
+            cd $ANSIBLE_WORK_FOLDER/ansible
             ansible-playbook deploy-sandbox.yml --limit sandbox -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
             cd /tmp
             rm -rf $ANSIBLE_WORK_FOLDER
