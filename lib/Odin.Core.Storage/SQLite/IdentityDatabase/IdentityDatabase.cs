@@ -33,7 +33,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableCircle tblCircle = null;
         public readonly TableCircleMember tblCircleMember = null;
         public readonly TableConnections tblConnections = null;
-        public readonly TableAppNotifications appNotificationsTable = null;
+        public readonly TableAppNotifications tblAppNotificationsTable = null;
 
         public readonly string CN;
 
@@ -55,7 +55,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblFollowsMe = new TableFollowsMe(this, _cache);
             tblImFollowing = new TableImFollowing(this, _cache);
             tblConnections = new TableConnections(this, _cache);
-            appNotificationsTable = new TableAppNotifications(this, _cache);
+            tblAppNotificationsTable = new TableAppNotifications(this, _cache);
 
             CN = connectionString;
 
@@ -92,6 +92,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblFollowsMe.Dispose();
             tblCircleMember.Dispose();
             tblConnections.Dispose();
+            tblAppNotificationsTable.Dispose();
 
             base.Dispose();
         }
@@ -115,7 +116,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblImFollowing.EnsureTableExists(dropExistingTables);
             tblFollowsMe.EnsureTableExists(dropExistingTables);
             tblConnections.EnsureTableExists(dropExistingTables);
-            appNotificationsTable.EnsureTableExists(dropExistingTables);
+            tblAppNotificationsTable.EnsureTableExists(dropExistingTables);
 
             if (dropExistingTables)
                 Vacuum();

@@ -43,7 +43,7 @@ namespace Odin.Core.Services.Base
             WhoIFollow = _db.tblImFollowing;
             Followers = _db.tblFollowsMe;
             Feedbox = _db.tblFeedDistributionOutbox;
-            AppNotifications = _db.appNotificationsTable;
+            AppNotifications = _db.tblAppNotificationsTable;
         }
 
         public TableAppGrants AppGrants { get; }
