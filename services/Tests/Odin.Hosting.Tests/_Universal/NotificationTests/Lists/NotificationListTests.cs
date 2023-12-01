@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Peer;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 
 namespace Odin.Hosting.Tests._Universal.NotificationTests.Lists;
@@ -29,7 +30,7 @@ public class NotificationListTests
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        _scaffold.RunAfterAnyTests();
+        // _scaffold.RunAfterAnyTests();
     }
 
     public static IEnumerable TestCases()
@@ -48,12 +49,24 @@ public class NotificationListTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
 
-        const string payload1 = "some payload1";
-        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive", "", true);
+
+        var appId = Guid.NewGuid();
+        var options1 = new AppNotificationOptions()
+        {
+            AppId = appId,
+            GroupId = Guid.NewGuid()
+        };
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
         Assert.IsTrue(response1.IsSuccessStatusCode);
 
-        const string payload2 = "some payload2";
-        var response2 = await ownerApiClient.AppNotifications.AddNotification(payload2);
+        var options2 = new AppNotificationOptions()
+        {
+            AppId = appId,
+            GroupId = Guid.NewGuid()
+        };
+        
+        var response2 = await ownerApiClient.AppNotifications.AddNotification(options2);
         Assert.IsTrue(response2.IsSuccessStatusCode);
 
         // Act
@@ -69,8 +82,8 @@ public class NotificationListTests
             var results = response.Content?.Results;
             Assert.IsNotNull(results);
             Assert.IsTrue(results.Count == 2);
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Data == payload1));
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Data == payload2));
+            Assert.IsNotNull(results.SingleOrDefault(d =>d.Options.AppId == options1.AppId &&  d.Options.GroupId == options1.GroupId));
+            Assert.IsNotNull(results.SingleOrDefault(d =>d.Options.AppId == options2.AppId &&  d.Options.GroupId == options2.GroupId));
         }
     }
 
@@ -81,9 +94,15 @@ public class NotificationListTests
         // Setup
         var identity = TestIdentities.Samwise;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
 
-        const string payload1 = "some payload1";
-        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
+        var options = new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            GroupId = Guid.NewGuid()
+        };
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
+        
         Assert.IsTrue(response1.IsSuccessStatusCode);
         var notificationId = response1.Content.NotificationId;
 
@@ -126,9 +145,14 @@ public class NotificationListTests
         // Setup
         var identity = TestIdentities.Samwise;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
 
-        const string payload1 = "some payload1";
-        var response1 = await ownerApiClient.AppNotifications.AddNotification(payload1);
+        var options = new AppNotificationOptions()
+        {
+            AppId = Guid.NewGuid(),
+            GroupId = Guid.NewGuid()
+        };
+        var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
         Assert.IsTrue(response1.IsSuccessStatusCode);
         var notificationId = response1.Content.NotificationId;
 

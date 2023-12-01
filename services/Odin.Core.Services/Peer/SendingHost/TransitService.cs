@@ -255,6 +255,7 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 //look up transfer key
                 var transferInstructionSet = outboxItem.TransferInstructionSet;
+                
                 if (null == transferInstructionSet)
                 {
                     return new SendResult()
@@ -275,10 +276,15 @@ namespace Odin.Core.Services.Peer.SendingHost
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
                 decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
-                var transferKeyHeaderBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
+                if (options.SendAppNotification)
+                {
+                    transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
+                }
+                
+                var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(
-                    new MemoryStream(transferKeyHeaderBytes),
-                    "transferKeyHeader.encrypted", "application/json",
+                    new MemoryStream(transferInstructionSetBytes),
+                    "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 if (header.ServerMetadata.AllowDistribution == false)
@@ -348,7 +354,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                                 $"{thumb.PixelWidth}" +
                                 $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
                                 $"{thumb.PixelHeight}";
-                            
+
                             additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                                 Enum.GetName(MultipartUploadParts.Thumbnail)));
                         }

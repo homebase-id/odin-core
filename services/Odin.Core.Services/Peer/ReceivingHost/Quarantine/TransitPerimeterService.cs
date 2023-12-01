@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -26,6 +28,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class TransitPerimeterService : ITransitPerimeterService
     {
+        private readonly NotificationDataService _notificationDataService;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
@@ -40,7 +43,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
-            FileSystemResolver fileSystemResolver)
+            FileSystemResolver fileSystemResolver, NotificationDataService notificationDataService)
         {
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
@@ -48,6 +51,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _notificationDataService = notificationDataService;
 
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem, contextAccessor);
         }
@@ -367,6 +371,14 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
                 return false;
+            }
+
+            if (null != stateItem.TransferInstructionSet.AppNotificationOptions)
+            {
+                await _notificationDataService.AddNotification(new AddNotificationRequest()
+                {
+                    AppNotificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions
+                });
             }
 
             //TODO: check if any apps are online and we can snag the storage key

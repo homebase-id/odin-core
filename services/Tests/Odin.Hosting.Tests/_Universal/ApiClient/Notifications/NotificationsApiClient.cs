@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.Peer;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Refit;
@@ -21,14 +22,14 @@ public class AppNotificationsApiClient
         _factory = factory;
     }
 
-    public async Task<ApiResponse<AddNotificationResult>> AddNotification(string payload)
+    public async Task<ApiResponse<AddNotificationResult>> AddNotification(AppNotificationOptions options)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitNotifications>(client, sharedSecret);
             var response = await svc.AddNotification(new AddNotificationRequest()
             {
-                Payload = payload
+                AppNotificationOptions = options
             });
 
             return response;

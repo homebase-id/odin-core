@@ -92,6 +92,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblFollowsMe.Dispose();
             tblCircleMember.Dispose();
             tblConnections.Dispose();
+            appNotificationsTable.Dispose();
 
             base.Dispose();
         }

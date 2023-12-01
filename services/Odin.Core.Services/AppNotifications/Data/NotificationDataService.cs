@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -59,7 +61,7 @@ public class NotificationDataService
                 Id = r.notificationId,
                 SenderId = r.senderId,
                 Unread = r.unread == 1,
-                Data = r.data.ToStringFromUtf8Bytes()
+                Options = OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
             }).ToList()
         };
 

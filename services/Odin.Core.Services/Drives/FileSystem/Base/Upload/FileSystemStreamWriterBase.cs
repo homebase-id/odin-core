@@ -14,6 +14,8 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
@@ -28,16 +30,18 @@ public abstract class FileSystemStreamWriterBase
     private readonly OdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
+    private readonly ITransitService _transitService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        DriveManager driveManager)
+        DriveManager driveManager, ITransitService transitService)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
+        _transitService = transitService;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -69,7 +73,7 @@ public abstract class FileSystemStreamWriterBase
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
-        
+
         bool isUpdateOperation = false;
 
         if (overwriteFileId == Guid.Empty)
@@ -103,14 +107,14 @@ public abstract class FileSystemStreamWriterBase
         {
             throw new OdinClientException($"Duplicate Payload key with key {key} has already been added", OdinClientErrorCode.InvalidUpload);
         }
-        
+
         var descriptor = Package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
         if (null == descriptor)
         {
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
-        
+
         string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
         if (bytesWritten > 0)
@@ -308,6 +312,21 @@ public abstract class FileSystemStreamWriterBase
         }
 
         throw new OdinSystemException("Unhandled storage intent");
+    }
+
+    protected async Task<Dictionary<string, TransferStatus>> ProcessTransitBasic(FileUploadPackage package, FileSystemType fileSystemType)
+    {
+        Dictionary<string, TransferStatus> recipientStatus = null;
+        var recipients = package.InstructionSet.TransitOptions?.Recipients;
+        if (recipients?.Any() ?? false)
+        {
+            recipientStatus = await _transitService.SendFile(package.InternalFile,
+                package.InstructionSet.TransitOptions,
+                TransferFileType.Normal,
+                fileSystemType);
+        }
+
+        return recipientStatus;
     }
 
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
