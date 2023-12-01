@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dawn;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
@@ -27,7 +28,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         public StorageOptions StorageOptions { get; set; }
 
         public TransitOptions TransitOptions { get; set; }
-
+        
         public UploadManifest Manifest { get; set; }
 
         public void AssertIsValid()

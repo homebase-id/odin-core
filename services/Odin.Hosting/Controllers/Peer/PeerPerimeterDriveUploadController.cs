@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
@@ -40,6 +41,7 @@ namespace Odin.Hosting.Controllers.Peer
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
+        private readonly NotificationDataService _notificationDataService;
         private ITransitPerimeterService _perimeterService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
@@ -47,13 +49,14 @@ namespace Odin.Hosting.Controllers.Peer
 
         /// <summary />
         public PeerPerimeterDriveUploadController(OdinContextAccessor contextAccessor, DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, NotificationDataService notificationDataService)
         {
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _notificationDataService = notificationDataService;
         }
 
         /// <summary />
@@ -84,7 +87,7 @@ namespace Odin.Hosting.Controllers.Peer
                 //End Optimizations
 
                 _perimeterService = new TransitPerimeterService(_contextAccessor,
-                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver);
+                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver, _notificationDataService);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Peer;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
@@ -12,7 +13,7 @@ public class AppNotification
     public Guid Id { get; set; }
     public string SenderId { get; set; }
     public bool Unread { get; set; }
-    public string Data { get; set; }
+    public AppNotificationOptions Options { get; set; }
 }
 
 public class AddNotificationResult
@@ -35,6 +36,7 @@ public class GetNotificationListRequest
 
 public class AddNotificationRequest
 {
+    public AppNotificationOptions AppNotificationOptions { get; set; }
     public string Payload { get; set; }
 }
 
