@@ -20,6 +20,7 @@ namespace Odin.Hosting.Middleware
             "/owner/assets",
             "/owner/icons",
             "/icons",
+            "/emoji",
         };
 
         public StaticFileCachingMiddleware(RequestDelegate next)
