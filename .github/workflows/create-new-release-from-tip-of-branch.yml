@@ -56,6 +56,8 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
+          touch packages/chat-app/.env
+          echo VITE_VERSION=$(date +%s) >> packages/chat-app/.env
           touch packages/provisioning-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
 
@@ -72,6 +74,13 @@ jobs:
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
+
+      - name: Build chat-app
+        working-directory: ./client/apps
+        run: |
+          npm run build -w ./packages/chat-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/apps/chat
+          mv packages/chat-app/dist ../../dotyoucore/services/Odin.Hosting/client/apps/chat
 
       - name: Build provisioning-app
         working-directory: ./client/apps
