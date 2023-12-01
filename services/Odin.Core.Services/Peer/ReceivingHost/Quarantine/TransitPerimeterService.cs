@@ -145,6 +145,14 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
+            if (null != stateItem.TransferInstructionSet.AppNotificationOptions)
+            {
+                await _notificationDataService.EnqueueNotification(new EnqueueNotificationRequest()
+                {
+                    AppNotificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions
+                });
+            }
+            
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
             if (directWriteSuccess)
@@ -371,14 +379,6 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
                 return false;
-            }
-
-            if (null != stateItem.TransferInstructionSet.AppNotificationOptions)
-            {
-                await _notificationDataService.AddNotification(new AddNotificationRequest()
-                {
-                    AppNotificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions
-                });
             }
 
             //TODO: check if any apps are online and we can snag the storage key

@@ -8,11 +8,20 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Services.AppNotifications.Data;
 
+//TODO: background job that sends these packages based on timer/logic/weather conditions
+public class PushNotificationPackage
+{
+    private List<AppNotification> Notifications { get; set; }
+}
+
 public class AppNotification
 {
     public Guid Id { get; set; }
     public string SenderId { get; set; }
     public bool Unread { get; set; }
+    
+    public UnixTimeUtc Created { get; set; }
+    
     public AppNotificationOptions Options { get; set; }
 }
 
@@ -34,7 +43,7 @@ public class GetNotificationListRequest
     public UnixTimeUtcUnique? Cursor { get; set; }
 }
 
-public class AddNotificationRequest
+public class EnqueueNotificationRequest
 {
     public AppNotificationOptions AppNotificationOptions { get; set; }
     public string Payload { get; set; }

@@ -22,9 +22,9 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpPost("list")]
-        public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
+        public async Task<AddNotificationResult> AddNotification([FromBody] EnqueueNotificationRequest request)
         {
-            return await _notificationService.AddNotification(request);
+            return await _notificationService.EnqueueNotification(request);
         }
 
         [HttpGet("list")]

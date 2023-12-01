@@ -55,7 +55,8 @@ public class NotificationListTests
         var options1 = new AppNotificationOptions()
         {
             AppId = appId,
-            GroupId = Guid.NewGuid()
+            GroupId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
         Assert.IsTrue(response1.IsSuccessStatusCode);
@@ -63,7 +64,8 @@ public class NotificationListTests
         var options2 = new AppNotificationOptions()
         {
             AppId = appId,
-            GroupId = Guid.NewGuid()
+            GroupId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
         };
         
         var response2 = await ownerApiClient.AppNotifications.AddNotification(options2);
@@ -99,7 +101,8 @@ public class NotificationListTests
         var options = new AppNotificationOptions()
         {
             AppId = Guid.NewGuid(),
-            GroupId = Guid.NewGuid()
+            GroupId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
         
@@ -150,7 +153,8 @@ public class NotificationListTests
         var options = new AppNotificationOptions()
         {
             AppId = Guid.NewGuid(),
-            GroupId = Guid.NewGuid()
+            GroupId = Guid.NewGuid(),
+            TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
         Assert.IsTrue(response1.IsSuccessStatusCode);

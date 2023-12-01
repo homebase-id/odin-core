@@ -29,7 +29,7 @@ public class NotificationDataService
         _tenantSystemStorage = tenantSystemStorage;
     }
 
-    public Task<AddNotificationResult> AddNotification(AddNotificationRequest request)
+    public Task<AddNotificationResult> EnqueueNotification(EnqueueNotificationRequest request)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
@@ -61,6 +61,7 @@ public class NotificationDataService
                 Id = r.notificationId,
                 SenderId = r.senderId,
                 Unread = r.unread == 1,
+                Created = r.created.ToUnixTimeUtc(),
                 Options = OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
             }).ToList()
         };
