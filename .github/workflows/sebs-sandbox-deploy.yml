@@ -12,8 +12,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BRANCH_NAME: ""
-  DEPLOY_IMAGE: ""
+  BRANCH_NAME: ''
+  DEPLOY_IMAGE: ''
 
 jobs:
   build:
@@ -23,10 +23,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
-          registry-url: "https://npm.pkg.github.com"
+          node-version: '18.x'
+          registry-url: 'https://npm.pkg.github.com'
           # Defaults to the user or organization that owns the workflow file
-          scope: "@octocat"
+          scope: '@octocat'
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -49,6 +49,8 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
+          touch packages/chat-app/.env
+          echo VITE_VERSION=$(date +%s) >> packages/chat-app/.env
           touch packages/provisioning-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
 
@@ -65,6 +67,13 @@ jobs:
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
+
+      - name: Build chat-app
+        working-directory: ./client/apps
+        run: |
+          npm run build -w ./packages/chat-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/apps/chat
+          mv packages/chat-app/dist ../../dotyoucore/services/Odin.Hosting/client/apps/chat
 
       - name: Build provisioning-app
         working-directory: ./client/apps

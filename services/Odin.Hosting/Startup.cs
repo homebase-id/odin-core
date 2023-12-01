@@ -190,7 +190,7 @@ namespace Odin.Hosting
 
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
-            
+
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
                 sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
                 sp.GetRequiredService<ICertificateServiceFactory>(),
@@ -338,9 +338,12 @@ namespace Odin.Hosting
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
 
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });
-                
+
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
                     homeApp =>
@@ -366,6 +369,23 @@ namespace Odin.Hosting
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                            return;
+                        });
+                    });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
+                    chatApp =>
+                    {
+                        var chatPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat");
+                        chatApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(chatPath),
+                            RequestPath = "/apps/chat"
+                        });
+                        chatApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(chatPath, "index.html"));
                             return;
                         });
                     });
