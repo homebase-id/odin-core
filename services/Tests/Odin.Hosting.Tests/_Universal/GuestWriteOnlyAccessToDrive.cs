@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -29,7 +30,8 @@ public class GuestWriteOnlyAccessToDrive : IApiClientContext
     {
         var domain = new AsciiDomainName("test.org");
 
-        var circle1 = await ownerApiClient.Membership.CreateCircle("Circle with valid permissions",
+        var circleId = Guid.NewGuid();
+        await ownerApiClient.Network.CreateCircle(circleId, "Circle with valid permissions",
             new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
@@ -46,7 +48,7 @@ public class GuestWriteOnlyAccessToDrive : IApiClientContext
                 PermissionSet = default
             });
 
-        var circles = new List<GuidId>() { circle1.Id };
+        var circles = new List<GuidId>() { circleId };
         await ownerApiClient.YouAuth.RegisterDomain(domain, circles);
 
         var registerClientResponse = await ownerApiClient.YouAuth.RegisterClient(domain, "test scenario client");

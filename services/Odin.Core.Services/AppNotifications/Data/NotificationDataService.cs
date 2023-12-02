@@ -29,7 +29,7 @@ public class NotificationDataService
         _tenantSystemStorage = tenantSystemStorage;
     }
 
-    public Task<AddNotificationResult> EnqueueNotification(EnqueueNotificationRequest request)
+    public Task<AddNotificationResult> AddNotification(AddNotificationRequest request)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
@@ -37,7 +37,7 @@ public class NotificationDataService
         var record = new AppNotificationsRecord()
         {
             notificationId = id,
-            senderId = senderId.DomainName,
+            senderId = senderId,
             unread = 1,
             data = request.Payload.ToUtf8ByteArray()
         };

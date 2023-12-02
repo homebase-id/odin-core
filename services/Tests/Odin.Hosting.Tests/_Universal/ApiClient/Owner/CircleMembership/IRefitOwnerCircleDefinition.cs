@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.Circles;
@@ -18,18 +19,18 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership
         Task<ApiResponse<CircleDefinition>> GetCircleDefinition([Body] Guid id);
 
         [Post(RootPath + "/create")]
-        Task<ApiResponse<bool>> CreateCircleDefinition([Body] CreateCircleRequest request);
+        Task<ApiResponse<HttpContent>> CreateCircleDefinition([Body] CreateCircleRequest request);
 
         [Post(RootPath + "/update")]
-        Task<ApiResponse<bool>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);
+        Task<ApiResponse<HttpContent>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);
 
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] Guid id);
+        Task<ApiResponse<HttpContent>> DeleteCircleDefinition([Body] Guid id);
         
         [Post(RootPath + "/disable")]
-        Task<ApiResponse<bool>> DisableCircleDefinition([Body] Guid id);
+        Task<ApiResponse<HttpContent>> DisableCircleDefinition([Body] Guid id);
         
         [Post(RootPath + "/enable")]
-        Task<ApiResponse<bool>> EnableCircleDefinition([Body] Guid id);
+        Task<ApiResponse<HttpContent>> EnableCircleDefinition([Body] Guid id);
     }
 }

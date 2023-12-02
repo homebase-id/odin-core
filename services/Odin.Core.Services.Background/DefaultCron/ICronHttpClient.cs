@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Refit;
@@ -10,7 +11,9 @@ namespace Odin.Core.Services.Background.DefaultCron
 
         [Post(TransitRootEndpoint + "/process")]
         Task<ApiResponse<bool>> ProcessOutbox();
-        
+
+        [Post($"{OwnerApiPathConstants.PushNotificationsV1}/process")]
+        Task<ApiResponse<HttpContent>> ProcessPushNotifications();
     }
 }
 

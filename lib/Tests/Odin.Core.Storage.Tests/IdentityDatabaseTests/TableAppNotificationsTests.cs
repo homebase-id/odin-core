@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
@@ -19,7 +20,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var c3 = SequentialGuid.CreateGuid();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            var i = db.tblAppNotificationsTable.Insert(new AppNotificationsRecord() { notificationId = nid, senderId = "frodo", unread = 1, data = d1 });
+            var i = db.tblAppNotificationsTable.Insert(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
             Debug.Assert(i == 1);
             var r = db.tblAppNotificationsTable.Get(nid);
             Debug.Assert(r != null);

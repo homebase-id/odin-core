@@ -25,10 +25,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth
         Task<ApiResponse<HttpContent>> DeleteDomain([Body] GetYouAuthDomainRequest request);
         
         [Post(RootPath + "/circles/add")]
-        Task<ApiResponse<bool>> GrantCircle([Body] GrantYouAuthDomainCircleRequest request);
+        Task<ApiResponse<HttpContent>> GrantCircle([Body] GrantYouAuthDomainCircleRequest request);
         
         [Post(RootPath + "/circles/revoke")]
-        Task<ApiResponse<bool>> RevokeCircle([Body] RevokeYouAuthDomainCircleRequest request);
+        Task<ApiResponse<HttpContent>> RevokeCircle([Body] RevokeYouAuthDomainCircleRequest request);
         
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<HttpContent>> RevokeDomain([Body] GetYouAuthDomainRequest request);

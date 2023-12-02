@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
@@ -41,7 +42,7 @@ namespace Odin.Hosting.Controllers.Peer
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
-        private readonly NotificationDataService _notificationDataService;
+        private readonly PushNotificationService _pushNotificationService;
         private ITransitPerimeterService _perimeterService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
@@ -49,14 +50,14 @@ namespace Odin.Hosting.Controllers.Peer
 
         /// <summary />
         public PeerPerimeterDriveUploadController(OdinContextAccessor contextAccessor, DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, NotificationDataService notificationDataService)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
-            _notificationDataService = notificationDataService;
+            _pushNotificationService = pushNotificationService;
         }
 
         /// <summary />
@@ -87,7 +88,7 @@ namespace Odin.Hosting.Controllers.Peer
                 //End Optimizations
 
                 _perimeterService = new TransitPerimeterService(_contextAccessor,
-                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver, _notificationDataService);
+                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver, _pushNotificationService);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
 

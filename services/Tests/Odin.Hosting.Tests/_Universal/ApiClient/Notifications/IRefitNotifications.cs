@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
         private const string RootPath = "/notify/list";
 
         [Post(RootPath)]
-        Task<ApiResponse<AddNotificationResult>> AddNotification([Body] EnqueueNotificationRequest request);
+        Task<ApiResponse<AddNotificationResult>> AddNotification([Body] AddNotificationRequest request);
 
         [Get(RootPath)]
         Task<ApiResponse<NotificationsListResult>> GetList([Query] int count, [Query] Int64? cursor);

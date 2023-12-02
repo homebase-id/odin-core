@@ -110,7 +110,7 @@ public class YouAuthDomainApiClient
         }
     }
 
-    public async Task<ApiResponse<bool>> GrantCircle(AsciiDomainName domain, GuidId circleId)
+    public async Task<ApiResponse<HttpContent>> GrantCircle(AsciiDomainName domain, GuidId circleId)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -124,7 +124,7 @@ public class YouAuthDomainApiClient
         }
     }
 
-    public async Task<ApiResponse<bool>> RevokeCircle(AsciiDomainName domain, GuidId circleId)
+    public async Task<ApiResponse<HttpContent>> RevokeCircle(AsciiDomainName domain, GuidId circleId)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {

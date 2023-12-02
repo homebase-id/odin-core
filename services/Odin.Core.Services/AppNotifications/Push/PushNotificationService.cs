@@ -1,14 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using WebPush;
@@ -24,15 +29,90 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage;
     private readonly OdinContextAccessor _contextAccessor;
 
+    private readonly PushNotificationOutbox _pushNotificationOutbox;
     private readonly PublicPrivateKeyService _keyService;
-
+    private readonly ServerSystemStorage _serverSystemStorage;
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
-    public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService)
+    public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService,
+        TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage)
     {
         _contextAccessor = contextAccessor;
         _keyService = keyService;
+        _serverSystemStorage = serverSystemStorage;
+        _pushNotificationOutbox = new PushNotificationOutbox(tenantSystemStorage, contextAccessor);
         _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
+    }
+
+    /// <summary>
+    /// Adds a notification to the outbox
+    /// </summary>
+    public Task<bool> EnqueueNotification(AppNotificationOptions options)
+    {
+        //TODO: which security to check?
+        //app permissions? I.e does the calling app on the recipient server have access to send notifications?
+
+        var item = new PushNotificationOutboxRecord()
+        {
+            SenderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+            Options = options
+        };
+
+        _pushNotificationOutbox.Add(item);
+
+        this.EnsureIdentityIsPending();
+
+        return Task.FromResult(true);
+    }
+
+    public async Task ProcessBatch()
+    {
+        const int batchSize = 100;
+        var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
+
+        foreach (var record in list)
+        {
+            var content = new PushNotificationContent()
+            {
+                Payload = OdinSystemSerializer.Serialize(new PushNotificationPayload()
+                {
+                    SenderId = record.SenderId,
+                    Timestamp = record.Timestamp,
+                    Options = record.Options
+                })
+            };
+
+            await this.Push(content);
+        }
+    }
+
+    public async Task Push(PushNotificationContent content)
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+        var subscriptions = await GetAllSubscriptions();
+        var keys = _keyService.GetNotificationsKeys();
+
+        foreach (var deviceSubscription in subscriptions)
+        {
+            //TODO: enforce sub.ExpirationTime
+
+            var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
+            var vapidDetails = new VapidDetails("mailto:info@homebase.id", keys.PublicKey64, keys.PrivateKey64); //TODO: config
+
+            //TODO: this will probably need to get an http client via @Seb's work
+            var webPushClient = new WebPushClient();
+            try
+            {
+                await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
+            }
+            catch (WebPushException exception)
+            {
+                //TODO: collect all errors and send back to client or do something with it
+                throw new OdinClientException("Failed to send one or more notifications.", exception);
+                // Console.WriteLine("Http STATUS code" + exception.StatusCode);
+            }
+        }
     }
 
     public Task AddDevice(PushNotificationSubscription subscription)
@@ -68,36 +148,6 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
         _deviceSubscriptionStorage.Delete(GetDeviceKey());
         return Task.CompletedTask;
-    }
-
-
-    public async Task Push(PushNotificationContent content)
-    {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-        var subscriptions = await GetAllSubscriptions();
-        var keys = _keyService.GetNotificationsKeys();
-        
-        foreach (var deviceSubscription in subscriptions)
-        {
-            //TODO: enforce sub.ExpirationTime
-
-            var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails("mailto:info@homebase.id", keys.PublicKey64, keys.PrivateKey64);
-
-            //TODO: this will probably need to get an http client via @Seb's work
-            var webPushClient = new WebPushClient();
-            try
-            {
-                await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
-            }
-            catch (WebPushException exception)
-            {
-                //TODO: collect all errors and send back to client or do something with it
-                throw new OdinClientException("Failed to send one or more notifications.", exception);
-                // Console.WriteLine("Http STATUS code" + exception.StatusCode);
-            }
-        }
     }
 
     public async Task RemoveAllDevices()
@@ -141,5 +191,11 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         }
 
         return key;
+    }
+
+    private void EnsureIdentityIsPending()
+    {
+        var tenant = _contextAccessor.GetCurrent().Tenant;
+        _serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
     }
 }

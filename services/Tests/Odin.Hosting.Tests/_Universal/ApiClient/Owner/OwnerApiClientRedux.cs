@@ -1,24 +1,12 @@
 ﻿using System;
-using System.Threading.Tasks;
-using NUnit.Framework;
-using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit.Query;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
@@ -31,15 +19,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         private readonly TestIdentity _identity;
         private readonly OwnerApiTestUtils _ownerApi;
 
-        private readonly DriveManagementApiClient _driveManagementApiClient;
-
-        private readonly OwnerConfigurationApiClient _ownerConfigurationApiClient;
-        private readonly AppManagementApiClient _appManagerApiClient;
-        private readonly CircleMembershipApiClient _circleMembershipApiClient;
-        private readonly YouAuthDomainApiClient _youAuthDomainApiClient;
-        private readonly UniversalDriveApiClient _driveApiClientRedux;
-        private readonly AppNotificationsApiClient _appNotificationsApi;
-
         public OwnerApiClientRedux(OwnerApiTestUtils ownerApi, TestIdentity identity, Guid? systemApiKey = null)
         {
             _ownerApi = ownerApi;
@@ -48,15 +27,17 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             var t = ownerApi.GetOwnerAuthContext(identity.OdinId).GetAwaiter().GetResult();
             var factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
 
-            _appManagerApiClient = new AppManagementApiClient(ownerApi, identity);
-            _driveManagementApiClient = new DriveManagementApiClient(ownerApi, identity);
-            _ownerConfigurationApiClient = new OwnerConfigurationApiClient(ownerApi, identity);
+            AppManager = new AppManagementApiClient(ownerApi, identity);
+            DriveManager = new DriveManagementApiClient(ownerApi, identity);
+            Configuration = new OwnerConfigurationApiClient(ownerApi, identity);
 
-            _circleMembershipApiClient = new CircleMembershipApiClient(ownerApi, identity);
-            _youAuthDomainApiClient = new YouAuthDomainApiClient(ownerApi, identity);
+            Network = new CircleNetworkApiClient(ownerApi, identity);
+            YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
-            _driveApiClientRedux = new UniversalDriveApiClient(identity.OdinId, factory);
-            _appNotificationsApi = new AppNotificationsApiClient(identity.OdinId, factory);
+            DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
+            AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
+
+            Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -67,18 +48,19 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public TestIdentity Identity => _identity;
 
-        public AppManagementApiClient AppManager => _appManagerApiClient;
+        public AppManagementApiClient AppManager { get; }
 
-        public AppNotificationsApiClient AppNotifications => _appNotificationsApi;
-        
-        public DriveManagementApiClient DriveManager => _driveManagementApiClient;
+        public AppNotificationsApiClient AppNotifications { get; }
 
-        public UniversalDriveApiClient DriveRedux => _driveApiClientRedux;
+        public DriveManagementApiClient DriveManager { get; }
 
-        public OwnerConfigurationApiClient Configuration => _ownerConfigurationApiClient;
+        public UniversalDriveApiClient DriveRedux { get; }
 
-        public CircleMembershipApiClient Membership => _circleMembershipApiClient;
+        public OwnerConfigurationApiClient Configuration { get; }
 
-        public YouAuthDomainApiClient YouAuth => _youAuthDomainApiClient;
+        public CircleNetworkApiClient Network { get; }
+
+        public CircleNetworkRequestsApiClient Connections { get; }
+        public YouAuthDomainApiClient YouAuth { get; }
     }
 }

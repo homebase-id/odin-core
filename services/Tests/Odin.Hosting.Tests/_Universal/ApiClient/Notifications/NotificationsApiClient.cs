@@ -27,7 +27,7 @@ public class AppNotificationsApiClient
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitNotifications>(client, sharedSecret);
-            var response = await svc.AddNotification(new EnqueueNotificationRequest()
+            var response = await svc.AddNotification(new AddNotificationRequest()
             {
                 AppNotificationOptions = options
             });

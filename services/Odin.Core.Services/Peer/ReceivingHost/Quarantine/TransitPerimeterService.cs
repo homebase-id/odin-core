@@ -8,6 +8,7 @@ using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -28,7 +29,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class TransitPerimeterService : ITransitPerimeterService
     {
-        private readonly NotificationDataService _notificationDataService;
+        private readonly PushNotificationService _pushNotificationService;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
@@ -43,7 +44,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
-            FileSystemResolver fileSystemResolver, NotificationDataService notificationDataService)
+            FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
@@ -51,7 +52,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
-            _notificationDataService = notificationDataService;
+            _pushNotificationService = pushNotificationService;
 
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem, contextAccessor);
         }
@@ -145,14 +146,12 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
-            if (null != stateItem.TransferInstructionSet.AppNotificationOptions)
+            var notificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions;
+            if (null != notificationOptions)
             {
-                await _notificationDataService.EnqueueNotification(new EnqueueNotificationRequest()
-                {
-                    AppNotificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions
-                });
+                await _pushNotificationService.EnqueueNotification(notificationOptions);
             }
-            
+
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
             if (directWriteSuccess)

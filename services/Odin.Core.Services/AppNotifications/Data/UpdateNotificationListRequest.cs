@@ -43,7 +43,7 @@ public class GetNotificationListRequest
     public UnixTimeUtcUnique? Cursor { get; set; }
 }
 
-public class EnqueueNotificationRequest
+public class AddNotificationRequest
 {
     public AppNotificationOptions AppNotificationOptions { get; set; }
     public string Payload { get; set; }

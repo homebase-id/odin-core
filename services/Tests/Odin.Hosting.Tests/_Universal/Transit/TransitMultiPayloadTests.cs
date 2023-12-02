@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
@@ -8,6 +9,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 namespace Odin.Hosting.Tests._Universal.Transit;
 
@@ -35,48 +37,66 @@ public class TransitMultiPayloadTests
         yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
     }
-    
+
+    // [Test]
+    // [TestCaseSource(nameof(TestCases))]
+    // public async Task TransitSendsMultiplePayloads_When_SentViaDriveUpload(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    // {
+    // }
+
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task TransitSendsMultiplePayloads_When_SentViaDriveUpload(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task TransitSendsAppNotification(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
+        /*
+         * I need to connect two hobbits
+         * sam sends a chat to frodo and includes an app notification
+         * the notification should be queued in sam's outbox
+         * i call process notifications on sam's owner api
+         * the notification will then exist in frodo's inbox
+         * i call process notifications on frodo's owner api
+         * here we ignore whether or not the push actually went out (because that's a whole other set of dependencies)
+         * the notification will then exist in frodo's notification's list
+         */
+
         //Create two connected hobbits
 
-        var targetDrive1 = callerContext.TargetDrive;
-        var targetDrive2 = TargetDrive.NewTargetDrive();
+        var targetDrive = callerContext.TargetDrive;
+        var frodo = TestIdentities.Frodo;
+        var sam = TestIdentities.Samwise;
 
-        var ownerSam = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+        var ownerSam = _scaffold.CreateOwnerApiClientRedux(sam);
+        await ownerSam.DriveManager.CreateDrive(targetDrive, "Drive 1 Test", "", false);
 
-        await ownerSam.Drive.CreateDrive(targetDrive1, "Drive 1 for Circle Test", "", false);
-        await ownerSam.Drive.CreateDrive(targetDrive2, "Drive 2 for Circle Test", "", false);
-        
-        var dgr1 = new DriveGrantRequest()
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Drive 1 Test", "", false);
+
+        // Prepare the app
+        Guid appId = Guid.NewGuid();
+        var permissions = new PermissionSetGrantRequest()
         {
-            PermissionedDrive = new PermissionedDrive()
+            Drives = new List<DriveGrantRequest>()
             {
-                Drive = targetDrive1,
-                Permission = DrivePermission.ReadWrite
-            }
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Write
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(new List<int>()) //TODO: add permissions for sending notifications?
         };
 
-        var dgr2 = new DriveGrantRequest()
-        {
-            PermissionedDrive = new PermissionedDrive()
-            {
-                Drive = targetDrive1,
-                Permission = DrivePermission.Write
-            }
-        };
+        var circles = new List<Guid>();
+        var circlePermissions = new PermissionSetGrantRequest();
+        await ownerSam.AppManager.RegisterApp(appId, permissions, circles, circlePermissions);
 
-        await ownerSam.Membership.CreateCircleRaw("Test Circle", new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-            PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
-        });
-        
-        
+        var (appToken, appSharedSecret) = await ownerSam.AppManager.RegisterAppClient(appId);
 
-        Assert.Inconclusive("TODO");
+        Assert.Inconclusive("TODO: wip");
+        // await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, circlesForSam);
+        // await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, circlesForFrodo);
     }
-
 }
