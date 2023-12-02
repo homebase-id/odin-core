@@ -32,7 +32,7 @@ namespace Odin.Core.Cryptography
         /// <param name="data">The data to make into cryptonite</param>
         /// <param name="KeyKey">The Key (byte[16]) to encrypt the CryptoniteKey with</param>
         /// <returns>A pair of CryptoniteKey and CryptoniteData</returns>
-        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(byte[] data, ref SensitiveByteArray KeyKey)
+        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(byte[] data, SensitiveByteArray KeyKey)
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // TODO: using
 
@@ -44,21 +44,21 @@ namespace Odin.Core.Cryptography
             var cd = new CryptoniteData
             {
                 creationtime = UnixTimeUtc.Now(),
-                payload =  AesCbc.Encrypt(data, ref key, ck.iv)
+                payload =  AesCbc.Encrypt(data, key, ck.iv)
             };
 
             cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.Int64ToBytes(cd.creationtime.milliseconds));
             cd.crc = CRC32C.CalculateCRC32C(cd.crc, cd.payload);
 
-            ck.key = AesCbc.Encrypt(key.GetKey(), ref KeyKey, ck.iv);
+            ck.key = AesCbc.Encrypt(key.GetKey(), KeyKey, ck.iv);
             key.Wipe();
 
             return (ck, cd);
         }
 
-        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(string message, ref SensitiveByteArray KeyKey)
+        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(string message, SensitiveByteArray KeyKey)
         {
-            return CreateCryptonitePair(Encoding.UTF8.GetBytes(message), ref KeyKey);
+            return CreateCryptonitePair(Encoding.UTF8.GetBytes(message), KeyKey);
         }
     }
 }

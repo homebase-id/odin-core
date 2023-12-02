@@ -379,7 +379,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             var circleDefinition = _circleMembershipService.GetCircle(circleId);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
 
             icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
@@ -487,7 +487,7 @@ namespace Odin.Core.Services.Membership.Connections
                 if (icr.IsConnected() && hasCg)
                 {
                     //rebuild the circle grant
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] = await _circleMembershipService.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
                     keyStoreKey.Wipe();
                 }
@@ -791,7 +791,7 @@ namespace Odin.Core.Services.Membership.Connections
                     foreach (var odinId in members)
                     {
                         var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
-                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                         icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
                         keyStoreKey.Wipe();
                         this.SaveIcr(icr);
@@ -807,7 +807,7 @@ namespace Odin.Core.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
 
                     var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration.Redacted(), circleId, keyStoreKey, masterKey);
 

@@ -60,7 +60,7 @@ namespace Odin.Core.Cryptography.Crypto
 
             lock (listRsa)
             {
-                var rsa = new RsaFullKeyData(ref key, hours);
+                var rsa = new RsaFullKeyData(key, hours);
 
                 listRsa.ListRSA.Insert(0, rsa);
                 if (listRsa.ListRSA.Count > listRsa.MaxKeys)

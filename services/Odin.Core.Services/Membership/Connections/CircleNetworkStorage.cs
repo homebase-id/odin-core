@@ -144,7 +144,7 @@ public class CircleNetworkStorage
 
         var record = new IcrKeyRecord()
         {
-            MasterKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref masterKey, ref icrKey),
+            MasterKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(masterKey, icrKey),
             Created = UnixTimeUtc.Now()
         };
 

@@ -243,7 +243,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             var key = keyHeader.AesKey;
             var bytes = AesCbc.Decrypt(
                 cipherText: payload.KeyHeaderEncryptedData,
-                Key: ref key,
+                Key: key,
                 IV: keyHeader.Iv);
 
             return (true, bytes);
@@ -332,7 +332,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                 return (false, null);
             }
 
-            var bytes = rsaKey.Decrypt(ref decryptionKey, encryptedData);
+            var bytes = rsaKey.Decrypt(decryptionKey, encryptedData);
             var keyHeader = KeyHeader.FromCombinedBytes(bytes);
 
             return (true, keyHeader);
@@ -340,7 +340,7 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private Task<KeyHeader> DecryptKeyHeaderInternal(RsaFullKeyData rsaKey, SensitiveByteArray decryptionKey, byte[] encryptedData)
         {
-            var bytes = rsaKey.Decrypt(ref decryptionKey, encryptedData);
+            var bytes = rsaKey.Decrypt(decryptionKey, encryptedData);
             return Task.FromResult(KeyHeader.FromCombinedBytes(bytes));
         }
 

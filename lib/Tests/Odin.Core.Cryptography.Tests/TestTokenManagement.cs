@@ -26,11 +26,11 @@ namespace Odin.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = new SymmetricKeyEncryptedAes(ref loginDek);
+            var appToken = new SymmetricKeyEncryptedAes(loginDek);
 
             // Now create a mapping from a client device/app to the application token above
 
-            var applicationDek = appToken.DecryptKeyClone(ref loginDek);
+            var applicationDek = appToken.DecryptKeyClone(loginDek);
 
             Assert.Pass();
         }
@@ -39,8 +39,8 @@ namespace Odin.Core.Cryptography.Tests
         public void TokenXorPass()
         {
             var secretKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Simulate pre-existing
-            var symKey = new SymmetricKeyEncryptedXor(ref secretKey, out var remoteHalfKey);
-            var copyKey = symKey.DecryptKeyClone(ref remoteHalfKey);
+            var symKey = new SymmetricKeyEncryptedXor(secretKey, out var remoteHalfKey);
+            var copyKey = symKey.DecryptKeyClone(remoteHalfKey);
 
             if (ByteArrayUtil.EquiByteArrayCompare(secretKey.GetKey(), copyKey.GetKey()))
                 Assert.Pass();
@@ -56,7 +56,7 @@ namespace Odin.Core.Cryptography.Tests
         public void TokenHosToHostShareKeyExampleALTERNATE()
         {
             var samsSharedSecretKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Sam create secret key
-            var samsSymKey = new SymmetricKeyEncryptedXor(ref samsSharedSecretKey, out var samsRemoteHalfKey);
+            var samsSymKey = new SymmetricKeyEncryptedXor(samsSharedSecretKey, out var samsRemoteHalfKey);
 
             // Remote half is for Frodo, symKey.KeyEncrypted is Sam's half
             // According to the protocol we send both halves to Frodo.
@@ -65,8 +65,8 @@ namespace Odin.Core.Cryptography.Tests
             var frodoRemoteHalf = samsSymKey.KeyEncrypted.ToSensitiveByteArray();
 
             // Reverse construct Frodo's sym key - as suggested above, I think another constructor is better
-            var frodoSymKey = new SymmetricKeyEncryptedXor(ref frodoLocalHalf, frodoRemoteHalf, false, false);
-            var cloneFrodoSecretKey = frodoSymKey.DecryptKeyClone(ref frodoRemoteHalf);
+            var frodoSymKey = new SymmetricKeyEncryptedXor(frodoLocalHalf, frodoRemoteHalf, false, false);
+            var cloneFrodoSecretKey = frodoSymKey.DecryptKeyClone(frodoRemoteHalf);
 
             if (ByteArrayUtil.EquiByteArrayCompare(cloneFrodoSecretKey.GetKey(), samsSharedSecretKey.GetKey()) == false)
                 Assert.Fail(); // Make sure we reverse constructed the key properly

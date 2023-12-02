@@ -46,7 +46,7 @@ namespace Odin.Core.Services.Membership.Connections
         public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey)
         {
             var rawIcrKey = GetDecryptedIcrKeyInternal();
-            var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref encryptionKey, ref rawIcrKey);
+            var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
             rawIcrKey.Wipe();
             return encryptedIcrKey;
         }
@@ -65,7 +65,7 @@ namespace Odin.Core.Services.Membership.Connections
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();
-            return masterKeyEncryptedIcrKey.DecryptKeyClone(ref masterKey);
+            return masterKeyEncryptedIcrKey.DecryptKeyClone(masterKey);
         }
     }
 }

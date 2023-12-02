@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 var clientAuthTokenCipher = Convert.FromBase64String(tokenResponse.Base64ClientAuthTokenCipher!);
                 var clientAuthTokenIv = Convert.FromBase64String(tokenResponse.Base64ClientAuthTokenIv!);
-                var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 ClientAuthenticationToken clientAuthToken = ClientAuthenticationToken.FromPortableBytes(clientAuthTokenBytes);
 
                 // This sharedSecret has no meaning for the home app because we don't make calls to the remote identity
@@ -125,7 +125,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 returnUrl = authState.ReturnUrl
             }).ToUtf8ByteArray();
 
-            var (randomIv, cipher) = AesCbc.Encrypt(sensitivePayload, ref clientTransferSharedSecret);
+            var (randomIv, cipher) = AesCbc.Encrypt(sensitivePayload, clientTransferSharedSecret);
 
             var eccInfo = OdinSystemSerializer.Serialize(new
             {

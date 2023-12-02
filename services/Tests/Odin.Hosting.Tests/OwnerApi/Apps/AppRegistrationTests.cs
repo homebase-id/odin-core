@@ -518,7 +518,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         [Test]
         public async Task RegisterAppOnClient()
         {
-            var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1);
+            var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
             var corsHostName = "app.somewhere.org";
@@ -540,7 +540,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 Assert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+                var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
 
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));

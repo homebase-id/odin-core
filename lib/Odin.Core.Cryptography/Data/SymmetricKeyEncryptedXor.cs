@@ -24,11 +24,11 @@ namespace Odin.Core.Cryptography.Data
         // Alternate constructor. 
         // The localHalfKey XOR remoteHalfKey = secretKey. The remoteHalf is the
         // half key not stored here.
-        public SymmetricKeyEncryptedXor(ref SensitiveByteArray localHalfKey, SensitiveByteArray remoteHalfKey, bool _, bool __)
+        public SymmetricKeyEncryptedXor(SensitiveByteArray localHalfKey, SensitiveByteArray remoteHalfKey, bool _, bool __)
         {
             var secretKey = XorManagement.XorDecrypt(localHalfKey.GetKey(), remoteHalfKey.GetKey()).ToSensitiveByteArray();
 
-            EncryptKey(ref remoteHalfKey, ref secretKey);
+            EncryptKey(remoteHalfKey, secretKey);
 
             secretKey.Wipe();
         }
@@ -36,31 +36,31 @@ namespace Odin.Core.Cryptography.Data
 
 
 
-        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
+        public SymmetricKeyEncryptedXor(SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
         {
             halfKey1 = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length));
 
-            EncryptKey(ref halfKey1, ref secretKeyToSplit);
+            EncryptKey(halfKey1, secretKeyToSplit);
         }
 
-        public byte[] CalcKeyHash(ref SensitiveByteArray key)
+        public byte[] CalcKeyHash(SensitiveByteArray key)
         {
             var k = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             return k;
         }
 
-        private void EncryptKey(ref SensitiveByteArray remoteHalfKey, ref SensitiveByteArray keyToProtect)
+        private void EncryptKey(SensitiveByteArray remoteHalfKey, SensitiveByteArray keyToProtect)
         {
             Guard.Argument(KeyHash == null).True();
 
             KeyEncrypted = XorManagement.XorEncrypt(remoteHalfKey.GetKey(), keyToProtect.GetKey());
-            KeyHash = CalcKeyHash(ref remoteHalfKey);
+            KeyHash = CalcKeyHash(remoteHalfKey);
         }
 
 
-        public SensitiveByteArray DecryptKeyClone(ref SensitiveByteArray remoteHalfKey)
+        public SensitiveByteArray DecryptKeyClone(SensitiveByteArray remoteHalfKey)
         {
-            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref remoteHalfKey)))
+            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(remoteHalfKey)))
             {
                 throw new OdinSecurityException("Byte arrays don't match")
                 {

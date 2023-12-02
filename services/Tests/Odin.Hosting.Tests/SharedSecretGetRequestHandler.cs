@@ -47,7 +47,7 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
             var key = new SensitiveByteArray(keyBytes);
 
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), ref key, iv);
+            var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), key, iv);
 
             var payload = new SharedSecretEncryptedPayload()
             {

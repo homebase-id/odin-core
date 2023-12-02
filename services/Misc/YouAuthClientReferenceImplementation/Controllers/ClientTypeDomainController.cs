@@ -211,11 +211,11 @@ public class ClientTypeDomainController : BaseController
 
         var sharedSecretCipher = Convert.FromBase64String(token!.Base64SharedSecretCipher!);
         var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-        var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+        var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
 
         var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
         var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
-        var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+        var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
 
         //
         // Post YouAuth [400]

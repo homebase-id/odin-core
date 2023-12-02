@@ -74,7 +74,7 @@ public class PermissionGroup
         }
 
         var key = this._keyStoreKey;
-        var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(ref key);
+        var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
         return storageKey;
     }
 
@@ -87,7 +87,7 @@ public class PermissionGroup
     public SensitiveByteArray? GetIcrKey()
     {
         var key = this._keyStoreKey;
-        return _encryptedIcrKey?.DecryptKeyClone(ref key);
+        return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
     public RedactedPermissionGroup Redacted()
