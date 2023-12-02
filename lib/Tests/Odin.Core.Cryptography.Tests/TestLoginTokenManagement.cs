@@ -71,7 +71,7 @@ namespace Odin.Core.Cryptography.Tests
             // The server now parses the received reply and creates the tokens needed for the client/server.
             var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listRsa);
 
-            var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, ref halfCookie);
+            var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, halfCookie);
 
             if (ByteArrayUtil.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {

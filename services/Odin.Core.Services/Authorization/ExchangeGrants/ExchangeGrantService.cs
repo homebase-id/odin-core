@@ -194,7 +194,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other, SensitiveByteArray? sharedSecret = null)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var serverAccessKey = new SymmetricKeyEncryptedXor(ref accessKeyStoreKey, out var clientAccessKey);
+            var serverAccessKey = new SymmetricKeyEncryptedXor(accessKeyStoreKey, out var clientAccessKey);
 
             var ss = sharedSecret ?? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 

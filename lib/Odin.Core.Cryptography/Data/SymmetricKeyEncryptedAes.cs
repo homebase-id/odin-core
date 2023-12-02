@@ -1,7 +1,6 @@
 ﻿using Dawn;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
-using Odin.Core.Util;
 
 namespace Odin.Core.Cryptography.Data
 {

@@ -92,8 +92,8 @@ namespace Odin.Core.Cryptography.Tests
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
-            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
-            var decryptKey = key.DecryptKeyClone(ref halfKey);
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+            var decryptKey = key.DecryptKeyClone(halfKey);
 
             if (ByteArrayUtil.EquiByteArrayCompare(decryptKey.GetKey(), secret.GetKey()))
                 Assert.Pass();
@@ -108,13 +108,13 @@ namespace Odin.Core.Cryptography.Tests
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
-            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
 
             var garbage = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                var decryptKey = key.DecryptKeyClone(ref garbage);
+                var decryptKey = key.DecryptKeyClone(garbage);
                 Assert.Fail();
             }
             catch
@@ -129,15 +129,15 @@ namespace Odin.Core.Cryptography.Tests
         public void TestSymKeyXor2()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
 
-            var sk = key.DecryptKeyClone(ref halfKey);
+            var sk = key.DecryptKeyClone(halfKey);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKeyClone(ref junk);
+                key.DecryptKeyClone(junk);
                 Assert.Fail();
             }
             catch

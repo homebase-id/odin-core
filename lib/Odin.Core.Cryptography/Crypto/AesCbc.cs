@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
@@ -9,10 +8,6 @@ using System.Security.Cryptography;
 namespace Odin.Core.Cryptography.Crypto
 {
     /// <summary>
-    /// We may want to switch to AES-CTR. Not sure. If we do, AES CTR is not supported by
-    /// .NET so we'll have to write a wrapper around it. There's example code online to do this.
-    /// 
-    ///  Hmmm... where was it I found this snippet :-D
     /// </summary>
     public static class AesCbc
     {

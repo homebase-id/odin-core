@@ -97,7 +97,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
             //TODO: do we want to keep the extra layer of having a client and
             //server halfs to form the kek. then use that kek to decrypt the master key?
-            var kek = serverToken.TokenEncryptedKek.DecryptKeyClone(ref clientSecret);
+            var kek = serverToken.TokenEncryptedKek.DecryptKeyClone(clientSecret);
 
             var masterKey = pk.KekEncryptedMasterKey.DecryptKeyClone(kek);
 

@@ -56,7 +56,7 @@ namespace Odin.Core.Cryptography
             };
 
             var kek = new SensitiveByteArray(Convert.FromBase64String(kek64)); // TODO: using
-            serverToken.TokenEncryptedKek = new SymmetricKeyEncryptedXor(ref kek, out var clientToken);
+            serverToken.TokenEncryptedKek = new SymmetricKeyEncryptedXor(kek, out var clientToken);
             kek.Wipe();
 
             return (clientToken, serverToken);
@@ -65,9 +65,9 @@ namespace Odin.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, ref SensitiveByteArray halfCookie)
+        public static SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray halfCookie)
         {
-            return loginToken.TokenEncryptedKek.DecryptKeyClone(ref halfCookie);
+            return loginToken.TokenEncryptedKek.DecryptKeyClone(halfCookie);
         }
     }
 }
