@@ -742,12 +742,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 
                 var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
                 var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
                 var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
                 var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
-                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
             }
 
@@ -877,12 +877,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 
                 var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
                 var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
                 var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
                 var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
-                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
             }
 
@@ -1297,12 +1297,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
 
                 var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
                 var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
                 var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
                 var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
-                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
 
                 var queryBatchResponse = await QueryBatch(

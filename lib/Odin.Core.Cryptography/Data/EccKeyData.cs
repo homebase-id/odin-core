@@ -300,7 +300,7 @@ namespace Odin.Core.Cryptography.Data
             iv = ByteArrayUtil.GetRndByteArray(16);
             keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             _privateKey = new SensitiveByteArray(fullDerKey);
-            storedKey = AesCbc.Encrypt(_privateKey.GetKey(), ref key, iv);
+            storedKey = AesCbc.Encrypt(_privateKey.GetKey(), key, iv);
         }
 
 
@@ -311,7 +311,7 @@ namespace Odin.Core.Cryptography.Data
 
             if (_privateKey == null)
             {
-                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, iv));
+                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, iv));
             }
 
             return _privateKey;

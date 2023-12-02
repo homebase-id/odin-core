@@ -36,9 +36,9 @@ namespace Odin.Core.Cryptography.Tests
         public void TestSymKeyAes()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(ref secret);
+            var key = new SymmetricKeyEncryptedAes(secret);
 
-            var sk = key.DecryptKeyClone(ref secret);
+            var sk = key.DecryptKeyClone(secret);
 
             Assert.Pass();
         }
@@ -48,12 +48,12 @@ namespace Odin.Core.Cryptography.Tests
         public void TestSymKeyFailAes()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(ref secret);
+            var key = new SymmetricKeyEncryptedAes(secret);
             var garbage = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKeyClone(ref garbage);
+                key.DecryptKeyClone(garbage);
                 Assert.Fail();
             }
             catch
@@ -68,15 +68,15 @@ namespace Odin.Core.Cryptography.Tests
         public void TestSymKeyAes2()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(ref secret);
+            var key = new SymmetricKeyEncryptedAes(secret);
 
-            var sk = key.DecryptKeyClone(ref secret);
+            var sk = key.DecryptKeyClone(secret);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKeyClone(ref junk);
+                key.DecryptKeyClone(junk);
                 Assert.Fail();
             }
             catch

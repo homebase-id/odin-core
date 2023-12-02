@@ -325,7 +325,7 @@ namespace Odin.Hosting.Tests.Performance
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
+                    Key: aesKey,
                     IV: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);

@@ -78,12 +78,12 @@ public class DriveManager
                 throw new OdinClientException("Drive alias and type must be unique", OdinClientErrorCode.DriveAliasAndTypeAlreadyExists);
             }
 
-            var driveKey = new SymmetricKeyEncryptedAes(ref mk);
+            var driveKey = new SymmetricKeyEncryptedAes(mk);
 
             var id = Guid.NewGuid();
-            var storageKey = driveKey.DecryptKeyClone(ref mk);
+            var storageKey = driveKey.DecryptKeyClone(mk);
 
-            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref storageKey);
+            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
 
             var sdb = new StorageDriveBase()
             {

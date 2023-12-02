@@ -25,7 +25,7 @@ public class SharedSecretEncryptedPayload
         //TODO: Need to encrypt w/o buffering
 
         var iv = ByteArrayUtil.GetRndByteArray(16);
-        var encryptedBytes = AesCbc.Encrypt(payload, ref encryptionKey, iv);
+        var encryptedBytes = AesCbc.Encrypt(payload, encryptionKey, iv);
 
         //TODO: might be better to just put the IV as the first 16 bytes
         return new SharedSecretEncryptedPayload()
@@ -61,7 +61,7 @@ public class SharedSecretEncryptedPayload
         }
 
         var encryptedBytes = Convert.FromBase64String(ssp.Data);
-        var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, ssp.Iv);
+        var decryptedBytes = AesCbc.Decrypt(encryptedBytes, key, ssp.Iv);
         return decryptedBytes;
     }
 }

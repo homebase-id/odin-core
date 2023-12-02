@@ -103,7 +103,7 @@ public static class YouAuthTestHelper
         var key = new SensitiveByteArray(sharedSecret);
 
         var iv = ByteArrayUtil.GetRndByteArray(16);
-        var encryptedBytes = AesCbc.Encrypt(query.ToUtf8ByteArray(), ref key, iv);
+        var encryptedBytes = AesCbc.Encrypt(query.ToUtf8ByteArray(), key, iv);
 
         var payload = new SharedSecretEncryptedPayload()
         {
@@ -156,7 +156,7 @@ public static class YouAuthTestHelper
 
         var key = new SensitiveByteArray(sharedSecret);
 
-        var plainBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
+        var plainBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), key, payload.Iv);
         var plainJson = System.Text.Encoding.UTF8.GetString(plainBytes);
 
         return plainJson;

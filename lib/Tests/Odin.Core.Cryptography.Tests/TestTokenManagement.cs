@@ -26,11 +26,11 @@ namespace Odin.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = new SymmetricKeyEncryptedAes(ref loginDek);
+            var appToken = new SymmetricKeyEncryptedAes(loginDek);
 
             // Now create a mapping from a client device/app to the application token above
 
-            var applicationDek = appToken.DecryptKeyClone(ref loginDek);
+            var applicationDek = appToken.DecryptKeyClone(loginDek);
 
             Assert.Pass();
         }

@@ -162,10 +162,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 
         var sharedSecretPlain = token.SharedSecret.GetKey();
-        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, ref exchangeSharedSecret);
+        var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, exchangeSharedSecret);
 
         var clientAuthTokenPlain = token.ToAuthenticationToken().ToPortableBytes();
-        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, ref exchangeSharedSecret);
+        var (clientAuthTokenIv, clientAuthTokenCipher) = AesCbc.Encrypt(clientAuthTokenPlain, exchangeSharedSecret);
 
         var encryptedTokenExchange = new EncryptedTokenExchange(
             sharedSecretCipher,

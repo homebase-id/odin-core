@@ -155,7 +155,7 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="hours">Lifespan of the key, required</param>
         /// <param name="minutes">Lifespan of the key, optional</param>
         /// <param name="seconds">Lifespan of the key, optional</param>
-        public RsaFullKeyData(ref SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
+        public RsaFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
         {
             // Generate with BC an asymmetric key with BC, 2048 bits
             RsaKeyPairGenerator r = new RsaKeyPairGenerator();
@@ -173,7 +173,7 @@ namespace Odin.Core.Cryptography.Data
             if (this.expiration <= this.createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
-            CreatePrivate(ref key, privateKeyInfo.GetDerEncoded()); // TODO: Can we cleanup the generated key?
+            CreatePrivate(key, privateKeyInfo.GetDerEncoded()); // TODO: Can we cleanup the generated key?
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
@@ -184,10 +184,10 @@ namespace Odin.Core.Cryptography.Data
         /// <summary>
         /// Hack used only for TESTING.
         /// </summary>
-        public RsaFullKeyData(ref SensitiveByteArray key, byte[] derEncodedFullKey)
+        public RsaFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
         {
             // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
-            CreatePrivate(ref key, derEncodedFullKey);
+            CreatePrivate(key, derEncodedFullKey);
 
             //_privateKey = new SensitiveByteArray(derEncodedFullKey);
             // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
@@ -198,47 +198,47 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        private void CreatePrivate(ref SensitiveByteArray key, byte[] fullDerKey)
+        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
         {
             this.Iv = ByteArrayUtil.GetRndByteArray(16);
             this.KeyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             this._privateKey = new SensitiveByteArray(fullDerKey);
-            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.Iv);
+            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), key, this.Iv);
         }
 
 
-        private ref SensitiveByteArray GetFullKey(ref SensitiveByteArray key)
+        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
 
             if (_privateKey == null)
             {
-                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, Iv));
+                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, key, Iv));
             }
 
-            return ref _privateKey;
+            return _privateKey;
         }
 
         // privatePEM needs work in case it's encrypted
-        public string privatePem(ref SensitiveByteArray key)
+        public string privatePem(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(ref key) + "\n-----END PRIVATE KEY-----";
+            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
         }
 
-        public string privateDerBase64(ref SensitiveByteArray key)
+        public string privateDerBase64(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
             return Convert.ToBase64String(pk.GetKey());
         }
 
-        public byte[] Decrypt(ref SensitiveByteArray key, byte[] cipherData)
+        public byte[] Decrypt(SensitiveByteArray key, byte[] cipherData)
         {
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
 
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
@@ -278,9 +278,9 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="key">The key to unlock the RSA private key</param>
         /// <param name="data">The data to sign</param>
         /// <returns>The signature</returns>
-        public byte[] Sign(ref SensitiveByteArray key, byte[] dataToSign)
+        public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
 
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 

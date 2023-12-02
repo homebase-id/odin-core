@@ -31,8 +31,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         {
             var token = authToken.AccessTokenHalfKey;
             var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(ref accessKey);
+            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(accessKey);
+            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(accessKey);
             accessKey.Wipe();
 
             return (grantKeyStoreKey, sharedSecret);

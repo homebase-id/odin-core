@@ -24,10 +24,10 @@ namespace Odin.Core.Cryptography.Data
         /// Create a new secret key and encrypt it AES using the the secret as the AES key.
         /// </summary>
         /// <param name="secret">The key with which to encrypt this newly generated key</param>
-        public SymmetricKeyEncryptedAes(ref SensitiveByteArray secret)
+        public SymmetricKeyEncryptedAes(SensitiveByteArray secret)
         {
             var newKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
-            EncryptKey(ref secret, ref newKey);
+            EncryptKey(secret, newKey);
             newKey.Wipe();
         }
 
@@ -37,12 +37,12 @@ namespace Odin.Core.Cryptography.Data
         /// </summary>
         /// <param name="secret">The key with which to encrypt the dataToEncrypt</param>
         /// <param name="dataToEncrypt">The key to encrypt</param>
-        public SymmetricKeyEncryptedAes(ref SensitiveByteArray secret, ref SensitiveByteArray dataToEncrypt)
+        public SymmetricKeyEncryptedAes(SensitiveByteArray secret, SensitiveByteArray dataToEncrypt)
         {
-            EncryptKey(ref secret, ref dataToEncrypt);
+            EncryptKey(secret, dataToEncrypt);
         }
 
-        private byte[] CalcKeyHash(ref SensitiveByteArray key)
+        private byte[] CalcKeyHash(SensitiveByteArray key)
         {
             // KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());
             // KeyHash = ByteArrayUtil.EquiByteArrayXor(KeyHash, KeyIV);
@@ -53,12 +53,12 @@ namespace Odin.Core.Cryptography.Data
             return k;
         }
 
-        private void EncryptKey(ref SensitiveByteArray secret, ref SensitiveByteArray keyToProtect)
+        private void EncryptKey(SensitiveByteArray secret, SensitiveByteArray keyToProtect)
         {
             Guard.Argument(KeyHash == null).True();
 
-            (KeyIV, KeyEncrypted) = AesCbc.Encrypt(keyToProtect.GetKey(), ref secret);
-            KeyHash = CalcKeyHash(ref secret);
+            (KeyIV, KeyEncrypted) = AesCbc.Encrypt(keyToProtect.GetKey(), secret);
+            KeyHash = CalcKeyHash(secret);
         }
 
         /// <summary>
@@ -66,9 +66,9 @@ namespace Odin.Core.Cryptography.Data
         /// </summary>
         /// <param name="secret">The decryption key</param>
         /// <returns>A clone of the decrypted key</returns>
-        public SensitiveByteArray DecryptKeyClone(ref SensitiveByteArray secret)
+        public SensitiveByteArray DecryptKeyClone(SensitiveByteArray secret)
         {
-            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref secret)))
+            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(secret)))
             {
                 throw new OdinSecurityException("Key hash did not match")
                 {
@@ -76,7 +76,7 @@ namespace Odin.Core.Cryptography.Data
                 };
             }
 
-            var key = new SensitiveByteArray(AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV));
+            var key = new SensitiveByteArray(AesCbc.Decrypt(KeyEncrypted, secret, KeyIV));
 
             return key;
         }

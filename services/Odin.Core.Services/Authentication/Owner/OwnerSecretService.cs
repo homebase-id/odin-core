@@ -99,7 +99,7 @@ namespace Odin.Core.Services.Authentication.Owner
             //server halfs to form the kek. then use that kek to decrypt the master key?
             var kek = serverToken.TokenEncryptedKek.DecryptKeyClone(ref clientSecret);
 
-            var masterKey = pk.KekEncryptedMasterKey.DecryptKeyClone(ref kek);
+            var masterKey = pk.KekEncryptedMasterKey.DecryptKeyClone(kek);
 
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();

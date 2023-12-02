@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
@@ -87,7 +87,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Log Sam in as Owner so we don't end up in step 012 (need Todd's help?)
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
@@ -109,7 +109,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Log Sam in as Owner so we don't end up in step 012 (need Todd's help?)
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Make Sam and Frodo connected
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";
@@ -168,7 +168,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Maybe don't make this test .... ?
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(ref key, 1);
+            var rsa = new RsaFullKeyData(key, 1);
 
             string currentUrl = $"https://{frodo.DomainName}/home?q=1";
             string authUrl = $"https://api.{frodo.DomainName}/YouAuth/auth?u=42&returnUrl={WebUtility.UrlEncode(currentUrl)}";

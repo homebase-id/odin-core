@@ -45,7 +45,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
 
         var iv = ByteArrayUtil.GetRndByteArray(16);
         var key = _sharedSecret; //#wierd
-        var encryptedBytes = AesCbc.Encrypt(contentBytes, ref key, iv);
+        var encryptedBytes = AesCbc.Encrypt(contentBytes, key, iv);
 
         var payload = new SharedSecretEncryptedPayload()
         {
@@ -76,7 +76,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
         }
 
         var key = _sharedSecret;
-        var decryptedBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
+        var decryptedBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), key, payload.Iv);
         var c = await (new ByteArrayContent(decryptedBytes)).ReadFromJsonAsync<T>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return c;
     }
@@ -108,7 +108,7 @@ public sealed class SharedSecretUrlParameterFormatter : IUrlParameterFormatter
 
         var iv = ByteArrayUtil.GetRndByteArray(16);
         var key = _sharedSecret; //#wierd
-        var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), ref key, iv);
+        var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), key, iv);
 
         var payload = new SharedSecretEncryptedPayload()
         {

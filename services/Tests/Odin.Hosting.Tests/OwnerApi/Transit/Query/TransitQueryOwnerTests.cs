@@ -254,7 +254,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
+                    Key: aesKey,
                     IV: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
@@ -529,7 +529,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
+                    Key: aesKey,
                     IV: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(originalPayloadData);

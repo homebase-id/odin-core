@@ -1,6 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+
+// Enable testing
+[assembly: InternalsVisibleTo("Odin.Core.Cryptography.Tests")]
 
 namespace Odin.Core.Cryptography.Crypto
 {
@@ -12,35 +16,6 @@ namespace Odin.Core.Cryptography.Crypto
     /// </summary>
     public static class AesCbc
     {
-        public static bool TestPrivate()
-        {
-            try
-            {
-                var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-                var iv = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-                var testData = new byte[] { 162, 146, 244, 255, 127, 128, 0, 42, 7, 0 };
-
-                var mysk = key.ToSensitiveByteArray();
-
-                var cipher = Encrypt(testData, ref mysk, iv);
-
-                var s = ByteArrayUtil.PrintByteArray(cipher);
-                Console.WriteLine("Cipher: " + s);
-                var roundtrip = Decrypt(cipher, ref mysk, iv);
-
-                if (ByteArrayUtil.EquiByteArrayCompare(roundtrip, testData))
-                    return true;
-                else
-                    return false;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: {0}", e.Message);
-            }
-
-            return false;
-        }
-
         private static byte[] PerformCryptography(byte[] data, ICryptoTransform cryptoTransform)
         {
             using (var ms = new MemoryStream())
@@ -61,7 +36,7 @@ namespace Odin.Core.Cryptography.Crypto
         /// <param name="key"></param>
         /// <param name="iv"></param>
         /// <returns></returns>
-        public static byte[] Encrypt(byte[] data, ref SensitiveByteArray key, byte[] iv)
+        public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv)
         {
             using (Aes aesAlg = Aes.Create())
             {
@@ -78,13 +53,8 @@ namespace Odin.Core.Cryptography.Crypto
             }
         }
 
-        /*public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, SensitiveByteArray key)
-        {
-            return Encrypt(data, key.GetKey());
-        }*/
-
         //public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, byte[] Key)
-        public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, ref SensitiveByteArray Key)
+        public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, SensitiveByteArray Key)
         {
             byte[] IV;
 
@@ -104,12 +74,7 @@ namespace Odin.Core.Cryptography.Crypto
             }
         }
 
-        /*public static (byte[] IV, byte[] ciphertext) EncryptStringToBytes_Aes(string plainText, byte[] Key)
-        {
-            return Encrypt(Encoding.UTF8.GetBytes(plainText), Key);
-        }*/
-
-        public static byte[] Decrypt(byte[] cipherText, ref SensitiveByteArray Key, byte [] IV)
+        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray Key, byte [] IV)
         {
             // Create an Aes object 
             // with the specified key and IV. 
@@ -125,10 +90,5 @@ namespace Odin.Core.Cryptography.Crypto
                 }
             }
         }
-
-        /*public static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)
-        {
-            return Encoding.UTF8.GetString(Decrypt(cipherText, Key, IV));
-        }*/
     }
 }
