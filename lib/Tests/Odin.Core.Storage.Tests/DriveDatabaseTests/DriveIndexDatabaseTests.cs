@@ -2024,7 +2024,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             stopWatch.Stop();
-            Utils.StopWatchStatus("Built in QueryBatch()", stopWatch);
+            Benchmark.StopWatchStatus("Built in QueryBatch()", stopWatch);
 
             // Try to get a batch stopping at boundaryCursor. We should get none.
             (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -2257,7 +2257,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             _testDatabase.Commit();
 
             stopWatch.Stop();
-            Utils.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
+            Benchmark.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
 
             return (_testDatabase, fileId, conversationId, aclMembers, tags);
         }

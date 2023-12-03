@@ -53,7 +53,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
-            Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
+            Benchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
@@ -100,7 +100,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
-            Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
+            Benchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
-            Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
+            Benchmark.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
 
             _testDatabase.Dispose();
