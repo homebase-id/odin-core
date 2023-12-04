@@ -87,22 +87,31 @@ public class TenantAdmin : ITenantAdmin
 
     //
 
-    // public Task<string> EnqueueCopyTenant(string domain)
-    // {
-    //     if (!await _identityRegistry.IsIdentityRegistered(domain))
-    //     {
-    //         throw new AdminValidationException($"{domain} not found");
-    //     }
-    //
-    //     if (copyToRequest.Destination?.StartsWith("file://") == false)
-    //     {
-    //         return BadRequest(new ProblemDetails
-    //         {
-    //             Title = "Invalid destination type",
-    //             Detail = "Destination must begin with 'file://'"
-    //         });
-    //     }
-    // }
+    public async Task<string> EnqueueExportTenant(string domain)
+    {
+        if (!await _identityRegistry.IsIdentityRegistered(domain))
+        {
+            throw new OdinClientException($"{domain} not found");
+        }
+
+        var jobKey = new JobKey(domain, ExportTenantJob.JobGroup);
+        if (_exclusiveJobManager.Exists(jobKey))
+        {
+            return jobKey.ToString();
+        }
+
+        var scheduler = await _schedulerFactory.GetScheduler();
+        var job = JobBuilder.Create<ExportTenantJob>()
+            .WithIdentity(jobKey)
+            .UsingJobData("domain", domain)
+            .Build();
+        var trigger = TriggerBuilder.Create()
+            .StartNow()
+            .Build();
+        await scheduler.ScheduleJob(job, trigger);
+
+        return jobKey.ToString();
+    }
 
     //
 

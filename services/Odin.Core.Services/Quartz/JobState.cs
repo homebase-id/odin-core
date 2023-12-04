@@ -4,5 +4,5 @@ namespace Odin.Core.Services.Quartz;
 public class JobState : IJobState
 {
     public JobStatusEnum Status { get; set; } = JobStatusEnum.Unknown;
-    public string? Error = null;
+    public string? Error { get; set; } = null;
 }

@@ -101,27 +101,27 @@ public class AdminController : ControllerBase
 
     //
 
-    // [HttpPost("tenants/{domain}/copy")]
-    // public async Task<ActionResult<TenantCopyResponse>> CopyTenant(string domain)
-    // {
-    //     if (!await _tenantAdmin.TenantExists(domain))
-    //     {
-    //         return NotFound();
-    //     }
-    //
-    //     try
-    //     {
-    //         var path = await _tenantAdmin.EnqueueCopyTenant(domain);
-    //         return Accepted(new TenantCopyResponse {Path = path});
-    //     }
-    //     catch (AdminValidationException e)
-    //     {
-    //         return BadRequest(new ProblemDetails
-    //         {
-    //             Title = e.Message
-    //         });
-    //     }
-    // }
+    [HttpPost("tenants/{domain}/export")]
+    public async Task<ActionResult> ExportTenant(string domain)
+    {
+        if (!await _tenantAdmin.TenantExists(domain))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
+            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
+        }
+        catch (OdinException e)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = e.Message
+            });
+        }
+    }
 
     //
 

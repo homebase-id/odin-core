@@ -362,6 +362,7 @@ namespace Odin.Core.Services.Configuration
             public string ApiKeyHttpHeaderName { get; init; }
             public int ApiPort { get; init; }
             public string Domain { get; init; }
+            public string ExportTargetPath { get; init; }
 
             public AdminSection()
             {
@@ -375,6 +376,7 @@ namespace Odin.Core.Services.Configuration
                 ApiKeyHttpHeaderName = config.Required<string>("Admin:ApiKeyHttpHeaderName");
                 ApiPort = config.Required<int>("Admin:ApiPort");
                 Domain = config.Required<string>("Admin:Domain");
+                ExportTargetPath = config.Required<string>("Admin:ExportTargetPath");
             }
         }
 
