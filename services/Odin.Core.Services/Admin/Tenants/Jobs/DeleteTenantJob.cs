@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Quartz;
@@ -45,7 +46,7 @@ public class DeleteTenantJob : IExclusiveJob
         catch (Exception e)
         {
             _state.Status = JobStatusEnum.Failed;
-            _state.Error = $"Error deleting tenant {domain}";
+            _state.Error = e is OdinClientException ? e.Message : $"Internal error exporting tenant {domain}";
             _logger.LogError(e, "Error deleting tenant: {error}", e.Message);
         }
         _isDone = true;
