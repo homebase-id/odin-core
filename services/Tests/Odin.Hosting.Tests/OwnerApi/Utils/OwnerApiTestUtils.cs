@@ -429,7 +429,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> AddAppClient(OdinId identity, Guid appId)
         {
-            var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
+            var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
@@ -447,7 +447,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Assert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+                var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
 
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));

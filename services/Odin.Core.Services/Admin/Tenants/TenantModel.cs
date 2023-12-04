@@ -10,6 +10,7 @@ public class TenantModel
     public string Id { get; set; } = "";
     public string RegistrationPath { get; set; } = "";
     public long RegistrationSize { get; set; } = 0;
+    public bool Enabled { get; set; }
 
     public List<PayloadShard>? PayloadShards { get; set; } = null;
     public long? PayloadSize { get; set; } = null;

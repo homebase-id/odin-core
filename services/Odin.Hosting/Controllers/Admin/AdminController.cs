@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Quartz;
@@ -89,7 +90,7 @@ public class AdminController : ControllerBase
             var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
             return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
         }
-        catch (AdminValidationException e)
+        catch (OdinException e)
         {
             return BadRequest(new ProblemDetails
             {
@@ -100,27 +101,27 @@ public class AdminController : ControllerBase
 
     //
 
-    // [HttpPost("tenants/{domain}/copy")]
-    // public async Task<ActionResult<TenantCopyResponse>> CopyTenant(string domain)
-    // {
-    //     if (!await _tenantAdmin.TenantExists(domain))
-    //     {
-    //         return NotFound();
-    //     }
-    //
-    //     try
-    //     {
-    //         var path = await _tenantAdmin.EnqueueCopyTenant(domain);
-    //         return Accepted(new TenantCopyResponse {Path = path});
-    //     }
-    //     catch (AdminValidationException e)
-    //     {
-    //         return BadRequest(new ProblemDetails
-    //         {
-    //             Title = e.Message
-    //         });
-    //     }
-    // }
+    [HttpPost("tenants/{domain}/export")]
+    public async Task<ActionResult> ExportTenant(string domain)
+    {
+        if (!await _tenantAdmin.TenantExists(domain))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
+            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
+        }
+        catch (OdinException e)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = e.Message
+            });
+        }
+    }
 
     //
 

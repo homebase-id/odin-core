@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             return await _notificationService.GetList(new GetNotificationListRequest()
             {
                 Count = count,
-                Cursor = cursor == null ? null :  new UnixTimeUtcUnique(cursor.Value)
+                Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
             });
         }
 

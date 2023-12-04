@@ -29,7 +29,7 @@ public class AppManagementApiClient
 
     public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> RegisterAppClient(Guid appId)
     {
-        var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
+        var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -47,7 +47,7 @@ public class AppManagementApiClient
             Assert.IsNotNull(regResponse.Content);
 
             var reply = regResponse.Content;
-            var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+            var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
 
             //only supporting version 1 for now
             Assert.That(reply.EncryptionVersion, Is.EqualTo(1));

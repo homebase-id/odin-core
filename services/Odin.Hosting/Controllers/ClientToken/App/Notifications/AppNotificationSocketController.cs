@@ -21,7 +21,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
         }
 
         /// <summary />
-        [HttpGet("ws")]
+        [Route("ws")]
+        [ApiExplorerSettings(IgnoreApi = true)]
         public async Task Connect()
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)

@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             var key = keyHeader.AesKey;
             var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
-                key: ref key,
+                key: key,
                 iv: keyHeader.Iv);
 
             return new MemoryStream(cipher);
@@ -23,7 +23,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
         {
             var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
-                key: ref key,
+                key: key,
                 iv: iv);
 
             return new MemoryStream(cipher);
@@ -38,7 +38,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             
             var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
-                key: ref key,
+                key: key,
                 iv: iv);
 
             return new MemoryStream(cipher);

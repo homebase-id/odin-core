@@ -13,7 +13,9 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Services.Tenant.Container;
 using Odin.Core.Trie;
+using Odin.Core.Util;
 using Serilog;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -28,11 +30,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public string ShardablePayloadRoot { get; private set; }
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
-    private readonly Dictionary<Guid, IdentityRegistration> _cache;
-    private readonly Trie<IdentityRegistration> _trie;
+    private readonly Dictionary<Guid, IdentityRegistration> _cache; // SEB:TODO this is not thread safe
+    private readonly Trie<IdentityRegistration> _trie; // SEB:TODO access to this needs to be synchronized with _cache
     private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
+    private readonly IMultiTenantContainerAccessor _tenantContainer;
     private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tempFolderRoot;
@@ -42,7 +45,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
-        OdinConfiguration config)
+        IMultiTenantContainerAccessor tenantContainer,
+        OdinConfiguration config
+        )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
@@ -60,6 +65,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _certificateServiceFactory = certificateServiceFactory;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
+        _tenantContainer = tenantContainer;
         _config = config;
 
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
@@ -209,9 +215,61 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
+            UnloadRegistration(registration);
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
+        }
+    }
+
+    // Copy registration and payloads
+    public async Task<string> CopyRegistration(string domain, string targetRootPath)
+    {
+        var registration = await Get(domain);
+        if (registration == null)
+        {
+            return "";
+        }
+
+        var disabled = registration.Disabled;
+        await ToggleDisabled(domain, true);
+        try
+        {
+            var targetPath = Path.Combine(targetRootPath, domain);
+            if (Directory.Exists(targetPath))
+            {
+                throw new OdinClientException($"Path {targetPath} already exists");
+            }
+
+            var registrationId = registration.Id.ToString();
+            var targetRegistrationsPath = Path.Combine(targetPath, "registrations", registrationId);
+            Directory.CreateDirectory(targetRegistrationsPath);
+
+            _logger.LogInformation("Copying {domain} registration to {targetRegistrationsPath}", domain, targetRegistrationsPath);
+            var source = new DirectoryInfo(Path.Combine(RegistrationRoot, registrationId));
+            await Task.Run(() => source.CopyTo(targetRegistrationsPath));
+
+            var targetPayloadsPath = Path.Combine(targetPath, "payloads");
+            Directory.CreateDirectory(targetPayloadsPath);
+
+            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            foreach (var shard in shards)
+            {
+                var payloadSourcePath = Path.Combine(shard, registrationId);
+                var payloadTargetPath = Path.Combine(targetPayloadsPath, Path.GetFileName(shard), registrationId);
+                if (Directory.Exists(payloadSourcePath))
+                {
+                    _logger.LogInformation("Copying {domain} shard to {payloadTargetPath}", domain, payloadTargetPath);
+                    source = new DirectoryInfo(Path.Combine(payloadSourcePath));
+                    await Task.Run(() => source.CopyTo(payloadTargetPath));
+                }
+            }
+
+            return targetPath;
+        }
+        finally
+        {
+            await ToggleDisabled(domain, disabled);
         }
     }
 
@@ -289,15 +347,24 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(reg);
     }
 
-    public async Task<IdentityRegistration> ToggleDisabled(string domain, bool disabled)
+    public async Task<bool?> ToggleDisabled(string domain, bool disabled)
     {
+        bool? result = null;
         var reg = _trie.LookupExactName(domain);
-        if (reg != null && reg.Disabled != disabled)
+        if (reg != null)
         {
-            reg.Disabled = disabled;
-            await SaveRegistrationInternal(reg);
+            result = reg.Disabled;
+            if (reg.Disabled != disabled)
+            {
+                reg.Disabled = disabled;
+                await SaveRegistrationInternal(reg);
+            }
+            if (disabled)
+            {
+                UnloadRegistration(reg);
+            }
         }
-        return reg;
+        return result;
     }
 
     private string GetRegFilePath(Guid registrationId)
@@ -377,6 +444,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         _cache.Add(registration.Id, registration);
+    }
+
+    private void UnloadRegistration(IdentityRegistration registration)
+    {
+        if (_cache.ContainsKey(registration.Id))
+        {
+            _cache.Remove(registration.Id);
+        }
+        _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
     private IdentityRegistration GetByFirstRunToken(Guid firstRunToken)
@@ -480,7 +556,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var shards = Directory.GetDirectories(ShardablePayloadRoot);
             foreach (var shard in shards)
             {
-                var payloadPath = Path.Combine(shard, identity.Id.ToString());
+                var id = identity.Id.ToString();
+
+                // Sanity
+                if (string.IsNullOrEmpty(shard) || string.IsNullOrEmpty(id))
+                {
+                    throw new OdinSystemException("I just stopped you in wiping the wrong stuff!");
+                }
+
+                _logger.LogInformation("Deleting shard {shard} on {domain}", shard, identity.PrimaryDomainName);
+
+                var payloadPath = Path.Combine(shard, id);
                 if (Directory.Exists(payloadPath))
                 {
                     try

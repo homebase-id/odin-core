@@ -14,4 +14,5 @@ public interface ITenantAdmin
     Task DisableTenant(string domain);
 
     Task<string> EnqueueDeleteTenant(string domain);
+    Task<string> EnqueueExportTenant(string domain);
 }

@@ -22,7 +22,7 @@ namespace Odin.Core.Services.Peer.Encryption
         {
             if (this.EncryptionVersion == 1)
             {
-                var bytes = AesCbc.Decrypt(this.EncryptedAesKey, ref key, this.Iv);
+                var bytes = AesCbc.Decrypt(this.EncryptedAesKey, key, this.Iv);
                 var kh = KeyHeader.FromCombinedBytes(bytes, 16, 16);
                 bytes.ToSensitiveByteArray().Wipe();
                 return kh;
@@ -34,7 +34,7 @@ namespace Odin.Core.Services.Peer.Encryption
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
             var secureKeyHeader = keyHeader.Combine();
-            var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), ref key, iv);
+            var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), key, iv);
             secureKeyHeader.Wipe();
 
             return new EncryptedKeyHeader()

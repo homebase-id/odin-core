@@ -4,6 +4,8 @@
     using Odin.Core.Cryptography.Crypto;
     using Odin.Core.Cryptography.Data;
     using System;
+    using System.Collections.Generic;
+    using System.Text.Json;
 
     [TestFixture]
     public class TestEccKeyData
@@ -32,6 +34,27 @@
 
             var ba = Base64UrlEncoder.Decode(s);
             Assert.IsTrue(ba.Length == 65);
+        }
+
+        [Test]
+        public void TestJwkPublicKeyRepeat()
+        {
+            SensitiveByteArray pwdFrodo = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+
+
+            for (int i=0; i < 256; i++)
+            {
+                EccFullKeyData fullKeyFrodo = new EccFullKeyData(pwdFrodo, EccKeySize.P384, 2);
+
+                var jwk = fullKeyFrodo.PublicKeyJwk();
+                var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
+
+                byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
+                byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
+
+                Assert.IsTrue(x.Length == 48);
+                Assert.IsTrue(y.Length == 48);
+            }
         }
 
 
@@ -170,7 +193,7 @@
             var sharedSecretFrodo = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, (EccPublicKeyData)fullKeySam, randomSalt);
 
             // Now we AES encrypt the message with the sharedSecret
-            var (randomIv, cipher) = AesCbc.Encrypt(message, ref sharedSecretFrodo);
+            var (randomIv, cipher) = AesCbc.Encrypt(message, sharedSecretFrodo);
 
             //
             // NOW WE SEND THE DATA TO SAM
@@ -184,7 +207,7 @@
             var sharedSecretSam = fullKeySam.GetEcdhSharedSecret(pwdSam, (EccPublicKeyData)fullKeyFrodo, randomSalt);
 
             // Decrypt the message
-            var originalBytes = AesCbc.Decrypt(cipher, ref sharedSecretSam, randomIv);
+            var originalBytes = AesCbc.Decrypt(cipher, sharedSecretSam, randomIv);
 
             if (originalBytes.ToStringFromUtf8Bytes() != message.ToStringFromUtf8Bytes())
                 throw new Exception("It doesn't work");

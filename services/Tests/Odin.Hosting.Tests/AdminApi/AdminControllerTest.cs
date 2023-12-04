@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
+using Odin.Core.Services.Admin.Tenants.Jobs;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
@@ -22,6 +23,7 @@ public class AdminControllerTest
 {
     private WebScaffold _scaffold = null!;
     private string _tenantDataRootPath;
+    private readonly string _exportTargetPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
 
     [SetUp]
     public void Init()
@@ -35,6 +37,7 @@ public class AdminControllerTest
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
             { "Admin__ApiPort", "4444" },
             { "Admin__Domain", "admin.dotyou.cloud" },
+            { "Admin__ExportTargetPath", _exportTargetPath },
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
@@ -48,6 +51,10 @@ public class AdminControllerTest
     [TearDown]
     public void Cleanup()
     {
+        if (Directory.Exists(_exportTargetPath))
+        {
+            Directory.Delete(_exportTargetPath, true);
+        }
         _scaffold.RunAfterAnyTests();
     }
 
@@ -151,7 +158,6 @@ public class AdminControllerTest
     //
 
     [Test]
-    [Ignore("SEB:TODO Waiting for multi-payload rewrite. This has problems with database disposal.")]
     public async Task ItShouldDeleteTenant()
     {
         await CreatePayload(TestIdentities.Frodo);
@@ -185,13 +191,62 @@ public class AdminControllerTest
         url = location;
         request = NewRequestMessage(HttpMethod.Get, url);
         response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), "JobStatus not present");
         var state = OdinSystemSerializer.Deserialize<JobState>(await response.Content.ReadAsStringAsync());
         Assert.That(state.Status, Is.EqualTo(JobStatusEnum.Completed));
 
         request = NewRequestMessage(HttpMethod.Get, url);
         response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "JobStatus not removed");
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldExportTenant()
+    {
+        await CreatePayload(TestIdentities.Frodo);
+
+        var url = "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/export";
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var request = NewRequestMessage(HttpMethod.Post, url);
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+        Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
+        var location = locations.First();
+        Assert.That(location, Is.EqualTo("https://admin.dotyou.cloud:4444/api/admin/v1/job-status/export-tenant.frodo.dotyou.cloud"));
+
+        var idx = 0;
+        const int max = 20;
+        for (idx = 0; idx < max; idx++)
+        {
+            await Task.Delay(100);
+            request = NewRequestMessage(HttpMethod.Get, location);
+            response = await apiClient.SendAsync(request);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Assert.Fail("Failed to export tenant - job status not found");
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var jobState = OdinSystemSerializer.Deserialize<ExportTenantJobState>(content);
+            if (jobState.Status == JobStatusEnum.Completed)
+            {
+                Assert.That(jobState.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
+                break;
+            }
+        }
+        if (idx == max)
+        {
+            Assert.Fail("Failed to export tenant - did not complete");
+        }
+
+        request = NewRequestMessage(HttpMethod.Get, location);
+        response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "JobStatus not removed");
+
+        Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
+        Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));
     }
 
     //

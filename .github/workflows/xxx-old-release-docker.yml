@@ -43,10 +43,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: "16.x"
-          registry-url: "https://npm.pkg.github.com"
+          node-version: '18.x'
+          registry-url: 'https://npm.pkg.github.com'
           # Defaults to the user or organization that owns the workflow file
-          scope: "@octocat"
+          scope: '@octocat'
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -76,9 +76,9 @@ jobs:
         run: |
           npm ci
           npm run build-libs
-          touch packages/public-app/.env 
+          touch packages/public-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
-          touch packages/owner-app/.env 
+          touch packages/owner-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
 
       - name: Build owner-app

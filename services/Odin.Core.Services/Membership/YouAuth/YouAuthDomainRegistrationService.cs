@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 Modified = UnixTimeUtc.Now().milliseconds,
                 Name = request.Name,
                 CorsHostName = request.CorsHostName,
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 CircleGrants = grants,
                 ConsentRequirements = request.ConsentRequirements
             };
@@ -123,7 +123,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.YouAuth);
 
             var youAuthDomainClient = new YouAuthDomainClient(domain, friendlyName, accessRegistration);
@@ -324,7 +324,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             var circleDefinition = _circleMembershipService.GetCircle(circleId);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);

@@ -294,7 +294,7 @@ public abstract class FileSystemStreamWriterBase
         var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
+        var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), clientSharedSecret, package.InstructionSet.TransferIv);
         metadataStream.Close();
 
         var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);

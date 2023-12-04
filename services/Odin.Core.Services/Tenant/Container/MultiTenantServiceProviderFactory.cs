@@ -1,11 +1,10 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Services.Tenant;
 
-namespace Odin.Hosting.Multitenant
+#nullable enable
+namespace Odin.Core.Services.Tenant.Container
 {
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {
@@ -41,7 +40,8 @@ namespace Odin.Hosting.Multitenant
             }
             
             containerBuilder
-                .RegisterInstance(new MultiTenantContainerDisposableAccessor(ContainerAccessor))
+                .RegisterInstance(new MultiTenantContainerAccessor(ContainerAccessor))
+                .As<IMultiTenantContainerAccessor>()
                 .SingleInstance();
             
             container = new MultiTenantContainer(

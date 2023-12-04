@@ -31,7 +31,7 @@ namespace Odin.Core.Services.Peer.Encryption
             var key = this.AesKey;
             var cipher = AesCbc.Encrypt(
                 data: data,
-                key: ref key,
+                key: key,
                 iv: this.Iv);
 
             return cipher;
@@ -75,7 +75,7 @@ namespace Odin.Core.Services.Peer.Encryption
             var aesKey = this.AesKey;
             var bytes = AesCbc.Decrypt(
                 cipherText: encryptedData,
-                Key: ref aesKey,
+                Key: aesKey,
                 IV: this.Iv);
             return bytes;
         }
