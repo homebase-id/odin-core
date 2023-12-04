@@ -46,7 +46,6 @@ public class GetNotificationListRequest
 public class AddNotificationRequest
 {
     public AppNotificationOptions AppNotificationOptions { get; set; }
-    public string Payload { get; set; }
 }
 
 

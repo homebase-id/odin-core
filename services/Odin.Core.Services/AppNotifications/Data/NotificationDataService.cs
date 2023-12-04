@@ -39,8 +39,9 @@ public class NotificationDataService
             notificationId = id,
             senderId = senderId,
             unread = 1,
-            data = request.Payload.ToUtf8ByteArray()
+            data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
+        
 
         _storage.Insert(record);
         return Task.FromResult(new AddNotificationResult()
@@ -62,7 +63,7 @@ public class NotificationDataService
                 SenderId = r.senderId,
                 Unread = r.unread == 1,
                 Created = r.created.ToUnixTimeUtc(),
-                Options = OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
+                Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
             }).ToList()
         };
 

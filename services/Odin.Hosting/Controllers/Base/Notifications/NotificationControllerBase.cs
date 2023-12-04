@@ -28,12 +28,12 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpGet("list")]
-        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64 cursor)
+        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor)
         {
             return await _notificationService.GetList(new GetNotificationListRequest()
             {
                 Count = count,
-                Cursor = new UnixTimeUtcUnique(cursor)
+                Cursor = cursor == null ? null :  new UnixTimeUtcUnique(cursor.Value)
             });
         }
 
