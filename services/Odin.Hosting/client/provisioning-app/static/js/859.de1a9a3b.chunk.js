@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkprovisioning_app=self.webpackChunkprovisioning_app||[]).push([[859],{8859:function(e,t,n){n.r(t);n(2791);var s=n(184);t.default=function(){return(0,s.jsx)("section",{className:"py-5 bg-red-400 grow flex flex-col",children:(0,s.jsx)("h1",{className:"text-center m-auto text-5xl text-white",children:"404'd! Nothing to see here."})})}}}]);
-//# sourceMappingURL=859.de1a9a3b.chunk.js.map

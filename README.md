@@ -8,10 +8,8 @@
 
 Notes:
 * The API tests use frodo.dotyou.cloud, sam.dotyou.cloud, merry.dotyou.cloud and pippin.dotyou.cloud. Public DNS has these configured to point to 127.0.0.1. If you want to test offline be sure to add these to your hosts file and be sure to also add them all with the 'capi.' prefix as well (e.g. capi.samwisegamgee.me)
-* For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Odin.Hosting project uses a proxy server to serve these in the dev env.
-  * https://github.com/YouFoundation/owner-app
-  * https://github.com/YouFoundation/public-app
-  * https://github.com/YouFoundation/provisioning-app
+* For UI work, you should pull the monorepo of the react-client-apps and run ```npm run start:owner``` ```npm run start:public``` for the owner- and public-app respectively.  The web Odin.Hosting project uses a proxy server to serve these in the dev env.
+  * https://github.com/YouFoundation/dotyoucore-js
 * !!! Serialization
   * Use the DotYouSystemSerializer for all serialization.  
     * This contains the global serializer settings needed across the solution
