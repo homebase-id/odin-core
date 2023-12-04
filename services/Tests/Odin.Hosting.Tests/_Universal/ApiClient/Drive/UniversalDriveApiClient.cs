@@ -44,6 +44,19 @@ public class UniversalDriveApiClient
         bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
+        var transitOptions = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+        
+        return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
+    }
+
+    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
+        TransitOptions transitOptions,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
@@ -55,10 +68,7 @@ public class UniversalDriveApiClient
                 Drive = targetDrive,
                 OverwriteFileId = default
             },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            TransitOptions = transitOptions
         };
 
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -89,7 +99,7 @@ public class UniversalDriveApiClient
             return response;
         }
     }
-
+    
     public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag, UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

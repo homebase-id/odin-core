@@ -10,7 +10,7 @@ namespace Odin.Core.Services.Background.DefaultCron
         private const string TransitRootEndpoint = $"{OwnerApiPathConstants.TransitV1}/outbox/processor";
 
         [Post(TransitRootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessOutbox();
+        Task<ApiResponse<HttpContent>> ProcessOutbox();
 
         [Post($"{OwnerApiPathConstants.PushNotificationsV1}/process")]
         Task<ApiResponse<HttpContent>> ProcessPushNotifications();

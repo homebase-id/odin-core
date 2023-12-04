@@ -20,9 +20,18 @@ namespace Odin.Core.Services.Authorization.Permissions
 
         public const int UseTransitRead = 305;
 
+        public const int SendPushNotifications = 405;
+
         public static readonly List<int> All = new List<int>()
         {
-            ReadConnections, ReadConnectionRequests, ReadCircleMembership, ReadWhoIFollow, ReadMyFollowers, UseTransitWrite, UseTransitRead
+            ReadConnections,
+            ReadConnectionRequests,
+            ReadCircleMembership,
+            ReadWhoIFollow,
+            ReadMyFollowers,
+            UseTransitWrite,
+            UseTransitRead,
+            SendPushNotifications
         };
     }
 
@@ -40,7 +49,8 @@ namespace Odin.Core.Services.Authorization.Permissions
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ReadWhoIFollow,
                 PermissionKeys.UseTransitWrite,
-                PermissionKeys.UseTransitRead
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.SendPushNotifications
             });
 
             Circles = new ReadOnlyCollection<int>(new List<int>()

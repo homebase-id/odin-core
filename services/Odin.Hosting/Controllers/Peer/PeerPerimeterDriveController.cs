@@ -276,6 +276,8 @@ namespace Odin.Hosting.Controllers.Peer
             });
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
             return result;
         }

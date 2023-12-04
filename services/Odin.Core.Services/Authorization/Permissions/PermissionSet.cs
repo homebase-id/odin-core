@@ -14,7 +14,11 @@ namespace Odin.Core.Services.Authorization.Permissions
         {
             Keys = new List<int>();
         }
-        
+
+        public PermissionSet(params int[] permissionKeys) : this(new List<int>(permissionKeys))
+        {
+        }
+
         public PermissionSet(IEnumerable<int> permissionKeys)
         {
             var pk = permissionKeys as int[] ?? permissionKeys.ToArray();
@@ -73,7 +77,7 @@ namespace Odin.Core.Services.Authorization.Permissions
             };
         }
     }
-    
+
     public class RedactedPermissionSet
     {
         public List<int> Keys { get; set; }

@@ -18,15 +18,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard;
 /// <summary />
 public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly ITransitService _transitService;
-
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
         ITransitService transitService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager, transitService)
     {
-        _transitService = transitService;
     }
 
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)
@@ -86,7 +83,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Comment);
+        return await ProcessTransitBasic(package, FileSystemType.Standard);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor)

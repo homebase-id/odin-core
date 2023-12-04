@@ -60,7 +60,7 @@ namespace Odin.Hosting.Authentication.System
                         masterKey: null,
                         securityLevel: SecurityGroupType.System);
 
-                    var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers });
+                    var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers, PermissionKeys.SendPushNotifications });
                     var grantKeyStoreKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
                     
                     var systemPermissions = new Dictionary<string, PermissionGroup>()

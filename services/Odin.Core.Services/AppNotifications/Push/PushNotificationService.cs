@@ -9,6 +9,8 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
@@ -16,6 +18,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Serilog;
 using WebPush;
 
 
@@ -29,17 +32,19 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage;
     private readonly OdinContextAccessor _contextAccessor;
 
+    private readonly NotificationListService _notificationListService;
     private readonly PushNotificationOutbox _pushNotificationOutbox;
     private readonly PublicPrivateKeyService _keyService;
     private readonly ServerSystemStorage _serverSystemStorage;
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService,
-        TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage)
+        TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage, NotificationListService notificationListService)
     {
         _contextAccessor = contextAccessor;
         _keyService = keyService;
         _serverSystemStorage = serverSystemStorage;
+        _notificationListService = notificationListService;
         _pushNotificationOutbox = new PushNotificationOutbox(tenantSystemStorage, contextAccessor);
         _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     }
@@ -70,6 +75,7 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         const int batchSize = 100;
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
 
+        //TODO: add throttling, grouping, etc.
         foreach (var record in list)
         {
             var content = new PushNotificationContent()
@@ -82,13 +88,22 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
                 })
             };
 
+            //Push to devices
             await this.Push(content);
+
+            //add to system list
+            await _notificationListService.AddNotification(new AddNotificationRequest()
+            {
+                AppNotificationOptions = record.Options,
+                SenderId = record.SenderId
+            });
         }
     }
 
     public async Task Push(PushNotificationContent content)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
+        // _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         var subscriptions = await GetAllSubscriptions();
         var keys = _keyService.GetNotificationsKeys();
@@ -108,8 +123,9 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
             }
             catch (WebPushException exception)
             {
+                Log.Warning("Failed sending push notification");
                 //TODO: collect all errors and send back to client or do something with it
-                throw new OdinClientException("Failed to send one or more notifications.", exception);
+                // throw new OdinClientException("Failed to send one or more notifications.", exception);
                 // Console.WriteLine("Http STATUS code" + exception.StatusCode);
             }
         }

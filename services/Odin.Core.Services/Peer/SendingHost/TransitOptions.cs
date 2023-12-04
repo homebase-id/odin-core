@@ -24,7 +24,7 @@ namespace Odin.Core.Services.Peer.SendingHost
         /// </summary>
         public List<string> Recipients { get; set; }
 
-        public bool SendAppNotification { get; set; }
+        public bool UseAppNotification { get; set; }
 
         public AppNotificationOptions AppNotificationOptions { get; set; }
 

@@ -57,7 +57,7 @@ namespace Odin.Hosting
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
-            cb.RegisterType<NotificationDataService>().AsSelf().SingleInstance();
+            cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
             
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<FileAddedNotification>>()

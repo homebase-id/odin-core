@@ -276,7 +276,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
                 decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
-                if (options.SendAppNotification)
+                if (options.UseAppNotification)
                 {
                     transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
                 }

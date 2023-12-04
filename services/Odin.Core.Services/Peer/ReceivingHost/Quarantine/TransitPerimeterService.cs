@@ -134,6 +134,17 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             if (item.IsCompleteAndValid())
             {
                 var responseCode = await CompleteTransfer(item, fileMetadata);
+
+                if (responseCode == TransitResponseCode.AcceptedDirectWrite ||
+                    responseCode == TransitResponseCode.AcceptedIntoInbox)
+                {
+                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                    if (null != notificationOptions)
+                    {
+                        await _pushNotificationService.EnqueueNotification(notificationOptions);
+                    }
+                }
+
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = responseCode };
             }
@@ -145,12 +156,6 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
-
-            var notificationOptions = stateItem.TransferInstructionSet.AppNotificationOptions;
-            if (null != notificationOptions)
-            {
-                await _pushNotificationService.EnqueueNotification(notificationOptions);
-            }
 
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 

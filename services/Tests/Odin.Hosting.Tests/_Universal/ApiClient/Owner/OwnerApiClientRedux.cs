@@ -5,6 +5,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -37,6 +38,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
+            Cron = new CronApiClient(ownerApi, identity);
             Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
         }
 
@@ -47,6 +49,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         }
 
         public TestIdentity Identity => _identity;
+
+        public CronApiClient Cron { get; }
 
         public AppManagementApiClient AppManager { get; }
 

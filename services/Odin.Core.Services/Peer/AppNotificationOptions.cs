@@ -11,6 +11,9 @@ public class AppNotificationOptions
 
     public Guid GroupId { get; set; }
 
+    /// <summary>
+    /// An app-specific identifier
+    /// </summary>
     public Guid TagId { get; set; }
     
     /// <summary>

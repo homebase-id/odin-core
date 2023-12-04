@@ -1,28 +1,24 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
-using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
-using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
-using Odin.Core.Time;
 
 namespace Odin.Core.Services.AppNotifications.Data;
 
 /// <summary>
 /// Storage for notifications
 /// </summary>
-public class NotificationDataService
+public class NotificationListService
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly TableAppNotifications _storage;
     private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public NotificationDataService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+    public NotificationListService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
         _storage = tenantSystemStorage.AppNotifications;
@@ -31,19 +27,19 @@ public class NotificationDataService
 
     public Task<AddNotificationResult> AddNotification(AddNotificationRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+        _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
+        
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
         {
             notificationId = id,
-            senderId = senderId,
+            senderId = request.SenderId,
             unread = 1,
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
-        
 
         _storage.Insert(record);
+
         return Task.FromResult(new AddNotificationResult()
         {
             NotificationId = id

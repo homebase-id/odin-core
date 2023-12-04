@@ -101,7 +101,10 @@ public class CircleNetworkRequestsApiClient
                 Id = id,
                 Recipient = recipient,
                 Message = "Please add me",
-                // ContactData = recipientIdentity.ContactData,
+                ContactData = new ContactRequestData()
+                {
+                    Name = "Test Test"
+                },
                 CircleIds = circlesGrantedToRecipient?.ToList()
             };
 
