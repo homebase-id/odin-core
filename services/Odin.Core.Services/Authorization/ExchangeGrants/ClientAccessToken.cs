@@ -17,7 +17,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
         public ClientAccessToken Decrypt(SensitiveByteArray key)
         {
-            var rawBytes = EncryptedData.DecryptKeyClone(ref key);
+            var rawBytes = EncryptedData.DecryptKeyClone(key);
             return ClientAccessToken.FromPortableBytes(rawBytes.GetKey());
            
         }
@@ -25,7 +25,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         public static EncryptedClientAccessToken Encrypt(SensitiveByteArray icrKey, ClientAccessToken cat)
         {
             var bytes = cat.ToPortableBytes().ToSensitiveByteArray();
-            var encryptedData = new SymmetricKeyEncryptedAes(ref icrKey, ref bytes);
+            var encryptedData = new SymmetricKeyEncryptedAes(icrKey, bytes);
 
             return new EncryptedClientAccessToken()
             {

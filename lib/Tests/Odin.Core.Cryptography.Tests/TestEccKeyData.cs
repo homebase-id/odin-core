@@ -193,7 +193,7 @@
             var sharedSecretFrodo = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, (EccPublicKeyData)fullKeySam, randomSalt);
 
             // Now we AES encrypt the message with the sharedSecret
-            var (randomIv, cipher) = AesCbc.Encrypt(message, ref sharedSecretFrodo);
+            var (randomIv, cipher) = AesCbc.Encrypt(message, sharedSecretFrodo);
 
             //
             // NOW WE SEND THE DATA TO SAM
@@ -207,7 +207,7 @@
             var sharedSecretSam = fullKeySam.GetEcdhSharedSecret(pwdSam, (EccPublicKeyData)fullKeyFrodo, randomSalt);
 
             // Decrypt the message
-            var originalBytes = AesCbc.Decrypt(cipher, ref sharedSecretSam, randomIv);
+            var originalBytes = AesCbc.Decrypt(cipher, sharedSecretSam, randomIv);
 
             if (originalBytes.ToStringFromUtf8Bytes() != message.ToStringFromUtf8Bytes())
                 throw new Exception("It doesn't work");

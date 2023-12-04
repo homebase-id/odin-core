@@ -30,9 +30,9 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         public (SensitiveByteArray grantKeyStoreKey, SensitiveByteArray sharedSecret) DecryptUsingClientAuthenticationToken(ClientAuthenticationToken authToken)
         {
             var token = authToken.AccessTokenHalfKey;
-            var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(ref accessKey);
+            var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(token);
+            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(accessKey);
+            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(accessKey);
             accessKey.Wipe();
 
             return (grantKeyStoreKey, sharedSecret);
@@ -40,7 +40,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
         public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
         {
-            this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref remoteKey);
+            this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(remoteKey);
         }
     }
 

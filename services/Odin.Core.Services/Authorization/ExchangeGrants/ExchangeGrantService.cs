@@ -55,10 +55,10 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             var grant = new ExchangeGrant()
             {
                 Created = UnixTimeUtc.Now().milliseconds,
-                MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
+                MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, grantKeyStoreKey),
                 IsRevoked = false,
                 KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
-                KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref icrKey),
+                KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(grantKeyStoreKey, icrKey),
                 PermissionSet = permissionSet
             };
 
@@ -84,7 +84,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
             if (masterKey != null)
             {
-                grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             }
 
             // grant.KeyStoreKeyEncryptedIcrKey
@@ -164,14 +164,14 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey, SensitiveByteArray? masterKey)
         {
-            var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
+            var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey);
 
             SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
 
             bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read);
             if (shouldGetStorageKey && storageKey != null && grantKeyStoreKey != null)
             {
-                keyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey);
+                keyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(grantKeyStoreKey, storageKey);
             }
 
             var dk = new DriveGrant()
@@ -194,7 +194,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other, SensitiveByteArray? sharedSecret = null)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var serverAccessKey = new SymmetricKeyEncryptedXor(ref accessKeyStoreKey, out var clientAccessKey);
+            var serverAccessKey = new SymmetricKeyEncryptedXor(accessKeyStoreKey, out var clientAccessKey);
 
             var ss = sharedSecret ?? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -204,11 +204,11 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                 AccessRegistrationClientType = clientType,
                 Created = UnixTimeUtc.Now().milliseconds,
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
-                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref ss),
+                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: ss),
                 IsRevoked = false,
                 AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null
                     ? null
-                    : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
+                    : new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: grantKeyStoreKey)
             };
 
             accessKeyStoreKey.Wipe();

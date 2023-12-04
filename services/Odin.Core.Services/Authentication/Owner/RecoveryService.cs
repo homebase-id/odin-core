@@ -39,7 +39,7 @@ public class RecoveryService
 
         var key = recoveryKey.ToUtf8ByteArray().ToSensitiveByteArray();
 
-        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref key);
+        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
     public async Task CreateInitialKey()
@@ -81,7 +81,7 @@ public class RecoveryService
 
         var keyRecord = GetKeyInternal();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-        var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(ref masterKey);
+        var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
         var rk = new DecryptedRecoveryKey
         {
@@ -108,9 +108,9 @@ public class RecoveryService
         //TODO: what validations are needed here?
         var record = new RecoveryKeyRecord()
         {
-            MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(ref masterKey, ref recoveryKey),
+            MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(masterKey, recoveryKey),
             Created = UnixTimeUtc.Now(),
-            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref recoveryKey, ref masterKey)
+            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
         };
 
         _storage.Upsert(_recordStorageId, record);

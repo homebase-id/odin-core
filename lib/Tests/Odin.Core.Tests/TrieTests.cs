@@ -1,7 +1,8 @@
 using System;
+using System.Diagnostics;
 using NUnit.Framework;
 using Odin.Core.Trie;
-using Odin.Core.Util.Fluff;
+using Odin.Core.Util;
 
 namespace Odin.Core.Tests
 {
@@ -22,9 +23,9 @@ namespace Odin.Core.Tests
             {
                 t.AddDomain("local.youfoundation.com", e);
             }
-            catch (EmptyKeyNotAllowedException)
+            catch (Exception ex)
             {
-                Assert.Pass();
+                Assert.IsTrue(ex.Message.Contains("Empty guid key not allowed", StringComparison.OrdinalIgnoreCase));
                 return;
             }
 
@@ -153,9 +154,9 @@ namespace Odin.Core.Tests
                 t.AddDomain("local.youfoundation.com", Guid.NewGuid());
                 t.AddDomain("local.youfoundation.com", Guid.NewGuid());
             }
-            catch (DomainHierarchyNotUniqueException)
+            catch (Exception e)
             {
-                Assert.Pass();
+                Assert.IsTrue(e.Message.Contains("Domain hierarchy not unique", StringComparison.OrdinalIgnoreCase));
                 return;
             }
 
@@ -545,5 +546,67 @@ namespace Odin.Core.Tests
 
             Assert.Pass();
         }
+
+        [Test, Explicit]
+        public void PerformanceTest()
+        {
+            const int domainsInDatabase = 1_000_000;
+
+            var t = new Trie<Guid>();
+            var randObj = new Random();
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+            string s;
+
+            for (var i = 0; i < domainsInDatabase; i++)
+            {
+                s = "";
+
+                // Generate random string
+                for (var j = 0; j < 8; j++)
+                {
+                    // Generate floating point numbers
+                    var myFloat = randObj.NextDouble();
+                    var myChar = Convert.ToChar(Convert.ToInt32(Math.Floor(25 * myFloat) + 65));
+                    s += myChar;
+                }
+
+                s += ".com";
+                try
+                {
+                    t.AddName(s, Guid.NewGuid());
+                }
+                catch
+                {
+                    Console.WriteLine($"Duplicate name {s}");
+                }
+            }
+
+            stopWatch.Stop();
+
+            Utils.StopWatchStatus($"Time to boot {domainsInDatabase} domains in DB", stopWatch);
+
+            const Int64 lookups = 10_000_000;
+
+            stopWatch.Restart();
+            uint k = 0;
+            for (var i = 0; i < lookups; i++)
+            {
+                if (t.LookupExactName("abcdefgh.com") != Guid.Empty)
+                    k++;
+                if (t.LookupExactName("michael.corleone.com") != Guid.Empty)
+                    k++;
+                if (t.LookupExactName("ymer.com") != Guid.Empty)
+                    k++;
+            }
+
+            stopWatch.Stop();
+            var ts = stopWatch.Elapsed;
+
+            Utils.StopWatchStatus($"Time to lookup {3 * lookups} trie entries", stopWatch);
+            Int64 cnt = 3 * ((1000 * lookups) / (Int64) ts.TotalMilliseconds);
+            Console.WriteLine("Lookups per second " + cnt.ToString());
+        }
+
     }
 }
