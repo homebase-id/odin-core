@@ -131,7 +131,7 @@ namespace Odin.Core.Services.Drives
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
         {
-            var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, ref storageKey, this.EncryptedIdIv);
+            var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, storageKey, this.EncryptedIdIv);
             if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.Id.ToByteArray()))
             {
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");

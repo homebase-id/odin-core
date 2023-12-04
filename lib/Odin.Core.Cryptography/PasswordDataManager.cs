@@ -44,11 +44,11 @@ namespace Odin.Core.Cryptography
             var kekKey = new SensitiveByteArray(Convert.FromBase64String(kek64));
             if(null == masterKey)
             {
-                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref kekKey);
+                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(kekKey);
             }
             else
             {
-                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref kekKey, ref masterKey);
+                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(kekKey, masterKey);
             }
             
             kekKey.Wipe();
@@ -72,7 +72,7 @@ namespace Odin.Core.Cryptography
 
         public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
         {
-            return EncryptedDek.DecryptKeyClone(ref KeK);
+            return EncryptedDek.DecryptKeyClone(KeK);
         }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace Odin.Core.Cryptography
 
             try
             {
-                decryptedRSA = key.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, Convert.FromBase64String(reply.RsaEncrypted));
+                decryptedRSA = key.Decrypt(RsaKeyListManagement.zeroSensitiveKey, Convert.FromBase64String(reply.RsaEncrypted));
             }
             catch
             {

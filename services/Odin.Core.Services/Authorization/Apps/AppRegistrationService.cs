@@ -122,7 +122,7 @@ namespace Odin.Core.Services.Authorization.Apps
             //TODO: Should we regen the key store key?  
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
             var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey() : null;
 

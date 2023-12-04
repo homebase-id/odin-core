@@ -54,6 +54,14 @@ namespace Odin.Core.Services.Registry
         Task DeleteRegistration(string domain);
 
         /// <summary>
+        /// Copies domain registration and payloads to another path
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <param name="targetRootPath"></param>
+        /// <returns>Path to copy</returns>
+        Task<string> CopyRegistration(string domain, string targetRootPath);
+
+        /// <summary>
         /// Gets a list of <see cref="IdentityRegistration"/>s based on the paging options sorted by domain name ascending
         /// </summary>
         /// <returns></returns>
@@ -76,6 +84,7 @@ namespace Odin.Core.Services.Registry
         /// <summary>
         /// Toggles disabled on/off
         /// </summary>
-        Task<IdentityRegistration> ToggleDisabled(string domain, bool disabled);
+        /// /// <returns>Previous state or null if not found</returns>
+        Task<bool?> ToggleDisabled(string domain, bool disabled);
     }
 }

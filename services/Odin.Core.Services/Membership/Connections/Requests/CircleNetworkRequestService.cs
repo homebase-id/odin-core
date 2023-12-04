@@ -218,7 +218,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey),
@@ -367,7 +367,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             var accessGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
                     keyStoreKey),
@@ -415,7 +415,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
 
             var tempKey = reply.TempKey.ToSensitiveByteArray();
-            var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(ref tempKey);
+            var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
             rawIcrKey.Wipe();
             tempKey.Wipe();

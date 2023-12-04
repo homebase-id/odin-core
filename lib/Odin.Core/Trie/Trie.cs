@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Odin.Core.Util;
-using Odin.Core.Util.Fluff;
+
+// Enable testing
+[assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
 namespace Odin.Core.Trie
 {
@@ -221,13 +224,13 @@ namespace Odin.Core.Trie
         // Adds the string sName (reversed) to the Trie with the DB key nKey
         // Returns false if error, true if OK. Will not detect duplicate use of DB
         // key.    
-        private void AddName(string asciiName, T Key)
+        internal void AddName(string asciiName, T Key)
         {
             if (asciiName.Length < 1)
-                throw new DomainTooShortException("DomainTooShort");
+                throw new ArgumentException("Domain name too short", nameof(asciiName));
 
             if (EqualityComparer<T>.Default.Equals(Key, default))
-                throw new EmptyKeyNotAllowedException("EmptyKeyNotAllowed");
+                throw new ArgumentException("Empty guid key not allowed", nameof(Key));
 
             // Add the domain name to the Trie - backwards (important)
             //
@@ -243,7 +246,7 @@ namespace Odin.Core.Trie
                 c = m_aTrieMap[asciiName[i]]; // Map and ignore case
 
                 if (c == 128) // Illegal character
-                    throw new DomainIllegalCharacterException("DomainIllegalCharacter");
+                    throw new ArgumentException($"Domain name {asciiName} contains illegal character", nameof(asciiName));
 
                 if (p.NodeArray == null)
                     CreateArray(ref p);
@@ -253,7 +256,7 @@ namespace Odin.Core.Trie
                 if (i == 0)
                 {
                     if (!EqualityComparer<T>.Default.Equals(p.DataClass, default))
-                        throw new DomainNameDuplicateInsertedException("DomainNameDuplicateInserted");
+                        throw new ArgumentException($"Duplicate name {asciiName} inserted", nameof(asciiName));
 
                     p.DataClass = Key;
                     // Finished
@@ -281,7 +284,7 @@ namespace Odin.Core.Trie
             {
                 if (InternalIsDomainUniqueInHierarchy(asciiName) == false)
                 {
-                    throw new DomainHierarchyNotUniqueException("DomainHierarchyNotUnique");
+                    throw new ArgumentException($"Domain hierarchy not unique for {asciiName}", nameof(asciiName));
                 }
                 AddName(asciiName, Key);
             }
@@ -295,7 +298,7 @@ namespace Odin.Core.Trie
         private void RemoveName(string asciiName)
         {
             if (asciiName.Length < 1)
-                throw new DomainTooShortException("DomainTooShort");
+                throw new ArgumentException($"Domain name too short {asciiName}", nameof(asciiName));
 
             // Remove the domain name to the Trie - backwards (important)
             //
@@ -353,67 +356,5 @@ namespace Odin.Core.Trie
                 _rwLock.ExitWriteLock(); 
             }
         }
-
-
-        // Tests
-        public void _PerformanceTest()
-        {
-            var t = new Trie<Guid>();
-            var randObj = new Random();
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-            string s;
-
-            for (var i = 0; i < 1000000; i++)
-            {
-                s = "";
-
-                // Generate random string
-                for (var j = 0; j < 8; j++)
-                {
-                    // Generate floating point numbers
-                    var myFloat = randObj.NextDouble();
-                    var myChar = Convert.ToChar(Convert.ToInt32(Math.Floor(25 * myFloat) + 65));
-                    s += myChar;
-                }
-
-                s += ".com";
-                t.AddName(s, Guid.NewGuid());
-            }
-
-            stopWatch.Stop();
-            var ts = stopWatch.Elapsed;
-
-            // Format and display the TimeSpan value.
-            var elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
-                ts.Hours, ts.Minutes, ts.Seconds,
-                ts.Milliseconds / 10);
-            Console.WriteLine("Time to boot 1,000,000 DB " + elapsedTime);
-
-            stopWatch.Start();
-
-            uint k = 0;
-            for (var i = 0; i < 100000000; i++)
-            {
-                if (t.LookupExactName("abcdefgh.com") != Guid.Empty)
-                    k++;
-                if (t.LookupExactName("michael.corleone.com") != Guid.Empty)
-                    k++;
-                if (t.LookupExactName("ymer.com") != Guid.Empty)
-                    k++;
-            }
-
-            stopWatch.Stop();
-            ts = stopWatch.Elapsed;
-
-            // Format and display the TimeSpan value.
-            elapsedTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}",
-                ts.Hours, ts.Minutes, ts.Seconds,
-                ts.Milliseconds / 10);
-            Console.WriteLine("Time to lookup 15,000,000 trie entries " + elapsedTime);
-
-            var cnt = 3 * 100000000 / (ts.Seconds * 1000 + ts.Milliseconds) * 1000;
-            Console.WriteLine("Lookups per second " + cnt.ToString());
-        }
-    }
+   }
 }
