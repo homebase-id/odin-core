@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -25,7 +26,7 @@ public class NotificationListService
         _tenantSystemStorage = tenantSystemStorage;
     }
 
-    public Task<AddNotificationResult> AddNotification(AddNotificationRequest request)
+    public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request)
     {
         _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
         
@@ -33,7 +34,7 @@ public class NotificationListService
         var record = new AppNotificationsRecord()
         {
             notificationId = id,
-            senderId = request.SenderId,
+            senderId = senderId,
             unread = 1,
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };

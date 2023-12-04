@@ -27,8 +27,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            request.SenderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-            return await _notificationService.AddNotification(request);
+            var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            return await _notificationService.AddNotification(sender, request);
         }
 
         [HttpGet("list")]

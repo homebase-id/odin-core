@@ -30,7 +30,7 @@ public class NotificationListTests
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        // _scaffold.RunAfterAnyTests();
+        _scaffold.RunAfterAnyTests();
     }
 
     public static IEnumerable TestCases()

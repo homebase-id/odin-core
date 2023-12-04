@@ -92,10 +92,9 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
             await this.Push(content);
 
             //add to system list
-            await _notificationListService.AddNotification(new AddNotificationRequest()
+            await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
             {
                 AppNotificationOptions = record.Options,
-                SenderId = record.SenderId
             });
         }
     }
