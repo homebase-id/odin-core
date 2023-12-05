@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var r = db.tblAppNotificationsTable.Get(nid);
             Debug.Assert(r != null);
             Debug.Assert(ByteArrayUtil.EquiByteArrayCompare(nid.ToByteArray(), r.notificationId.ToByteArray()) == true);
-            Debug.Assert(r.senderId == "frodo");
+            Debug.Assert(r.senderId == "frodo.com");
         }
 
         [Test]
