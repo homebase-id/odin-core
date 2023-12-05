@@ -24,6 +24,7 @@ using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Refit;
+using Serilog;
 
 namespace Odin.Core.Services.Peer.SendingHost
 {
@@ -464,8 +465,9 @@ namespace Odin.Core.Services.Peer.SendingHost
                             options)
                     });
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Log.Warning($"Failed while creating outbox item {ex.Message}");
                     AddToTransferKeyEncryptionQueue(recipient, internalFile);
                     transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }

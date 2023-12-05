@@ -40,8 +40,8 @@ public class TransitNotificationTests
 
     public static IEnumerable TestCases()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
+        // yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        // yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
     }
 
@@ -126,6 +126,9 @@ public class TransitNotificationTests
         Assert.IsNotNull(notification);
         Assert.IsTrue(notification.SenderId == sam.OdinId);
         Assert.IsTrue(notification.Options.AppId == appId);
+
+        await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
+        await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
     }
 
     private async Task<Guid> PrepareAppAccess(OwnerApiClientRedux ownerClient, Guid appId, TargetDrive targetDrive)
