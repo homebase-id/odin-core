@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using NUnit.Framework;
 using Odin.Core.Trie;
-using Odin.Core.Util;
+using Odin.Test.Helpers.Benchmark;
 
 namespace Odin.Core.Tests
 {
@@ -584,7 +584,7 @@ namespace Odin.Core.Tests
 
             stopWatch.Stop();
 
-            Utils.StopWatchStatus($"Time to boot {domainsInDatabase} domains in DB", stopWatch);
+            TestBenchmark.StopWatchStatus($"Time to boot {domainsInDatabase} domains in DB", stopWatch);
 
             const Int64 lookups = 10_000_000;
 
@@ -603,7 +603,7 @@ namespace Odin.Core.Tests
             stopWatch.Stop();
             var ts = stopWatch.Elapsed;
 
-            Utils.StopWatchStatus($"Time to lookup {3 * lookups} trie entries", stopWatch);
+            TestBenchmark.StopWatchStatus($"Time to lookup {3 * lookups} trie entries", stopWatch);
             Int64 cnt = 3 * ((1000 * lookups) / (Int64) ts.TotalMilliseconds);
             Console.WriteLine("Lookups per second " + cnt.ToString());
         }

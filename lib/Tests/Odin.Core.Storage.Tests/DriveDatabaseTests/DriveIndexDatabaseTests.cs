@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Test.Helpers.Benchmark;
 
 namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
@@ -2024,7 +2025,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             stopWatch.Stop();
-            Utils.StopWatchStatus("Built in QueryBatch()", stopWatch);
+            TestBenchmark.StopWatchStatus("Built in QueryBatch()", stopWatch);
 
             // Try to get a batch stopping at boundaryCursor. We should get none.
             (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -2257,7 +2258,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             _testDatabase.Commit();
 
             stopWatch.Stop();
-            Utils.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
+            TestBenchmark.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
 
             return (_testDatabase, fileId, conversationId, aclMembers, tags);
         }
