@@ -6,7 +6,8 @@ using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
-using Odin.Core.Util;
+using Odin.Test.Helpers.Benchmark;
+
 
 namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
@@ -53,7 +54,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
-            Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
+            TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
@@ -100,7 +101,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
-            Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
+            TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
@@ -159,7 +160,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
-            Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
+            TestBenchmark.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
 
             _testDatabase.Dispose();
