@@ -10,6 +10,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
+using Serilog;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 
@@ -118,6 +119,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task UpdateCurrentIndex(ServerFileHeader header)
     {
+        if (null == header)
+        {
+            Log.Warning($"UpdateCurrentIndex called on null server file header");
+            return Task.CompletedTask;
+        }
+        
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;

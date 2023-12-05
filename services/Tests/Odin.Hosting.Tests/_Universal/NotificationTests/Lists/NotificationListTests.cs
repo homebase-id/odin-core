@@ -55,7 +55,7 @@ public class NotificationListTests
         var options1 = new AppNotificationOptions()
         {
             AppId = appId,
-            GroupId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
@@ -64,7 +64,7 @@ public class NotificationListTests
         var options2 = new AppNotificationOptions()
         {
             AppId = appId,
-            GroupId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
             TagId = Guid.NewGuid()
         };
 
@@ -84,8 +84,8 @@ public class NotificationListTests
             var results = response.Content?.Results;
             Assert.IsNotNull(results);
             Assert.IsTrue(results.Count == 2);
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.GroupId == options1.GroupId));
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.GroupId == options2.GroupId));
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
+            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
         }
     }
 
@@ -101,7 +101,7 @@ public class NotificationListTests
         var options = new AppNotificationOptions()
         {
             AppId = Guid.NewGuid(),
-            GroupId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
@@ -152,7 +152,7 @@ public class NotificationListTests
         var options = new AppNotificationOptions()
         {
             AppId = Guid.NewGuid(),
-            GroupId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);

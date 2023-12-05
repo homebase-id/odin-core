@@ -9,7 +9,7 @@ public class AppNotificationOptions
 {
     public Guid AppId { get; set; }
 
-    public Guid GroupId { get; set; }
+    public Guid TypeId { get; set; }
 
     /// <summary>
     /// An app-specific identifier

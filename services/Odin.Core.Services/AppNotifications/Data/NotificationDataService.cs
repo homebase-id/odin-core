@@ -35,6 +35,7 @@ public class NotificationListService
         {
             notificationId = id,
             senderId = senderId,
+            timestamp = request.Timestamp,
             unread = 1,
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };

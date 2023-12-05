@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,12 +9,13 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Serilog;
@@ -24,8 +24,7 @@ using WebPush;
 
 namespace Odin.Core.Services.AppNotifications.Push;
 
-public class PushNotificationService : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
-    INotificationHandler<TransitFileReceivedNotification>
+public class PushNotificationService : INotificationHandler<NewFollowerNotification>, INotificationHandler<ConnectionRequestAccepted>, INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
@@ -37,14 +36,17 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
     private readonly PublicPrivateKeyService _keyService;
     private readonly ServerSystemStorage _serverSystemStorage;
     private readonly byte[] _deviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
+    private readonly IAppRegistrationService _appRegistrationService;
 
     public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService,
-        TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage, NotificationListService notificationListService)
+        TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage, NotificationListService notificationListService,
+        IAppRegistrationService appRegistrationService)
     {
         _contextAccessor = contextAccessor;
         _keyService = keyService;
         _serverSystemStorage = serverSystemStorage;
         _notificationListService = notificationListService;
+        _appRegistrationService = appRegistrationService;
         _pushNotificationOutbox = new PushNotificationOutbox(tenantSystemStorage, contextAccessor);
         _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     }
@@ -52,14 +54,14 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(AppNotificationOptions options)
+    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options)
     {
         //TODO: which security to check?
         //app permissions? I.e does the calling app on the recipient server have access to send notifications?
 
         var item = new PushNotificationOutboxRecord()
         {
-            SenderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+            SenderId = senderId,
             Options = options
         };
 
@@ -72,31 +74,36 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
 
     public async Task ProcessBatch()
     {
-        const int batchSize = 100;
+        const int batchSize = 21; //todo: configure
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
+
+        var pushContent = new PushNotificationContent()
+        {
+            Payloads = new List<PushNotificationPayload>()
+        };
 
         //TODO: add throttling, grouping, etc.
         foreach (var record in list)
         {
-            var content = new PushNotificationContent()
-            {
-                Payload = OdinSystemSerializer.Serialize(new PushNotificationPayload()
-                {
-                    SenderId = record.SenderId,
-                    Timestamp = record.Timestamp,
-                    Options = record.Options
-                })
-            };
+            var appReg = await _appRegistrationService.GetAppRegistration(record.Options.AppId);
 
-            //Push to devices
-            await this.Push(content);
+            pushContent.Payloads.Add(new PushNotificationPayload()
+            {
+                AppDisplayName = appReg?.Name,
+                Options = record.Options,
+                SenderId = record.SenderId,
+                Timestamp = record.Timestamp,
+            });
 
             //add to system list
             await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
             {
+                Timestamp = record.Timestamp,
                 AppNotificationOptions = record.Options,
             });
         }
+
+        await this.Push(pushContent);
     }
 
     public async Task Push(PushNotificationContent content)
@@ -114,15 +121,17 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
             var vapidDetails = new VapidDetails("mailto:info@homebase.id", keys.PublicKey64, keys.PrivateKey64); //TODO: config
 
+            var data = OdinSystemSerializer.Serialize(content);
+
             //TODO: this will probably need to get an http client via @Seb's work
             var webPushClient = new WebPushClient();
             try
             {
-                await webPushClient.SendNotificationAsync(subscription, content.Payload, vapidDetails);
+                await webPushClient.SendNotificationAsync(subscription, data, vapidDetails);
             }
             catch (WebPushException exception)
             {
-                Log.Warning("Failed sending push notification");
+                Log.Warning($"Failed sending push notification [{exception.PushSubscription}]");
                 //TODO: collect all errors and send back to client or do something with it
                 // throw new OdinClientException("Failed to send one or more notifications.", exception);
                 // Console.WriteLine("Http STATUS code" + exception.StatusCode);
@@ -181,21 +190,6 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
         return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
     }
 
-    public Task Handle(IClientNotification notification, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    public Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
     private Guid GetDeviceKey()
     {
         var key = _contextAccessor.GetCurrent().Caller.OdinClientContext?.AccessRegistrationId ?? Guid.Empty;
@@ -212,5 +206,44 @@ public class PushNotificationService : INotificationHandler<IClientNotification>
     {
         var tenant = _contextAccessor.GetCurrent().Tenant;
         _serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
+    }
+
+    public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
+    {
+        this.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
+        {
+            AppId = SystemAppConstants.OwnerAppId,
+            TypeId = notification.NotificationTypeId,
+            TagId = notification.OdinId.ToHashId(),
+            Silent = false
+        });
+        
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
+    {
+        this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
+        {
+            AppId = SystemAppConstants.OwnerAppId,
+            TypeId = notification.NotificationTypeId,
+            TagId = notification.Sender.ToHashId(),
+            Silent = false
+        });
+        return Task.CompletedTask;
+
+    }
+
+    public Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+    {
+        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+        {
+            AppId = SystemAppConstants.OwnerAppId,
+            TypeId = notification.NotificationTypeId,
+            TagId = notification.Sender.ToHashId(),
+            Silent = false
+        });
+        
+        return Task.CompletedTask;
     }
 }

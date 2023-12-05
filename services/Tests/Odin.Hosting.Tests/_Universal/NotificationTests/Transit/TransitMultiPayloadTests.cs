@@ -95,7 +95,7 @@ public class TransitNotificationTests
         var options = new AppNotificationOptions()
         {
             AppId = appId,
-            GroupId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
             Silent = true,
             TagId = Guid.NewGuid() //note: if this is meant to be the fileId, how can it be set by the client
         };

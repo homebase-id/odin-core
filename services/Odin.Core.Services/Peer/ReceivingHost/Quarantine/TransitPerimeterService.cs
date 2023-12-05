@@ -141,7 +141,8 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                     var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
                     if (null != notificationOptions)
                     {
-                        await _pushNotificationService.EnqueueNotification(notificationOptions);
+                        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
                     }
                 }
 

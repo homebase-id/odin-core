@@ -46,6 +46,7 @@ public class GetNotificationListRequest
 public class AddNotificationRequest
 {
     public AppNotificationOptions AppNotificationOptions { get; set; }
+    public long Timestamp { get; set; }
 }
 
 
