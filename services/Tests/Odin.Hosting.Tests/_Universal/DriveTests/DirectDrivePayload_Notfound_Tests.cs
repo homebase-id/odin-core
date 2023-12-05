@@ -6,13 +6,8 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Hosting.Tests._Redux.DriveApi.DirectDrive;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
@@ -59,8 +54,8 @@ public class DirectDrivePayload_Notfound_Tests
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            TestPayloadDefinitions.PayloadDefinitionWithThumbnail1,
-            TestPayloadDefinitions.PayloadDefinitionWithThumbnail2
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail2
         };
 
         var uploadManifest = new UploadManifest()

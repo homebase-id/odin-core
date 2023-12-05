@@ -7,12 +7,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Hosting.Tests._Redux.DriveApi.DirectDrive;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
@@ -44,9 +40,21 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
     }
+    
+    public static IEnumerable OwnerAndAppBadRequest()
+    {
+        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
+        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
+    }
+    
+    public static IEnumerable GuestForbidden()
+    {
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+    }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAndAppBadRequest))]
+    [TestCaseSource(nameof(GuestForbidden))]
     public async Task FailToDeletePayloadOnExistingFileWhenInvalidVersionTagIsSpecified(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
@@ -57,7 +65,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
-        var uploadedPayloadDefinition = TestPayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
@@ -122,7 +130,8 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCases))]
+    [TestCaseSource(nameof(OwnerAndAppBadRequest))]
+    [TestCaseSource(nameof(GuestForbidden))]
     public async Task FailWhenModifyingPayloadOnExistingFileAndInvalidVersionTagIsSpecified(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -145,7 +154,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         //
         // Now add a payload
         //
-        var uploadedPayloadDefinition = TestPayloadDefinitions.PayloadDefinition1;
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
         var testPayloads = new List<TestPayloadDefinition>()
         {
             uploadedPayloadDefinition
@@ -178,8 +187,8 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         //Note: the duplicate keys
         var testPayloads = new List<TestPayloadDefinition>()
         {
-            TestPayloadDefinitions.PayloadDefinitionWithThumbnail1, //Note: the duplicate keys are intentional
-            TestPayloadDefinitions.PayloadDefinitionWithThumbnail1 //Note: the duplicate keys are intentional
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1, //Note: the duplicate keys are intentional
+            SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1 //Note: the duplicate keys are intentional
         };
 
         var uploadManifest = new UploadManifest()
