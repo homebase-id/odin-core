@@ -20,4 +20,6 @@ public class AppNotificationOptions
     /// Do not play a sound or vibrate the phone
     /// </summary>
     public bool Silent { get; set; }
+    
+    public string UnEncryptedMessage { get; set; }
 }
