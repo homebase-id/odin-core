@@ -115,6 +115,14 @@ namespace Odin.Core.Services.Certificate
 
         private async Task<X509Certificate2> InternalCreateCertificate(string domain, string[] sans = null)
         {
+            // Sanity
+            if (domain.EndsWith(".dotyou.cloud"))
+            {
+                _logger.LogError(
+                    "Can't create certificate for {domain} because it resolves to 127.0.0.1. Did it expire?", domain);
+                return null;
+            }
+
             try
             {
                 if (sans != null) // don't verify system domains (e.g. provisioning, admin, etc)
