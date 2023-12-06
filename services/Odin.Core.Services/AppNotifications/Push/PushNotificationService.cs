@@ -74,7 +74,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
     public async Task ProcessBatch()
     {
-        const int batchSize = 21; //todo: configure
+        const int batchSize = 100; //todo: configure
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
 
         //TODO: add throttling

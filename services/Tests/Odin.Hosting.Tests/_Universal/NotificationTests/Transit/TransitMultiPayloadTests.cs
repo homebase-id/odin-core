@@ -97,6 +97,7 @@ public class TransitNotificationTests
             AppId = appId,
             TypeId = Guid.NewGuid(),
             Silent = true,
+            UnEncryptedMessage = "some unencrypted message",
             TagId = Guid.NewGuid() //note: if this is meant to be the fileId, how can it be set by the client
         };
 
@@ -126,6 +127,9 @@ public class TransitNotificationTests
         Assert.IsNotNull(notification);
         Assert.IsTrue(notification.SenderId == sam.OdinId);
         Assert.IsTrue(notification.Options.AppId == appId);
+        Assert.IsTrue(notification.Options.TypeId == options.TypeId);
+        Assert.IsTrue(notification.Options.Silent == options.Silent);
+        Assert.IsTrue(notification.Options.TagId == options.TagId);
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
