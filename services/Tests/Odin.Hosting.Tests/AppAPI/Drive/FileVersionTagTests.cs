@@ -147,8 +147,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
 
             var details = OdinSystemSerializer.Deserialize<ProblemDetails>(apiResponse!.Error!.Content!);
-            Assert.IsTrue((OdinClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!) ==
-                          OdinClientErrorCode.VersionTagMismatch);
+            Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), details.Extensions["errorCode"].ToString()!, true, out var code));
+            Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.VersionTagMismatch);
         }
     }
 }

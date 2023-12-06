@@ -76,7 +76,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     {
         const int batchSize = 21; //todo: configure
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
-
+        
         var pushContent = new PushNotificationContent()
         {
             Payloads = new List<PushNotificationPayload>()
@@ -101,6 +101,9 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
                 Timestamp = record.Timestamp,
                 AppNotificationOptions = record.Options,
             });
+            
+            await _pushNotificationOutbox.MarkComplete(record.Marker);
+
         }
 
         await this.Push(pushContent);
@@ -210,39 +213,39 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
     public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.OdinId.ToHashId(),
-            Silent = false
-        });
+        // this.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
+        // {
+        //     AppId = SystemAppConstants.OwnerAppId,
+        //     TypeId = notification.NotificationTypeId,
+        //     TagId = notification.OdinId.ToHashId(),
+        //     Silent = false
+        // });
         
         return Task.CompletedTask;
     }
 
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.Sender.ToHashId(),
-            Silent = false
-        });
+        // this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
+        // {
+        //     AppId = SystemAppConstants.OwnerAppId,
+        //     TypeId = notification.NotificationTypeId,
+        //     TagId = notification.Recipient.ToHashId(),
+        //     Silent = false
+        // });
         return Task.CompletedTask;
 
     }
 
     public Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.Sender.ToHashId(),
-            Silent = false
-        });
+        // this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+        // {
+        //     AppId = SystemAppConstants.OwnerAppId,
+        //     TypeId = notification.NotificationTypeId,
+        //     TagId = notification.Sender.ToHashId(),
+        //     Silent = false
+        // });
         
         return Task.CompletedTask;
     }

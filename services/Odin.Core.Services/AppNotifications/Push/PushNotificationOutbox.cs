@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
@@ -35,7 +36,7 @@ public class PushNotificationOutbox
 
         //TODO: do i need to capture the sender as part of the outbox structure is the state alone ok?
         var fileId = record.Options.TagId;
-
+        
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
 
         _tenantSystemStorage.Outbox.Upsert(new OutboxRecord()

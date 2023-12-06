@@ -199,11 +199,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
                 Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(
-                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(),
-                        out var code),
-                    "Could not parse problem result");
-                Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+
+                var codeText = OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString();
+                Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), codeText, true, out var code), "Could not parse problem result");
+                Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                
             }
         }
 
@@ -502,11 +502,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
 
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(
-                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(),
-                        out var code),
-                    "Could not parse problem result");
-                Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+               
+                var codeText = OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString();
+                Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), codeText, true, out var code), "Could not parse problem result");
+                Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
 
                 await svc.DeleteCircleDefinition(circle.Id);
             }
