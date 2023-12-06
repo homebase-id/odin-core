@@ -110,7 +110,7 @@ public class ExceptionHandlingMiddlewareTest
         var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
         Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.NotFound));
         Assert.That(problems.Title, Is.EqualTo("my-error-message"));
-        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!),
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!,true),
             Is.EqualTo(OdinClientErrorCode.NoErrorCode));
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
@@ -149,7 +149,7 @@ public class ExceptionHandlingMiddlewareTest
         var problems = OdinSystemSerializer.Deserialize<ProblemDetails>(content);
         Assert.That(problems.Status, Is.EqualTo((int)HttpStatusCode.NotFound));
         Assert.That(problems.Title, Is.EqualTo("my-error-message"));
-        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!),
+        Assert.That(Enum.Parse<OdinClientErrorCode>(problems.Extensions["errorCode"].ToString()!, true),
             Is.EqualTo(OdinClientErrorCode.FileNotFound));
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
