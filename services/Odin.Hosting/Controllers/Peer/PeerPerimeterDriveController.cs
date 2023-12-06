@@ -5,6 +5,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -26,6 +28,7 @@ namespace Odin.Hosting.Controllers.Peer
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerPerimeterDriveController : OdinControllerBase
     {
+        private readonly PushNotificationService _pushNotificationService;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
@@ -34,13 +37,14 @@ namespace Odin.Hosting.Controllers.Peer
 
         /// <summary />
         public PeerPerimeterDriveController(OdinContextAccessor contextAccessor, DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;
             this._driveManager = driveManager;
             this._tenantSystemStorage = tenantSystemStorage;
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _pushNotificationService = pushNotificationService;
         }
 
         [HttpPost("batchcollection")]
@@ -272,6 +276,8 @@ namespace Odin.Hosting.Controllers.Peer
             });
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
             return result;
         }
@@ -293,7 +299,8 @@ namespace Odin.Hosting.Controllers.Peer
                 fileSystem,
                 _tenantSystemStorage,
                 _mediator,
-                _fileSystemResolver);
+                _fileSystemResolver,
+                _pushNotificationService);
         }
     }
 }

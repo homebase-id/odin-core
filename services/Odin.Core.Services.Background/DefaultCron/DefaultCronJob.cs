@@ -21,8 +21,8 @@ namespace Odin.Core.Services.Background.DefaultCron
         private readonly ISystemHttpClient _systemHttpClient;
 
         public DefaultCronJob(
-            ServerSystemStorage serverSystemStorage, 
-            OdinConfiguration config, 
+            ServerSystemStorage serverSystemStorage,
+            OdinConfiguration config,
             ISystemHttpClient systemHttpClient)
         {
             _serverSystemStorage = serverSystemStorage;
@@ -37,7 +37,7 @@ namespace Odin.Core.Services.Background.DefaultCron
             {
                 throw new OdinSystemException("Quartz:CronBatchSize must be greater than zero");
             }
-            
+
             var batch = _serverSystemStorage.tblCron.Pop(batchSize);
             var tasks = new List<Task<(CronRecord record, bool success)>>(batch.Select(ProcessRecord));
             _serverSystemStorage.tblCron.PopCommitList(tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
@@ -60,6 +60,12 @@ namespace Odin.Core.Services.Background.DefaultCron
                 success = await job.Execute(record);
             }
 
+            if (record.type == (Int32)CronJobType.PushNotification)
+            {
+                var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
+                success = await PushNotifications(identity);
+            }
+
             return (record, success);
         }
 
@@ -67,6 +73,13 @@ namespace Odin.Core.Services.Background.DefaultCron
         {
             var svc = _systemHttpClient.CreateHttps<ICronHttpClient>(identity);
             var response = await svc.ProcessOutbox();
+            return response.IsSuccessStatusCode;
+        }
+
+        private async Task<bool> PushNotifications(OdinId identity)
+        {
+            var svc = _systemHttpClient.CreateHttps<ICronHttpClient>(identity);
+            var response = await svc.ProcessPushNotifications();
             return response.IsSuccessStatusCode;
         }
     }

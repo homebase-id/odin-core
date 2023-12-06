@@ -18,19 +18,7 @@ namespace Odin.Core.Services.Peer.SendingHost.Outbox
 
         public void EnsureIdentityIsPending(OdinId sender)
         {
-            try
-            {
-                _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
-            }
-            catch (Microsoft.Data.Sqlite.SqliteException ex)
-            {
-                //ignore constraint error code as it just means we tried to insert the sender twice.
-                //it's only needed once
-                if (ex.ErrorCode != 19) //constraint
-                {
-                    throw;
-                }
-            }
+            _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
         }
 
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
@@ -41,7 +29,7 @@ namespace Odin.Core.Services.Peer.SendingHost.Outbox
             {
                 return (new List<OdinId>(), Guid.Empty);
             }
-            
+
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
 
             var result = (senders, records.First().popStamp.GetValueOrDefault());

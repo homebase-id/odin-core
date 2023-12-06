@@ -41,14 +41,26 @@ public class ServerSystemStorage : IDisposable
 
     public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data)
     {
-        this.tblCron.Insert(new CronRecord()
+        try
         {
-            identityId = odinId,
-            type = (Int32)jobType,
-            data = data
-        });
+            this.tblCron.Insert(new CronRecord()
+            {
+                identityId = odinId,
+                type = (Int32)jobType,
+                data = data
+            });
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex)
+        {
+            //ignore constraint error code as it just means we tried to insert the sender twice.
+            //it's only needed once
+            if (ex.ErrorCode != 19) //constraint
+            {
+                throw;
+            }
+        }
     }
-    
+
     public void EnqueueJob<T>(OdinId odinId, CronJobType jobType, T data)
     {
         this.tblCron.Insert(new CronRecord()

@@ -164,7 +164,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         public Task<EccPublicKeyData> GetSigningPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
-            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
+            return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
         public Task<EccPublicKeyData> GetOnlineEccPublicKey()
@@ -447,6 +447,11 @@ namespace Odin.Core.Services.EncryptionKeyService
         private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey)
         {
             var keyList = GetEccKeyListFromStorage(storageKey);
+            if (null == keyList)
+            {
+                return null;
+            }
+            
             return EccKeyListManagement.GetCurrentKey(keyList);
         }
 

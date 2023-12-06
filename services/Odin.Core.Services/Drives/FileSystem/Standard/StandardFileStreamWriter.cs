@@ -18,15 +18,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard;
 /// <summary />
 public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly ITransitService _transitService;
-
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
         ITransitService transitService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, transitService)
     {
-        _transitService = transitService;
     }
 
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)
@@ -56,7 +53,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false);
     }
 
-    protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+        ServerMetadata serverMetadata)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -85,15 +83,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
     {
-        Dictionary<string, TransferStatus> recipientStatus = null;
-        var recipients = package.InstructionSet.TransitOptions?.Recipients;
-        if (recipients?.Any() ?? false)
-        {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal,
-                FileSystemType.Standard);
-        }
-
-        return recipientStatus;
+        return await ProcessTransitBasic(package, FileSystemType.Standard);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor)

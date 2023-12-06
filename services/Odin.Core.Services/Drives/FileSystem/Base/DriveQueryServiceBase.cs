@@ -66,29 +66,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
             AssertCanReadDrive(driveId);
-
-            var queryManager = await TryGetOrLoadQueryManager(driveId);
-            if (queryManager != null)
-            {
-                var queryTime = UnixTimeUtcUnique.Now();
-                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
-                    GetFileSystemType(),
-                    qp,
-                    options);
-
-
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
-                return new QueryBatchResult()
-                {
-                    QueryTime = queryTime.uniqueTime,
-                    IncludeMetadataHeader = options.IncludeHeaderContent,
-                    Cursor = cursor,
-                    SearchResults = headers,
-                    HasMoreRows = hasMoreRows
-                };
-            }
-
-            throw new NoValidIndexClientException(driveId);
+            return await GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
@@ -157,7 +135,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
-            AssertCanReadDrive(driveId);
+            AssertCanReadOrWriteToDrive(driveId); 
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -170,9 +148,51 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
-            var results = await this.GetBatch(driveId, qp, options, forceIncludeServerMetadata);
+            var results = await this.GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
 
             return results.SearchResults.SingleOrDefault();
+        }
+
+        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
+        {
+            var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
+            AssertCanReadOrWriteToDrive(driveId);
+
+            var qp = new FileQueryParams()
+            {
+                GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
+            };
+
+            var options = new QueryBatchResultOptions()
+            {
+                Cursor = null,
+                MaxRecords = 10,
+                ExcludePreviewThumbnail = true
+            };
+
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            if (queryManager != null)
+            {
+                var (_, fileIdList, _) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
+                    GetFileSystemType(),
+                    qp,
+                    options);
+
+                var fileId = fileIdList.FirstOrDefault();
+
+                if (fileId == Guid.Empty)
+                {
+                    return null;
+                }
+
+                return new InternalDriveFileId()
+                {
+                    FileId = fileId,
+                    DriveId = driveId
+                };
+            }
+
+            throw new NoValidIndexClientException(driveId);
         }
 
         private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
@@ -259,46 +279,32 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         /// Gets the file Id a file by its <see cref="GlobalTransitIdFileIdentifier"/>
         /// </summary>
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
-        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
+        
+        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
-            var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
-            AssertCanReadOrWriteToDrive(driveId);
-
-            var qp = new FileQueryParams()
-            {
-                GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
-            };
-
-            var options = new QueryBatchResultOptions()
-            {
-                Cursor = null,
-                MaxRecords = 10,
-                ExcludePreviewThumbnail = true
-            };
-
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
-                var (_, fileIdList, _) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
+                var queryTime = UnixTimeUtcUnique.Now();
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
 
-                var fileId = fileIdList.FirstOrDefault();
 
-                if (fileId == Guid.Empty)
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
+                return new QueryBatchResult()
                 {
-                    return null;
-                }
-
-                return new InternalDriveFileId()
-                {
-                    FileId = fileId,
-                    DriveId = driveId
+                    QueryTime = queryTime.uniqueTime,
+                    IncludeMetadataHeader = options.IncludeHeaderContent,
+                    Cursor = cursor,
+                    SearchResults = headers,
+                    HasMoreRows = hasMoreRows
                 };
             }
 
             throw new NoValidIndexClientException(driveId);
         }
+
     }
 }

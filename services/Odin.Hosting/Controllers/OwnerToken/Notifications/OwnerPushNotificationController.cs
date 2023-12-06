@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Peer;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 {
@@ -14,10 +16,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     public class OwnerPushNotificationController : Controller
     {
         private readonly PushNotificationService _notificationService;
+        private readonly OdinContextAccessor _contextAccessor;
 
-        public OwnerPushNotificationController(PushNotificationService notificationService)
+        public OwnerPushNotificationController(PushNotificationService notificationService, OdinContextAccessor contextAccessor)
         {
             _notificationService = notificationService;
+            _contextAccessor = contextAccessor;
         }
 
         /// <summary />
@@ -77,10 +81,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
         }
 
         [HttpPost("push")]
-        public async Task<IActionResult> Push([FromBody] PushNotificationContent content)
+        public async Task<IActionResult> Push([FromBody] AppNotificationOptions options)
         {
-            await _notificationService.Push(content);
-
+            var caller = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            await _notificationService.EnqueueNotification(caller, options);
             return Ok();
         }
     }

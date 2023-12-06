@@ -24,6 +24,10 @@ namespace Odin.Core.Services.Peer.SendingHost
         /// </summary>
         public List<string> Recipients { get; set; }
 
+        public bool UseAppNotification { get; set; }
+
+        public AppNotificationOptions AppNotificationOptions { get; set; }
+
         /// <summary>
         /// Options for when to send the file(s)
         /// </summary>
@@ -45,7 +49,6 @@ namespace Odin.Core.Services.Peer.SendingHost
         //TODO: hack - This is a hack in place for alpha to support transit direct send
         public Guid? OverrideRemoteGlobalTransitId { get; set; }
     }
-
 
     [Flags]
     public enum SendContents

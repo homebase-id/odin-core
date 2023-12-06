@@ -25,5 +25,7 @@ namespace Odin.Core.Services.Peer.Encryption
         /// The file parts provided by the sender
         /// </summary>
         public SendContents ContentsProvided { get; set; }
+
+        public AppNotificationOptions AppNotificationOptions { get; set; }
     }
 }

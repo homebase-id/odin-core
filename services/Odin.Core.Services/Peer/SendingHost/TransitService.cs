@@ -24,6 +24,7 @@ using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Refit;
+using Serilog;
 
 namespace Odin.Core.Services.Peer.SendingHost
 {
@@ -255,6 +256,7 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 //look up transfer key
                 var transferInstructionSet = outboxItem.TransferInstructionSet;
+                
                 if (null == transferInstructionSet)
                 {
                     return new SendResult()
@@ -275,10 +277,15 @@ namespace Odin.Core.Services.Peer.SendingHost
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
                 decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
-                var transferKeyHeaderBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
+                if (options.UseAppNotification)
+                {
+                    transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
+                }
+                
+                var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(
-                    new MemoryStream(transferKeyHeaderBytes),
-                    "transferKeyHeader.encrypted", "application/json",
+                    new MemoryStream(transferInstructionSetBytes),
+                    "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 if (header.ServerMetadata.AllowDistribution == false)
@@ -348,7 +355,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                                 $"{thumb.PixelWidth}" +
                                 $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
                                 $"{thumb.PixelHeight}";
-                            
+
                             additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                                 Enum.GetName(MultipartUploadParts.Thumbnail)));
                         }
@@ -458,8 +465,9 @@ namespace Odin.Core.Services.Peer.SendingHost
                             options)
                     });
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Log.Warning($"Failed while creating outbox item {ex.Message}");
                     AddToTransferKeyEncryptionQueue(recipient, internalFile);
                     transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }

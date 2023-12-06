@@ -44,6 +44,19 @@ public class UniversalDriveApiClient
         bool useGlobalTransitId = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
+        var transitOptions = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+        
+        return await this.UploadNewMetadata(targetDrive, fileMetadata, transitOptions, fileSystemType);
+    }
+
+    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
+        TransitOptions transitOptions,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
@@ -55,16 +68,13 @@ public class UniversalDriveApiClient
                 Drive = targetDrive,
                 OverwriteFileId = default
             },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            TransitOptions = transitOptions
         };
 
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-            
+
             fileMetadata.IsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
@@ -89,7 +99,7 @@ public class UniversalDriveApiClient
             return response;
         }
     }
-
+    
     public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag, UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -399,115 +409,121 @@ public class UniversalDriveApiClient
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.DeletePayload(new DeletePayloadRequest()
         {
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-            var response = await svc.DeletePayload(new DeletePayloadRequest()
-            {
-                File = targetFile,
-                VersionTag = targetVersionTag,
-                Key = payloadKey
-            });
+            File = targetFile,
+            VersionTag = targetVersionTag,
+            Key = payloadKey
+        });
 
-            return response;
-        }
+        return response;
     }
 
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            //wth - refit is not sending headers when you do GET request - why not!?
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
-            var apiResponse = await svc.GetFileHeaderAsPost(file);
-            return apiResponse;
-        }
+        //wth - refit is not sending headers when you do GET request - why not!?
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+        var apiResponse = await svc.GetFileHeaderAsPost(file);
+        return apiResponse;
     }
 
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        //wth - refit is not sending headers when you do GET request - why not!?
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        return await svc.GetPayloadPost(new GetPayloadRequest()
         {
-            //wth - refit is not sending headers when you do GET request - why not!?
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-            return await svc.GetPayloadPost(new GetPayloadRequest()
-            {
-                File = file,
-                Chunk = chunk,
-                Key = key
-            });
-        }
+            File = file,
+            Chunk = chunk,
+            Key = key
+        });
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var thumbnailResponse = await svc.GetThumbnailPost(new GetThumbnailRequest()
         {
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+            File = file,
+            Height = height,
+            Width = width,
+            PayloadKey = payloadKey
+        });
 
-            var thumbnailResponse = await svc.GetThumbnailPost(new GetThumbnailRequest()
-            {
-                File = file,
-                Height = height,
-                Width = width,
-                PayloadKey = payloadKey
-            });
-
-            return thumbnailResponse;
-        }
+        return thumbnailResponse;
     }
 
     public async Task<ApiResponse<DeleteFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        //wth - refit is not sending headers when you do GET request - why not!?
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
         {
-            //wth - refit is not sending headers when you do GET request - why not!?
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-            var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
-            {
-                File = file,
-                Recipients = recipients
-            });
+            File = file,
+            Recipients = recipients
+        });
 
-            return apiResponse;
-        }
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdList(DeleteFilesByGroupIdBatchRequest batch,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        //wth - refit is not sending headers when you do GET request - why not!?
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.DeleteFilesByGroupIdBatch(batch);
+
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<DeleteFileIdBatchResult>> DeleteFileList(List<DeleteFileRequest> requests,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var batch = new DeleteFileIdBatchRequest()
+        {
+            Requests = requests
+        };
+
+        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.DeleteFileIdBatch(batch);
+        return apiResponse;
     }
 
     public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-
-            var response = await svc.GetBatch(request);
-            return response;
-        }
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.GetBatch(request);
+        return response;
     }
 
     public async Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-
-            var response = await svc.GetModified(request);
-            return response;
-        }
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.GetModified(request);
+        return response;
     }
 
     public async Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(QueryBatchCollectionRequest request,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-
-            var response = await svc.GetBatchCollection(request);
-            return response;
-        }
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.GetBatchCollection(request);
+        return response;
     }
 }

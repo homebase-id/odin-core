@@ -92,7 +92,7 @@ public class NotificationsTest
         // Wait for the reply 
         //
         // var innerBuffer = new byte[200];
-        var receiveBuffer = new ArraySegment<byte>(new byte[200]);
+        var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 3]);
         var receiveResult = await socket.ReceiveAsync(receiveBuffer, tokenSource.Token);
         if (receiveResult.MessageType == WebSocketMessageType.Text)
         {

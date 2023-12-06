@@ -37,7 +37,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var referencedFile = updatedFileHeader?.FileMetadata?.ReferencedFile;
 
-        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted && !((DriveFileDeletedNotification)notification).IsHardDelete)
         {
             referencedFile = ((DriveFileDeletedNotification)notification).PreviousServerFileHeader.FileMetadata.ReferencedFile;
         }

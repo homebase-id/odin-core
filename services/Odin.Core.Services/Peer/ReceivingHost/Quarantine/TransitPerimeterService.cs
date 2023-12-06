@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -26,6 +29,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
 {
     public class TransitPerimeterService : ITransitPerimeterService
     {
+        private readonly PushNotificationService _pushNotificationService;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
@@ -40,7 +44,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
-            FileSystemResolver fileSystemResolver)
+            FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
@@ -48,6 +52,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _pushNotificationService = pushNotificationService;
 
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem, contextAccessor);
         }
@@ -129,6 +134,18 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             if (item.IsCompleteAndValid())
             {
                 var responseCode = await CompleteTransfer(item, fileMetadata);
+
+                if (responseCode == TransitResponseCode.AcceptedDirectWrite ||
+                    responseCode == TransitResponseCode.AcceptedIntoInbox)
+                {
+                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                    if (null != notificationOptions)
+                    {
+                        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                    }
+                }
+
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = responseCode };
             }

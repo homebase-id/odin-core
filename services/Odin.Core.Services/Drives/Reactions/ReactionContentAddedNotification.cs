@@ -12,6 +12,7 @@ public class ReactionContentAddedNotification : EventArgs, IClientNotification
     public Reaction Reaction { get; set; }
 
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.ReactionContentAdded;
+    public Guid NotificationTypeId { get; }
 
     public string GetClientData()
     {
@@ -24,6 +25,7 @@ public class ReactionDeletedNotification : EventArgs, IClientNotification
     public Reaction Reaction { get; set; }
 
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.ReactionContentDeleted;
+    public Guid NotificationTypeId { get; }
 
     public string GetClientData()
     {
@@ -37,6 +39,7 @@ public class AllReactionsByFileDeleted : EventArgs, IClientNotification
     public InternalDriveFileId FileId { get; set; }
     
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.AllReactionsByFileDeleted;
+    public Guid NotificationTypeId { get; }
 
     public string GetClientData()
     {

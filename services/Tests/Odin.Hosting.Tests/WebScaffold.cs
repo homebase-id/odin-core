@@ -15,6 +15,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
@@ -199,6 +200,11 @@ namespace Odin.Hosting.Tests
         public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
+        }
+        
+        public OwnerApiClientRedux CreateOwnerApiClientRedux(TestIdentity identity)
+        {
+            return new OwnerApiClientRedux(this._oldOwnerApi, identity);
         }
 
         public AppApiClient CreateAppClient(TestIdentity identity, Guid appId)

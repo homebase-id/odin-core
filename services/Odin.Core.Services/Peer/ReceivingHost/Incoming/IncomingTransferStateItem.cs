@@ -7,7 +7,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
 {
     public class IncomingTransferStateItem
     {
-        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, EncryptedRecipientTransferInstructionSet transferInstructionSet )
+        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, EncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guard.Argument(id, nameof(id)).NotNull().Require(x => GuidId.IsValid(x));
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
@@ -21,11 +21,11 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Incoming
         }
 
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; init; }
-        
+
         public GuidId Id { get; init; }
 
         public InternalDriveFileId TempFile { get; set; }
-        
+
         public PartState HeaderState { get; set; }
         public PartState MetadataState { get; set; }
         public PartState PayloadState { get; set; }
