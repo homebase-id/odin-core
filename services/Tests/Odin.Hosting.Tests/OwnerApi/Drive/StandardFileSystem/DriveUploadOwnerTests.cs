@@ -194,9 +194,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
 
-                var codeText = OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString();
-                Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), codeText, true, out var code), "Could not parse problem result");
-                Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+                var code = TestUtils.ParseProblemDetails(response!.Error!);
+                Assert.IsTrue(code == OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
             }
         }
 
@@ -493,10 +492,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(
-                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
-                    "Could not parse problem result");
-                Assert.IsTrue(code == (int)OdinClientErrorCode.CannotOverwriteNonExistentFile);
+                
+                var code = TestUtils.ParseProblemDetails(response.Error!);
+                Assert.IsTrue(code == OdinClientErrorCode.CannotOverwriteNonExistentFile);
 
                 keyHeader.AesKey.Wipe();
             }
@@ -621,10 +619,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(response.IsSuccessStatusCode, Is.False);
             Assert.That(response.IsSuccessStatusCode, Is.False);
             Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-            Assert.IsTrue(
-                int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
-                "Could not parse problem result");
-            Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
+            
+            var code = TestUtils.ParseProblemDetails(response.Error!);
+            Assert.IsTrue(code == OdinClientErrorCode.ExistingFileWithUniqueId);
         }
 
 
@@ -676,14 +673,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     Content = OdinSystemSerializer.Serialize(new { message = "Some message" })
                 }
             };
+            
             var response3 = await client.DriveRedux.UpdateExistingMetadata(secondFileUploadResult.File, secondFileUploadResult.NewVersionTag, fileMetadata3);
 
             Assert.That(response3.IsSuccessStatusCode, Is.False);
             Assert.IsTrue(response3.StatusCode == HttpStatusCode.BadRequest);
-            Assert.IsTrue(
-                int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response3!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
-                "Could not parse problem result");
-            Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
+
+            var code = TestUtils.ParseProblemDetails(response3.Error!);
+            Assert.IsTrue(code == OdinClientErrorCode.ExistingFileWithUniqueId);
         }
 
         private async Task<(TestAppContext appContext, UploadResult uploadResult)> UploadUniqueIdTestFile(TestIdentity identity, Guid? uniqueId)

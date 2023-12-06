@@ -1,13 +1,24 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Peer.Encryption;
+using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.Utils
+namespace Odin.Hosting.Tests
 {
     public static class TestUtils
     {
+        public static OdinClientErrorCode ParseProblemDetails(ApiException apiException)
+        {
+            var pd = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
+            var codeText = pd.Extensions["errorCode"].ToString();
+            var code = Enum.Parse<OdinClientErrorCode>(codeText!, true);
+            return code;
+        }
+        
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {
             var key = keyHeader.AesKey;

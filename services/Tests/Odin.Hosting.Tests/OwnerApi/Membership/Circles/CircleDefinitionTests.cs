@@ -200,10 +200,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
                 Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
-                var codeText = OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString();
-                Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), codeText, true, out var code), "Could not parse problem result");
-                Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
-                
+                var code = TestUtils.ParseProblemDetails(createCircleResponse!.Error!);
+                Assert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
             }
         }
 
@@ -215,7 +213,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
             {
                 PermissionSet = new PermissionSet(new[] { PermissionKeys.UseTransitWrite })
             };
-            
+
             var createCircleResponse = await client.Membership.CreateCircleRaw("Circle with UseTransit", grant);
             Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
         }
@@ -502,10 +500,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
 
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-               
-                var codeText = OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString();
-                Assert.IsTrue(Enum.TryParse(typeof(OdinClientErrorCode), codeText, true, out var code), "Could not parse problem result");
-                Assert.IsTrue((OdinClientErrorCode)code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+
+                var code = TestUtils.ParseProblemDetails(updateCircleResponse.Error!);
+                Assert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
 
                 await svc.DeleteCircleDefinition(circle.Id);
             }
