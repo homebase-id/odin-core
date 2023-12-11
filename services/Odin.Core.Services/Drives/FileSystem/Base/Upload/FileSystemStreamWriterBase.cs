@@ -121,6 +121,7 @@ public abstract class FileSystemStreamWriterBase
         {
             Package.Payloads.Add(new PackagePayloadDescriptor()
             {
+                Iv = descriptor.Iv,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),

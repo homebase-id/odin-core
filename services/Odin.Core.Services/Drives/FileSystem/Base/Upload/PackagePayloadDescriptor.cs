@@ -5,6 +5,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
 public class PackagePayloadDescriptor
 {
+    public byte[] Iv { get; set; }
+
     public string PayloadKey { get; set; }
 
     public string ContentType { get; set; }

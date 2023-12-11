@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -113,6 +114,7 @@ public class DirectDriveGeneralFileTests
                 var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
                 Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
                 Assert.IsTrue(testPayload.ContentType == payload.ContentType);
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv,payload.Iv));
                 //Assert.IsTrue(payload.LastModified); //TODO: how to test?
             }
 

@@ -311,6 +311,7 @@ public class DataSubscriptionAndDistributionTests2
         {
             new()
             {
+                Iv = Guid.Empty.ToByteArray(),
                 Key = WebScaffold.PAYLOAD_KEY,
                 ContentType = "text/plain",
                 Content = payloadContent.ToUtf8ByteArray(),

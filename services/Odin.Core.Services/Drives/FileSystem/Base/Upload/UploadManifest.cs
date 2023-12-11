@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
@@ -60,6 +61,7 @@ public class UploadManifest
 /// </summary>
 public class UploadManifestPayloadDescriptor
 {
+    public byte[] Iv { get; set; }
     public string PayloadKey { get; set; }
     public string DescriptorContent { get; set; }
     
