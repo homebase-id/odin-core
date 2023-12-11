@@ -1,5 +1,7 @@
+using System;
 using System.Text;
 using NUnit.Framework;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
@@ -16,6 +18,14 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestRecoveryKeyEncode()
         {
+            byte[] key = Guid.NewGuid().ToByteArray();
+            var s = HashUtil.GenerateBIP39(key);
+            var b = HashUtil.DecodeBIP39(s);
+
+            if (ByteArrayUtil.EquiByteArrayCompare(key, b))
+                Assert.Pass();
+            else
+                Assert.Fail();
         }
 
         /// <summary>
