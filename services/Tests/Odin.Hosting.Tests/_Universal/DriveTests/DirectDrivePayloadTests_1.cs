@@ -43,7 +43,7 @@ public class DirectDrivePayloadTests_1
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-        [Test]
+    [Test]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanGetPayloadByKeyIncludesCorrectHeaders(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -78,16 +78,17 @@ public class DirectDrivePayloadTests_1
 
         var payloadFromHeader = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == payloadDefinition.Key);
         Assert.IsNotNull(payloadFromHeader, "payload not found in header");
+        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadDefinition.Iv, payloadDefinition.Iv));
 
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        
+
         // Get the payload and check the headers
         var getPayloadKey1Response = await uniDriveClient.GetPayload(uploadResult.File, SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1.Key);
 
         Assert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode);
 
-        if(expectedStatusCode== HttpStatusCode.OK) //test more
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             Assert.IsNotNull(getPayloadKey1Response.ContentHeaders);
             Assert.IsNotNull(getPayloadKey1Response.Headers);
@@ -158,8 +159,8 @@ public class DirectDrivePayloadTests_1
 
         var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
         Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
-        
-        if(expectedStatusCode == HttpStatusCode.OK) //test more
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
 
@@ -271,5 +272,4 @@ public class DirectDrivePayloadTests_1
             Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
         }
     }
-
 }

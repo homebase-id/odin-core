@@ -26,6 +26,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 public class TestPayloadDefinition
 {
+    public byte[] Iv { get; set; } = Guid.Empty.ToByteArray();
     public string Key { get; set; }
 
     public string ContentType { get; set; }
@@ -49,6 +50,7 @@ public class TestPayloadDefinition
 
         return new UploadManifestPayloadDescriptor()
         {
+            Iv = this.Iv,
             PayloadKey = this.Key,
             DescriptorContent = this.DescriptorContent,
             PreviewThumbnail = this.PreviewThumbnail,
