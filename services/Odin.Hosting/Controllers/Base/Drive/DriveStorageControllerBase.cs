@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -90,7 +91,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 // Sanity
                 if (to >= payloadSize)
                 {
-                    throw new OdinSystemException($"{to} >= {payloadSize}");
+                    throw new RequestedRangeNotSatisfiableException($"{to} >= {payloadSize}");
                 }
 
                 HttpContext.Response.Headers.Append("Content-Range",
