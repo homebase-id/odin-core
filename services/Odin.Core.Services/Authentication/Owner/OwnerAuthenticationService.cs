@@ -22,6 +22,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Registry;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -41,6 +42,7 @@ namespace Odin.Core.Services.Authentication.Owner
     {
         private readonly OwnerSecretService _secretService;
 
+        private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
         private readonly ILogger<OwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
@@ -48,6 +50,7 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
@@ -56,7 +59,7 @@ namespace Odin.Core.Services.Authentication.Owner
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
-            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor)
+            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry, OdinContextAccessor contextAccessor)
         {
             _logger = logger;
             _secretService = secretService;
@@ -65,6 +68,8 @@ namespace Odin.Core.Services.Authentication.Owner
             _icrKeyService = icrKeyService;
             _tenantConfigService = tenantConfigService;
             _httpContextAccessor = httpContextAccessor;
+            _identityRegistry = identityRegistry;
+            _contextAccessor = contextAccessor;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -362,6 +367,20 @@ namespace Odin.Core.Services.Authentication.Owner
                     FirstLoginDate = UnixTimeUtc.Now()
                 });
             }
+        }
+        
+        public async Task MarkForDeletion(PasswordReply currentPasswordReply)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            var (_, _) = await this.Authenticate(currentPasswordReply);
+            await _identityRegistry.MarkForDeletion(_tenantContext.HostOdinId);
+        }
+        
+        public async Task UnmarkForDeletion(PasswordReply currentPasswordReply)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            var (_, _) = await this.Authenticate(currentPasswordReply);
+            await _identityRegistry.UnmarkForDeletion(_tenantContext.HostOdinId);
         }
     }
 }

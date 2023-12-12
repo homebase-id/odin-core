@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Identity;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Base
 {
@@ -13,7 +14,7 @@ namespace Odin.Core.Services.Base
         }
 
         public TenantContext(Guid dotYouRegistryId, OdinId hostOdinId, string sslRoot, TenantStorageConfig storageConfig, Guid? firstRunToken,
-            bool isPreconfigured)
+            bool isPreconfigured, UnixTimeUtc? markedForDeletionDate)
         {
             this.DotYouRegistryId = dotYouRegistryId;
             this.HostOdinId = hostOdinId;
@@ -21,6 +22,7 @@ namespace Odin.Core.Services.Base
             this.StorageConfig = storageConfig;
             this.FirstRunToken = firstRunToken;
             this.IsPreconfigured = isPreconfigured;
+            this.MarkedForDeletionDate = markedForDeletionDate;
         }
 
         public Guid DotYouRegistryId { get; private set; }
@@ -49,6 +51,8 @@ namespace Odin.Core.Services.Base
 
         // TODO:TODD temporary measure for auto-provisioning of development domains; need a better solution"
         public bool IsPreconfigured { get; private set; }
+
+        public UnixTimeUtc? MarkedForDeletionDate { get; private set; }
 
         public void Update(TenantContext source)
         {

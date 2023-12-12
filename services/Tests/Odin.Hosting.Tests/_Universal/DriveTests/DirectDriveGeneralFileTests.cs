@@ -114,7 +114,7 @@ public class DirectDriveGeneralFileTests
                 var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
                 Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
                 Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv,payload.Iv));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv, payload.Iv));
                 //Assert.IsTrue(payload.LastModified); //TODO: how to test?
             }
 
@@ -248,8 +248,9 @@ public class DirectDriveGeneralFileTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var deleteListResponse = await callerDriveClient.DeleteFileList(deleteList);
-        Assert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode, $"Status code should be {expectedStatusCode} but was {deleteListResponse.StatusCode}");
-        if(expectedStatusCode == HttpStatusCode.OK)
+        Assert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode,
+            $"Status code should be {expectedStatusCode} but was {deleteListResponse.StatusCode}");
+        if (expectedStatusCode == HttpStatusCode.OK)
         {
             var deleteBatchResult = deleteListResponse.Content;
             Assert.IsNotNull(deleteBatchResult);
@@ -322,7 +323,8 @@ public class DirectDriveGeneralFileTests
             Requests = deleteRequests
         });
 
-        Assert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode, $"Status code should be {expectedStatusCode} but was {deleteFilesByGroupIdListResponse.StatusCode}");
+        Assert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode,
+            $"Status code should be {expectedStatusCode} but was {deleteFilesByGroupIdListResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
