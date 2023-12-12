@@ -25,5 +25,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement
         
         [Post(OwnerApiPathConstants.SecurityV1 + "/undelete-account")]
         Task<ApiResponse<DeleteAccountResponse>> UndeleteAccount(DeleteAccountRequest request);
+
+        [Get(OwnerApiPathConstants.SecurityV1 + "/account-status")]
+        Task<ApiResponse<AccountStatusResponse>> GetAccountStatus();
     }
 }

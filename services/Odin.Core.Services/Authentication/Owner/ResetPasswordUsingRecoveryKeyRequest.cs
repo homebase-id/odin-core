@@ -25,3 +25,9 @@ public class DeleteAccountResponse
 {
     public UnixTimeUtc PlannedDeletionDate { get; set; }
 }
+
+public class AccountStatusResponse
+{
+    public UnixTimeUtc? PlannedDeletionDate { get; set; }
+    public string PlanId { get; set; }
+}

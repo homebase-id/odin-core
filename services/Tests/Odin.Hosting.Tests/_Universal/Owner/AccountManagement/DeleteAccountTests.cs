@@ -1,18 +1,7 @@
-using System;
-using System.Collections;
-using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Cryptography;
-using Odin.Core.Cryptography.Data;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
 using Odin.Core.Time;
-using Odin.Hosting.Controllers.OwnerToken.Auth;
-using Odin.Hosting.Tests.OwnerApi.Authentication;
-using Refit;
 
 namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
 {
@@ -33,17 +22,27 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
         {
             _scaffold.RunAfterAnyTests();
         }
-        
-        public static IEnumerable TestCases()
+
+        [Test]
+        public async Task CanMarkAccountForDeletion()
         {
-            // yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
-            // yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
-            yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+            var identity = TestIdentities.Frodo;
+            const string password = "8833CC039d!!~!";
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+
+            var ownerClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
+            Assert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
+
+            var getStatusResponse = await ownerClient.AccountManagement.GetAccountStatus();
+            Assert.IsTrue(getStatusResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
+            Assert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
         }
 
         [Test]
-        [TestCaseSource(nameof(TestCases))]
-        public async Task CanMarkAccountForDeletion(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+        public async Task CanUnmarkAccountForDeletion()
         {
             var identity = TestIdentities.TomBombadil;
             const string password = "8833CC039d!!~!";
@@ -51,35 +50,23 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
 
             var ownerClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
-            // Must be logged in
-            var loginResult = await this.Login(identity.OdinId, password);
-            Assert.IsTrue(loginResult.IsSuccessStatusCode);
-            
-            // var response = await ownerClient.AccountManagement.DeleteAccount();
+            //setup for delete
+            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
+            Assert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
 
+            // make sure we're set to delete
+            var getStatusResponse = await ownerClient.AccountManagement.GetAccountStatus();
+            Assert.IsTrue(getStatusResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
+            Assert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
+
+            var unmarkAccountResponse = await ownerClient.AccountManagement.UndeleteAccount(password);
+            Assert.IsTrue(unmarkAccountResponse.IsSuccessStatusCode);
+
+            var getStatusResponse2 = await ownerClient.AccountManagement.GetAccountStatus();
+            Assert.IsTrue(getStatusResponse2.IsSuccessStatusCode);
+            Assert.IsNull(getStatusResponse2.Content.PlannedDeletionDate);
         }
 
-        private async Task<ApiResponse<OwnerAuthenticationResult>> Login(string identity, string password)
-        {
-            using HttpClient authClient = new()
-            {
-                BaseAddress = new Uri($"https://{identity}")
-            };
-
-            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-
-            var nonceResponse = await svc.GenerateAuthenticationNonce();
-            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
-            var clientNonce = nonceResponse.Content;
-
-            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
-            {
-                Nonce64 = clientNonce.Nonce64
-            };
-
-            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
-            var response = await svc.Authenticate(reply);
-            return response;
-        }
     }
 }

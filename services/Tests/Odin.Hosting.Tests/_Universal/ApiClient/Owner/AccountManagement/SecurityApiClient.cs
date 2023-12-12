@@ -90,6 +90,15 @@ public class OwnerAccountManagementApiClient
             var apiResponse = await svc.UndeleteAccount(request);
             return apiResponse;
         }
-        
+    }
+
+    public async Task<ApiResponse<AccountStatusResponse>> GetAccountStatus()
+    {
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAccountManagement>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetAccountStatus();
+            return apiResponse;
+        }
     }
 }

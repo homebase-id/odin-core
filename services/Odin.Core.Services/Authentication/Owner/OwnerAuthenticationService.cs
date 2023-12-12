@@ -41,6 +41,7 @@ namespace Odin.Core.Services.Authentication.Owner
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly OwnerSecretService _secretService;
+        private readonly OdinConfiguration _configuration;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -59,7 +60,8 @@ namespace Odin.Core.Services.Authentication.Owner
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
-            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry, OdinContextAccessor contextAccessor)
+            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
+            OdinContextAccessor contextAccessor, OdinConfiguration configuration)
         {
             _logger = logger;
             _secretService = secretService;
@@ -70,6 +72,7 @@ namespace Odin.Core.Services.Authentication.Owner
             _httpContextAccessor = httpContextAccessor;
             _identityRegistry = identityRegistry;
             _contextAccessor = contextAccessor;
+            _configuration = configuration;
 
             //TODO: does this need to mwatch owner secret service?
             // const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -105,19 +108,7 @@ namespace Odin.Core.Services.Authentication.Owner
         /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
         public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply)
         {
-            byte[] key = Convert.FromBase64String(reply.Nonce64);
-            // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
-
-            // TODO TEST Make sure an exception is thrown if it does not exist.
-            Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
-
-            // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _nonceDataStorage.Delete(new GuidId(key));
-
-            // Here we test if the client's provided nonce is saved on the server and if the
-            // client's calculated nonceHash is equal to the same calculation on the server
-            await _secretService.AssertPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
+            var noncePackage = await AssertValidPassword(reply);
 
             //now that the password key matches, we set return the client auth token
             var keys = await this._secretService.GetOfflineRsaKeyList();
@@ -142,6 +133,24 @@ namespace Odin.Core.Services.Authentication.Owner
             await EnsureFirstRunOperations(token);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
+        }
+
+        private async Task<NonceData> AssertValidPassword(PasswordReply reply)
+        {
+            byte[] key = Convert.FromBase64String(reply.Nonce64);
+            // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
+            var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
+
+            // TODO TEST Make sure an exception is thrown if it does not exist.
+            Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
+
+            // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
+            _nonceDataStorage.Delete(new GuidId(key));
+
+            // Here we test if the client's provided nonce is saved on the server and if the
+            // client's calculated nonceHash is equal to the same calculation on the server
+            await _secretService.AssertPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
+            return noncePackage;
         }
 
         /// <summary>
@@ -368,19 +377,40 @@ namespace Odin.Core.Services.Authentication.Owner
                 });
             }
         }
-        
+
         public async Task MarkForDeletion(PasswordReply currentPasswordReply)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var (_, _) = await this.Authenticate(currentPasswordReply);
+            var _ = await this.AssertValidPassword(currentPasswordReply);
             await _identityRegistry.MarkForDeletion(_tenantContext.HostOdinId);
+
+            var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);
+            tc.Update(tc);
         }
-        
+
         public async Task UnmarkForDeletion(PasswordReply currentPasswordReply)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var (_, _) = await this.Authenticate(currentPasswordReply);
+            var _ = await this.AssertValidPassword(currentPasswordReply);
             await _identityRegistry.UnmarkForDeletion(_tenantContext.HostOdinId);
+
+            var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);
+            tc.Update(tc);
+        }
+
+        public async Task<AccountStatusResponse> GetAccountStatus()
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var idReg = await _identityRegistry.Get(_tenantContext.HostOdinId);
+
+            return new AccountStatusResponse()
+            {
+                PlannedDeletionDate = idReg.MarkedForDeletionDate.HasValue
+                    ? idReg.MarkedForDeletionDate.Value.AddDays(_configuration.Registry.DaysUntilAccountDeletion)
+                    : null,
+                PlanId = idReg.PlanId,
+            };
         }
     }
 }

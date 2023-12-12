@@ -382,7 +382,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var markedDate = UnixTimeUtc.Now();
         reg.MarkedForDeletionDate = UnixTimeUtc.Now();
         await SaveRegistrationInternal(reg);
-
+        
         return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
     }
 

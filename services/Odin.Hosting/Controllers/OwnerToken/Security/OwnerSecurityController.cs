@@ -52,6 +52,12 @@ public class OwnerSecurityController : Controller
         return new OkResult();
     }
 
+    [HttpGet("account-status")]
+    public async Task<AccountStatusResponse> GetAccountStatus()
+    {
+        return await _ownerAuthenticationService.GetAccountStatus();
+    }
+    
     [HttpPost("delete-account")]
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
