@@ -104,10 +104,10 @@ public class DirectDrivePayloadTests_1
             Assert.IsTrue(contentTypeValues.Single() == uploadedPayloadDefinition.ContentType);
 
             Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var encryptedHeader64Values));
-            
+
             var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
             Assert.IsNotNull(payloadEkh);
-            Assert.IsTrue(payloadEkh.Iv == uploadedPayloadDefinition.Iv);
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, uploadedPayloadDefinition.Iv));
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey, header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
 
             Assert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders, out var lastModifiedHeaderValue));

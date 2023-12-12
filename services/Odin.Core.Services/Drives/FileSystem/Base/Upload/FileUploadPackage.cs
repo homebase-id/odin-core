@@ -75,5 +75,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
             return descriptors.ToList();
         }
+
+        public List<PackagePayloadDescriptor> GetPayloadsWithValidIVs()
+        {
+            return Payloads.Where(p => p.HasIv()).ToList();
+        }
     }
 }

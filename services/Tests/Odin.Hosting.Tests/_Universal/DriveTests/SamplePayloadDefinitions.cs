@@ -11,7 +11,7 @@ public static class SamplePayloadDefinitions
     public static TestPayloadDefinition PayloadDefinitionWithThumbnail1 =
         new()
         {
-            Iv = Guid.Parse("211cecef-fe55-4e28-aa4d-d8b9d577644e").ToByteArray(),
+            // Iv = Guid.Parse("211cecef-fe55-4e28-aa4d-d8b9d577644e").ToByteArray(),
             Key = "test_key_1",
             ContentType = "text/plain",
             Content = "some content for payload key 1".ToUtf8ByteArray(),
