@@ -78,7 +78,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 EncryptionVersion = header.SharedSecretEncryptedKeyHeader.EncryptionVersion,
                 Type = header.SharedSecretEncryptedKeyHeader.Type,
-                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key).Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
+                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key)?.Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
                 EncryptedAesKey = header.SharedSecretEncryptedKeyHeader.EncryptedAesKey
             };
 
@@ -147,7 +147,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 EncryptionVersion = header.SharedSecretEncryptedKeyHeader.EncryptionVersion,
                 Type = header.SharedSecretEncryptedKeyHeader.Type,
-                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.PayloadKey).Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
+                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.PayloadKey)?.Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
                 EncryptedAesKey = header.SharedSecretEncryptedKeyHeader.EncryptedAesKey
             };
 
