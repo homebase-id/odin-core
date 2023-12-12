@@ -424,6 +424,11 @@ public abstract class FileSystemStreamWriterBase
             {
                 throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
             }
+
+            if (metadata.IsEncrypted && Package.Payloads.All(p => p.HasStrongIv()))
+            {
+                throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
+            }
         }
 
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);

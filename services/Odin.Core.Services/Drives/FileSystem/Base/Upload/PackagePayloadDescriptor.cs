@@ -30,4 +30,9 @@ public class PackagePayloadDescriptor
         //special case - check for 16 zeros
         return Iv.Length == 16 && new Guid(Iv) != Guid.Empty;
     }
+
+    public bool HasStrongIv()
+    {
+        return HasIv() && ByteArrayUtil.IsStrongKey(Iv);
+    }
 }
