@@ -67,26 +67,25 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
+            var (header, payloadDescriptor, encryptedKeyHeader, fileExists) = 
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
+
+            if (!fileExists)
+            {
+                return NotFound();
+            }
+
             var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
             if (payloadStream == null)
             {
                 return NotFound();
             }
 
-            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
-            var headerWithPayloadIv = new EncryptedKeyHeader()
-            {
-                EncryptionVersion = header.SharedSecretEncryptedKeyHeader.EncryptionVersion,
-                Type = header.SharedSecretEncryptedKeyHeader.Type,
-                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key)?.Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
-                EncryptedAesKey = header.SharedSecretEncryptedKeyHeader.EncryptedAesKey
-            };
-
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, headerWithPayloadIv.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
 
             if (null != request.Chunk)
             {
@@ -123,14 +122,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
-            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
-            if (header == null)
-            {
-                return NotFound();
-            }
-
-            var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(request.PayloadKey);
-            if (null == payloadDescriptor)
+            var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey);
+            
+            if(!fileExists)
             {
                 return NotFound();
             }
@@ -143,18 +138,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            var headerWithPayloadIv = new EncryptedKeyHeader()
-            {
-                EncryptionVersion = header.SharedSecretEncryptedKeyHeader.EncryptionVersion,
-                Type = header.SharedSecretEncryptedKeyHeader.Type,
-                Iv = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.PayloadKey)?.Iv ?? header.SharedSecretEncryptedKeyHeader.Iv,
-                EncryptedAesKey = header.SharedSecretEncryptedKeyHeader.EncryptedAesKey
-            };
-
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, headerWithPayloadIv.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeaderForPayload.ToBase64());
 
             AddGuestApiCacheHeader();
 

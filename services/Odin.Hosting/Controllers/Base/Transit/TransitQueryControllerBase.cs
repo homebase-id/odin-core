@@ -312,8 +312,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 return NotFound();
             }
+            
             AddGuestApiCacheHeader();
-
+            
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);

@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
-using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
@@ -270,8 +268,16 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, bool isEncrypted, PayloadStream ps)> GetPayloadStream(TargetDrive targetDrive, Guid fileId,
-            string key, FileChunk chunk)
+        public async Task<(
+                string encryptedKeyHeader64,
+                bool IsEncrypted,
+                PayloadDescriptor payloadDescriptor,
+                PayloadStream ps)>
+            GetPayloadStream(
+                TargetDrive targetDrive,
+                Guid fileId,
+                string key,
+                FileChunk chunk)
         {
             var file = new InternalDriveFileId()
             {
@@ -279,19 +285,16 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 FileId = fileId
             };
 
-            var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
+            var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
+                await _fileSystem.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, key);
 
-            if (header == null)
+            if (!fileExists)
             {
-                return (null, default, null);
+                return (null, default, null, null);
             }
 
-            if (!(header.FileMetadata.Payloads?.Any(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase)) ?? false))
-            {
-                return (null, default, null);
-            }
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
 
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
             var ps = await _fileSystem.Storage.GetPayloadStream(file, key, chunk);
 
             if (null == ps)
@@ -299,10 +302,15 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
             }
 
-            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, ps);
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, ps);
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, UnixTimeUtc? lastModified, Stream stream)>
+        public async Task<(string encryptedKeyHeader64,
+                bool IsEncrypted,
+                PayloadDescriptor descriptor,
+                string ContentType,
+                UnixTimeUtc LastModified,
+                Stream thumb)>
             GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey)
         {
             var file = new InternalDriveFileId()
@@ -311,24 +319,24 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 FileId = fileId
             };
 
-            var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
+            var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
+                await _fileSystem.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, payloadKey);
 
-            var descriptor = header.FileMetadata.GetPayloadDescriptor(payloadKey);
-            if (descriptor == null)
+            if (!fileExists)
             {
-                return (null, default, null, null, null);
+                return (null, default, null, null, default, null);
             }
 
-            var thumbs = descriptor.Thumbnails?.ToList();
+            var thumbs = payloadDescriptor.Thumbnails?.ToList();
             var thumbnail = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
             if (null == thumbnail)
             {
-                return (null, default, null, null, null);
+                return (null, default, null, null, default, null);
             }
 
             var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, thumbnail.ContentType, descriptor.LastModified, thumb);
+            string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
+            return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType, payloadDescriptor.LastModified, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
