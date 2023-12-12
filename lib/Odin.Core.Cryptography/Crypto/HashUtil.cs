@@ -11,26 +11,6 @@ namespace Odin.Core.Cryptography.Crypto
     {
         public const string SHA256Algorithm = "SHA-256";
 
-        public static string GenerateBIP39(byte[] key)
-        {
-            if (key.Length != 16)
-                throw new ArgumentException("Length must be 16");
-
-            var bip39 = new Bitcoin.BIP39.BIP39(key, "", Bitcoin.BIP39.BIP39.Language.English);
-            string mnemonic = bip39.MnemonicSentence;
-
-            return mnemonic;
-        }
-
-        public static byte[] DecodeBIP39(string mnemonicStr)
-        {
-            var bip39FromMnemonic = new Bitcoin.BIP39.BIP39(mnemonicStr, "", Bitcoin.BIP39.BIP39.Language.English);
-            byte[] entropy = bip39FromMnemonic.EntropyBytes;
-
-            return entropy;
-        }
-
-
         public static byte[] Hkdf(byte[] sharedEccSecret, byte[] salt, int outputKeySize)
         {
             if (sharedEccSecret == null)

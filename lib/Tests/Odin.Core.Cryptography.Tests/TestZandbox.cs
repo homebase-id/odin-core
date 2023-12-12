@@ -16,13 +16,13 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
-        public void TestRecoveryKeyEncode()
+        public void TestBIPRecoveryKey()
         {
             byte[] key = Guid.NewGuid().ToByteArray();
-            var s = HashUtil.GenerateBIP39(key);
-            var b = HashUtil.DecodeBIP39(s);
+            var s = BIP39.GenerateBIP39(key);
+            var b = BIP39.DecodeBIP39(s);
 
-            if (ByteArrayUtil.EquiByteArrayCompare(key, b))
+            if (ByteArrayUtil.EquiByteArrayCompare(key, b.GetKey()))
                 Assert.Pass();
             else
                 Assert.Fail();
