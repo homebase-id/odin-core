@@ -69,6 +69,7 @@ namespace Odin.Hosting.Tests.Performance
 
             No change after database caching
          */
+        [Test]
         public async Task TaskPerformanceTest_SecuredFiles()
         {
             //
