@@ -1,6 +1,5 @@
 ﻿using Odin.Core;
 using Org.BouncyCastle.Crypto.Digests;
-using Org.BouncyCastle.Math;
 using System;
 using System.Collections;
 using System.Linq;
@@ -33,47 +32,6 @@ namespace Bitcoin.BitcoinUtilities
 			algorithm.DoFinal(firstHash, 0);
 			return firstHash;
 		}
-
-		/// <summary>
-		/// Calculates the SHA512 64 byte checksum of the input bytes
-		/// </summary>
-		/// <param name="input">bytes input to get checksum</param>
-		/// <param name="offset">where to start calculating checksum</param>
-		/// <param name="length">length of the input bytes to perform checksum on</param>
-		/// <returns>64 byte array checksum</returns>
-		public static byte[] Sha512Digest(byte[] input, int offset, int length)
-		{
-			var algorithm = new Sha512Digest();
-			Byte[] firstHash = new Byte[algorithm.GetDigestSize()];
-			algorithm.BlockUpdate(input, offset, length);
-			algorithm.DoFinal(firstHash, 0);
-			return firstHash;
-		}
-
-		/// <summary>
-		/// See <see cref="DoubleDigest(byte[], int, int)"/>.
-		/// </summary>
-		public static byte[] DoubleDigest(byte[] input)
-		{
-			return DoubleDigest(input, 0, input.Length);
-		}
-
-		/// <summary>
-		/// Calculates the SHA-256 hash of the given byte range, and then hashes the resulting hash again. This is
-		/// standard procedure in BitCoin. The resulting hash is in big endian form.
-		/// </summary>
-		public static byte[] DoubleDigest(byte[] input, int offset, int length)
-		{
-			var algorithm = new Sha256Digest();
-			Byte[] firstHash = new Byte[algorithm.GetDigestSize()];
-			algorithm.BlockUpdate(input, offset, length);
-			algorithm.DoFinal(firstHash, 0);
-			Byte[] secondHash = new Byte[algorithm.GetDigestSize()];
-			algorithm.BlockUpdate(firstHash, 0, firstHash.Length);
-			algorithm.DoFinal(secondHash, 0);
-			return secondHash;
-		}
-
 
 		/// <summary>
 		/// Converts a hex based string into its bytes contained in a byte array
@@ -164,17 +122,6 @@ namespace Bitcoin.BitcoinUtilities
 			//I love lamp
 			return output;
 		}
-
-		/// <summary>
-		/// Returns a Positive BouncyCastle BigInteger
-		/// </summary>
-		/// <param name="bytes">Bytes to create BigInteger</param>
-		/// <returns>A Positive BigInteger</returns>
-		public static BigInteger NewPositiveBigInteger(byte[] bytes)
-		{
-			return new BigInteger(1, bytes);
-		}
-
 
         public static string NormaliseStringNfkd(string toNormalise)
         {
