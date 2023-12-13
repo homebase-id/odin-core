@@ -7,7 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BIP39-NET" Version="1.0.1" />
       <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
       <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="8.0.0" />
       <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
