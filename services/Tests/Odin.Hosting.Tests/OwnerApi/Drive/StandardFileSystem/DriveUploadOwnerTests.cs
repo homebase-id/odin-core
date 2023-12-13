@@ -211,7 +211,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
-                
+
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 300,
@@ -493,7 +493,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                
+
                 var code = TestUtils.ParseProblemDetails(response.Error!);
                 Assert.IsTrue(code == OdinClientErrorCode.CannotOverwriteNonExistentFile);
 
@@ -531,6 +531,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 {
                     new()
                     {
+                        Iv = ByteArrayUtil.GetRndByteArray(16),
                         Key = WebScaffold.PAYLOAD_KEY,
                         ContentType = "text/plain",
                         Content = payloadDataRaw.ToUtf8ByteArray(),
@@ -620,7 +621,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             Assert.That(response.IsSuccessStatusCode, Is.False);
             Assert.That(response.IsSuccessStatusCode, Is.False);
             Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-            
+
             var code = TestUtils.ParseProblemDetails(response.Error!);
             Assert.IsTrue(code == OdinClientErrorCode.ExistingFileWithUniqueId);
         }
@@ -674,7 +675,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     Content = OdinSystemSerializer.Serialize(new { message = "Some message" })
                 }
             };
-            
+
             var response3 = await client.DriveRedux.UpdateExistingMetadata(secondFileUploadResult.File, secondFileUploadResult.NewVersionTag, fileMetadata3);
 
             Assert.That(response3.IsSuccessStatusCode, Is.False);
