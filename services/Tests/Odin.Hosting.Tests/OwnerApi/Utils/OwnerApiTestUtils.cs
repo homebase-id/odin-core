@@ -778,7 +778,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-                var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
+
+                var payloadKeyHeader = new KeyHeader()
+                {
+                    AesKey = keyHeader.AesKey,
+                    Iv = instructionSet.Manifest.PayloadDescriptors.Single().Iv
+                };
+                
+                var payloadCipherBytes = payloadKeyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
+                
                 var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -792,7 +800,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 }
                 else
                 {
-                    var thumbnailCipherBytes = encryptPayload ? keyHeader.EncryptDataAesAsStream(thumbnail.Content) : new MemoryStream(thumbnail.Content);
+                    var thumbnailCipherBytes = encryptPayload ? payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content) : new MemoryStream(thumbnail.Content);
                     response = await transitSvc.Upload(
                         new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                         new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),

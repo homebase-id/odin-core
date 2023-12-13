@@ -22,7 +22,7 @@ public class PackagePayloadDescriptor
 
     public bool HasIv()
     {
-        if (Iv.Length == 0)
+        if (Iv == null || Iv.Length == 0)
         {
             return false;
         }

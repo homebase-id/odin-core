@@ -111,7 +111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
                     }
                 }
             };
@@ -377,7 +377,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1) 
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)
                     }
                 }
             };
@@ -412,7 +412,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var originalPayloadData = "{payload:true, image:'b64 data'}";
-            var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
+            var payloadKeyHeader = new KeyHeader()
+            {
+                Iv = instructionSet.Manifest.PayloadDescriptors.Single().Iv,
+                AesKey = keyHeader.AesKey,
+            };
+
+            var originalPayloadCipherBytes = payloadKeyHeader.EncryptDataAesAsStream(originalPayloadData);
 
             //
             // upload and send the file 
@@ -522,7 +528,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
+                var payloadSS64 = payloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
 
+                var payloadEkh = EncryptedKeyHeader.FromBase64(payloadSS64);
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
                 Assert.That(((MemoryStream)originalPayloadCipherBytes).ToArray(), Is.EqualTo(payloadResponseCipher));
 
@@ -530,7 +538,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    IV: payloadEkh.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(originalPayloadData);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
@@ -745,7 +753,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
                     }
                 }
             };
@@ -879,7 +887,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, true)
                     }
                 }
             };
@@ -954,8 +962,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessInbox(
-                    new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
@@ -1028,7 +1035,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             instructionSet.TransitOptions = null;
 
-            await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true,
+            await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, false,
                 fileSystemType: FileSystemType.Comment);
 
 
@@ -1144,7 +1151,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)
                     }
                 }
             };
@@ -1297,7 +1304,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 // keyHeader.AesKey.Wipe();
             }
 
-
             // reupload the file on the recipient's identity and set the filemetadata to authenticated.
             // this is done because when files are received, they are set to owner only on the recipients identity
             instructionSet.StorageOptions = new StorageOptions()
@@ -1307,10 +1313,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             };
 
             instructionSet.TransitOptions = null;
+
             descriptor.FileMetadata.AllowDistribution = false;
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
-            var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true,
+            var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId,
+                instructionSet, descriptor.FileMetadata, originalPayloadData, true,
                 new ThumbnailContent()
                 {
                     ContentType = thumbnail1.ContentType,
@@ -1429,7 +1437,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
-        
+
         [Test]
         public async Task FailToTransferComment_When_Missing_DrivePermission_WriteReactionAndComment()
         {
@@ -1508,7 +1516,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY) 
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY)
                     }
                 }
             };
@@ -1633,7 +1641,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 PixelWidth = 300,
                 ContentType = "image/jpeg"
             };
-            
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -1649,13 +1657,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
                 },
-                 Manifest = new UploadManifest()
-                 {
-                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
-                     {
-                         WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, thumbnail1)
-                     }
-                 }
+                Manifest = new UploadManifest()
+                {
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)
+                    }
+                }
             };
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
@@ -1665,7 +1673,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
-            
+
             var thumbnail1OriginalBytes = TestMedia.ThumbnailBytes300;
             var thumbnail1CipherBytes = keyHeader.EncryptDataAes(thumbnail1OriginalBytes);
 
@@ -1829,6 +1837,5 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
-        
     }
 }

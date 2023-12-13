@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Routing;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -210,8 +211,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
-
-
+                
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
                     PixelHeight = 300,
@@ -243,6 +243,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             new UploadManifestPayloadDescriptor()
                             {
+                                Iv = ByteArrayUtil.GetRndByteArray(16),
                                 PayloadKey = WebScaffold.PAYLOAD_KEY,
                                 Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
                                 {
