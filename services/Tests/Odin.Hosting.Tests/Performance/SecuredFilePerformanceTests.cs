@@ -228,11 +228,17 @@ namespace Odin.Hosting.Tests.Performance
 
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
-                var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
+                var payloadIv = ByteArrayUtil.GetRndByteArray(16);
+                var payloadKeyHeader = new KeyHeader()
+                {
+                    Iv = payloadIv,
+                    AesKey = keyHeader.AesKey
+                };
+                var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payload);
 
                 instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
                 {
-                    Iv = ByteArrayUtil.GetRndByteArray(16),
+                    Iv = payloadIv,
                     PayloadKey = WebScaffold.PAYLOAD_KEY,
                     Thumbnails = (new[] { thumbnail1, thumbnail2 }).Select(thumb => new UploadedManifestThumbnailDescriptor()
                     {
@@ -327,7 +333,7 @@ namespace Odin.Hosting.Tests.Performance
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    IV: payloadIv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
