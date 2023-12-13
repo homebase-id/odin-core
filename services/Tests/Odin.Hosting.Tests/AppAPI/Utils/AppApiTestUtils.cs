@@ -134,7 +134,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             var client = this.CreateAppApiHttpClient(senderAppContext);
             {
                 fileMetadata.IsEncrypted = true;
-                
+
                 if (options.IncludeThumbnail && string.IsNullOrEmpty(payloadData))
                 {
                     throw new Exception("Test data error - you cannot add thumbnails w/o a payload");
@@ -149,6 +149,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     var thumbs = new List<UploadedManifestThumbnailDescriptor>();
                     var uploadManifestPayloadDescriptor = new UploadManifestPayloadDescriptor()
                     {
+                        Iv = ByteArrayUtil.GetRndByteArray(16),
                         PayloadKey = WebScaffold.PAYLOAD_KEY,
                         Thumbnails = thumbs
                     };
@@ -161,7 +162,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                             PixelWidth = 300,
                             ContentType = "image/jpeg"
                         };
-                        
+
                         thumbs.Add(new UploadedManifestThumbnailDescriptor()
                         {
                             PixelHeight = thumbnail1.PixelHeight,
@@ -179,7 +180,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 }
 
                 var transferIv = instructionSet.TransferIv;
-                
+
                 instructionSet.Manifest.PayloadDescriptors ??= new List<UploadManifestPayloadDescriptor>();
                 instructionSet.Manifest.PayloadDescriptors.AddRange(payloadDescriptors);
 
@@ -485,7 +486,8 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height, string payloadKey)
+        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height,
+            string payloadKey)
         {
             var client = this.CreateAppApiHttpClient(appContext);
             {

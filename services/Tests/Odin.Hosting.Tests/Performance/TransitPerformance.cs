@@ -276,10 +276,17 @@ TaskPerformanceTest_Transit
 
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ss);
 
-                var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
+                var payloadIv = ByteArrayUtil.GetRndByteArray(16);
+                var payloadKeyHeader = new KeyHeader()
+                {
+                    Iv = payloadIv,
+                    AesKey = keyHeader.AesKey
+                };
+                var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payload);
 
                 instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
                 {
+                    Iv = payloadIv,
                     PayloadKey = WebScaffold.PAYLOAD_KEY,
                     Thumbnails =( new []{thumbnail1, thumbnail2}).Select(t=>new UploadedManifestThumbnailDescriptor()
                     {

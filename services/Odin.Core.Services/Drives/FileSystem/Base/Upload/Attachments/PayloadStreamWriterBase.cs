@@ -191,6 +191,16 @@ public abstract class PayloadStreamWriterBase
 
         DriveFileUtility.AssertVersionTagMatch(existingServerFileHeader.FileMetadata.VersionTag, _package.InstructionSet.VersionTag);
 
+        if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
+        {
+            throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
+        }
+
+        if (existingServerFileHeader.FileMetadata.IsEncrypted && _package.Payloads.All(p => p.HasStrongIv()))
+        {
+            throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
+        }
+
         await Task.CompletedTask;
     }
 

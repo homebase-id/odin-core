@@ -13,7 +13,6 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Encryption;
@@ -45,7 +44,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             DriveManager = driveManager;
         }
 
-
         protected override DriveManager DriveManager { get; }
         protected override OdinContextAccessor ContextAccessor { get; }
 
@@ -64,6 +62,32 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             var result = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             return result;
+        }
+
+        /// <summary>
+        /// Gets an EncryptedKeyHeader for a given payload using the payload's IV
+        /// </summary>
+        public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool fileExists)>
+            GetPayloadSharedSecretEncryptedKeyHeader(InternalDriveFileId file, string payloadKey)
+        {
+            var serverFileHeader = await this.GetServerFileHeader(file);
+            if (serverFileHeader == null)
+            {
+                return (null, null, null, false);
+            }
+
+            var payloadDescriptor = serverFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey);
+            if (null == payloadDescriptor)
+            {
+                return (null, null, null, false);
+            }
+
+            var payloadEncryptedKeyHeader = DriveFileUtility.GetPayloadEncryptedKeyHeader(
+                serverFileHeader,
+                payloadDescriptor,
+                ContextAccessor);
+
+            return (serverFileHeader, payloadDescriptor, payloadEncryptedKeyHeader, true);
         }
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
@@ -328,7 +352,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var descriptor = header.FileMetadata.Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            var descriptor = header.FileMetadata.GetPayloadDescriptor(key);
 
             if (descriptor == null)
             {

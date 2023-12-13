@@ -41,6 +41,6 @@ public class ClientFileMetadata
 
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {
-        return Payloads?.SingleOrDefault(pk => pk.Key == key);
+        return Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));
     }
 }

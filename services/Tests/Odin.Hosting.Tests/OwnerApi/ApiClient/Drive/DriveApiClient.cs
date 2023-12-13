@@ -184,6 +184,7 @@ public class DriveApiClient
             
             descriptors.Add(new UploadManifestPayloadDescriptor()
             {
+                Iv = null,
                 PayloadKey = payloadKey,
                 Thumbnails = thumbnails
             });

@@ -109,7 +109,8 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType)
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStream(OdinId odinId,
+        ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType)
     {
         var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
         permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
@@ -181,8 +182,9 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file, string key,
-            FileChunk chunk, FileSystemType fileSystemType)
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadByGlobalTransitId(OdinId odinId,
+        GlobalTransitIdFileIdentifier file, string key,
+        FileChunk chunk, FileSystemType fileSystemType)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -293,6 +295,7 @@ public class TransitQueryService
     {
         var newKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
+
         var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
         keyHeader.AesKey.Wipe();
 
@@ -354,8 +357,9 @@ public class TransitQueryService
         {
             var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            sharedSecretEncryptedKeyHeader =
-                ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
+            sharedSecretEncryptedKeyHeader = ReEncrypt(
+                icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret,
+                icrEncryptedKeyHeader);
         }
         else
         {
@@ -381,7 +385,6 @@ public class TransitQueryService
         HandleInvalidTransitResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-        var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
@@ -392,6 +395,8 @@ public class TransitQueryService
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (payloadIsEncrypted)
         {
+            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(
                 icr.CreateClientAccessToken(permissionContext.GetIcrKey()).SharedSecret,
