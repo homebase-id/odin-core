@@ -232,19 +232,6 @@ namespace Bitcoin.BIP39
 		}
 
 		/// <summary>
-		/// Supply a mnemonic sentence with any words of your choosing not restricted to wordlists and be given seed bytes in return
-		/// </summary>
-		/// <param name="mnemonicSentence">The mnemonic sentence we will use to derive seed bytes, Please ensure NFKD Normalized</param>
-		/// <param name="passphrase">Optional passphrase to protect the seed bytes, Please ensure NFKD Normalized, defaults to empty string</param>
-		/// <returns>Seed bytes that can be used to create a root in BIP32</returns>
-		public static byte[] GetSeedBytes(string mnemonicSentence, string passphrase = cEmptyString)
-		{
-			mnemonicSentence = Utilities.NormaliseStringNfkd(mnemonicSentence);
-			byte[] salt = Utilities.MergeByteArrays(UTF8Encoding.UTF8.GetBytes(cSaltHeader), UTF8Encoding.UTF8.GetBytes(Utilities.NormaliseStringNfkd(passphrase)));
-			return Rfc2898_pbkdf2_hmacsha512.PBKDF2(UTF8Encoding.UTF8.GetBytes(mnemonicSentence), salt);
-		}
-
-		/// <summary>
 		/// Supply a mnemonic sentence with any words of your choosing not restricted to wordlists and be given seed bytes hex encoded as a string in return
 		/// </summary>
 		/// <param name="mnemonicSentence">The mnemonic sentence we will use to derive seed bytes</param>

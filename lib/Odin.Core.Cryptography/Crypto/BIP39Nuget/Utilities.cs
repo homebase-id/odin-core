@@ -1,15 +1,9 @@
 ﻿using Odin.Core;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
-using Org.BouncyCastle.Crypto.Macs;
-using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Math;
-using Org.BouncyCastle.Security;
 using System;
 using System.Collections;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -108,158 +102,6 @@ namespace Bitcoin.BitcoinUtilities
 			}
 		}
 
-		/// <summary>
-		/// Calculates the 64 byte checksum in accordance with HMAC-SHA512
-		/// </summary>
-		/// <param name="input">The bytes to derive the checksum from</param>
-		/// <param name="offset">Where to start calculating checksum in the input bytes</param>
-		/// <param name="length">Length of buytes to use to calculate checksum</param>
-		/// <param name="hmacKey">HMAC Key used to generate the checksum (note differing HMAC Keys provide unique checksums)</param>
-		/// <returns></returns>
-		public static byte[] HmacSha512Digest(byte[] input, int offset, int length, byte[] hmacKey)
-		{
-			byte[] output = new byte[64];
-			HMac _hmacsha512Obj;
-			_hmacsha512Obj = new HMac(new Sha512Digest());
-			ICipherParameters param = new Org.BouncyCastle.Crypto.Parameters.KeyParameter(hmacKey);
-			_hmacsha512Obj.Init(param);
-			_hmacsha512Obj.BlockUpdate(input, offset, length);
-			_hmacsha512Obj.DoFinal(output, 0);
-			return output;
-		}
-
-		/// <summary>
-		/// Safely get Crypto Random byte array at the size you desire.
-		/// </summary>
-		/// <param name="size">Size of the crypto random byte array to build</param>
-		/// <param name="seedStretchingIterations">Optional parameter to specify how many SHA512 passes occur over our seed before we use it. Higher value is greater security but uses more computational power. If random byte generation is taking too long try specifying values lower than the default of 5000. You can set 0 to turn off stretching</param>
-		/// <returns>A byte array of completely random bytes</returns>
-		public static byte[] GetRandomBytes(int size, int seedStretchingIterations = 5000)
-		{
-			//varies from system to system, a tiny amount of entropy, tiny
-			int processorCount = System.Environment.ProcessorCount;
-
-			//another tiny amount of entropy due to the varying nature of thread id
-			int currentThreadId = System.Environment.CurrentManagedThreadId;
-
-			//a GUID is considered unique so also provides some entropy
-			byte[] guidBytes = Guid.NewGuid().ToByteArray();
-
-            // REPLACED this combined with DateTime.Now is the default seed in BouncyCastles SecureRandom
-            // REPLACED byte[] threadedSeedBytes = new Org.BouncyCastle.Crypto.Prng..ThreadedSeedGenerator().GenerateSeed(24, true);
-
-			// New code
-            SecureRandom secureRandom = new SecureRandom();
-            byte[] threadedSeedBytes = new byte[24];
-            secureRandom.NextBytes(threadedSeedBytes);
-
-            byte[] output = new byte[size];
-
-			//if for whatever reason it says 0 or less processors just make it 16
-			if (processorCount <= 0)
-			{
-				processorCount = 16;
-			}
-
-			//if some fool trys to set stretching to < 0 we protect them from themselves
-			if (seedStretchingIterations < 0)
-			{
-				seedStretchingIterations = 0;
-			}
-
-			//we create a SecureRandom based off SHA256 just to get a random int which will be used to determine what bytes to "take" from our built seed hash and then rehash those taken seed bytes using a KDF (key stretching) such that it would slow down anyone trying to rebuild private keys from common seeds.
-			SecureRandom seedByteTakeDetermine = SecureRandom.GetInstance("SHA256PRNG");
-
-			guidBytes = HmacSha512Digest(guidBytes, 0, guidBytes.Length, MergeByteArrays(threadedSeedBytes, UTF8Encoding.UTF8.GetBytes(Convert.ToString(System.Environment.TickCount))));
-
-			try
-			{
-				seedByteTakeDetermine.SetSeed(((DateTime.Now.Ticks - System.Environment.TickCount) * processorCount) + currentThreadId);
-				seedByteTakeDetermine.SetSeed(guidBytes);
-				seedByteTakeDetermine.SetSeed(seedByteTakeDetermine.GenerateSeed(1 + currentThreadId));
-				seedByteTakeDetermine.SetSeed(threadedSeedBytes);
-			}
-			catch
-			{
-				try
-				{
-					//if the number is too big or causes an error or whatever we will failover to this, as it's not our main source of random bytes and not used in the KDF stretching it's ok.
-					seedByteTakeDetermine.SetSeed((DateTime.Now.Ticks - System.Environment.TickCount) + currentThreadId);
-					seedByteTakeDetermine.SetSeed(guidBytes);
-					seedByteTakeDetermine.SetSeed(seedByteTakeDetermine.GenerateSeed(1 + currentThreadId));
-					seedByteTakeDetermine.SetSeed(threadedSeedBytes);
-				}
-				catch
-				{
-					//if again the number is too big or causes an error or whatever we will failover to this, as it's not our main source of random bytes and not used in the KDF stretching it's ok.
-					seedByteTakeDetermine.SetSeed(DateTime.Now.Ticks - System.Environment.TickCount);
-					seedByteTakeDetermine.SetSeed(guidBytes);
-					seedByteTakeDetermine.SetSeed(seedByteTakeDetermine.GenerateSeed(1 + currentThreadId));
-					seedByteTakeDetermine.SetSeed(threadedSeedBytes);
-				}
-			}
-
-			//hardened seed
-			byte[] toHashForSeed;
-
-			try
-			{
-				toHashForSeed = BitConverter.GetBytes(((processorCount - seedByteTakeDetermine.Next(0, processorCount)) * System.Environment.TickCount) * currentThreadId);
-			}
-			catch
-			{
-				try
-				{
-					//if the number was too large or something we failover to this
-					toHashForSeed = BitConverter.GetBytes(((processorCount - seedByteTakeDetermine.Next(0, processorCount)) + System.Environment.TickCount) * currentThreadId);
-				}
-				catch
-				{
-					//if the number was again too large or something we failover to this
-					toHashForSeed = BitConverter.GetBytes(((processorCount - seedByteTakeDetermine.Next(0, processorCount)) + System.Environment.TickCount) + currentThreadId);
-				}
-			}
-
-			toHashForSeed = Sha512Digest(toHashForSeed, 0, toHashForSeed.Length);
-			toHashForSeed = MergeByteArrays(toHashForSeed, guidBytes);
-			toHashForSeed = MergeByteArrays(toHashForSeed, BitConverter.GetBytes(currentThreadId));
-			toHashForSeed = MergeByteArrays(toHashForSeed, BitConverter.GetBytes(DateTime.UtcNow.Ticks));
-			toHashForSeed = MergeByteArrays(toHashForSeed, BitConverter.GetBytes(DateTime.Now.Ticks));
-			toHashForSeed = MergeByteArrays(toHashForSeed, BitConverter.GetBytes(System.Environment.TickCount));
-			toHashForSeed = MergeByteArrays(toHashForSeed, BitConverter.GetBytes(processorCount));
-			toHashForSeed = MergeByteArrays(toHashForSeed, threadedSeedBytes);
-			toHashForSeed = Sha512Digest(toHashForSeed, 0, toHashForSeed.Length);
-
-			//we grab a random amount of bytes between 24 and 64 to rehash  make a new set of 64 bytes, using guidBytes as hmackey
-			toHashForSeed = Sha512Digest(HmacSha512Digest(toHashForSeed, 0, seedByteTakeDetermine.Next(24, 64), guidBytes), 0, 64);
-
-			seedByteTakeDetermine.SetSeed(currentThreadId + (DateTime.Now.Ticks - System.Environment.TickCount));
-
-			//by making the iterations also random we are again making it hard to determin our seed by brute force
-			int iterations = seedStretchingIterations - (seedByteTakeDetermine.Next(0, (seedStretchingIterations / seedByteTakeDetermine.Next(9, 100))));
-
-			//here we use key stretching techniques to make it harder to replay the random seed values by forcing computational time up            
-			byte[] seedMaterial = Rfc2898_pbkdf2_hmacsha512.PBKDF2(toHashForSeed, seedByteTakeDetermine.GenerateSeed(64), iterations);
-
-			//build a SecureRandom object that uses Sha512 to provide randomness and we will give it our created above hardened seed
-			SecureRandom secRand = new SecureRandom(new Org.BouncyCastle.Crypto.Prng.DigestRandomGenerator(new Sha512Digest()));
-
-			//set the seed that we created just above
-			secRand.SetSeed(seedMaterial);
-
-			//generate more seed materisal            
-			secRand.SetSeed(currentThreadId);
-			secRand.SetSeed(MergeByteArrays(guidBytes, threadedSeedBytes));
-			secRand.SetSeed(secRand.GenerateSeed(1 + secRand.Next(64)));
-
-			//add our prefab seed again onto the previous material just to be sure the above statements are adding and not clobbering seed material
-			secRand.SetSeed(seedMaterial);
-
-			//here we derive our random bytes
-			secRand.NextBytes(output, 0, size);
-
-			return output;
-		}
 
 		/// <summary>
 		/// Safely get Crypto Random byte array at the size you desire, made this async version because can take 500ms to complete and so this allows non-blocking for the 500ms.
@@ -331,16 +173,6 @@ namespace Bitcoin.BitcoinUtilities
 		public static BigInteger NewPositiveBigInteger(byte[] bytes)
 		{
 			return new BigInteger(1, bytes);
-		}
-
-		/// <summary>
-		/// Convert a .NET DateTime into a Unix Epoch represented time
-		/// </summary>
-		/// <param name="time">DateTime to convert</param>
-		/// <returns>Number of ticks since the Unix Epoch</returns>
-		public static ulong ToUnixTime(DateTime time)
-		{
-			return (ulong)(time.ToUniversalTime() - Globals.UnixEpoch).TotalSeconds;
 		}
 
 
