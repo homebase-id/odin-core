@@ -1,8 +1,10 @@
 ﻿using Bitcoin.BitcoinUtilities;
+using Odin.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -58,8 +60,9 @@ namespace Bitcoin.BIP39
 				throw (new Exception("entropy size must be a multiple of " + cEntropyMultiple + " (divisible by " + cEntropyMultiple + " with no remainder) and must be greater than " + (cMinimumEntropyBits - 1) + " and less than " + (cMaximumEntropyBits + 1)));
 			}
 
-			_entropyBytes = Utilities.GetRandomBytes(entropySize / cBitsInByte); //crypto random entropy of the specified size
-			pInit(passphrase, language);
+            // REPLACED _entropyBytes = Utilities.GetRandomBytes(entropySize / cBitsInByte); //crypto random entropy of the specified size
+            _entropyBytes = ByteArrayUtil.GetRndByteArray(entropySize / cBitsInByte);
+            pInit(passphrase, language);
 		}
 
 		/// <summary>

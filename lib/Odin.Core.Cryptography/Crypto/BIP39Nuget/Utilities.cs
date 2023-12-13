@@ -1,4 +1,5 @@
-﻿using Org.BouncyCastle.Crypto;
+﻿using Odin.Core;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Prng;
@@ -23,22 +24,6 @@ namespace Bitcoin.BitcoinUtilities
 	/// </summary>  
 	public static class Utilities
 	{
-		/// <summary>
-		/// Calculates RIPEMD160(SHA256(input)). This is used in Address calculations.
-		/// </summary>
-		public static byte[] Sha256Hash160(byte[] input)
-		{
-			var sha256 = new Sha256Digest();
-			var digest = new RipeMD160Digest();
-			sha256.BlockUpdate(input, 0, input.Length);
-			var @out256 = new byte[sha256.GetDigestSize()];
-			sha256.DoFinal(@out256, 0);
-			digest.BlockUpdate(@out256, 0, @out256.Length);
-			var @out = new byte[digest.GetDigestSize()];
-			digest.DoFinal(@out, 0);
-			return @out;
-		}
-
 		/// <summary>
 		/// Calculates the SHA256 32 byte checksum of the input bytes
 		/// </summary>
@@ -95,48 +80,6 @@ namespace Bitcoin.BitcoinUtilities
 			return secondHash;
 		}
 
-		/// <summary>
-		/// Calculates SHA256(SHA256(byte range 1 + byte range 2)).
-		/// </summary>
-		public static byte[] DoubleDigestTwoBuffers(byte[] input1, int offset1, int length1, byte[] input2, int offset2, int length2)
-		{
-			var algorithm = new Sha256Digest();
-			var buffer = new byte[length1 + length2];
-			Array.Copy(input1, offset1, buffer, 0, length1);
-			Array.Copy(input2, offset2, buffer, length1, length2);
-			Byte[] first = new Byte[algorithm.GetDigestSize()];
-			algorithm.DoFinal(first, 0);
-			algorithm.BlockUpdate(first, 0, first.Length);
-			Byte[] output = new Byte[algorithm.GetDigestSize()];
-			algorithm.DoFinal(output, 0);
-			return output;
-		}
-
-		// The representation of nBits uses another home-brew encoding, as a way to represent a large
-		// hash value in only 32 bits.
-		public static BigInteger DecodeCompactBits(long compact)
-		{
-			var size = (byte)(compact >> 24);
-			var bytes = new byte[4 + size];
-			bytes[3] = size;
-			if (size >= 1) bytes[4] = (byte)(compact >> 16);
-			if (size >= 2) bytes[5] = (byte)(compact >> 8);
-			if (size >= 3) bytes[6] = (byte)(compact >> 0);
-			return DecodeMpi(bytes);
-		}
-
-		/// <summary>
-		/// MPI encoded numbers are produced by the OpenSSL BN_bn2mpi function. They consist of
-		/// a 4 byte big endian length field, followed by the stated number of bytes representing
-		/// the number in big endian format.
-		/// </summary>
-		private static BigInteger DecodeMpi(byte[] mpi)
-		{
-			var length = ReadUint32Be(mpi, 0);
-			var buf = new byte[length];
-			Array.Copy(mpi, 4, buf, 0, (int)length);
-			return new BigInteger(1, buf);
-		}
 
 		/// <summary>
 		/// Converts a hex based string into its bytes contained in a byte array
@@ -326,7 +269,7 @@ namespace Bitcoin.BitcoinUtilities
 		/// <returns>A byte array of completely random bytes</returns>
 		public async static Task<byte[]> GetRandomBytesAsync(int size, int seedStretchingIterations = 5000)
 		{
-			return await Task.Run<byte[]>(() => GetRandomBytes(size, seedStretchingIterations));
+			return await Task.Run<byte[]>(() => ByteArrayUtil.GetRndByteArray(size));
 		}
 
 		/// <summary>
@@ -400,29 +343,6 @@ namespace Bitcoin.BitcoinUtilities
 			return (ulong)(time.ToUniversalTime() - Globals.UnixEpoch).TotalSeconds;
 		}
 
-		/// <summary>
-		/// Checks to see if supplied time is within the 70 minute tollerance for network error
-		/// </summary>
-		/// <param name="peerUnixTime">Unix time to check within threshold</param>
-		/// <param name="timeOffset">Offset which is difference between peerUnixTime and local UTC time</param>
-		/// <returns>Compliance within threshold</returns>
-		public static bool UnixTimeWithin70MinuteThreshold(ulong peerUnixTime, out long timeOffset)
-		{
-			int maxOffset = 42000;
-			int minOffset = -42000;
-
-			ulong currentTime = ToUnixTime(DateTime.UtcNow);
-
-			timeOffset = (Convert.ToInt64(currentTime)) - (Convert.ToInt64(peerUnixTime));
-
-			if (timeOffset > maxOffset || timeOffset < minOffset)
-			{
-				return false;
-			}
-
-			return true;
-		}
-
 
 		/// <summary>
 		/// Normalises a string with NKFD normal form
@@ -448,103 +368,6 @@ namespace Bitcoin.BitcoinUtilities
 			char[] trim = { '\0' };
 
 			return buffer.ToString().TrimEnd(trim);
-		}
-
-		/// <summary>
-		/// Uint32 to Byte Array in Little Endian
-		/// </summary>
-		/// <param name="val">the uint32 to convert</param>
-		/// <param name="@out">The byte array representation of uint32 in little endian</param>
-		/// <param name="offset">Offset to start placing the bytes in the byte array</param>
-		public static void Uint32ToByteArrayLe(uint val, byte[] @out, int offset)
-		{
-			@out[offset + 0] = (byte)(val >> 0);
-			@out[offset + 1] = (byte)(val >> 8);
-			@out[offset + 2] = (byte)(val >> 16);
-			@out[offset + 3] = (byte)(val >> 24);
-		}
-
-		/// <summary>
-		/// Converts a Uint32 into a Stream of Bytes in Little Endian
-		/// </summary>
-		/// <param name="val">Uint32 to make stream</param>
-		/// <param name="stream">Uint32 outout as byte stream little endian</param>
-		public static void Uint32ToByteStreamLe(uint val, Stream stream)
-		{
-			stream.Write((new byte[] { (byte)(val >> 0) }), 0, (new byte[] { (byte)(val >> 0) }).Length);
-			stream.Write((new byte[] { (byte)(val >> 8) }), 0, (new byte[] { (byte)(val >> 8) }).Length);
-			stream.Write((new byte[] { (byte)(val >> 16) }), 0, (new byte[] { (byte)(val >> 16) }).Length);
-			stream.Write((new byte[] { (byte)(val >> 24) }), 0, (new byte[] { (byte)(val >> 24) }).Length);
-		}
-
-		/// <summary>
-		/// Converts a Uint32 into a Byte Array in Big Endian
-		/// </summary>
-		/// <param name="val">Uint32 to convert</param>
-		/// <param name="@out">Byte array that will contain the result of the conversion</param>
-		/// <param name="offset">Offset in byte array to start placing output</param>
-		public static void Uint32ToByteArrayBe(uint val, byte[] @out, int offset)
-		{
-			@out[offset + 0] = (byte)(val >> 24);
-			@out[offset + 1] = (byte)(val >> 16);
-			@out[offset + 2] = (byte)(val >> 8);
-			@out[offset + 3] = (byte)(val >> 0);
-		}
-
-		/// <summary>
-		/// Convert a ulong to byte stream little endian
-		/// </summary>
-		/// <param name="val">ulong for conversion</param>
-		/// <param name="stream">byte stream of ulong in little endian order</param>
-		public static void Uint64ToByteStreamLe(ulong val, Stream stream)
-		{
-			var bytes = BitConverter.GetBytes(val);
-			if (!BitConverter.IsLittleEndian)
-			{
-				Array.Reverse(bytes);
-			}
-
-			stream.Write(bytes, 0, bytes.Length);
-		}
-		/// <summary>
-		/// Bytes to Uint32
-		/// </summary>
-		/// <param name="bytes">Bytes to get Uint32 from</param>
-		/// <param name="offset">Offset to start getting the UInt32 from</param>
-		/// <returns>Uint32</returns>
-		public static uint ReadUint32(byte[] bytes, int offset)
-		{
-			return (((uint)bytes[offset + 0]) << 0) |
-				   (((uint)bytes[offset + 1]) << 8) |
-				   (((uint)bytes[offset + 2]) << 16) |
-				   (((uint)bytes[offset + 3]) << 24);
-		}
-
-		/// <summary>
-		/// Bytes to Uint32 in BigEndian format
-		/// </summary>
-		/// <param name="bytes">Bytes to get Uint32 from</param>
-		/// <param name="offset">Offset to start getting the UInt32 from</param>
-		/// <returns>Uint32</returns>
-		public static uint ReadUint32Be(byte[] bytes, int offset)
-		{
-			return (((uint)bytes[offset + 0]) << 24) |
-				   (((uint)bytes[offset + 1]) << 16) |
-				   (((uint)bytes[offset + 2]) << 8) |
-				   (((uint)bytes[offset + 3]) << 0);
-		}
-
-		/// <summary>
-		/// Reverse the order of given Byte Array
-		/// </summary>
-		/// <param name="bytes">Byte array to reverse</param>
-		/// <returns>reverse copy of supplied Byte array</returns>
-		public static byte[] ReverseBytes(byte[] bytes)
-		{
-			var buf = new byte[bytes.Length];
-			for (var i = 0; i < bytes.Length; i++)
-				buf[i] = bytes[bytes.Length - 1 - i];
-			return buf;
 		}
 
 		/// <summary>
