@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Time;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Registry
@@ -65,6 +66,11 @@ namespace Odin.Core.Services.Registry
         /// Whether the identity is disabled (i.e. paused) or not
         /// </summary>
         public bool Disabled { get; set; }
+
+        /// <summary>
+        /// The date this account was marked for deletion.
+        /// </summary>
+        public UnixTimeUtc? MarkedForDeletionDate { get; set; }
 
         public override string ToString()
         {

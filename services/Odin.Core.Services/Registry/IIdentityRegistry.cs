@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Odin.Core.Services.Base;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Registry
 {
@@ -86,5 +87,12 @@ namespace Odin.Core.Services.Registry
         /// </summary>
         /// /// <returns>Previous state or null if not found</returns>
         Task<bool?> ToggleDisabled(string domain, bool disabled);
+
+        /// <summary>
+        /// Marks an account for deletion as of now(); returns the date on which it will be deleted based on registry config
+        /// </summary>
+        Task<UnixTimeUtc> MarkForDeletion(string domain);
+
+        Task UnmarkForDeletion(string domain);
     }
 }

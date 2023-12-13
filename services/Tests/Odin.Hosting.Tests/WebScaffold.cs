@@ -32,12 +32,12 @@ namespace Odin.Hosting.Tests
         /// to use the client api (where each test will support it's own payload key)
         /// </summary>
         public const string PAYLOAD_KEY = "test_key";
-        
+
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
         public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new();
 
         private readonly string _folder;
-        
+
 
         // private readonly string _password = "EnSøienØ";
         private IHost _webserver;
@@ -49,11 +49,11 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
-        
+
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
         public IServiceProvider Services => _webserver.Services;
-        
+
         static WebScaffold()
         {
             HttpClientFactory.Register<OwnerApiTestUtils>(b =>
@@ -201,7 +201,7 @@ namespace Odin.Hosting.Tests
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
         }
-        
+
         public OwnerApiClientRedux CreateOwnerApiClientRedux(TestIdentity identity)
         {
             return new OwnerApiClientRedux(this._oldOwnerApi, identity);
@@ -322,7 +322,8 @@ namespace Odin.Hosting.Tests
         /// <summary>
         /// Total transitionary hack method until i refactor the API clients 
         /// </summary>
-        public static UploadManifestPayloadDescriptor CreatePayloadDescriptorFrom(string payloadKey, params ThumbnailDescriptor[] thumbs)
+        public static UploadManifestPayloadDescriptor CreatePayloadDescriptorFrom(string payloadKey, bool excludeIv = false,
+            params ThumbnailDescriptor[] thumbs)
         {
             var thumbList = thumbs?.Select(t => new UploadedManifestThumbnailDescriptor()
             {
@@ -330,9 +331,10 @@ namespace Odin.Hosting.Tests
                 PixelWidth = t.PixelWidth,
                 PixelHeight = t.PixelHeight
             });
-            
+
             return new()
             {
+                Iv = excludeIv ? null : ByteArrayUtil.GetRndByteArray(16),
                 PayloadKey = payloadKey,
                 Thumbnails = thumbList
             };

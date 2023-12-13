@@ -12,7 +12,12 @@ public class PayloadDescriptor
     {
         this.Thumbnails = new List<ThumbnailDescriptor>();
     }
-    
+
+    /// <summary>
+    /// Initialization vector for the encrypted payload
+    /// </summary>
+    public byte[] Iv { get; set; }
+
     /// <summary>
     /// A text value specified by the app to define the payload
     /// </summary>
@@ -35,7 +40,7 @@ public class PayloadDescriptor
     /// Set of thumbnails for this payload in addition to the Appdata.PreviewThumbnail
     /// </summary>
     public List<ThumbnailDescriptor> Thumbnails { get; set; }
-    
+
     public string GetLastModifiedHttpHeaderValue()
     {
         return LastModified.ToDateTime().ToString("R");

@@ -7,10 +7,12 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
@@ -43,7 +45,7 @@ public class DirectDrivePayloadTests_1
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-        [Test]
+    [Test]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanGetPayloadByKeyIncludesCorrectHeaders(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -55,8 +57,8 @@ public class DirectDrivePayloadTests_1
 
         var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
 
-        var payloadDefinition = SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1;
-        var testPayloads = new List<TestPayloadDefinition>() { payloadDefinition };
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1;
+        var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
         var uploadManifest = new UploadManifest()
         {
@@ -76,18 +78,19 @@ public class DirectDrivePayloadTests_1
         Assert.IsNotNull(header);
         Assert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
 
-        var payloadFromHeader = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == payloadDefinition.Key);
+        var payloadFromHeader = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
         Assert.IsNotNull(payloadFromHeader, "payload not found in header");
+        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadFromHeader.Iv, uploadedPayloadDefinition.Iv));
 
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        
+
         // Get the payload and check the headers
         var getPayloadKey1Response = await uniDriveClient.GetPayload(uploadResult.File, SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1.Key);
 
         Assert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode);
 
-        if(expectedStatusCode== HttpStatusCode.OK) //test more
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             Assert.IsNotNull(getPayloadKey1Response.ContentHeaders);
             Assert.IsNotNull(getPayloadKey1Response.Headers);
@@ -96,12 +99,16 @@ public class DirectDrivePayloadTests_1
             Assert.IsFalse(bool.Parse(isEncryptedValues.Single()));
 
             Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            Assert.IsTrue(payloadKeyValues.Single() == payloadDefinition.Key);
+            Assert.IsTrue(payloadKeyValues.Single() == uploadedPayloadDefinition.Key);
             Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            Assert.IsTrue(contentTypeValues.Single() == payloadDefinition.ContentType);
+            Assert.IsTrue(contentTypeValues.Single() == uploadedPayloadDefinition.ContentType);
 
             Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var encryptedHeader64Values));
-            Assert.IsTrue(encryptedHeader64Values.Single() == header.SharedSecretEncryptedKeyHeader.ToBase64());
+
+            var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
+            Assert.IsNotNull(payloadEkh);
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, uploadedPayloadDefinition.Iv));
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey, header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
 
             Assert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders, out var lastModifiedHeaderValue));
             //Note commented as I'm having some conversion issues i think
@@ -158,8 +165,8 @@ public class DirectDrivePayloadTests_1
 
         var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
         Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
-        
-        if(expectedStatusCode == HttpStatusCode.OK) //test more
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
 
@@ -271,5 +278,4 @@ public class DirectDrivePayloadTests_1
             Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
         }
     }
-
 }

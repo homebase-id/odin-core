@@ -121,6 +121,7 @@ public abstract class FileSystemStreamWriterBase
         {
             Package.Payloads.Add(new PackagePayloadDescriptor()
             {
+                Iv = descriptor.Iv,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
@@ -417,6 +418,16 @@ public abstract class FileSystemStreamWriterBase
             if (hasInvalidPayloads)
             {
                 throw new OdinClientException("One or more payload descriptors is invalid", OdinClientErrorCode.InvalidFile);
+            }
+
+            if (!metadata.IsEncrypted && Package.GetPayloadsWithValidIVs().Any())
+            {
+                throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
+            }
+
+            if (metadata.IsEncrypted && !Package.Payloads.All(p => p.HasStrongIv()))
+            {
+                throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
             }
         }
 

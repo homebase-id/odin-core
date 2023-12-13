@@ -142,6 +142,7 @@ namespace Odin.Core.Services.Configuration
 
             public DnsConfigurationSet DnsConfigurationSet { get; init; }
             public List<string> DnsResolvers { get; init; }
+            public long DaysUntilAccountDeletion { get; init; }
 
             public RegistrySection()
             {
@@ -164,6 +165,8 @@ namespace Odin.Core.Services.Configuration
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
 
                 InvitationCodes = config.GetOrDefault<List<string>>("Registry:InvitationCodes", new List<string>());
+
+                DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
 
             public class ManagedDomainApex

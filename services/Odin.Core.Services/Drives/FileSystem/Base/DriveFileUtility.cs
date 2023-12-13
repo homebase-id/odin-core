@@ -86,6 +86,32 @@ public static class DriveFileUtility
         return clientFileHeader;
     }
 
+    /// <summary>
+    /// Gets the <see cref="EncryptedKeyHeader"/> for the payload key using the payload's IV
+    /// </summary>
+    public static EncryptedKeyHeader GetPayloadEncryptedKeyHeader(
+        ServerFileHeader header,
+        PayloadDescriptor payloadDescriptor,
+        OdinContextAccessor contextAccessor)
+    {
+        if (header == null)
+        {
+            return null;
+        }
+
+        if (header.FileMetadata.IsEncrypted)
+        {
+            var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            // The design is such that the client uses a different iv for each payload but the same aesKey;
+            keyHeader.Iv = payloadDescriptor.Iv;
+            var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            return EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref clientSharedSecret);
+        }
+
+        return EncryptedKeyHeader.Empty();
+    }
+
     private static ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
     {
         var clientFile = new ClientFileMetadata

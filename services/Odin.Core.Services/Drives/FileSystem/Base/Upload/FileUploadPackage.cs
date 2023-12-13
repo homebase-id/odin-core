@@ -62,6 +62,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
                 return new PayloadDescriptor()
                 {
+                    Iv = p.Iv,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
@@ -73,6 +74,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             });
 
             return descriptors.ToList();
+        }
+
+        public List<PackagePayloadDescriptor> GetPayloadsWithValidIVs()
+        {
+            return Payloads.Where(p => p.HasIv()).ToList();
         }
     }
 }

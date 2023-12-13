@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
@@ -95,8 +96,12 @@ namespace Odin.Hosting.Controllers.Peer
         public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var (encryptedKeyHeader64, isEncrypted, payloadStream) =
-                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Key, request.Chunk);
+            var (encryptedKeyHeader64, isEncrypted, payloadDescriptor, payloadStream) =
+                await perimeterService.GetPayloadStream(
+                    request.File.TargetDrive,
+                    request.File.FileId,
+                    request.Key,
+                    request.Chunk);
 
             if (payloadStream == null)
             {
@@ -121,14 +126,14 @@ namespace Odin.Hosting.Controllers.Peer
         {
             var perimeterService = GetPerimeterService();
 
-            var (encryptedKeyHeader64, isEncrypted, decryptedContentType, lastModified, thumb) =
+            var (encryptedKeyHeader64, isEncrypted, payloadDescriptor, decryptedContentType, lastModified, thumb) =
                 await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey);
 
             if (thumb == null)
             {
                 return NotFound();
             }
-
+            
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
@@ -276,7 +281,7 @@ namespace Odin.Hosting.Controllers.Peer
             });
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-            
+
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
             return result;

@@ -53,6 +53,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var keyHeader = KeyHeader.NewRandom16();
 
             const string payloadKey = WebScaffold.PAYLOAD_KEY;
+            var payloadIv = ByteArrayUtil.GetRndByteArray(16);
 
             var instructionSet = new UploadInstructionSet()
             {
@@ -65,8 +66,9 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        new UploadManifestPayloadDescriptor()
+                        new ()
                         {
+                            Iv = payloadIv,
                             PayloadKey = payloadKey
                         }
                     }

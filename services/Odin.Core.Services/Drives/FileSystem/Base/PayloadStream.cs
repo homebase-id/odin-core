@@ -33,9 +33,8 @@ public class PayloadStream
     }
 
     public UnixTimeUtc LastModified { get; set; }
-
+    
     public string Key { get; init; }
     public string ContentType { get; init; }
     public Stream Stream { get; init; }
-    
 }

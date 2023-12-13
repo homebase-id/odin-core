@@ -13,7 +13,9 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -65,20 +67,25 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
+            var (header, payloadDescriptor, encryptedKeyHeader, fileExists) = 
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
+
+            if (!fileExists)
+            {
+                return NotFound();
+            }
+
             var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
             if (payloadStream == null)
             {
                 return NotFound();
             }
 
-            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
 
             if (null != request.Chunk)
             {
@@ -90,7 +97,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 // Sanity
                 if (to >= payloadSize)
                 {
-                    throw new OdinSystemException($"{to} >= {payloadSize}");
+                    throw new RequestedRangeNotSatisfiableException($"{to} >= {payloadSize}");
                 }
 
                 HttpContext.Response.Headers.Append("Content-Range",
@@ -115,14 +122,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
-            var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
-            if (header == null)
-            {
-                return NotFound();
-            }
-
-            var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(request.PayloadKey);
-            if (null == payloadDescriptor)
+            var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey);
+            
+            if(!fileExists)
             {
                 return NotFound();
             }
@@ -138,7 +141,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, header.SharedSecretEncryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeaderForPayload.ToBase64());
 
             AddGuestApiCacheHeader();
 

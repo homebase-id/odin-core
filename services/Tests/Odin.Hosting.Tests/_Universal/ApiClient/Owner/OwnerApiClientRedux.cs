@@ -2,6 +2,7 @@
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
@@ -40,6 +41,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             Cron = new CronApiClient(ownerApi, identity);
             Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
+
+            AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -65,6 +68,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public CircleNetworkApiClient Network { get; }
 
         public CircleNetworkRequestsApiClient Connections { get; }
+
+        public OwnerAccountManagementApiClient AccountManagement { get; }
+
         public YouAuthDomainApiClient YouAuth { get; }
     }
 }
