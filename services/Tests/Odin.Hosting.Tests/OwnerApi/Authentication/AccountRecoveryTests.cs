@@ -48,7 +48,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
             Assert.IsNotEmpty(decryptedRecoveryKey.Key);
             Assert.IsNotNull(decryptedRecoveryKey.Key);
-            Assert.IsTrue(decryptedRecoveryKey.Key.Length == 32);
+            Assert.IsTrue(decryptedRecoveryKey.Key.Split(" ").Length == 12,"there should be 12 words");
 
             //TODO: additional checks on the key
             // RecoveryKeyGenerator.Characters

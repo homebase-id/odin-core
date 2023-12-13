@@ -3,7 +3,7 @@ using System.Security;
 
 namespace Odin.Core.Cryptography.Crypto
 {
-    public static class BIP39
+    public static class BIP39Util
     {
         public static string GenerateBIP39(byte[] key)
         {

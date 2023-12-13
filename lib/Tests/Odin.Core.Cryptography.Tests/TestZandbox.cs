@@ -19,8 +19,8 @@ namespace Odin.Core.Cryptography.Tests
         public void TestBIPRecoveryKey()
         {
             byte[] key = Guid.NewGuid().ToByteArray();
-            var s = BIP39.GenerateBIP39(key);
-            var b = BIP39.DecodeBIP39(s);
+            var s = BIP39Util.GenerateBIP39(key);
+            var b = BIP39Util.DecodeBIP39(s);
 
             if (ByteArrayUtil.EquiByteArrayCompare(key, b.GetKey()))
                 Assert.Pass();
