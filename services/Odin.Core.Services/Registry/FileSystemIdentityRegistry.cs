@@ -14,6 +14,7 @@ using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;
+using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
 using Serilog;
@@ -47,7 +48,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
         OdinConfiguration config
-        )
+    )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
@@ -123,12 +124,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         var storageConfig = new TenantStorageConfig(
-            headerDataStoragePath:Path.Combine(rootPath, "headers"),
+            headerDataStoragePath: Path.Combine(rootPath, "headers"),
             tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
             payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
             staticFileStoragePath: Path.Combine(rootPath, "static")
         );
-        
+
         var sslRoot = Path.Combine(rootPath, "ssl");
 
         // IO is slow, so make it optional
@@ -143,7 +144,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
-        var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured);
+        var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured,
+            idReg.MarkedForDeletionDate);
         return tc;
     }
 
@@ -359,12 +361,41 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 reg.Disabled = disabled;
                 await SaveRegistrationInternal(reg);
             }
+
             if (disabled)
             {
                 UnloadRegistration(reg);
             }
         }
+
         return result;
+    }
+
+    public async Task<UnixTimeUtc> MarkForDeletion(string domain)
+    {
+        var reg = _trie.LookupExactName(domain);
+        if (reg == null)
+        {
+            throw new OdinClientException("Invalid domain");
+        }
+
+        var markedDate = UnixTimeUtc.Now();
+        reg.MarkedForDeletionDate = UnixTimeUtc.Now();
+        await SaveRegistrationInternal(reg);
+        
+        return markedDate.AddDays(_config.Registry.DaysUntilAccountDeletion);
+    }
+
+    public async Task UnmarkForDeletion(string domain)
+    {
+        var reg = _trie.LookupExactName(domain);
+        if (reg == null)
+        {
+            throw new OdinClientException("Invalid domain");
+        }
+
+        reg.MarkedForDeletionDate = null;
+        await SaveRegistrationInternal(reg);
     }
 
     private string GetRegFilePath(Guid registrationId)
@@ -452,6 +483,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             _cache.Remove(registration.Id);
         }
+
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
