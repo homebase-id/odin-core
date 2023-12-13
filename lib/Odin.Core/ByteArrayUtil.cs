@@ -238,7 +238,7 @@ namespace Odin.Core
         }
 
         /// <summary>
-        /// Check if two byte arrays of equal length are identical. Tempting to use memcmp() ;)
+        /// Check if two byte arrays of equal length are identical.
         /// </summary>
         /// <param name="ba1"></param>
         /// <param name="ba2"></param>

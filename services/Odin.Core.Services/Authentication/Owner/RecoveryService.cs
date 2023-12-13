@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
@@ -29,7 +30,7 @@ public class RecoveryService
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
     /// </summary>
-    public void AssertValidKey(string recoveryKey, out SensitiveByteArray masterKey)
+    public void AssertValidKey(string text, out SensitiveByteArray masterKey)
     {
         var existingKey = GetKeyInternal();
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
@@ -37,8 +38,7 @@ public class RecoveryService
             throw new OdinSystemException("Recovery key not configured");
         }
 
-        var key = recoveryKey.ToUtf8ByteArray().ToSensitiveByteArray();
-
+        var key = BIP39Util.DecodeBIP39(text);
         masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
@@ -51,9 +51,8 @@ public class RecoveryService
             throw new OdinSystemException("Recovery key already exists");
         }
 
-        // var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
-        var key = RecoveryKeyGenerator.EncodeKey(ByteArrayUtil.GetRndByteArray(16));
-        this.SaveKey(key);
+        var keyBytes = ByteArrayUtil.GetRndByteArray(16);
+        SaveKey(keyBytes.ToSensitiveByteArray());
 
         await Task.CompletedTask;
     }
@@ -83,12 +82,15 @@ public class RecoveryService
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
+        var readableText = BIP39Util.GenerateBIP39(recoverKey.GetKey());
+
         var rk = new DecryptedRecoveryKey
         {
-            Key = recoverKey.GetKey().ToStringFromUtf8Bytes(),
+            Key = readableText,
             Created = keyRecord.Created
         };
 
+        recoverKey.Wipe();
         return Task.FromResult(rk);
     }
 
@@ -98,11 +100,8 @@ public class RecoveryService
         return existingKey;
     }
 
-    private void SaveKey(string key)
+    private void SaveKey(SensitiveByteArray recoveryKey)
     {
-        //TODO: need to review the type of encryption im doing here. i.e. using
-        // SymmetricKeyEncryptedAes fixes my key size to 32 bytes
-        var recoveryKey = key.ToUtf8ByteArray().ToSensitiveByteArray();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
         //TODO: what validations are needed here?
