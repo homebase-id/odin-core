@@ -89,6 +89,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            var payloadIv = ByteArrayUtil.GetRndByteArray(16);
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -107,13 +108,14 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 },
                 Manifest = new UploadManifest()
                 {
-                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
-                     {
-                         new UploadManifestPayloadDescriptor()
-                         {
-                             PayloadKey = WebScaffold.PAYLOAD_KEY
-                         }
-                     }
+                    PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
+                    {
+                        new UploadManifestPayloadDescriptor()
+                        {
+                            Iv = payloadIv,
+                            PayloadKey = WebScaffold.PAYLOAD_KEY
+                        }
+                    }
                 }
             };
 
@@ -146,8 +148,14 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
+            var payloadKeyHeader = new KeyHeader()
+            {
+                Iv = payloadIv,
+                AesKey = keyHeader.AesKey
+            };
+
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+            var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payloadData);
 
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
@@ -382,6 +390,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            var payloadIv = ByteArrayUtil.GetRndByteArray(16);
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -399,7 +408,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 },
                 Manifest = new UploadManifest()
             };
-            
+
             var thumbnail1 = new ThumbnailDescriptor()
             {
                 PixelHeight = 300,
@@ -443,10 +452,18 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
-            
+
+            var payloadKeyHeader = new KeyHeader()
+            {
+                Iv = payloadIv,
+                AesKey = keyHeader.AesKey
+            };
+
+            var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payloadData);
+
             instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
             {
+                Iv = payloadIv,
                 PayloadKey = WebScaffold.PAYLOAD_KEY,
                 Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
                 {
@@ -584,7 +601,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    IV: payloadIv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
@@ -708,7 +725,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             const string payloadKey = "abc333yc";
 
             instructionSet.Manifest.PayloadDescriptors = new List<UploadManifestPayloadDescriptor>();
-            
+
             var thumbnail1 = new ThumbnailDescriptor()
             {
                 PixelHeight = 300,
@@ -751,11 +768,20 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
+            var payloadIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var payloadKeyHeader = new KeyHeader()
+            {
+                Iv = payloadIv,
+                AesKey = keyHeader.AesKey
+            };
+
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+            var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payloadData);
 
             instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
             {
+                Iv = payloadIv,
                 PayloadKey = payloadKey,
                 Thumbnails = new List<UploadedManifestThumbnailDescriptor>()
                 {
@@ -895,7 +921,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    IV: payloadIv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
