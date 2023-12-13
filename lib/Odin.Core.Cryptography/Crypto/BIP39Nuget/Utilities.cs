@@ -344,42 +344,15 @@ namespace Bitcoin.BitcoinUtilities
 		}
 
 
-		/// <summary>
-		/// Normalises a string with NKFD normal form
-		/// </summary>
-		/// <param name="toNormalise">String to be normalised</param>
-		/// <returns>Normalised string</returns>
-		public static String NormaliseStringNfkd(String toNormalise)
-		{
-			int bufferSize = NormalizeString(Globals.NORM_FORM.NormalizationKD, toNormalise, -1, null, 0);
+        public static string NormaliseStringNfkd(string toNormalise)
+        {
+            if (toNormalise == null)
+            {
+                throw new ArgumentNullException(nameof(toNormalise));
+            }
 
-			StringBuilder buffer = new StringBuilder(bufferSize);
-
-			// Normalize.
-			NormalizeString(Globals.NORM_FORM.NormalizationKD, toNormalise, -1, buffer, buffer.Capacity);
-
-			// Check for and act on errors if you want.
-			int error = Marshal.GetLastWin32Error();
-
-			if (error != 0)
-			{
-				throw (new Exception("A Win32 error with code " + error + " has occured in unmanaged NormalizeString"));
-			}
-			char[] trim = { '\0' };
-
-			return buffer.ToString().TrimEnd(trim);
-		}
-
-		/// <summary>
-		/// Will be used internally for NFKD Normalisation
-		/// </summary>
-		/// <param name="NormForm">Normal Form to use</param>
-		/// <param name="lpSrcString">Raw non-normalised source string</param>
-		/// <param name="cwSrcLength">Length of source string</param>
-		/// <param name="lpDstString">Normalised destination string</param>
-		/// <param name="cwDstLength">length of destination string</param>
-		/// <returns>length of result string</returns>
-		[DllImport("Normaliz.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
-		private static extern int NormalizeString(Globals.NORM_FORM NormForm, string lpSrcString, int cwSrcLength, StringBuilder lpDstString, int cwDstLength);
+            char[] trim = { '\0' };
+            return toNormalise.Normalize(NormalizationForm.FormKD).TrimEnd(trim);
+        }
 	}
 }
