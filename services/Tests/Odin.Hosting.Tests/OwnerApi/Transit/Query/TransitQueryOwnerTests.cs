@@ -1034,6 +1034,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             instructionSet.TransitOptions = null;
+            // instructionSet.Manifest.PayloadDescriptors.Single().Iv = ByteArrayUtil.GetRndByteArray(16);
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, false,
                 fileSystemType: FileSystemType.Comment);
@@ -1151,7 +1152,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     PayloadDescriptors = new List<UploadManifestPayloadDescriptor>()
                     {
-                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, false, thumbnail1)
+                        WebScaffold.CreatePayloadDescriptorFrom(WebScaffold.PAYLOAD_KEY, true, thumbnail1)
                     }
                 }
             };
@@ -1317,6 +1318,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.AllowDistribution = false;
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
+            instructionSet.Manifest.PayloadDescriptors.Single().Iv = ByteArrayUtil.GetRndByteArray(16);
+            
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId,
                 instructionSet, descriptor.FileMetadata, originalPayloadData, true,
                 new ThumbnailContent()

@@ -779,15 +779,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                 var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-                var payloadKeyHeader = new KeyHeader()
+                MemoryStream payloadCipher = new MemoryStream(payloadData.ToUtf8ByteArray());
+                MemoryStream payloadCipher2= new MemoryStream(payloadData.ToUtf8ByteArray());
+
+                KeyHeader payloadKeyHeader = null;
+                if (encryptPayload)
                 {
-                    AesKey = keyHeader.AesKey,
-                    Iv = instructionSet.Manifest.PayloadDescriptors.Single().Iv
-                };
-                
-                var payloadCipherBytes = payloadKeyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
-                
-                var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
+                    payloadKeyHeader = new KeyHeader()
+                    {
+                        AesKey = keyHeader.AesKey,
+                        Iv = instructionSet.Manifest.PayloadDescriptors.Single().Iv
+                    };
+
+                    var payloadCipherBytes = payloadKeyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
+                    payloadCipher = new MemoryStream(payloadCipherBytes);
+                    payloadCipher2 = new MemoryStream(payloadCipherBytes);
+                }
+
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
                 ApiResponse<UploadResult> response;
@@ -800,7 +808,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 }
                 else
                 {
-                    var thumbnailCipherBytes = encryptPayload ? payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content) : new MemoryStream(thumbnail.Content);
+                    var thumbnailCipherBytes = payloadKeyHeader == null
+                        ? new MemoryStream(thumbnail.Content)
+                        : payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content);
+                    
                     response = await transitSvc.Upload(
                         new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                         new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -817,14 +828,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
                 //keyHeader.AesKey.Wipe();
-
+                
                 return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
                     UploadResult = transferResult,
-                    PayloadCipher = payloadCipherBytes,
+                    PayloadCipher = payloadCipher2.ToByteArray(),
                     FileSystemType = fileSystemType
                 };
             }

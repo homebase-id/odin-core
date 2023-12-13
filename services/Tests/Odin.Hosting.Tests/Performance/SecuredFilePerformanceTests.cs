@@ -232,6 +232,7 @@ namespace Odin.Hosting.Tests.Performance
 
                 instructionSet.Manifest.PayloadDescriptors.Add(new UploadManifestPayloadDescriptor()
                 {
+                    Iv = ByteArrayUtil.GetRndByteArray(16),
                     PayloadKey = WebScaffold.PAYLOAD_KEY,
                     Thumbnails = (new[] { thumbnail1, thumbnail2 }).Select(thumb => new UploadedManifestThumbnailDescriptor()
                     {

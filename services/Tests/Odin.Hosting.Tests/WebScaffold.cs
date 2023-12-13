@@ -334,7 +334,7 @@ namespace Odin.Hosting.Tests
 
             return new()
             {
-                Iv = excludeIv ? default : ByteArrayUtil.GetRndByteArray(16),
+                Iv = excludeIv ? null : ByteArrayUtil.GetRndByteArray(16),
                 PayloadKey = payloadKey,
                 Thumbnails = thumbList
             };
