@@ -51,7 +51,7 @@ public class DirectDrivePayload_Notfound_Tests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
             SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,

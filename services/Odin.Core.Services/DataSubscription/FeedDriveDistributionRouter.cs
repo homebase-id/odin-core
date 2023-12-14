@@ -73,7 +73,7 @@ namespace Odin.Core.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            if (await ShouldDistribute(notification))
+            if (await ShouldDistribute(notification.ServerFileHeader))
             {
                 if (_contextAccessor.GetCurrent().Caller.IsOwner)
                 {
@@ -142,33 +142,33 @@ namespace Odin.Core.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(IDriveNotification notification)
+        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader)
         {
             //if the file was received from another identity, do not redistribute
-            var sender = notification.ServerFileHeader?.FileMetadata?.SenderOdinId;
+            var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity)
             {
                 return false;
             }
 
-            if (notification.ServerFileHeader == null) //file was hard-deleted
+            if (serverFileHeader == null) //file was hard-deleted
             {
                 return false;
             }
 
-            if (!notification.ServerFileHeader.ServerMetadata.AllowDistribution)
+            if (!serverFileHeader.ServerMetadata.AllowDistribution)
             {
                 return false;
             }
 
             //We only distribute standard files to populate the feed.  Comments are retrieved by calls over transit query
-            if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Standard)
+            if (serverFileHeader.ServerMetadata.FileSystemType != FileSystemType.Standard)
             {
                 return false;
             }
 
-            if (!await SupportsSubscription(notification.File.DriveId))
+            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId))
             {
                 return false;
             }

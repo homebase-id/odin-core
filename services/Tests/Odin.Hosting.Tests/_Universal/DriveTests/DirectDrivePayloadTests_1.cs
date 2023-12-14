@@ -55,7 +55,7 @@ public class DirectDrivePayloadTests_1
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
         var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1;
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
@@ -127,7 +127,7 @@ public class DirectDrivePayloadTests_1
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
         var uploadNewMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
@@ -208,7 +208,7 @@ public class DirectDrivePayloadTests_1
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
         var uploadedPayloadDefinition = SamplePayloadDefinitions.PayloadDefinition1;
         var testPayloads = new List<TestPayloadDefinition>()

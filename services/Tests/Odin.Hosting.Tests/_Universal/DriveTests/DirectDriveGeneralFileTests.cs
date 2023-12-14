@@ -55,7 +55,7 @@ public class DirectDriveGeneralFileTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         await callerContext.Initialize(ownerApiClient);
 
         // Act
@@ -76,7 +76,7 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
             SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
@@ -157,7 +157,7 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         // upload metadata
-        var uploadedFileMetadata = SampleMetadataDataDefinitions.Create(fileType: 100);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()
         {
             SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1,
@@ -217,9 +217,9 @@ public class DirectDriveGeneralFileTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
 
         // upload metadata and validate they're uploaded
-        var f1 = SampleMetadataDataDefinitions.Create(fileType: 101);
-        var f2 = SampleMetadataDataDefinitions.Create(fileType: 202);
-        var f3 = SampleMetadataDataDefinitions.Create(fileType: 203);
+        var f1 = SampleMetadataData.Create(fileType: 101);
+        var f2 = SampleMetadataData.Create(fileType: 202);
+        var f3 = SampleMetadataData.Create(fileType: 203);
 
         UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
         UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
@@ -285,10 +285,10 @@ public class DirectDriveGeneralFileTests
         var groupId3 = Guid.NewGuid(); // Keep this done
 
         // upload metadata and validate they're uploaded
-        var f1 = SampleMetadataDataDefinitions.Create(fileType: 101, groupId: groupId1);
-        var f2 = SampleMetadataDataDefinitions.Create(fileType: 202, groupId: groupId1);
-        var f3 = SampleMetadataDataDefinitions.Create(fileType: 203, groupId: groupId2);
-        var f4 = SampleMetadataDataDefinitions.Create(fileType: 203, groupId: groupId3);
+        var f1 = SampleMetadataData.Create(fileType: 101, groupId: groupId1);
+        var f2 = SampleMetadataData.Create(fileType: 202, groupId: groupId1);
+        var f3 = SampleMetadataData.Create(fileType: 203, groupId: groupId2);
+        var f4 = SampleMetadataData.Create(fileType: 203, groupId: groupId3);
 
         UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
         UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);

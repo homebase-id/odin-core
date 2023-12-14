@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
     public interface IUniversalDriveHttpClientApi
     {
         private const string RootStorageEndpoint = "/drive/files";
-        private const string RootQueryEndpoint = "/query";
+        private const string RootQueryEndpoint = "/drive/query";
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
