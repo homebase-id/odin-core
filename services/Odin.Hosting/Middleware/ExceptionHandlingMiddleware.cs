@@ -87,6 +87,14 @@ namespace Odin.Hosting.Middleware
 
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
+            // We're not allowed to write anything back on a websocket CONNECT,
+            // so for now just log whatever it is as an error.
+            if (context.WebSockets.IsWebSocketRequest && context.Request.Method == "CONNECT")
+            {
+                _logger.LogError(exception, "{ErrorText}", exception.Message);
+                return Task.CompletedTask;
+            }
+
             var problemDetails = new ProblemDetails
             {
                 Status = 500,
@@ -137,6 +145,7 @@ namespace Odin.Hosting.Middleware
                 context.Response.ContentType = "application/problem+json";
                 context.Response.StatusCode = problemDetails.Status.Value;
             }
+
 
             return context.Response.WriteAsync(result);
         }
