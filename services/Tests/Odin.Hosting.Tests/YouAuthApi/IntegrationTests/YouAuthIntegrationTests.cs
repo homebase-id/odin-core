@@ -1108,7 +1108,112 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
-        public async Task c3_app_exchange_WithExplicitConsentItShouldExchangeAuthorizationCodeForToken()
+        public async Task c3_app_consent_AuthorizeMustSkipConsentForAppsOnOwner()
+        {
+            const string hobbit = "sam.dotyou.cloud";
+            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            var appId = Guid.NewGuid().ToString();
+            var driveAlias = Guid.NewGuid().ToString("N");
+            var driveType = Guid.NewGuid().ToString("N");
+            await RegisterApp(hobbit, Guid.Parse(appId), Guid.Parse(driveAlias), Guid.Parse(driveType));
+
+            //
+            // [010] Generate key pair
+            //
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
+
+            //
+            // [030] Request authorization code
+            //
+            {
+                //
+                // Arrange
+                //
+
+                var driveParams = new[]
+                {
+                    new
+                    {
+                        a = driveAlias,
+                        t = driveType,
+                        n = "App name",
+                        d = "App description",
+                        p = 3 // permissions 3 = r/w
+                    },
+                };
+                var appParams = new YouAuthAppParameters
+                {
+                    AppName = "Odin - Test App",
+                    AppOrigin = "dev.dotyou.cloud:3005",
+                    AppId = appId,
+                    ClientFriendly = "Firefox | macOS",
+                    DrivesParam = OdinSystemSerializer.Serialize(driveParams),
+                    Return = "backend-will-decide",
+                };
+
+
+                var payload = new YouAuthAuthorizeRequest
+                {
+                    ClientId = appId,
+                    ClientType = ClientType.app,
+                    ClientInfo = "",
+                    PermissionRequest = OdinSystemSerializer.Serialize(appParams),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
+                    State = "somestate",
+                    RedirectUri = $"https://{hobbit}/app/authorization/code/callback"
+                };
+
+                var uri =
+                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    {
+                        Query = payload.ToQueryString()
+                    }.Uri;
+
+                var request = new HttpRequestMessage(HttpMethod.Get, uri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                //
+                // Act
+                //
+                var response = await apiClient.SendAsync(request);
+
+                //
+                // Assert
+                //
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                var redirectUri = new Uri(location);
+                Assert.That(redirectUri.Scheme, Is.EqualTo("https"));
+                Assert.That(redirectUri.Host, Is.EqualTo($"{hobbit}"));
+                Assert.That(redirectUri.AbsoluteUri, Does.StartWith($"https://{hobbit}/app/authorization/code/callback"));
+
+                var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Console.WriteLine("qs = " + string.Join("; ",
+                    qs.AllKeys.Select(key => $"{key}={string.Join(",", qs.GetValues(key) ?? Array.Empty<string>())}")));
+
+                var identity = qs[YouAuthDefaults.Identity]!;
+                var state = qs[YouAuthDefaults.State]!;
+                var remotePublicKey = qs[YouAuthDefaults.PublicKey]!;
+                var remoteSalt = qs[YouAuthDefaults.Salt]!;
+
+                Assert.That(identity, Is.EqualTo(hobbit));
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
+            }
+        }
+
+
+        //
+
+        [Test]
+        public async Task c4_app_exchange_WithExplicitConsentItShouldExchangeAuthorizationCodeForToken()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
