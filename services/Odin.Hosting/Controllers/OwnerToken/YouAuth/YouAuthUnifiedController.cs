@@ -111,7 +111,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 _currentTenant,
                 authorize.ClientType,
                 authorize.ClientId,
-                authorize.PermissionRequest);
+                authorize.PermissionRequest,
+                authorize.RedirectUri);
 
             if (needConsent)
             {

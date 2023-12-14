@@ -42,8 +42,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain,
-        string permissionRequest)
+    public async Task<bool> NeedConsent(
+        string tenant,
+        ClientType clientType,
+        string clientIdOrDomain,
+        string permissionRequest,
+        string redirectUri)
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
@@ -59,7 +63,17 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
 
-        //apps always require consent
+        // Apps on /owner doesn't need consent
+        if (clientType == ClientType.app)
+        {
+            var uri = new Uri(redirectUri);
+            if (uri.Host == tenant)
+            {
+                return false;
+            }
+        }
+
+        // everything else always require consent
         return true;
     }
 

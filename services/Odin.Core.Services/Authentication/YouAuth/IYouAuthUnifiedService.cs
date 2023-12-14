@@ -25,7 +25,8 @@ public interface IYouAuthUnifiedService
         string tenant,
         ClientType clientType,
         string clientIdOrDomain,
-        string permissionRequest);
+        string permissionRequest,
+        string redirectUri);
 
     Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements);
 
