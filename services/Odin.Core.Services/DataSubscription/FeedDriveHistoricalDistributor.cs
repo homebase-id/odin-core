@@ -94,14 +94,14 @@ namespace Odin.Core.Services.DataSubscription
                         QueryParams = new FileQueryParams()
                         {
                             TargetDrive = targetDrive,
-                            FileType = new List<int>() { }
+                            FileType = new List<int>() {  } //TODO: need to determine if stef should filter here
                         },
                         ResultOptionsRequest = resultOptions
                     }
                 );
             }
 
-            var collection = _standardFileSystem.Query.GetBatchCollection(request).GetAwaiter().GetResult();
+            var collection = _standardFileSystem.Query.GetBatchCollection(request, forceIncludeServerMetadata: true).GetAwaiter().GetResult();
 
             foreach (var results in collection.Results)
             {
@@ -126,6 +126,7 @@ namespace Odin.Core.Services.DataSubscription
                 return;
             }
 
+            //TODO: issue, even if the new follower is connected, he will now show
             //if the new follower is connected; send file using transit
             if (_contextAccessor.GetCurrent().Caller.IsConnected && header.FileMetadata.IsEncrypted)
             {
@@ -171,7 +172,7 @@ namespace Odin.Core.Services.DataSubscription
             };
         }
 
-        private  Task<bool> ShouldDistribute(SharedSecretEncryptedFileHeader header)
+        private Task<bool> ShouldDistribute(SharedSecretEncryptedFileHeader header)
         {
             if (null == header)
             {

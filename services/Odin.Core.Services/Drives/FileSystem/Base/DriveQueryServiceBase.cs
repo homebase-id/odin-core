@@ -91,7 +91,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, bool forceIncludeServerMetadata = false)
         {
             if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
             {
@@ -117,7 +117,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                         ExcludePreviewThumbnail = false
                     };
 
-                    var result = await this.GetBatch(driveId, query.QueryParams, options);
+                    var result = await this.GetBatch(driveId, query.QueryParams, options, forceIncludeServerMetadata);
 
                     var response = QueryBatchResponse.FromResult(result);
                     response.Name = query.Name;
@@ -240,11 +240,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                             {
                                 pd.PreviewThumbnail = null;
                             }
-                        }
-
-                        if (options.ExcludeServerMetaData)
-                        {
-                            header.ServerMetadata = null;
                         }
 
                         if (options.ExcludeServerMetaData)

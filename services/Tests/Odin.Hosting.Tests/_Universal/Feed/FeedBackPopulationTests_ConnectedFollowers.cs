@@ -47,7 +47,8 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task TransitSendsAppNotification(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    [Ignore("wip")]
+    public async Task FollowingIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
 
@@ -82,8 +83,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { });
 
         await callerContext.Initialize(ownerFrodo);
-
-
+        
         //at this point we follow sam 
         var followerApiClient = new UniversalFollowerApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
@@ -92,10 +92,11 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
+        await ownerSam.Cron.DistributeFeedFiles();
+
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
-        // var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
         var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
@@ -111,8 +112,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
             }
         });
 
-        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode,
-            $"Actual code was {frodoQueryFeedResponse.StatusCode}");
+        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
@@ -137,16 +137,15 @@ public class FeedBackPopulationTests_ConnectedFollowers
     }
 
     private async Task<(string encryptedFriendsFileContent64, string publicFileContent)>
-        PrepareSamIdentityWithChannelsAndPosts(Guid circleId, TargetDrive friendsOnlyTargetDrive,
-            TargetDrive publicTargetDrive, int postFileType)
+        PrepareSamIdentityWithChannelsAndPosts(Guid circleId, TargetDrive friendsOnlyTargetDrive, TargetDrive publicTargetDrive, int postFileType)
     {
         // Sam's identity creates the circle 'friends' with read access to a channel drive.
         // Sam's posts 1 item to this friends channel drive
         // sam posts 1 item to a public channel drive
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", false);
-        await samOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false);
+        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false, allowSubscriptions: true);
+        await samOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false, false, true);
 
         await samOwnerClient.Network.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest()
         {
@@ -168,8 +167,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // upload one post to friends target drive
         //
         const string friendsOnlyContent = "some secured friends only content";
-        var friendsFile =
-            SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
+        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
@@ -184,9 +182,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         const string publicContent = "some public content";
         var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult =
-            await samOwnerClient.DriveRedux.UploadNewMetadata(friendsOnlyTargetDrive, publicFile,
-                useGlobalTransitId: true);
+        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 

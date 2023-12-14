@@ -47,7 +47,7 @@ public class FeedBackPopulationTests_PublicFollowers
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task TransitSendsAppNotification(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task FollowingIdentity_PopulatesFollowersFeedWithAnonymousFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
 
@@ -76,7 +76,6 @@ public class FeedBackPopulationTests_PublicFollowers
             publicTargetDrive,
             postFileType: fileType);
 
-
         await callerContext.Initialize(ownerFrodo);
 
         //at this point we follow sam 
@@ -87,7 +86,9 @@ public class FeedBackPopulationTests_PublicFollowers
             new List<TargetDrive>() { });
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
-
+        
+        await ownerSam.Cron.DistributeFeedFiles();
+        
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
@@ -114,7 +115,7 @@ public class FeedBackPopulationTests_PublicFollowers
         {
             var feedSearchResults = frodoQueryFeedResponse.Content?.SearchResults;
             Assert.IsNotNull(feedSearchResults);
-            Assert.IsTrue(feedSearchResults.Count() == 1);
+            Assert.IsTrue(feedSearchResults.Count() == 4, $"actual count is {feedSearchResults.Count()}");
 
             var expectedFriendsOnlyFile = feedSearchResults.SingleOrDefault(s =>
                 s.FileMetadata.IsEncrypted &&
@@ -139,8 +140,8 @@ public class FeedBackPopulationTests_PublicFollowers
         // sam posts 1 item to a public channel drive
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", false);
-        await samOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false);
+        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false, allowSubscriptions: true);
+        await samOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false, false, true);
 
         await samOwnerClient.Network.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest()
         {
@@ -162,8 +163,7 @@ public class FeedBackPopulationTests_PublicFollowers
         // upload one post to friends target drive
         //
         const string friendsOnlyContent = "some secured friends only content";
-        var friendsFile =
-            SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
+        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
@@ -176,11 +176,18 @@ public class FeedBackPopulationTests_PublicFollowers
         // upload one post to public target drive
         //
         const string publicContent = "some public content";
-        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Connected);
+        var publicFile = SampleMetadataData.CreateWithContent(postFileType, publicContent, AccessControlList.Anonymous);
         publicFile.AllowDistribution = true;
-        var publicFileUploadResult =
-            await samOwnerClient.DriveRedux.UploadNewMetadata(friendsOnlyTargetDrive, publicFile,
-                useGlobalTransitId: true);
+        var publicFileUploadResult = await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+
+        publicFile.AppData.Content = Guid.NewGuid().ToString();
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+
+        publicFile.AppData.Content = Guid.NewGuid().ToString();
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
+        
+        publicFile.AppData.Content = Guid.NewGuid().ToString();
+        await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile, useGlobalTransitId: true);
 
         Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 
