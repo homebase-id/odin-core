@@ -117,6 +117,8 @@ namespace Odin.Core.Services.DataSubscription
             var newFollower = notification.OdinId;
             
             //query the channels based on the follower
+            return Task.CompletedTask;
+            
         }
 
         private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(
