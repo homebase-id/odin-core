@@ -66,9 +66,11 @@ public static class DriveFileUtility
                 break;
         }
 
+
         var clientFileHeader = new SharedSecretEncryptedFileHeader()
         {
             FileId = header.FileMetadata.File.FileId,
+            TargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId),
             FileState = header.FileMetadata.FileState,
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,

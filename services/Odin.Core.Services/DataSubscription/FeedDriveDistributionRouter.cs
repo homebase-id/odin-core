@@ -4,10 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
@@ -31,8 +29,7 @@ namespace Odin.Core.Services.DataSubscription
     /// <summary>
     /// Distributes files from channels to follower's feed drives (and only the feed drive)
     /// </summary>
-    public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>,
-        INotificationHandler<NewFollowerNotification>
+    public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
@@ -111,16 +108,6 @@ namespace Odin.Core.Services.DataSubscription
             }
         }
 
-        public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
-        {
-            // When a new follower comes in, we send out some historical content from so their feed is populated
-            var newFollower = notification.OdinId;
-            
-            //query the channels based on the follower
-            return Task.CompletedTask;
-            
-        }
-
         private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(
             IDriveNotification notification)
         {
@@ -196,15 +183,11 @@ namespace Odin.Core.Services.DataSubscription
 
         public async Task DistributeQueuedMetadataItems()
         {
-            async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(
-                FeedDistributionOutboxRecord record)
+            async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(FeedDistributionOutboxRecord record)
             {
-                var distroItem =
-                    OdinSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(
-                        record.value.ToStringFromUtf8Bytes());
+                var distroItem = OdinSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
                 var recipient = (OdinId)record.recipient;
-                if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded
-                    or DriveNotificationType.FileModified)
+                if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded or DriveNotificationType.FileModified)
                 {
                     bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
                         {
@@ -235,16 +218,15 @@ namespace Odin.Core.Services.DataSubscription
             }
 
             var batch = _tenantSystemStorage.Feedbox.Pop(_odinConfiguration.Feed.DistributionBatchSize);
-            var tasks =
-                new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
+            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
             await Task.WhenAll(tasks);
 
-            var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault())
-                .ToList();
+            var successes = tasks.Where(t => t.Result.success)
+                .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
 
-            var failures = tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault())
-                .ToList();
+            var failures = tasks.Where(t => !t.Result.success)
+                .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 

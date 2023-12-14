@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests._Universal.Feed;
 
 //Tests to validate we can distribute older feed items to
 //recipients (i.e. in the case of when we're first connected, I want my feed items to show in your feed)
-public class FeedBackPopulationTests
+public class FeedBackPopulationTests_ConnectedFollowers
 {
     private WebScaffold _scaffold;
 
@@ -85,7 +85,6 @@ public class FeedBackPopulationTests
 
 
         //at this point we follow sam 
-        // var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
         var followerApiClient = new UniversalFollowerApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
             FollowerNotificationType.AllNotifications,
@@ -133,6 +132,7 @@ public class FeedBackPopulationTests
         }
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
+        await ownerFrodo.Follower.UnfollowIdentity(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
     }
 

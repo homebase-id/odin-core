@@ -13,6 +13,8 @@ namespace Odin.Core.Services.Apps
     {
         public Guid FileId { get; set; }
         
+        public TargetDrive TargetDrive { get; set; }
+        
         public FileState FileState { get; set; }
         
         public FileSystemType FileSystemType { get; set; } 

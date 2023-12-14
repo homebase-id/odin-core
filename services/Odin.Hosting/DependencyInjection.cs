@@ -122,7 +122,7 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
-            //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
+
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
@@ -183,6 +183,11 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
+            cb.RegisterType<FeedDriveHistoricalDistributor>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .AsSelf()
                 .SingleInstance();
