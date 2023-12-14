@@ -29,7 +29,7 @@ public static class Provisioning
             provApp.UseSwagger();
             provApp.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Provisioning Api v1"));
             provApp.MapWhen(ctx => true,
-                homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
+                homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3005/"); }); });
         }
         else
         {
