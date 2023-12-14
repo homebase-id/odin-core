@@ -183,6 +183,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

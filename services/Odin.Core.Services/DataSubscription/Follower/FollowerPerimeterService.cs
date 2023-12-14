@@ -78,14 +78,14 @@ namespace Odin.Core.Services.DataSubscription.Follower
                         _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
                 }
-
-                _mediator.Publish(new NewFollowerNotification()
-                {
-                    OdinId = (OdinId)request.OdinId
-                });
                 
                 return Task.CompletedTask;
             }
+            
+            _mediator.Publish(new NewFollowerNotification()
+            {
+                OdinId = (OdinId)request.OdinId
+            });
 
             return Task.CompletedTask;
         }

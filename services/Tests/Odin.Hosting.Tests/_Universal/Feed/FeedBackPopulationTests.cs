@@ -5,20 +5,15 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using JetBrains.FormatRipper.FileExplorer;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.DriveTests;
 
 namespace Odin.Hosting.Tests._Universal.Feed;
@@ -88,14 +83,22 @@ public class FeedBackPopulationTests
 
         await callerContext.Initialize(ownerFrodo);
 
-        // TODO: frodo to follow sam - here we flag to back populate the feed?
+
+        //at this point we follow sam 
+        // var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
+        var followerApiClient = new UniversalFollowerApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
+        var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
+            FollowerNotificationType.AllNotifications,
+            new List<TargetDrive>() { });
+
+        Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
-        // var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
-        // var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
-        var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
+        // var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
+        var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
+        var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
             QueryParams = new FileQueryParams()
             {
@@ -109,9 +112,10 @@ public class FeedBackPopulationTests
             }
         });
 
-        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
+        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode,
+            $"Actual code was {frodoQueryFeedResponse.StatusCode}");
 
-        if(expectedStatusCode == HttpStatusCode.OK) //continue testing
+        if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var feedSearchResults = frodoQueryFeedResponse.Content?.SearchResults;
             Assert.IsNotNull(feedSearchResults);
@@ -127,7 +131,7 @@ public class FeedBackPopulationTests
                 s.FileMetadata.AppData.Content == samPreparedFiles.publicFileContent);
             Assert.IsNotNull(expectedPublicFile);
         }
-        
+
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
     }
