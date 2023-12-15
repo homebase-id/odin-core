@@ -81,22 +81,37 @@ namespace Odin.Core
             return (sbyte)bytes[0];
         }
 
-
         /// <summary>
-        /// Combines first and second byte array into one long byte array
+        /// Concatenates any number of byte arrays in parameter order
         /// </summary>
-        /// <param name="first"></param>
-        /// <param name="second"></param>
-        /// <returns></returns>
-        public static byte[] Combine(byte[] first, byte[] second)
-        {
-            byte[] ret = new byte[first.Length + second.Length];
-            Buffer.BlockCopy(first, 0, ret, 0, first.Length);
-            Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
-            return ret;
-        }
-
+        /// <param name="arrays">Two or more byte arrays to concatenate</param>
+        /// <returns>The concatenated byte array</returns>
         public static byte[] Combine(params byte[][] arrays) => arrays.SelectMany(a => a).ToArray();
+
+
+        public static byte[][] Split(byte[] data, params int[] lengths)
+        {
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
+            if (lengths == null)
+                throw new ArgumentNullException(nameof(lengths));
+
+            int totalLengths = lengths.Sum();
+            if (totalLengths != data.Length)
+                throw new ArgumentException("The sum of lengths does not match the data length.");
+
+            byte[][] result = new byte[lengths.Length][];
+            int offset = 0;
+
+            for (int i = 0; i < lengths.Length; i++)
+            {
+                result[i] = new byte[lengths[i]];
+                Buffer.BlockCopy(data, offset, result[i], 0, lengths[i]);
+                offset += lengths[i];
+            }
+
+            return result;
+        }
 
         public static (byte[] part1, byte[] part2) Split(byte[] data, int len1, int len2)
         {
@@ -107,16 +122,6 @@ namespace Odin.Core
             Buffer.BlockCopy(data, len1, part2, 0, len2);
 
             return (part1, part2);
-        }
-
-        public static byte[] Combine(byte[] first, byte[] second, byte[] third)
-        {
-            byte[] ret = new byte[first.Length + second.Length + third.Length];
-            Buffer.BlockCopy(first, 0, ret, 0, first.Length);
-            Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
-            Buffer.BlockCopy(third, 0, ret, first.Length + second.Length, third.Length);
-
-            return ret;
         }
 
         public static (byte[] part1, byte[] part2, byte[] part3) Split(byte[] data, int len1, int len2, int len3)
@@ -158,14 +163,10 @@ namespace Odin.Core
 
         public static string PrintByteArray(byte[] bytes)
         {
-            var sb = new StringBuilder("new byte[] { ");
-            foreach (var b in bytes)
-            {
-                sb.Append(b + ", ");
-            }
+            if (bytes == null || bytes.Length == 0)
+                return "new byte[] { }";
 
-            sb.Append("}");
-            return sb.ToString();
+            return "new byte[] { " + string.Join(", ", bytes) + " }";
         }
 
 
@@ -173,8 +174,7 @@ namespace Odin.Core
         // you can brutally use memset... I know the answer. But I still love memset(). 
         public static void WipeByteArray(byte[] b)
         {
-            for (int i = 0; i < b.Length; i++)
-                b[i] = 0;
+            Array.Clear(b, 0, b.Length);
         }
 
         /// <summary>
@@ -245,18 +245,10 @@ namespace Odin.Core
         /// <returns>True if identical, false otherwise</returns>
         public static bool EquiByteArrayCompare(byte[] ba1, byte[] ba2)
         {
-            if (ba1.Length != ba2.Length)
-                throw new ArgumentException("Byte arrays are not the same length");
+            if (ba1 == null || ba2 == null)
+                throw new ArgumentNullException("One or both byte arrays are null.");
 
-            int i = 0;
-            while (i < ba1.Length)
-            {
-                if (ba1[i] != ba2[i])
-                    return false;
-                i++;
-            }
-
-            return true;
+            return ba1.Length == ba2.Length && ba1.SequenceEqual(ba2);
         }
 
         /// <summary>
