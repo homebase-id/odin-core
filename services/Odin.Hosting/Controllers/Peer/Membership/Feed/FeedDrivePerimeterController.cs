@@ -10,7 +10,7 @@ using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 
-namespace Odin.Hosting.Controllers.Peer.Feed
+namespace Odin.Hosting.Controllers.Peer.Membership.Feed
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

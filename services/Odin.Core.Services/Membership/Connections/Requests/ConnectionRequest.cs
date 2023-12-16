@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using Dawn;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Membership.Connections.Requests
 {
@@ -15,7 +16,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         /// </summary>
         public string SenderOdinId { get; set; }
 
-        public Int64 ReceivedTimestampMilliseconds { get; set; }
+        public UnixTimeUtc ReceivedTimestampMilliseconds { get; set; }
 
         public string ClientAccessToken64 { get; set; }
 
@@ -25,8 +26,11 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
 
         public SymmetricKeyEncryptedAes TempEncryptedIcrKey { get; set; }
-
-        public byte[] TempKey { get; set; }
+        
+        /// <summary>
+        /// A temporary encryption key used during the connection process
+        /// </summary>
+        public byte[] TempRawKey { get; set; }
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.

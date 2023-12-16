@@ -31,7 +31,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
         }
-
+        
         public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
@@ -56,7 +56,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                         Code = TransitResponseCode.Rejected
                     };
                 }
-                
+
                 try
                 {
                     await _fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
@@ -90,7 +90,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             using (new FeedDriveSecurityContext(_contextAccessor))
             {
                 var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-                
+
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)

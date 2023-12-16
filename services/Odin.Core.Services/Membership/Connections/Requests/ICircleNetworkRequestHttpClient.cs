@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Base;
@@ -19,5 +20,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, string authenticationToken64);
+        
+        [Post(RootPath + "/finalizeconnection")]
+        Task<ApiResponse<HttpContent>> FinalizeConnection([Body] SharedSecretEncryptedPayload request);
     }
 }

@@ -9,7 +9,7 @@ using Odin.Core.Services.Peer.SendingHost;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Drive
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

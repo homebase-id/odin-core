@@ -8,7 +8,7 @@ using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Membership
 {
     /// <summary />
     [ApiController]

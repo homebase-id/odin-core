@@ -10,7 +10,6 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.DataSubscription.SendingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -21,12 +20,12 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.SendingHost;
 
-namespace Odin.Core.Services.DataSubscription
+namespace Odin.Core.Services.DataSubscription.ReceivingHost
 {
     /// <summary>
     /// Sends historical feed items to newly connected identities or new followers
     /// </summary>
-    public class FeedDriveHistoricalDistributor : INotificationHandler<NewFollowerNotification>
+    public class FeedDriveHistoricalDistributor : INotificationHandler<NewFollowerNotification>, INotificationHandler<NewConnectionEstablishedNotification>
     {
         private readonly DriveManager _driveManager;
         private readonly ITransitService _transitService;
@@ -69,8 +68,15 @@ namespace Odin.Core.Services.DataSubscription
         public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
             // When a new follower comes in, we send out some historical content from so their feed is populated
-            var recipient = notification.OdinId;
 
+            DistributeHeaderFiles(notification.OdinId);
+
+            //query the channels based on the follower
+            return Task.CompletedTask;
+        }
+
+        private void DistributeHeaderFiles(OdinId recipient)
+        {
             //the caller is the notification.OdinId, so access to channels and files will be limited based on access
             const int maxRecordsPerChannel = 100; //TODO:config
 
@@ -94,7 +100,7 @@ namespace Odin.Core.Services.DataSubscription
                         QueryParams = new FileQueryParams()
                         {
                             TargetDrive = targetDrive,
-                            FileType = new List<int>() {  } //TODO: need to determine if stef should filter here
+                            FileType = new List<int>() { } //TODO: need to determine if stef should filter here
                         },
                         ResultOptionsRequest = resultOptions
                     }
@@ -114,9 +120,6 @@ namespace Odin.Core.Services.DataSubscription
                     }
                 }
             }
-
-            //query the channels based on the follower
-            return Task.CompletedTask;
         }
 
         private async Task TryDistributeFile(OdinId recipient, SharedSecretEncryptedFileHeader header)
@@ -130,7 +133,14 @@ namespace Odin.Core.Services.DataSubscription
             //if the new follower is connected; send file using transit
             if (_contextAccessor.GetCurrent().Caller.IsConnected && header.FileMetadata.IsEncrypted)
             {
-                await this.DistributeUsingTransit(recipient, header);
+                // We need to upgrade the permission here, temporarily because the caller
+                // Is requesting feed files to be distributed but does not have useTransitRead access
+                // however, we've built the files being sent and they are only accessible to the caller
+          
+                using (new FeedDriveHistoryDistributorSecurityContext(_contextAccessor))
+                {
+                    await this.DistributeUsingTransit(recipient, header);
+                }
                 return;
             }
 
@@ -230,7 +240,7 @@ namespace Odin.Core.Services.DataSubscription
                     SendContents = SendContents.Header,
                     RemoteTargetDrive = SystemDriveConstants.FeedDrive
                 };
-
+                
                 var transferStatusMap = await _transitService.SendFile(
                     ResolveInternalFileId(header),
                     transitOptions,
@@ -273,6 +283,13 @@ namespace Odin.Core.Services.DataSubscription
             var readableDrives = allDrives.Results.Where(drive =>
                 drive.AllowSubscriptions && perms.HasDrivePermission(drive.Id, DrivePermission.Read));
             return readableDrives.Select(drive => drive.TargetDriveInfo);
+        }
+
+        public Task Handle(NewConnectionEstablishedNotification notification, CancellationToken cancellationToken)
+        {
+            DistributeHeaderFiles(notification.OdinId);
+
+            return Task.CompletedTask;
         }
     }
 }

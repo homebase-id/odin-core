@@ -428,8 +428,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             {
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
-
-
+            
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 

@@ -32,4 +32,8 @@
     <ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="AppNotifications\SystemNotifications\" />
+  </ItemGroup>
+
 </Project>

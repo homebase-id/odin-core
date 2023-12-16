@@ -47,7 +47,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    [Ignore("wip")]
+    // [Ignore("wip")]
     public async Task FollowingIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
@@ -93,6 +93,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
         await ownerSam.Cron.DistributeFeedFiles();
+        await ownerSam.Cron.ProcessTransitOutbox();
 
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted

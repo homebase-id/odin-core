@@ -8,6 +8,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Mediator;
 
 namespace Odin.Core.Services.DataSubscription;
 

@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     /// <summary />
     [ApiController]
-    [Route(GuestApiPathConstants.CirclesV1 + "/followers")]
+    [Route(GuestApiPathConstants.FollowersV1)]
     [AuthorizeValidGuestOrAppToken]
     public class GuestFollowerController : FollowerControllerBase
     {

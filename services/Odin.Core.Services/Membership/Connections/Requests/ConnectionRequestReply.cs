@@ -14,8 +14,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
         public string SenderOdinId { get; set; }
 
-        public long ReceivedTimestampMilliseconds { get; set; }
-
         /// <summary>
         /// A base64 byte array of the <see cref="ClientAccessToken"/> used by the original sending
         /// identity to authenticate to the receiving identity (to be stored in the ICR)

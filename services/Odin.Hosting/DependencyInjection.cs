@@ -17,6 +17,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Comment.Attachments;
@@ -188,7 +189,7 @@ namespace Odin.Hosting
             
             cb.RegisterType<FeedDriveHistoricalDistributor>()
                 .As<INotificationHandler<NewFollowerNotification>>()
-                // .As<INotificationHandler<ConnectionRequestAccepted>>()
+                .As<INotificationHandler<NewConnectionEstablishedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
