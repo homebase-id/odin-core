@@ -135,7 +135,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             await _followerService.AssertTenantFollowsTheCaller();
             using (new FeedDriveSecurityContext(_contextAccessor))
             {
-                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                // var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 var fileId = await this.ResolveInternalFile(request.FileId);
                 if (null == fileId)
                 {

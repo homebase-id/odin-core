@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -21,7 +22,7 @@ public class UniversalFollowerApiClient
         _targetIdentity = targetIdentity;
         _factory = factory;
     }
-    
+
     public async Task<ApiResponse<HttpContent>> FollowIdentity(OdinId identity, FollowerNotificationType notificationType, List<TargetDrive> channels)
     {
         var client = _factory.CreateHttpClient(_targetIdentity, out var sharedSecret);
@@ -73,7 +74,7 @@ public class UniversalFollowerApiClient
             return apiResponse;
         }
     }
-    
+
     public async Task<ApiResponse<FollowerDefinition>> GetFollower(OdinId identity)
     {
         var client = _factory.CreateHttpClient(_targetIdentity, out var sharedSecret);
@@ -92,5 +93,16 @@ public class UniversalFollowerApiClient
             var apiResponse = await svc.GetIdentityIFollow(identity);
             return apiResponse;
         }
+    }
+
+    public async Task<ApiResponse<HttpContent>> SynchronizeFeed(OdinId odinId)
+    {
+        throw new NotImplementedException();
+        // var client = _factory.CreateHttpClient(_targetIdentity, out var sharedSecret);
+        // {
+        //     var svc = RefitCreator.RestServiceFor<IRefitUniversalFollowerClient>(client, sharedSecret);
+        //     var apiResponse = await svc.SynchronizeFeed(identity);
+        //     return apiResponse;
+        // }
     }
 }

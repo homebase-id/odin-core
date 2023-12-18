@@ -24,11 +24,11 @@ namespace Odin.Hosting.Controllers.Peer.Membership
             _circleNetworkRequestService = circleNetworkRequestService;
         }
         
-        [HttpPost("finalizeconnection")]
-        public async Task<IActionResult> FinalizeConnection([FromBody] SharedSecretEncryptedPayload payload)
-        {
-            await _circleNetworkRequestService.FinalizeConnection(payload);
-            return Ok();
-        }
+        // [HttpPost("finalizeconnection")]
+        // public async Task<IActionResult> FinalizeConnection([FromBody] SharedSecretEncryptedPayload payload)
+        // {
+        //     await _circleNetworkRequestService.FinalizeConnection(payload);
+        //     return Ok();
+        // }
     }
 }

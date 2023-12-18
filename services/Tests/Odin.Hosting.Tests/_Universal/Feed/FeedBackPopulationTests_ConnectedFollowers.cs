@@ -83,7 +83,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { });
 
         await callerContext.Initialize(ownerFrodo);
-        
+
         //at this point we follow sam 
         var followerApiClient = new UniversalFollowerApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
@@ -92,6 +92,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
+        // await ownerFrodo.Follower.SynchronizeFeed(TestIdentities.Samwise.OdinId);
         await ownerSam.Cron.DistributeFeedFiles();
         await ownerSam.Cron.ProcessTransitOutbox();
 

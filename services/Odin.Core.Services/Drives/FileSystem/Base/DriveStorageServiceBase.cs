@@ -678,6 +678,26 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         }
 
         // Feed drive hacks
+
+        public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata)
+        {
+            // Method assumes you ensured the file was unique by some other method
+
+            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            this.AssertCanWriteToDrive(feedDriveId.GetValueOrDefault());
+            var file = this.CreateInternalFileId(feedDriveId.GetValueOrDefault());
+
+            var serverMetadata = new ServerMetadata()
+            {
+                AccessControlList = AccessControlList.OwnerOnly,
+                AllowDistribution = false
+            };
+
+            var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata);
+
+            await this.UpdateActiveFileHeader(file, serverFileHeader, raiseEvent: true);
+        }
+
         public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata)
         {
             this.AssertCanWriteToDrive(file.DriveId);

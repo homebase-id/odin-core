@@ -187,7 +187,7 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
             
-            cb.RegisterType<FeedDriveHistoricalDistributor>()
+            cb.RegisterType<FeedDriveHistorySynchronizer>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<NewConnectionEstablishedNotification>>()
                 .AsSelf()

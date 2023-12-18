@@ -21,7 +21,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, string authenticationToken64);
         
-        [Post(RootPath + "/finalizeconnection")]
-        Task<ApiResponse<HttpContent>> FinalizeConnection([Body] SharedSecretEncryptedPayload request);
+        // [Post(RootPath + "/finalizeconnection")]
+        // Task<ApiResponse<HttpContent>> FinalizeConnection([Body] SharedSecretEncryptedPayload request);
     }
 }
