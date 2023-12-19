@@ -38,8 +38,6 @@ namespace Odin.Core.Cryptography
         /// <param name="LoginKeK"></param>
         /// <param name="sharedSecret"></param>
         /// <returns></returns>
-
-        //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
         public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
             RsaFullKeyListData listRsa)
         {

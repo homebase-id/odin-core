@@ -3,7 +3,7 @@ using System.Text;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Time;
 
-namespace Odin.Core.Cryptography
+namespace Odin.Core.Cryptography.Obsolete
 {
     public class CryptoniteKey
     {
@@ -13,11 +13,12 @@ namespace Odin.Core.Cryptography
 
     public class CryptoniteData
     {
-        public UInt32 crc;   // CRC of payload + creation-time. Should CRC be of decrypted content?
+        public uint crc;   // CRC of payload + creation-time. Should CRC be of decrypted content?
         public UnixTimeUtc creationtime;
         public byte[] payload;
     }
 
+    [Obsolete]
     public static class CryptoniteManager
     {
         //  *** TODO *** I'd like to build a function of this together which uses Streams. 
@@ -44,7 +45,7 @@ namespace Odin.Core.Cryptography
             var cd = new CryptoniteData
             {
                 creationtime = UnixTimeUtc.Now(),
-                payload =  AesCbc.Encrypt(data, key, ck.iv)
+                payload = AesCbc.Encrypt(data, key, ck.iv)
             };
 
             cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.Int64ToBytes(cd.creationtime.milliseconds));
