@@ -83,6 +83,10 @@ public class FeedBackPopulationTests_ConnectedFollowers
             frodoPublicTargetDrive,
             postFileType: fileType);
 
+        var followSamResponse1 = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
+            FollowerNotificationType.AllNotifications,
+            new List<TargetDrive>() { });
+        
         // grant frodo access to friends only
         await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, new List<GuidId>() { samFriendsOnlyCircle });
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { frodoFriendsOnlyCircle });
@@ -96,10 +100,6 @@ public class FeedBackPopulationTests_ConnectedFollowers
             new List<TargetDrive>() { });
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
-
-        // await ownerFrodo.Follower.SynchronizeFeed(TestIdentities.Samwise.OdinId);
-        // await ownerSam.Cron.DistributeFeedFiles();
-        // await ownerSam.Cron.ProcessTransitOutbox();
 
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted

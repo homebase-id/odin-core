@@ -10,6 +10,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.ReceivingHost;
@@ -53,7 +54,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             var deviceSocket = new DeviceSocket()
             {
                 Key = Guid.NewGuid(),
-                SharedSecretKey =  _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey,
+                SharedSecretKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey,
                 DeviceAuthToken = null, //TODO: where is the best place to get the cookie?
                 Socket = socket,
                 Drives = drives
@@ -163,10 +164,12 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            var hasSharedSecret = null != _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+
             var data = OdinSystemSerializer.Serialize(new
             {
                 TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
-                Header = notification.SharedSecretEncryptedFileHeader
+                Header = hasSharedSecret ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, _contextAccessor) : null
             });
 
             var translated = new TranslatedClientNotification(notification.NotificationType, data);

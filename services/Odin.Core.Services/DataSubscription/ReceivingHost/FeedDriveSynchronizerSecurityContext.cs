@@ -19,7 +19,9 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 
     private const string GroupName = "patch_in_temp_icrkey";
 
-    public FeedDriveSynchronizerSecurityContext(OdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray tempKey, SymmetricKeyEncryptedAes encryptedIcrKey)
+    public FeedDriveSynchronizerSecurityContext(OdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray keyStoreKey,
+        SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
+        SymmetricKeyEncryptedAes encryptedIcrKey)
     {
         _odinContextAccessor = odinContextAccessor;
         var ctx = odinContextAccessor.GetCurrent();
@@ -37,14 +39,14 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
                 Drive = SystemDriveConstants.FeedDrive,
                 Permission = DrivePermission.ReadWrite
             },
-            KeyStoreKeyEncryptedStorageKey = 
+            KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey
         };
-        
+
         ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
         ctx.PermissionsContext.PermissionGroups.Add(GroupName,
             new PermissionGroup(
                 new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ReadConnections }), //to allow sending files
-                new List<DriveGrant>() { feedDriveGrant }, tempKey, encryptedIcrKey));
+                new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
     }
 
     public void Dispose()

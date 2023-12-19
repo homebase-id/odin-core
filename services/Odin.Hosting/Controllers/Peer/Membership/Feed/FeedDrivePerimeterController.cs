@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
@@ -9,6 +8,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.ReceivingHost;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Refit;
 
 namespace Odin.Hosting.Controllers.Peer.Membership.Feed
 {
@@ -17,7 +17,7 @@ namespace Odin.Hosting.Controllers.Peer.Membership.Feed
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.FeedV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
     public class FeedDrivePerimeterController : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Peer.Membership.Feed
             var perimeterService = GetPerimeterService();
             return await perimeterService.AcceptUpdatedFileMetadata(payload);
         }
-
+        
         [HttpPost("delete")]
         public async Task<HostTransitResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {

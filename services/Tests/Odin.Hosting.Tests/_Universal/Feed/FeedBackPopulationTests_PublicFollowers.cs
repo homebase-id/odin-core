@@ -49,17 +49,6 @@ public class FeedBackPopulationTests_PublicFollowers
     [TestCaseSource(nameof(TestCases))]
     public async Task FollowingIdentity_PopulatesFollowersFeedWithAnonymousFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
-
-        // Sam's identity creates the circle 'friends' with read access to a channel drive.
-        // Sam's posts 1 item to this friends channel drive
-        // sam posts 1 item to a public channel drive
-
-        // Frodo sends connection request to Sam, Sam approves and puts Frodo in the friends circle
-        // Frodo follows Sam
-
-        // Upon following Sam, frodo requests back population
-
         const int fileType = 1038;
 
         var frodo = TestIdentities.Frodo;
@@ -79,7 +68,6 @@ public class FeedBackPopulationTests_PublicFollowers
         await callerContext.Initialize(ownerFrodo);
 
         //at this point we follow sam 
-        // var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
         var followerApiClient = new UniversalFollowerApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var followSamResponse = await followerApiClient.FollowIdentity(TestIdentities.Samwise.OdinId,
             FollowerNotificationType.AllNotifications,
@@ -90,9 +78,8 @@ public class FeedBackPopulationTests_PublicFollowers
         await ownerSam.Cron.DistributeFeedFiles();
         
         //
-        // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
+        // Validation - check that frodo has 4 files in his feed; files are from Sam, none are encrypted
         //
-        // var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
         var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
@@ -103,7 +90,6 @@ public class FeedBackPopulationTests_PublicFollowers
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()
             {
-                MaxRecords = 10,
                 IncludeMetadataHeader = true
             }
         });
@@ -135,9 +121,6 @@ public class FeedBackPopulationTests_PublicFollowers
         PrepareSamIdentityWithChannelsAndPosts(Guid circleId, TargetDrive friendsOnlyTargetDrive,
             TargetDrive publicTargetDrive, int postFileType)
     {
-        // Sam's identity creates the circle 'friends' with read access to a channel drive.
-        // Sam's posts 1 item to this friends channel drive
-        // sam posts 1 item to a public channel drive
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false, allowSubscriptions: true);

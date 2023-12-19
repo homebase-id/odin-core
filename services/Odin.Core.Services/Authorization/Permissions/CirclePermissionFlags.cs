@@ -15,6 +15,8 @@ namespace Odin.Core.Services.Authorization.Permissions
         public const int ReadWhoIFollow = 80;
 
         public const int ReadMyFollowers = 130;
+       
+        public const int ManageFeed = 150;
 
         public const int UseTransitWrite = 210;
 
@@ -31,7 +33,8 @@ namespace Odin.Core.Services.Authorization.Permissions
             ReadMyFollowers,
             UseTransitWrite,
             UseTransitRead,
-            SendPushNotifications
+            SendPushNotifications,
+            ManageFeed
         };
     }
 
@@ -50,7 +53,8 @@ namespace Odin.Core.Services.Authorization.Permissions
                 PermissionKeys.ReadWhoIFollow,
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead,
-                PermissionKeys.SendPushNotifications
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ManageFeed
             });
 
             Circles = new ReadOnlyCollection<int>(new List<int>()

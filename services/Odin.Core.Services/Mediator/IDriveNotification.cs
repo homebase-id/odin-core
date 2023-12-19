@@ -16,7 +16,7 @@ public interface IDriveNotification : INotification
         
     public ServerFileHeader ServerFileHeader { get; set; }
     
-    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
+    // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
 }
 

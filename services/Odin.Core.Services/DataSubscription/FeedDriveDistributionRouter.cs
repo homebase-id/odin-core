@@ -125,7 +125,7 @@ namespace Odin.Core.Services.DataSubscription
             }
             else
             {
-                using (new FeedDriveSecurityContext(_contextAccessor))
+                using (new FeedDriveDistributionSecurityContext(_contextAccessor))
                 {
                     await EnqueueFollowers(notification, item);
                     EnqueueCronJob();
@@ -262,8 +262,7 @@ namespace Odin.Core.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities =
-                await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,
@@ -290,6 +289,9 @@ namespace Odin.Core.Services.DataSubscription
         {
             int maxRecords = 10000; //TODO: cursor thru batches instead
 
+            //
+            // Get followers for this drive and merge with followers who want everything
+            //
             var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
             var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");

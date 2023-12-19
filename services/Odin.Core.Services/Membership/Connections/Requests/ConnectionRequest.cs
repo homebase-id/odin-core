@@ -25,7 +25,9 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         /// </summary>
         public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
 
+        
         public SymmetricKeyEncryptedAes TempEncryptedIcrKey { get; set; }
+        public SymmetricKeyEncryptedAes TempEncryptedFeedDriveStorageKey { get; set; }
         
         /// <summary>
         /// A temporary encryption key used during the connection process

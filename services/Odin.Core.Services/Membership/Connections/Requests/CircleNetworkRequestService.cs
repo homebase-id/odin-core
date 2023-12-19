@@ -183,7 +183,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration);
 
-            var tempRawIcrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var outgoingRequest = new ConnectionRequest
             {
                 Id = header.Id,
@@ -191,8 +191,9 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 Recipient = header.Recipient,
                 Message = header.Message,
                 ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
-                TempRawKey = tempRawIcrKey.GetKey(),
-                TempEncryptedIcrKey = default
+                TempRawKey = tempRawKey.GetKey(),
+                TempEncryptedIcrKey = default,
+                TempEncryptedFeedDriveStorageKey = default
             };
 
             async Task<bool> TrySendRequest()
@@ -225,7 +226,11 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             // Create a grant per circle
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawIcrKey);
+            var feedDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+            var feedDriveStorageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(feedDriveId);
+
+            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempRawKey);
+            outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
@@ -239,7 +244,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             };
 
             keyStoreKey.Wipe();
-            tempRawIcrKey.Wipe();
+            tempRawKey.Wipe();
             ByteArrayUtil.WipeByteArray(outgoingRequest.TempRawKey);
 
             UpsertSentConnectionRequest(outgoingRequest);
@@ -446,7 +451,10 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             //since i have the icr key, i could create a client and make a request across the wire to pull
-            using (new FeedDriveSynchronizerSecurityContext(_contextAccessor, feedDriveId.GetValueOrDefault(), tempKey, originalRequest.TempEncryptedIcrKey))
+            using (new FeedDriveSynchronizerSecurityContext(_contextAccessor, feedDriveId.GetValueOrDefault(), 
+                       tempKey, 
+                       originalRequest.TempEncryptedFeedDriveStorageKey,
+                       originalRequest.TempEncryptedIcrKey))
             {
                 // eww to this coupling
                 await _feedSynchronizer.SynchronizeChannelFiles(recipient);

@@ -45,7 +45,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task Follow(FollowRequest request)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             if (_contextAccessor.GetCurrent().Caller.OdinId == (OdinId)request.OdinId)
             {
@@ -66,8 +66,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload =
-                    await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
+                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(
+                    RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
                 var client = CreateClient((OdinId)request.OdinId);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
@@ -222,7 +222,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         public Task<bool> IsFollowingIdentity(OdinId odinId)
         {
-            return Task.FromResult(_tenantStorage.WhoIFollow.Get(odinId)?.Any() ?? false);
+            var follows = GetIdentityIFollowInternal(odinId).GetAwaiter().GetResult() != null;
+            return Task.FromResult(follows);
         }
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)

@@ -45,7 +45,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
@@ -87,7 +87,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
                 var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
@@ -133,7 +133,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         public async Task<HostTransitResponse> Delete(DeleteFeedFileMetadataRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
                 // var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 var fileId = await this.ResolveInternalFile(request.FileId);

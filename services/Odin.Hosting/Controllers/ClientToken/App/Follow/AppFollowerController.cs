@@ -78,5 +78,12 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
         {
             return await base.Unfollow(request);
         }
+        
+        [HttpPost("sync-feed-history")]
+        public new async Task<IActionResult> SynchronizeFeedHistory([Body] SynchronizeFeedHistoryRequest request)
+        {
+            await base.SynchronizeFeedHistory(request);
+            return Ok();
+        }
     }
 }
