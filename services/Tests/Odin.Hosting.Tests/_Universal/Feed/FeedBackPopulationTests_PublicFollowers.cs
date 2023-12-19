@@ -74,8 +74,9 @@ public class FeedBackPopulationTests_PublicFollowers
             new List<TargetDrive>() { });
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
-        
-        await ownerSam.Cron.DistributeFeedFiles();
+
+        //Crucial point - we have to tell frodo's identity sync to sam after we call follow
+        // await ownerFrodo.Follower.SynchronizeFeed(ownerSam.Identity.OdinId);
         
         //
         // Validation - check that frodo has 4 files in his feed; files are from Sam, none are encrypted

@@ -17,7 +17,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
     {
         private readonly OdinContextAccessor _contextAccessor;
         /// <summary />
-        public GuestFollowerController(FollowerService fs, OdinContextAccessor contextAccessor) : base(fs, null)
+        public GuestFollowerController(FollowerService fs, OdinContextAccessor contextAccessor) : base(fs)
         {
             _contextAccessor = contextAccessor;
         }

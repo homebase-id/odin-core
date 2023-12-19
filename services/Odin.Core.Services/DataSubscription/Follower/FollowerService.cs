@@ -7,12 +7,20 @@ using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Peer.Encryption;
+using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Refit;
 
@@ -27,10 +35,19 @@ namespace Odin.Core.Services.DataSubscription.Follower
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly OdinContextAccessor _contextAccessor;
+        private readonly StandardFileSystem _standardFileSystem;
+        private readonly TransitQueryService _transitQueryService;
+        private readonly CircleNetworkService _circleNetworkService;
 
-        public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IOdinHttpClientFactory httpClientFactory,
+        private const int MaxRecordsPerChannel = 100; //TODO:config
+
+
+        public FollowerService(TenantSystemStorage tenantStorage,
+            DriveManager driveManager,
+            IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
-            TenantContext tenantContext, OdinContextAccessor contextAccessor)
+            TenantContext tenantContext,
+            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, TransitQueryService transitQueryService, CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -38,6 +55,9 @@ namespace Odin.Core.Services.DataSubscription.Follower
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
+            _standardFileSystem = standardFileSystem;
+            _transitQueryService = transitQueryService;
+            _circleNetworkService = circleNetworkService;
         }
 
         /// <summary>
@@ -47,7 +67,9 @@ namespace Odin.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
-            if (_contextAccessor.GetCurrent().Caller.OdinId == (OdinId)request.OdinId)
+            var identityToFollow = (OdinId)request.OdinId;
+
+            if (_contextAccessor.GetCurrent().Caller.OdinId == identityToFollow)
             {
                 throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
                     OdinClientErrorCode.InvalidRecipient);
@@ -55,7 +77,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             //TODO: use the exchange grant service to create the access reg and CAT 
 
-            var followRequest = new PerimterFollowRequest()
+            var followRequest = new PerimeterFollowRequest()
             {
                 OdinId = _tenantContext.HostOdinId,
                 NotificationType = request.NotificationType,
@@ -67,8 +89,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
                 var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(
-                    RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
-                var client = CreateClient((OdinId)request.OdinId);
+                    RsaKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray());
+                var client = CreateClient(identityToFollow);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
             }
@@ -76,7 +98,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey((OdinId)request.OdinId);
+                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey(identityToFollow);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -88,10 +110,10 @@ namespace Odin.Core.Services.DataSubscription.Follower
             using (_tenantStorage.CreateCommitUnitOfWork())
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteByIdentity(new OdinId(request.OdinId));
+                _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = new OdinId(request.OdinId), driveId = Guid.Empty });
+                    _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -104,9 +126,14 @@ namespace Odin.Core.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = new OdinId(request.OdinId), driveId = channel.Alias });
+                        _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
+            }
+
+            if (request.SynchronizeFeedHistoryNow)
+            {
+                await this.SynchronizeChannelFiles(identityToFollow);
             }
         }
 
@@ -116,7 +143,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// </summary>
         public async Task Unfollow(OdinId recipient)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var client = CreateClient(recipient);
             var response = await client.Unfollow();
@@ -263,9 +290,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             //need to grant access to connected drives
 
-            var driveGrants = new List<DriveGrant>()
-            {
-            };
+            var driveGrants = new List<DriveGrant>();
 
             var groups = new Dictionary<string, PermissionGroup>()
             {
@@ -326,6 +351,133 @@ namespace Odin.Core.Services.DataSubscription.Follower
             }
         }
 
+
+        public async Task SynchronizeChannelFiles(OdinId odinId)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
+            var definition = await this.GetIdentityIFollowInternal(odinId);
+            if (definition == null) //not following
+            {
+                return;
+            }
+
+            var feedDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+
+            SensitiveByteArray sharedSecret = null;
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
+            if (icr.IsConnected())
+            {
+                sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+            }
+
+            var channelDrives = await _transitQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
+
+            //filter the drives to those I want to see
+            if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
+            {
+                channelDrives = channelDrives.IntersectBy(definition.Channels, d => d.TargetDrive);
+            }
+
+            var request = new QueryBatchCollectionRequest()
+            {
+                Queries = new List<CollectionQueryParamSection>()
+            };
+
+            var resultOptions = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = MaxRecordsPerChannel,
+                IncludeMetadataHeader = true,
+            };
+
+            foreach (var channel in channelDrives)
+            {
+                var targetDrive = channel.TargetDrive;
+                request.Queries.Add(new()
+                    {
+                        Name = targetDrive.ToKey().ToBase64(),
+                        QueryParams = new FileQueryParams()
+                        {
+                            TargetDrive = targetDrive,
+                            FileState = new List<FileState>() { FileState.Active }
+                        },
+                        ResultOptionsRequest = resultOptions
+                    }
+                );
+            }
+
+            var collection = await _transitQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
+
+            foreach (var results in collection.Results)
+            {
+                if (results.InvalidDrive)
+                {
+                    continue;
+                }
+
+                foreach (var dsr in results.SearchResults)
+                {
+                    var keyHeader = KeyHeader.Empty();
+                    if (dsr.FileMetadata.IsEncrypted)
+                    {
+                        if (null == sharedSecret)
+                        {
+                            //skip this file.  i should have received it because i'm not connected
+                            continue;
+                        }
+
+                        keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+                    }
+
+                    var fm = dsr.FileMetadata;
+                    var newFileMetadata = new FileMetadata()
+                    {
+                        File = default,
+                        GlobalTransitId = fm.GlobalTransitId,
+                        ReferencedFile = fm.ReferencedFile,
+                        AppData = fm.AppData,
+
+                        IsEncrypted = fm.IsEncrypted,
+                        SenderOdinId = odinId,
+
+                        VersionTag = fm.VersionTag,
+                        ReactionPreview = fm.ReactionPreview,
+                        Created = fm.Created,
+                        Updated = fm.Updated,
+                        FileState = dsr.FileState,
+                        Payloads = fm.Payloads
+                    };
+
+                    SharedSecretEncryptedFileHeader existingFile = null;
+                    if (dsr.FileMetadata.AppData.UniqueId.HasValue)
+                    {
+                        existingFile = await _standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
+                            dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault());
+                    }
+                    else if (dsr.FileMetadata.GlobalTransitId.HasValue)
+                    {
+                        existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
+                            dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                    }
+
+                    if (null == existingFile)
+                    {
+                        await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata);
+                    }
+                    else
+                    {
+                        var file = new InternalDriveFileId()
+                        {
+                            FileId = existingFile.FileId,
+                            DriveId = feedDriveId
+                        };
+
+                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck:true);
+                    }
+                }
+            }
+        }
+
+
         ///
         private int DefaultMax(int max)
         {
@@ -334,7 +486,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         private IFollowerHttpClient CreateClient(OdinId odinId)
         {
-            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((OdinId)odinId);
+            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>(odinId);
             return httpClient;
         }
 

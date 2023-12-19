@@ -7,7 +7,7 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.DataSubscription.ReceivingHost;
+namespace Odin.Core.Services.DataSubscription.Follower;
 
 /// <summary>
 /// Patches in the icr key during the EstablishConnection process so we can synchronize feed items
@@ -45,7 +45,7 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
         ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
         ctx.PermissionsContext.PermissionGroups.Add(GroupName,
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ReadConnections }), //to allow sending files
+                new PermissionSet(new[] { PermissionKeys.UseTransitRead,PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
                 new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
     }
 

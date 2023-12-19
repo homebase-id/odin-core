@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Hosting.Controllers.Base;
@@ -17,7 +18,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
     public class AppFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public AppFollowerController(FollowerService fs, FeedDriveHistorySynchronizer synchronizer) : base(fs, synchronizer)
+        public AppFollowerController(FollowerService fs) : base(fs)
         {
         }
 

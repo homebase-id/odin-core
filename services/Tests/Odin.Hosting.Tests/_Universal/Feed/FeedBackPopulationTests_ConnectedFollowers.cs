@@ -101,6 +101,12 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
+        var followFrodoResponse = await ownerSam.Follower.FollowIdentity(TestIdentities.Frodo.OdinId,
+            FollowerNotificationType.AllNotifications,
+            new List<TargetDrive>() { });
+
+        Assert.IsTrue(followFrodoResponse.IsSuccessStatusCode, $"actual status code was {followFrodoResponse.StatusCode}");
+
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //

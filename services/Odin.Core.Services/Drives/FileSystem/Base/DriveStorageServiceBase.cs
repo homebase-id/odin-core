@@ -692,7 +692,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             await this.UpdateActiveFileHeader(file, serverFileHeader, raiseEvent: true);
         }
 
-        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata)
+        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, bool bypassCallerCheck = false)
         {
             this.AssertCanWriteToDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
@@ -704,10 +704,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 throw new OdinSystemException("Method cannot be used on drive");
             }
 
-            //S0510
-            if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
+            if (!bypassCallerCheck) //eww
             {
-                throw new OdinSecurityException("Invalid caller");
+                //S0510
+                if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
+                {
+                    throw new OdinSecurityException("Invalid caller");
+                }
             }
 
             header.FileMetadata = fileMetadata;

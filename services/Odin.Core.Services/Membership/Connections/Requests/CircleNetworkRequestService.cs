@@ -13,6 +13,8 @@ using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.DataSubscription;
+using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
@@ -44,10 +46,9 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
-        private readonly FeedDriveHistorySynchronizer _feedSynchronizer;
         private readonly DriveManager _driveManager;
         private readonly CircleMembershipService _circleMembershipService;
-
+        private readonly FollowerService _followerService;
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
@@ -61,8 +62,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
-            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService, FeedDriveHistorySynchronizer feedSynchronizer,
-            DriveManager driveManager)
+            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService,
+            DriveManager driveManager, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -74,8 +75,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _exchangeGrantService = exchangeGrantService;
             _icrKeyService = icrKeyService;
             _circleMembershipService = circleMembershipService;
-            _feedSynchronizer = feedSynchronizer;
             _driveManager = driveManager;
+            _followerService = followerService;
             _contextAccessor = contextAccessor;
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
@@ -408,7 +409,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             await this.DeleteSentRequest(senderOdinId);
 
             // eww to this coupling
-            await _feedSynchronizer.SynchronizeChannelFiles(senderOdinId);
+            await _followerService.SynchronizeChannelFiles(senderOdinId);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -457,7 +458,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                        originalRequest.TempEncryptedIcrKey))
             {
                 // eww to this coupling
-                await _feedSynchronizer.SynchronizeChannelFiles(recipient);
+                await _followerService.SynchronizeChannelFiles(recipient);
             }
 
             rawIcrKey.Wipe();

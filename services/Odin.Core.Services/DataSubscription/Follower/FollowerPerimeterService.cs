@@ -30,7 +30,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimterFollowRequest request)
+        public Task AcceptFollower(PerimeterFollowRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.OdinId, nameof(request.OdinId)).NotNull().NotEmpty();

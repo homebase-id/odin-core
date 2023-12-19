@@ -27,7 +27,7 @@ public class FollowerAuthenticationService
     }
 
     /// <summary>
-    /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+    /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
     public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {

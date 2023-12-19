@@ -83,6 +83,7 @@ namespace Odin.Hosting.Middleware
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
+                //TODO: this appears to be a dead code path
                 if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
                     await LoadFollowerContext(httpContext, odinContext);

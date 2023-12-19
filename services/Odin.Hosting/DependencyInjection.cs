@@ -186,10 +186,6 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
             
-            cb.RegisterType<FeedDriveHistorySynchronizer>()
-                .AsSelf()
-                .SingleInstance();
-
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 
