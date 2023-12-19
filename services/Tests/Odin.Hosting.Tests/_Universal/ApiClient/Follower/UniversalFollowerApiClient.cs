@@ -97,12 +97,14 @@ public class UniversalFollowerApiClient
 
     public async Task<ApiResponse<HttpContent>> SynchronizeFeed(OdinId odinId)
     {
-        throw new NotImplementedException();
-        // var client = _factory.CreateHttpClient(_targetIdentity, out var sharedSecret);
-        // {
-        //     var svc = RefitCreator.RestServiceFor<IRefitUniversalFollowerClient>(client, sharedSecret);
-        //     var apiResponse = await svc.SynchronizeFeed(identity);
-        //     return apiResponse;
-        // }
+        var client = _factory.CreateHttpClient(_targetIdentity, out var sharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalFollowerClient>(client, sharedSecret);
+            var apiResponse = await svc.SynchronizeFeedHistory(new SynchronizeFeedHistoryRequest()
+            {
+                OdinId = odinId
+            });
+            return apiResponse;
+        }
     }
 }

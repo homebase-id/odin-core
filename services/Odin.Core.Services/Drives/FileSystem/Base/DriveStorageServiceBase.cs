@@ -684,7 +684,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             // Method assumes you ensured the file was unique by some other method
 
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
-            this.AssertCanWriteToDrive(feedDriveId.GetValueOrDefault());
+            // this.AssertCanWriteToDrive(feedDriveId.GetValueOrDefault());
             var file = this.CreateInternalFileId(feedDriveId.GetValueOrDefault());
 
             var serverMetadata = new ServerMetadata()

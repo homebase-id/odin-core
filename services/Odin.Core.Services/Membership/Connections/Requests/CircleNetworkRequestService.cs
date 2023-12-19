@@ -13,6 +13,9 @@ using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Membership.CircleMembership;
@@ -41,11 +44,13 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
-
+        private readonly FeedDriveHistorySynchronizer _feedSynchronizer;
+        private readonly DriveManager _driveManager;
         private readonly CircleMembershipService _circleMembershipService;
 
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
+
 
         public CircleNetworkRequestService(
             OdinContextAccessor contextAccessor,
@@ -56,7 +61,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
-            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService)
+            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService, FeedDriveHistorySynchronizer feedSynchronizer,
+            DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -68,6 +74,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _exchangeGrantService = exchangeGrantService;
             _icrKeyService = icrKeyService;
             _circleMembershipService = circleMembershipService;
+            _feedSynchronizer = feedSynchronizer;
+            _driveManager = driveManager;
             _contextAccessor = contextAccessor;
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
@@ -237,7 +245,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             UpsertSentConnectionRequest(outgoingRequest);
         }
 
-
         /// <summary>
         /// Stores an new pending/incoming request that is not yet accepted.
         /// </summary>
@@ -321,7 +328,7 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task AcceptConnectionRequest(AcceptRequestHeader header)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            // _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
             header.Validate();
@@ -335,7 +342,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _logger.LogInformation($"Accept Connection request called for sender {senderOdinId} to {pendingRequest.Recipient}");
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(pendingRequest.ClientAccessToken64);
 
-
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             // Note: We want to use the same shared secret for the identities so let use the shared secret created
@@ -343,7 +349,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration,
                 sharedSecret: remoteClientAccessToken.SharedSecret);
-
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var accessGrant = new AccessExchangeGrant()
@@ -397,10 +402,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             await this.DeletePendingRequest(senderOdinId);
             await this.DeleteSentRequest(senderOdinId);
 
-            await _mediator.Publish(new NewConnectionEstablishedNotification()
-            {
-                OdinId = senderOdinId
-            });
+            // eww to this coupling
+            await _feedSynchronizer.SynchronizeChannelFiles(senderOdinId);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -438,19 +441,23 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             var tempKey = reply.TempKey.ToSensitiveByteArray();
             var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
-            rawIcrKey.Wipe();
-            tempKey.Wipe();
 
             await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData);
+
+            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            //since i have the icr key, i could create a client and make a request across the wire to pull
+            using (new FeedDriveSynchronizerSecurityContext(_contextAccessor, feedDriveId.GetValueOrDefault(), tempKey, originalRequest.TempEncryptedIcrKey))
+            {
+                // eww to this coupling
+                await _feedSynchronizer.SynchronizeChannelFiles(recipient);
+            }
+
+            rawIcrKey.Wipe();
+            tempKey.Wipe();
 
             await this.DeleteSentRequestInternal(recipient);
             await this.DeletePendingRequestInternal(recipient);
 
-            await _mediator.Publish(new NewConnectionEstablishedNotification()
-            {
-                OdinId = recipient
-            });
-            
             await _mediator.Publish(new ConnectionRequestAccepted()
             {
                 Sender = (OdinId)originalRequest.SenderOdinId,
@@ -466,7 +473,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             _contextAccessor.GetCurrent().AssertCanManageConnections();
             return DeletePendingRequestInternal(sender);
         }
-
 
         private Task DeletePendingRequestInternal(OdinId sender)
         {

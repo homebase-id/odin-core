@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Follow;
 using Refit;
@@ -16,7 +17,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
     public class AppFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public AppFollowerController(FollowerService fs) : base(fs)
+        public AppFollowerController(FollowerService fs, FeedDriveHistorySynchronizer synchronizer) : base(fs, synchronizer)
         {
         }
 
@@ -27,8 +28,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
             var result = await base.GetWhoIFollow(max, cursor);
             return result;
         }
-        
-        
+
+
         /// <summary>
         /// Gets a list of identities following me
         /// </summary>

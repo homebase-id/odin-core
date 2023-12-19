@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
@@ -10,6 +11,7 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.DataSubscription.SendingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -42,6 +44,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         private readonly TransitQueryService _transitQueryService;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly IDriveAclAuthorizationService _driveAcl;
+        private readonly FollowerService _followerService;
 
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
@@ -56,7 +59,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             IOdinHttpClientFactory odinHttpClientFactory,
             OdinConfiguration odinConfiguration,
             IDriveAclAuthorizationService driveAcl,
-            StandardFileSystem standardFileSystem, TransitQueryService transitQueryService, CircleNetworkService circleNetworkService)
+            StandardFileSystem standardFileSystem, TransitQueryService transitQueryService, CircleNetworkService circleNetworkService, FollowerService followerService)
         {
             _transitService = transitService;
             _driveManager = driveManager;
@@ -69,6 +72,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             _standardFileSystem = standardFileSystem;
             _transitQueryService = transitQueryService;
             _circleNetworkService = circleNetworkService;
+            _followerService = followerService;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl);
         }
@@ -84,13 +88,11 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
         public Task Handle(NewConnectionEstablishedNotification notification, CancellationToken cancellationToken)
         {
-            //If we follow this connection, we pull header files from the new connection
+            // if (_followerService.IsFollowingIdentity(notification.OdinId).GetAwaiter().GetResult())
+            {
+                SynchronizeChannelFiles(notification.OdinId).GetAwaiter().GetResult();
+            }
 
-            //TODO: check if i follow this person
-
-            SynchronizeChannelFiles(notification.OdinId).GetAwaiter().GetResult();
-
-            //using transit query, write to feed drive; 
             return Task.CompletedTask;
         }
 
@@ -155,7 +157,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
                         keyHeader = dsr.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
                     }
-                    
+
                     var fm = dsr.FileMetadata;
                     var newFileMetadata = new FileMetadata()
                     {

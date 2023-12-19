@@ -220,6 +220,11 @@ namespace Odin.Core.Services.DataSubscription.Follower
             return await Task.FromResult(result);
         }
 
+        public Task<bool> IsFollowingIdentity(OdinId odinId)
+        {
+            return Task.FromResult(_tenantStorage.WhoIFollow.Get(odinId)?.Any() ?? false);
+        }
+
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);

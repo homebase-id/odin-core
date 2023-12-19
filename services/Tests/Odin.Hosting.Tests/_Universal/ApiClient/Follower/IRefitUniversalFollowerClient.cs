@@ -27,5 +27,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Follower
 
         [Post(RootPath + "/unfollow")]
         Task<ApiResponse<HttpContent>> Unfollow([Body] UnfollowRequest request);
+        
+        [Post(RootPath + "/sync-feed-history")]
+        Task<ApiResponse<HttpContent>> SynchronizeFeedHistory([Body] SynchronizeFeedHistoryRequest request);
     }
 }

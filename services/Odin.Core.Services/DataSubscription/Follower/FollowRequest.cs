@@ -33,3 +33,8 @@ public class UnfollowRequest
 {
     public string OdinId { get; set; }
 }
+
+public class SynchronizeFeedHistoryRequest
+{
+    public string OdinId { get; set; }
+}
