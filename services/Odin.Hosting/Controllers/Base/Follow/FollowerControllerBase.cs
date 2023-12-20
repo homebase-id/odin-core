@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Refit;
 
 namespace Odin.Hosting.Controllers.Base.Follow
@@ -12,6 +14,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
     public class FollowerControllerBase : ControllerBase
     {
         private readonly FollowerService _followerService;
+
 
         /// <summary />
         protected FollowerControllerBase(FollowerService fs)
@@ -82,6 +85,11 @@ namespace Odin.Hosting.Controllers.Base.Follow
         {
             await _followerService.Unfollow(new OdinId(request.OdinId));
             return NoContent();
+        }
+
+        protected async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
+        {
+            await _followerService.SynchronizeChannelFiles((OdinId)request.OdinId);
         }
     }
 }

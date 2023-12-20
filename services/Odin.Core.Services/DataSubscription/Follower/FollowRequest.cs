@@ -19,17 +19,24 @@ public class FollowRequest
     /// The list of subscribed channels
     /// </summary>
     public IEnumerable<TargetDrive> Channels { get; set; }
+
+    /// <summary>
+    /// Indicates the feed should be updated with the history
+    /// </summary>
+    public bool SynchronizeFeedHistoryNow { get; set; } = true;
 }
 
-public class PerimterFollowRequest : FollowRequest
+public class PerimeterFollowRequest : FollowRequest
 {
-    /// <summary>
-    /// Token used to write to the subscribers feed drive
-    /// </summary>
-    public byte[] PortableClientAuthToken { get; set; }
+    
 }
 
 public class UnfollowRequest
+{
+    public string OdinId { get; set; }
+}
+
+public class SynchronizeFeedHistoryRequest
 {
     public string OdinId { get; set; }
 }

@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -28,7 +27,7 @@ using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Drive
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

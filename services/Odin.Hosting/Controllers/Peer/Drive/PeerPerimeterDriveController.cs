@@ -5,8 +5,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core;
-using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
@@ -19,7 +17,7 @@ using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Drive
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

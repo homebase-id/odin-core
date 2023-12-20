@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
@@ -51,10 +50,13 @@ namespace Odin.Core.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
-            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
+            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext,
+            ServerSystemStorage serverSystemStorage,
+            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage,
+            OdinContextAccessor contextAccessor,
             CircleNetworkService circleNetworkService,
-            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration, IDriveAclAuthorizationService driveAcl)
+            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration,
+            IDriveAclAuthorizationService driveAcl)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -73,18 +75,20 @@ namespace Odin.Core.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            if (await ShouldDistribute(notification))
+            var serverFileHeader = notification.ServerFileHeader;
+            if (await ShouldDistribute(serverFileHeader))
             {
                 if (_contextAccessor.GetCurrent().Caller.IsOwner)
                 {
                     var deleteNotification = notification as DriveFileDeletedNotification;
                     var isEncryptedFile =
-                        (deleteNotification != null && deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
+                        (deleteNotification != null &&
+                         deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
                         notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
                     if (isEncryptedFile)
                     {
-                         await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
                     else
                     {
@@ -104,7 +108,8 @@ namespace Odin.Core.Services.DataSubscription
             }
         }
 
-        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification)
+        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(
+            IDriveNotification notification)
         {
             var item = new ReactionPreviewDistributionItem()
             {
@@ -120,7 +125,7 @@ namespace Odin.Core.Services.DataSubscription
             }
             else
             {
-                using(new FeedDriveSecurityContext(_contextAccessor))
+                using (new FeedDriveDistributionSecurityContext(_contextAccessor))
                 {
                     await EnqueueFollowers(notification, item);
                     EnqueueCronJob();
@@ -142,33 +147,33 @@ namespace Odin.Core.Services.DataSubscription
             }
         }
 
-        private async Task<bool> ShouldDistribute(IDriveNotification notification)
+        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader)
         {
             //if the file was received from another identity, do not redistribute
-            var sender = notification.ServerFileHeader?.FileMetadata?.SenderOdinId;
+            var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity)
             {
                 return false;
             }
 
-            if (notification.ServerFileHeader == null) //file was hard-deleted
+            if (serverFileHeader == null) //file was hard-deleted
             {
                 return false;
             }
 
-            if (!notification.ServerFileHeader.ServerMetadata.AllowDistribution)
+            if (!serverFileHeader.ServerMetadata.AllowDistribution)
             {
                 return false;
             }
 
             //We only distribute standard files to populate the feed.  Comments are retrieved by calls over transit query
-            if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Standard)
+            if (serverFileHeader.ServerMetadata.FileSystemType != FileSystemType.Standard)
             {
                 return false;
             }
 
-            if (!await SupportsSubscription(notification.File.DriveId))
+            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId))
             {
                 return false;
             }
@@ -216,10 +221,12 @@ namespace Odin.Core.Services.DataSubscription
             var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
             await Task.WhenAll(tasks);
 
-            var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
+            var successes = tasks.Where(t => t.Result.success)
+                .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
 
-            var failures = tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
+            var failures = tasks.Where(t => !t.Result.success)
+                .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 
@@ -282,6 +289,9 @@ namespace Odin.Core.Services.DataSubscription
         {
             int maxRecords = 10000; //TODO: cursor thru batches instead
 
+            //
+            // Get followers for this drive and merge with followers who want everything
+            //
             var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
             var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
@@ -298,7 +308,9 @@ namespace Odin.Core.Services.DataSubscription
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
-                Schedule = _odinConfiguration.Feed.InstantDistribution ? ScheduleOptions.SendNowAwaitResponse : ScheduleOptions.SendLater,
+                Schedule = _odinConfiguration.Feed.InstantDistribution
+                    ? ScheduleOptions.SendNowAwaitResponse
+                    : ScheduleOptions.SendLater,
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
@@ -357,10 +369,11 @@ namespace Odin.Core.Services.DataSubscription
 
         private void EnqueueCronJob()
         {
-            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution, new FeedDistributionInfo()
-            {
-                OdinId = _tenantContext.HostOdinId,
-            });
+            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution,
+                new FeedDistributionInfo()
+                {
+                    OdinId = _tenantContext.HostOdinId,
+                });
         }
 
         private async Task<bool> SupportsSubscription(Guid driveId)

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Drives;
@@ -12,6 +11,8 @@ namespace Odin.Core.Services.Apps
     public class SharedSecretEncryptedFileHeader
     {
         public Guid FileId { get; set; }
+        
+        public TargetDrive TargetDrive { get; set; }
         
         public FileState FileState { get; set; }
         

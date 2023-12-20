@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Follow;
 using Refit;
@@ -77,6 +79,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Follow
         public new async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
             return await base.Unfollow(request);
+        }
+
+        [HttpPost("sync-feed-history")]
+        public new async Task<IActionResult> SynchronizeFeedHistory([Body] SynchronizeFeedHistoryRequest request)
+        {
+            await base.SynchronizeFeedHistory(request);
+            return Ok();
         }
     }
 }

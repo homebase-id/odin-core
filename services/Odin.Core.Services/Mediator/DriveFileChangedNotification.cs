@@ -17,9 +17,6 @@ namespace Odin.Core.Services.Mediator
         public InternalDriveFileId File { get; set; }
         public ServerFileHeader ServerFileHeader { get; set; }
         
-        //TODO: revisit having put this field on here.  it might be not perform well
-        public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
-
         public ExternalFileIdentifier ExternalFile { get; set; }
         
     }

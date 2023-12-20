@@ -88,7 +88,7 @@ public class TransitNotificationTests
         // Sam sends message over transit with notifications set
         var samDriveClient = new UniversalDriveApiClient(sam.OdinId, new AppApiClientFactory(samAppToken, samAppSharedSecret));
 
-        var fileMetadata = SampleMetadataDataDefinitions.Create(101, acl: AccessControlList.Connected);
+        var fileMetadata = SampleMetadataData.Create(101, acl: AccessControlList.Connected);
         fileMetadata.AllowDistribution = true;
         fileMetadata.AppData.Content = "some app content";
 

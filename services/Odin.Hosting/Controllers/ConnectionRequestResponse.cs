@@ -1,5 +1,6 @@
 using System;
 using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Core.Time;
 
 namespace Odin.Hosting.Controllers;
 
@@ -7,7 +8,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
 {
     public string SenderOdinId { get; set; }
 
-    public Int64 ReceivedTimestampMilliseconds { get; set; }
+    public UnixTimeUtc ReceivedTimestampMilliseconds { get; set; }
     
     public ConnectionRequestDirection Direction { get; set; }
 

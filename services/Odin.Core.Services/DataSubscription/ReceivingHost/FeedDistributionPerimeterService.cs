@@ -31,7 +31,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
         }
-
+        
         public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
@@ -45,7 +45,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
@@ -56,7 +56,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                         Code = TransitResponseCode.Rejected
                     };
                 }
-                
+
                 try
                 {
                     await _fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
@@ -87,10 +87,10 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
                 var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-                
+
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)
@@ -133,9 +133,9 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         public async Task<HostTransitResponse> Delete(DeleteFeedFileMetadataRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
-            using (new FeedDriveSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
-                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                // var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 var fileId = await this.ResolveInternalFile(request.FileId);
                 if (null == fileId)
                 {

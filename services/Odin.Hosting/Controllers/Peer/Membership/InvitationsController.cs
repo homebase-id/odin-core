@@ -8,7 +8,7 @@ using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Membership
 {
     /// <summary>
     /// Controller which accepts various invitations.  This controller 

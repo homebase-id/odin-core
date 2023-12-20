@@ -1,6 +1,7 @@
 ﻿using System;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
@@ -37,12 +38,16 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
+            
+            Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
+
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
             Cron = new CronApiClient(ownerApi, identity);
             Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
 
             AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
+
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -54,6 +59,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public TestIdentity Identity => _identity;
 
         public CronApiClient Cron { get; }
+
+        public UniversalFollowerApiClient Follower { get; }
 
         public AppManagementApiClient AppManager { get; }
 

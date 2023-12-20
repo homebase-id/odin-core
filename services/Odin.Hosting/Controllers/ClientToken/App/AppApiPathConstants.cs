@@ -20,7 +20,7 @@
         
         public const string CirclesDefinitionsV1 = CirclesV1 + "/definitions";
 
-        public const string FollowersV1 = CirclesV1 + "/followers";
+        public const string FollowersV1 = BasePathV1 + "/followers";
 
         public const string DriveV1 = BasePathV1 + "/drive";
 

@@ -1,7 +1,7 @@
 using MediatR;
 using Odin.Core.Identity;
 
-namespace Odin.Core.Services.AppNotifications.ClientNotifications;
+namespace Odin.Core.Services.Mediator;
 
 public class IdentityConnectionRegistrationChangedNotification : INotification
 {

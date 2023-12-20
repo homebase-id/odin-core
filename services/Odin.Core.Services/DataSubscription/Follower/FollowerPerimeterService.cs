@@ -30,7 +30,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimterFollowRequest request)
+        public Task AcceptFollower(PerimeterFollowRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.OdinId, nameof(request.OdinId)).NotNull().NotEmpty();
@@ -78,14 +78,14 @@ namespace Odin.Core.Services.DataSubscription.Follower
                         _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
                 }
-
-                _mediator.Publish(new NewFollowerNotification()
-                {
-                    OdinId = (OdinId)request.OdinId
-                });
                 
                 return Task.CompletedTask;
             }
+            
+            _mediator.Publish(new NewFollowerNotification()
+            {
+                OdinId = (OdinId)request.OdinId
+            });
 
             return Task.CompletedTask;
         }

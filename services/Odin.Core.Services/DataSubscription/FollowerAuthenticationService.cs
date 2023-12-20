@@ -8,6 +8,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Mediator;
 
 namespace Odin.Core.Services.DataSubscription;
 
@@ -26,7 +27,7 @@ public class FollowerAuthenticationService
     }
 
     /// <summary>
-    /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+    /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
     public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {

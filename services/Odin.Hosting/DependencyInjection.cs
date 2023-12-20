@@ -17,6 +17,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Comment.Attachments;
@@ -41,7 +42,6 @@ using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
 
@@ -122,7 +122,7 @@ namespace Odin.Hosting
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
-            //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
+
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
@@ -185,7 +185,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-
+            
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 

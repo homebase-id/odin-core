@@ -8,7 +8,7 @@ using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
-namespace Odin.Hosting.Controllers.Peer
+namespace Odin.Hosting.Controllers.Peer.Membership
 {
     /// <summary />
     [ApiController]
@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.Peer
                 return BadRequest("Invalid Public Key");
             }
 
-            var request = OdinSystemSerializer.Deserialize<PerimterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             await _followerPerimeterService.AcceptFollower(request);
 
             return Ok();
