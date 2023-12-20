@@ -766,10 +766,10 @@ namespace Odin.Core.Services.Membership.Connections
             }
 
             //notify anyone caching data for this identity, we need to reset the cache
-            // _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
-            // {
-            //     OdinId = icr.OdinId
-            // });
+            _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+            {
+                OdinId = icr.OdinId
+            });
         }
 
         private async Task ReconcileAuthorizedCircles(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)

@@ -79,7 +79,7 @@ public class DataSubscriptionAndDistributionTests2
         //
         // Frodo creates a circle named Mordor and puts Sam in it
         //
-        var circle = await frodoOwnerClient.Membership.CreateCircle("Mordor", frodoSecureChannel, DrivePermission.All);
+        var circle = await frodoOwnerClient.Membership.CreateCircle("Mordor", frodoSecureChannel, DrivePermission.Read);
         await frodoOwnerClient.Network.GrantCircle(circle.Id, TestIdentities.Samwise);
 
         //
@@ -97,6 +97,7 @@ public class DataSubscriptionAndDistributionTests2
         // The header is distributed to the feed drive of Sam
         // Sam can get the payload via transit query
         // 
+
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await AssertFeedDriveHasHeader(samOwnerClient, firstUploadResult, encryptedJsonContent64);
         await AssertCanGetPayload(samOwnerClient, TestIdentities.Frodo, firstUploadResult, encryptedPayloadContent64);
