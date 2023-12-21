@@ -39,6 +39,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 
             await _notificationService.AddDevice(sub);
 
+            HttpContext.Response.ContentType = "text/plain";
             return Ok();
         }
 
