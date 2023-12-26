@@ -38,7 +38,7 @@ public class TenantConfigService
     private readonly RecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
-    private readonly AppRegistrationService _appRegistrationService;
+    private readonly IAppRegistrationService _appRegistrationService;
 
     public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
@@ -48,7 +48,7 @@ public class TenantConfigService
         IcrKeyService icrKeyService,
         RecoveryService recoverService,
         CircleMembershipService circleMembershipService,
-        AppRegistrationService appRegistrationService)
+        IAppRegistrationService appRegistrationService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -176,7 +176,7 @@ public class TenantConfigService
             await CreateCircleIfNotExists(rc);
         }
 
-        await this.RegisterSystemApps();
+        await this.RegisterBuiltInApps();
 
         _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
 
@@ -251,7 +251,7 @@ public class TenantConfigService
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
-    
+
     public TenantSettings GetTenantSettings()
     {
         return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
@@ -274,49 +274,57 @@ public class TenantConfigService
 
     //
 
-    private async Task RegisterSystemApps()
+    private async Task RegisterBuiltInApps()
     {
         await RegisterChatApp();
         // await RegisterFeedApp();
         // await RegisterPhotosApp();
     }
-    
+
     private async Task RegisterChatApp()
     {
         var request = new AppRegistrationRequest()
         {
             AppId = SystemAppConstants.ChatAppId,
-            Name = "BuiltIn Chat App",
-            AuthorizedCircles = new List<Guid>(), //note: by default the system circle will have write access to chat drive
-            CircleMemberPermissionGrant = null,
-            Drives = new List<DriveGrantRequest>()
+            Name = "Homebase - Chat",
+            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                new ()
+                CircleConstants.ConnectedIdentitiesSystemCircleId
+            }, 
+            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+            {
+                Drives =
+                [
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = SystemDriveConstants.ChatDrive,
+                            Permission = DrivePermission.Write
+                        }
+                    }
+                ],
+                PermissionSet = new PermissionSet()
+
+                // PermissionSet = new PermissionSet(
+                //     PermissionKeys.ReadConnections,
+                //     PermissionKeys.SendPushNotifications,
+                //     PermissionKeys.UseTransitRead,
+                //     PermissionKeys.UseTransitWrite)
+            },
+            Drives =
+            [
+                new()
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = SystemDriveConstants.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
-                },
-                new ()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new ()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
-                    }
                 }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections,
+            ],
+            PermissionSet = new PermissionSet(
+                PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.UseTransitRead,
                 PermissionKeys.UseTransitWrite)
@@ -349,7 +357,7 @@ public class TenantConfigService
 
         return false;
     }
-    
+
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
         var systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
@@ -372,5 +380,4 @@ public class TenantConfigService
 
         _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
     }
-
 }
