@@ -4,7 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration.Eula;
@@ -35,6 +38,7 @@ public class TenantConfigService
     private readonly RecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
+    private readonly AppRegistrationService _appRegistrationService;
 
     public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
@@ -43,7 +47,8 @@ public class TenantConfigService
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
         RecoveryService recoverService,
-        CircleMembershipService circleMembershipService)
+        CircleMembershipService circleMembershipService,
+        AppRegistrationService appRegistrationService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -53,6 +58,7 @@ public class TenantConfigService
         _publicPrivateKeyService = publicPrivateKeyService;
         _recoverService = recoverService;
         _circleMembershipService = circleMembershipService;
+        _appRegistrationService = appRegistrationService;
         _icrKeyService = icrKeyService;
 
         const string configContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
@@ -170,7 +176,7 @@ public class TenantConfigService
             await CreateCircleIfNotExists(rc);
         }
 
-        await this.CreateSystemApps();
+        await this.RegisterSystemApps();
 
         _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
 
@@ -245,30 +251,7 @@ public class TenantConfigService
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
-
-    private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
-    {
-        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
-
-
-        if (shouldGrantKey)
-        {
-            if (!systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Add(key);
-            }
-        }
-        else
-        {
-            if (systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Remove(key);
-            }
-        }
-
-        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
-    }
-
+    
     public TenantSettings GetTenantSettings()
     {
         return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
@@ -289,35 +272,59 @@ public class TenantConfigService
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
-    public async Task CreateSystemApps()
+    //
+
+    private async Task RegisterSystemApps()
     {
-        await Task.CompletedTask;
-        // [Obsolete("Still Determining if we want to have the concept of system apps; but i dont want to lose this code")]
-        //Feed app
-        // var request = new AppRegistrationRequest()
-        // {
-        //     AppId = SystemAppConstants.FeedAppId,
-        //     Name = "System Feed Writer",
-        //     AuthorizedCircles = new List<Guid>(), //no circles
-        //     CircleMemberPermissionGrant = null,
-        //     Drives = new List<DriveGrantRequest>()
-        //     {
-        //         new DriveGrantRequest()
-        //         {
-        //             PermissionedDrive = new PermissionedDrive()
-        //             {
-        //                 Drive = SystemDriveConstants.FeedDrive,
-        //                 Permission = DrivePermission.Write
-        //             }
-        //         }
-        //     },
-        //     PermissionSet = new PermissionSet() //no permissions for this app
-        // };
-        //
-        // await _appRegistrationService.RegisterApp(request);
+        await RegisterChatApp();
+        // await RegisterFeedApp();
+        // await RegisterPhotosApp();
+    }
+    
+    private async Task RegisterChatApp()
+    {
+        var request = new AppRegistrationRequest()
+        {
+            AppId = SystemAppConstants.ChatAppId,
+            Name = "BuiltIn Chat App",
+            AuthorizedCircles = new List<Guid>(), //note: by default the system circle will have write access to chat drive
+            CircleMemberPermissionGrant = null,
+            Drives = new List<DriveGrantRequest>()
+            {
+                new ()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ChatDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                },
+                new ()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ProfileDrive,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new ()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.Read
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.UseTransitWrite)
+        };
+
+        await _appRegistrationService.RegisterApp(request);
     }
 
-    //
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
     {
         var existingCircleDef = _circleMembershipService.GetCircle(request.Id);
@@ -342,4 +349,28 @@ public class TenantConfigService
 
         return false;
     }
+    
+    private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
+    {
+        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
+
+
+        if (shouldGrantKey)
+        {
+            if (!systemCircle.Permissions.Keys.Contains(key))
+            {
+                systemCircle.Permissions.Keys.Add(key);
+            }
+        }
+        else
+        {
+            if (systemCircle.Permissions.Keys.Contains(key))
+            {
+                systemCircle.Permissions.Keys.Remove(key);
+            }
+        }
+
+        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
+    }
+
 }
