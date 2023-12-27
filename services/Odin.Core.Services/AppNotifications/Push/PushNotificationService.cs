@@ -259,7 +259,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     {
         this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
         {
-            AppId = SystemAppConstants.FeedAppId,
+            AppId = SystemAppConstants.OwnerAppId, // SystemAppConstants.FeedAppId,
             TypeId = notification.NotificationTypeId,
             TagId = notification.Sender.ToHashId(),
             Silent = false,
