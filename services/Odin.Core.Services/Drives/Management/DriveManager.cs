@@ -51,8 +51,10 @@ public class DriveManager
 
     public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
     {
-        Guard.Argument(request, nameof(request)).NotNull();
-        Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
+        if (string.IsNullOrEmpty(request?.Name))
+        {
+            throw new OdinClientException("Name cannot be empty");
+        }
 
         if (request.OwnerOnly && request.AllowAnonymousReads)
         {
