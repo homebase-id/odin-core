@@ -84,24 +84,24 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
         //TODO: add throttling
         //group by appId + typeId
         var groupings = list.GroupBy(r => new Guid(ByteArrayUtil.EquiByteArrayXor(r.Options.AppId.ToByteArray(), r.Options.TypeId.ToByteArray())));
-        
+
         foreach (var group in groupings)
         {
             var pushContent = new PushNotificationContent()
             {
                 Payloads = new List<PushNotificationPayload>()
             };
-            
-            foreach(var record in group)
+
+            foreach (var record in group)
             {
                 var appReg = await _appRegistrationService.GetAppRegistration(record.Options.AppId);
 
                 pushContent.Payloads.Add(new PushNotificationPayload()
                 {
-                    AppDisplayName = appReg?.Name,
+                    AppDisplayName = appReg?.Name ?? "a Homebase app",
                     Options = record.Options,
                     SenderId = record.SenderId,
-                    Timestamp = record.Timestamp,
+                    Timestamp = record.Timestamp, 
                 });
 
                 //add to system list
@@ -113,7 +113,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
                 await _pushNotificationOutbox.MarkComplete(record.Marker);
             }
-            
+
             await this.Push(pushContent);
         }
     }
@@ -130,7 +130,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
             //TODO: enforce sub.ExpirationTime
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails(_configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64); 
+            var vapidDetails = new VapidDetails(_configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
 
             var data = OdinSystemSerializer.Serialize(content);
 
@@ -259,7 +259,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     {
         this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
         {
-            AppId = SystemAppConstants.OwnerAppId, // SystemAppConstants.FeedAppId,
+            AppId = SystemAppConstants.FeedAppId,
             TypeId = notification.NotificationTypeId,
             TagId = notification.Sender.ToHashId(),
             Silent = false,
