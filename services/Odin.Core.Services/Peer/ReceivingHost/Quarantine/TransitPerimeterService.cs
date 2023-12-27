@@ -7,6 +7,7 @@ using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -136,11 +137,22 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 if (responseCode == TransitResponseCode.AcceptedDirectWrite ||
                     responseCode == TransitResponseCode.AcceptedIntoInbox)
                 {
-                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
-                    if (null != notificationOptions)
+                    //Feed hack (again)
+                    if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive)
                     {
-                        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        await _mediator.Publish(new NewFeedItemReceived()
+                        {
+                            Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+                        });
+                    }
+                    else
+                    {
+                        var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                        if (null != notificationOptions)
+                        {
+                            var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                            await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        }
                     }
                 }
 

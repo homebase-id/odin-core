@@ -40,7 +40,7 @@ namespace Odin.Core.Services.Membership.Circles
                 this.CreateCircleInternal(new CreateCircleRequest()
                 {
                     Id = CircleConstants.ConnectedIdentitiesSystemCircleId.Value,
-                    Name = "Connected Identities System Circle",
+                    Name = "All Connected Identities",
                     Description = "All Connected Identities",
                     DriveGrants = CircleConstants.ConnectedIdentitiesSystemCircleInitialDrives,
                     Permissions = new PermissionSet()

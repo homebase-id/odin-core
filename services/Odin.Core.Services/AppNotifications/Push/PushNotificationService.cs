@@ -9,10 +9,12 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
@@ -24,13 +26,14 @@ using WebPush;
 namespace Odin.Core.Services.AppNotifications.Push;
 
 public class PushNotificationService : INotificationHandler<NewFollowerNotification>, INotificationHandler<ConnectionRequestAccepted>,
-    INotificationHandler<ConnectionRequestReceived>
+    INotificationHandler<ConnectionRequestReceived>, INotificationHandler<NewFeedItemReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage;
     private readonly OdinContextAccessor _contextAccessor;
 
+    private readonly OdinConfiguration _configuration;
     private readonly NotificationListService _notificationListService;
     private readonly PushNotificationOutbox _pushNotificationOutbox;
     private readonly PublicPrivateKeyService _keyService;
@@ -40,13 +43,14 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
     public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService,
         TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage, NotificationListService notificationListService,
-        IAppRegistrationService appRegistrationService)
+        IAppRegistrationService appRegistrationService, OdinConfiguration configuration)
     {
         _contextAccessor = contextAccessor;
         _keyService = keyService;
         _serverSystemStorage = serverSystemStorage;
         _notificationListService = notificationListService;
         _appRegistrationService = appRegistrationService;
+        _configuration = configuration;
         _pushNotificationOutbox = new PushNotificationOutbox(tenantSystemStorage, contextAccessor);
         _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     }
@@ -117,7 +121,6 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     public async Task Push(PushNotificationContent content)
     {
         _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
-        // _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         var subscriptions = await GetAllSubscriptions();
         var keys = _keyService.GetNotificationsKeys();
@@ -127,7 +130,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
             //TODO: enforce sub.ExpirationTime
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails("mailto:info@homebase.id", keys.PublicKey64, keys.PrivateKey64); //TODO: config
+            var vapidDetails = new VapidDetails(_configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64); 
 
             var data = OdinSystemSerializer.Serialize(content);
 
@@ -247,6 +250,20 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
             TypeId = notification.NotificationTypeId,
             TagId = notification.Sender.ToHashId(),
             Silent = false
+        });
+
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
+    {
+        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+        {
+            AppId = SystemAppConstants.OwnerAppId,
+            TypeId = notification.NotificationTypeId,
+            TagId = notification.Sender.ToHashId(),
+            Silent = false,
+            UnEncryptedMessage = "You have new content in your feed."
         });
 
         return Task.CompletedTask;

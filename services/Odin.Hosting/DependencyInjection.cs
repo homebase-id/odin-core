@@ -5,6 +5,7 @@ using MediatR;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Authentication.Owner;
@@ -63,6 +64,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
+                .As<INotificationHandler<NewFeedItemReceived>>()
                 .AsSelf()
                 .SingleInstance();
             

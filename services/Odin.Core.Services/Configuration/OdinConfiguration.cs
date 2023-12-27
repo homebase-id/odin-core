@@ -217,10 +217,14 @@ namespace Odin.Core.Services.Configuration
                 HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
+
+                //TODO: changed to required when Seb and I can coordinate config changes
+                PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
             }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
+            public string PushNotificationSubject { get; set; }
         }
 
         public class ListenEntry
