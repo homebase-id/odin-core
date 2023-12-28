@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
@@ -13,8 +14,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Comment;
 public class CommentFileStorageService : DriveStorageServiceBase
 {
     public CommentFileStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
-        IDriveAclAuthorizationService driveAclAuthorizationService,DriveManager driveManager) :
-        base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService,driveManager)
+        IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, OdinConfiguration odinConfiguration) :
+        base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration)
     {
     }
 
@@ -32,7 +33,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(driveId,DrivePermission.Comment);
+            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(driveId, DrivePermission.Comment);
         }
     }
 

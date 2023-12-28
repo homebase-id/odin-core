@@ -10,6 +10,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -42,14 +43,16 @@ public class StaticFileContentService
     private readonly TenantContext _tenantContext;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
+    private readonly OdinConfiguration _odinConfiguration;
 
     public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-        DriveManager driveManager, StandardFileSystem fileSystem)
+        DriveManager driveManager, StandardFileSystem fileSystem, OdinConfiguration odinConfiguration)
     {
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
         _fileSystem = fileSystem;
+        _odinConfiguration = odinConfiguration;
 
         const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
         _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
@@ -157,8 +160,9 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
 
-        File.Move(tempTargetPath, finalTargetPath, true);
-
+        // File.Move(tempTargetPath, finalTargetPath, true);
+        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
@@ -179,7 +183,8 @@ public class StaticFileContentService
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        File.Move(tempTargetPath, finalTargetPath, true);
+        // File.Move(tempTargetPath, finalTargetPath, true);
+        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
 
         var config = new StaticFileConfiguration()
         {
@@ -202,7 +207,8 @@ public class StaticFileContentService
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        File.Move(tempTargetPath, finalTargetPath, true);
+        // File.Move(tempTargetPath, finalTargetPath, true);
+        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
 
         var config = new StaticFileConfiguration()
         {
@@ -241,7 +247,7 @@ public class StaticFileContentService
             }
         }
 
-        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         return Task.FromResult((config, fileExists: true, (Stream)fileStream));
     }
 
