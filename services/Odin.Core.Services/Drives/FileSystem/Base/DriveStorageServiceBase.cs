@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
@@ -28,19 +29,21 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly IMediator _mediator;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
+        private readonly OdinConfiguration _odinConfiguration;
 
         protected DriveStorageServiceBase(
             OdinContextAccessor contextAccessor,
             ILoggerFactory loggerFactory,
             IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService,
-            DriveManager driveManager)
+            DriveManager driveManager, OdinConfiguration odinConfiguration)
         {
             ContextAccessor = contextAccessor;
             _loggerFactory = loggerFactory;
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _driveManager = driveManager;
+            _odinConfiguration = odinConfiguration;
             DriveManager = driveManager;
         }
 
@@ -777,7 +780,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger);
+            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration);
             return manager;
         }
 

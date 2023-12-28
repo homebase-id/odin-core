@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,15 +6,19 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.FileSystem.Base;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
+    using System;
+
     public class LongTermStorageManager
     {
         private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
+        private readonly OdinConfiguration _odinConfiguration;
 
         private const int WriteChunkSize = 1024;
 
@@ -23,7 +26,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
@@ -32,6 +35,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             drive.EnsureDirectories();
 
             _logger = logger;
+            _odinConfiguration = odinConfiguration;
             _drive = drive;
         }
 
@@ -280,7 +284,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var dest = GetPayloadFilePath(targetFileId, key, ensureExists: true);
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
 
-            File.Move(sourcePath, dest, true);
+            // File.Move(sourcePath, dest, true);
+            Retry.RetryOperation(() => File.Move(sourcePath, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
         }
@@ -290,7 +296,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
             var dest = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey);
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
-            File.Move(sourceThumbnail, dest, true);
+
+            // File.Move(sourceThumbnail, dest, true);
+            Retry.RetryOperation(() => File.Move(sourceThumbnail, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+
             _logger.LogInformation($"File Moved to {dest}");
 
             return Task.CompletedTask;
