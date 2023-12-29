@@ -309,7 +309,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             try
             {
                 // Open the file with exclusive access.
-                using var fileStream = new FileStream(sourcePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+                using var fileStream = new FileStream(dest!, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
             }
             catch (IOException ex)
             {
