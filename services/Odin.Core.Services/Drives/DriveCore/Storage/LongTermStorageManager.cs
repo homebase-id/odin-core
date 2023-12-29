@@ -285,8 +285,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
             _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(dest));
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
-            
-            // Sanity #1
+
+            // Sanity #1;
             // try
             // {
             //     // Open the file with exclusive access.
@@ -314,8 +314,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             //     _logger.LogWarning(ex, "I could not create/overwrite destination file {file} with exclusive access", dest);
             // }
 
-            // File.Move(sourcePath, dest, true);
-            IoUtils.RetryOperation(() => File.Move(sourcePath, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+            if (IoUtils.WaitForFileUnlock(sourcePath, TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
+            {
+                IoUtils.RetryOperation(() => File.Move(sourcePath, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+            }
+            else
+            {
+                throw new OdinFileWriteException($"IO Exception while reading file {sourcePath} to write to {dest}");
+            }
 
             _logger.LogInformation("File Moved to {dest}", dest);
 

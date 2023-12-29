@@ -43,7 +43,7 @@ public class DirectDrivePayload_ConcurrencyTests
     public async Task CanOverwritePayloadManyTimes()
     {
         const int MAXTHREADS = 1;
-        const int MAXITERATIONS = 3;
+        const int MAXITERATIONS = 300;
 
         var identity = TestIdentities.Pippin;
         var targetDrive = TargetDrive.NewTargetDrive();

@@ -221,19 +221,22 @@ namespace Odin.Core.Services.Configuration
                 //TODO: changed to required when Seb and I can coordinate config changes
                 PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
 
-                FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 3);
-                FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 20);
+                FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 5);
+                FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
+                FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
             }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
             public string PushNotificationSubject { get; set; }
-            
+
             /// <summary>
             /// Number of times to retry a file.move operation
             /// </summary>
             public int FileMoveRetryAttempts { get; set; }
-            
+
+            public int FileMoveWaitTimeoutSeconds { get; set; }
+
             /// <summary>
             /// Number of milliseconds to delay between file.move attempts
             /// </summary>
