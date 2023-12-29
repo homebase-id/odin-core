@@ -286,7 +286,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(dest));
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
 
-            _logger.LogDebug("MovePayloadToLongTerm: move from: {} to: {}", sourcePath, dest);
+            _logger.LogDebug("MovePayloadToLongTerm: move from: {source} to: {dest}", sourcePath, dest);
 
             // Sanity #1
             try
