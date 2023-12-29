@@ -282,12 +282,44 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task MovePayloadToLongTerm(Guid targetFileId, string key, string sourcePath)
         {
             var dest = GetPayloadFilePath(targetFileId, key, ensureExists: true);
+
+            _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(dest));
             Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
+
+            _logger.LogDebug("MovePayloadToLongTerm: move from: {} to: {}", sourcePath, dest);
+
+            // Sanity #1
+            try
+            {
+                // Open the file with exclusive access.
+                using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "I could not get exclusive access to source file {file}", sourcePath);
+            }
+
+            // Sanity #2
+            if (File.Exists(dest))
+            {
+                _logger.LogWarning("Destination {dest} already exists", dest);
+            }
+
+            // Sanity #3
+            try
+            {
+                // Open the file with exclusive access.
+                using var fileStream = new FileStream(sourcePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "I could not create/overwrite destination file {file} with exclusive access", dest);
+            }
 
             // File.Move(sourcePath, dest, true);
             Retry.RetryOperation(() => File.Move(sourcePath, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
 
-            _logger.LogInformation($"File Moved to {dest}");
+            _logger.LogInformation("File Moved to {dest}", dest);
             return Task.CompletedTask;
         }
 
