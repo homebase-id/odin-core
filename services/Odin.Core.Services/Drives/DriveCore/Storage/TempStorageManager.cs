@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -48,49 +49,37 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
         {
-            //TODO: this is probably highly inefficient and probably need to revisit 
             string filePath = GetFilenameAndPath(fileId, extension, true);
-            string tempFilePath = GetTempFilePath(fileId, extension);
+
+            //if the file is locked; then we need to kick it back to the client.
+            var buffer = new byte[WriteChunkSize];
 
             uint bytesWritten;
             try
             {
-                //Process: if there's a file, we write to a temp file then rename.
-                if (File.Exists(filePath))
+                using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
                 {
-                    bytesWritten = WriteStream(stream, tempFilePath);
-                    lock (filePath)
+                    var bytesRead = 0;
+                    do
                     {
-                        // File.WriteAllBytes(filePath, stream.ToByteArray());
-                        //TODO: need to know if this replace method is faster than renaming files
-                        File.Replace(tempFilePath, filePath, null, true);
-                    }
-                }
-                else
-                {
-                    bytesWritten = WriteStream(stream, filePath);
-                }
-            }
-            finally
-            {
-                //TODO: should clean up the temp file in case of failure?
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
+                        bytesRead = stream.Read(buffer, 0, buffer.Length);
+                        output.Write(buffer, 0, bytesRead);
+                    } while (bytesRead > 0);
 
+                    bytesWritten = (uint)output.Length;
+                    output.Close();
+                }
+            }
+            catch (IOException e)
+            {
+                //TODO: should i add more details here or check the e.message that it states the file is locked?
+                _logger.LogWarning($"IO Exception {e.Message}");
+                throw new OdinFileWriteException($"IO Exception while writing to {filePath}", e);
+            }
+            
             return Task.FromResult(bytesWritten);
         }
-
-        /// <summary>
-        /// Checks if the file exists.  Returns true if all parts exist, otherwise false
-        /// </summary>
-        public bool FileExists(Guid fileId, string extension)
-        {
-            throw new NotImplementedException();
-        }
-
+        
         /// <summary>
         /// Deletes the file matching <param name="fileId"></param> and extension.
         /// </summary>
@@ -178,25 +167,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             string filename = $"{Guid.NewGuid()}-{extension}.tmp";
             return Path.Combine(dir, filename);
         }
-
-        private uint WriteStream(Stream stream, string filePath)
-        {
-            var buffer = new byte[WriteChunkSize];
-
-            using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
-            {
-                var bytesRead = 0;
-                do
-                {
-                    // stream.ReadAsync(buffer, 0, buffer.Length).GetAwaiter().GetResult();
-                    bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    output.Write(buffer, 0, bytesRead);
-                } while (bytesRead > 0);
-
-                var bytesWritten = output.Length;
-                output.Close();
-                return (uint)bytesWritten;
-            }
-        }
+        
     }
 }

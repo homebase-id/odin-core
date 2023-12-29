@@ -161,7 +161,7 @@ public class StaticFileContentService
         string finalTargetPath = Path.Combine(targetFolder, filename);
 
         // File.Move(tempTargetPath, finalTargetPath, true);
-        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
         
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
@@ -184,7 +184,7 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         // File.Move(tempTargetPath, finalTargetPath, true);
-        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
 
         var config = new StaticFileConfiguration()
         {
@@ -208,7 +208,7 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         // File.Move(tempTargetPath, finalTargetPath, true);
-        Retry.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
 
         var config = new StaticFileConfiguration()
         {
