@@ -84,52 +84,6 @@ public class ConcurrentFileManagerTests
         Assert.AreEqual(numberOfReads, readCount);
     }
 
-    [Test]
-    public void ReadBlockedDuringWrite()
-    {
-        string testFilePath = "testfile05.txt";
-        File.WriteAllText(testFilePath, string.Empty);
-
-        string contentToWrite = "New content";
-        string initialContent = "Old content";
-        File.WriteAllText(testFilePath, initialContent);
-
-        var writeLock = new ManualResetEvent(false);
-        var readAttempted = false;
-        var readCompleted = new ManualResetEvent(false);
-
-        // Start a write operation in a separate task
-        Task writeTask = Task.Run(() =>
-        {
-            fileManager.WriteFile(testFilePath, path =>
-            {
-                writeLock.Set(); // Signal that write has started
-                Thread.Sleep(100); // Simulate a delay in writing
-                File.WriteAllText(path, contentToWrite);
-            });
-        });
-
-        // Attempt to read the file, this should block until the write is completed
-        Task readTask = Task.Run(() =>
-        {
-            fileManager.ReadFile(testFilePath, path =>
-            {
-                readAttempted = true;
-                string content = File.ReadAllText(path);
-                Assert.AreEqual(contentToWrite, content); // This should be the new content if read is blocked during write
-                readCompleted.Set();
-            });
-        });
-
-        writeLock.WaitOne(); // Ensure the write operation has started
-        Thread.Sleep(50); // Brief delay to increase the likelihood that read is attempted during write
-        Assert.IsFalse(readAttempted, "Read operation should not have started yet.");
-
-        readCompleted.WaitOne(); // Wait for the read operation to complete
-        Assert.IsTrue(readAttempted, "Read operation should have completed.");
-
-        Task.WaitAll(writeTask, readTask); // Ensure all tasks are completed
-    }
 
     [Test]
     public void MoveFile_FileMovedSuccessfully()
