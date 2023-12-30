@@ -398,17 +398,17 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return results;
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
+        public Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
             string headerFilepath = GetFilenameAndPath(fileId, FilePart.Header);
             if (!File.Exists(headerFilepath))
             {
-                return null;
+                return Task.FromResult<ServerFileHeader>(null);
             }
 
             var bytes = _driveFileReaderWriter.GetAllFileBytes(headerFilepath);
             var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(bytes.ToStringFromUtf8Bytes());
-            return header;
+            return Task.FromResult(header);
         }
 
         /// <summary>
