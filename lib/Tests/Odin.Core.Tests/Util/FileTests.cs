@@ -8,30 +8,24 @@ using System.Threading.Tasks;
 public class ConcurrentFileManagerTests
 {
     private ConcurrentFileManager fileManager;
-    private string testFilePath;
 
     [SetUp]
     public void Setup()
     {
         fileManager = new ConcurrentFileManager();
-        testFilePath = "testfile.txt";
-
-        // Ensure the test file exists and is empty before each test
-        File.WriteAllText(testFilePath, string.Empty);
     }
 
     [TearDown]
     public void TearDown()
     {
-        if (File.Exists(testFilePath))
-        {
-            File.Delete(testFilePath);
-        }
     }
 
     [Test]
     public void ReadFile_FileExists_ContentReadCorrectly()
     {
+        string testFilePath = "testfile01.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
         string expectedContent = "Hello, world!";
         File.WriteAllText(testFilePath, expectedContent);
 
@@ -44,6 +38,9 @@ public class ConcurrentFileManagerTests
     [Test]
     public void WriteFile_CanWriteToFile_ContentWrittenCorrectly()
     {
+        string testFilePath = "testfile02.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
         string contentToWrite = "Sample content";
 
         fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite));
@@ -55,6 +52,9 @@ public class ConcurrentFileManagerTests
     [Test]
     public void DeleteFile_FileExists_FileDeleted()
     {
+        string testFilePath = "testfile03.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
         fileManager.DeleteFile(testFilePath);
 
         Assert.IsFalse(File.Exists(testFilePath));
@@ -63,6 +63,9 @@ public class ConcurrentFileManagerTests
     [Test]
     public void ConcurrentRead_MultipleReads_FileReadCorrectly()
     {
+        string testFilePath = "testfile04.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
         string expectedContent = "Concurrent read test";
         File.WriteAllText(testFilePath, expectedContent);
 
@@ -84,6 +87,9 @@ public class ConcurrentFileManagerTests
     [Test]
     public void ReadBlockedDuringWrite()
     {
+        string testFilePath = "testfile05.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
         string contentToWrite = "New content";
         string initialContent = "Old content";
         File.WriteAllText(testFilePath, initialContent);
@@ -123,5 +129,82 @@ public class ConcurrentFileManagerTests
         Assert.IsTrue(readAttempted, "Read operation should have completed.");
 
         Task.WaitAll(writeTask, readTask); // Ensure all tasks are completed
+    }
+
+    [Test]
+    public void MoveFile_FileMovedSuccessfully()
+    {
+        ConcurrentFileManager fileManager = new ConcurrentFileManager();
+        string sourceFilePath = "sourceFile1.txt";
+        string destinationFilePath = "destinationFile1.txt";
+        string expectedContent = "This is a test file.";
+
+        File.Delete(destinationFilePath);
+
+        // Ensure the source file exists and destination file does not exist
+        File.WriteAllText(sourceFilePath, expectedContent);
+
+        Assert.IsTrue(File.Exists(sourceFilePath), "Source file should exist before moving.");
+        Assert.IsFalse(File.Exists(destinationFilePath), "Destination file should not exist before moving.");
+
+        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) =>
+        {
+            File.Move(source, destination);
+        });
+
+        Assert.IsFalse(File.Exists(sourceFilePath), "Source file should not exist after moving.");
+        Assert.IsTrue(File.Exists(destinationFilePath), "Destination file should exist after moving.");
+
+        string actualContent = File.ReadAllText(destinationFilePath);
+        Assert.AreEqual(expectedContent, actualContent, "The content of the moved file should match the expected content.");
+
+        // Clean up: Delete the files after the test
+        if (File.Exists(sourceFilePath))
+        {
+            File.Delete(sourceFilePath);
+        }
+
+        if (File.Exists(destinationFilePath))
+        {
+            File.Delete(destinationFilePath);
+        }
+    }
+
+    [Test]
+    public void MoveFile_FileMovedOverwriteSuccessfully()
+    {
+        ConcurrentFileManager fileManager = new ConcurrentFileManager();
+        string sourceFilePath = "sourceFile2.txt";
+        string destinationFilePath = "destinationFile2.txt";
+        string expectedContent = "This is a test file.";
+
+        // Ensure the source file exists and destination file does not exist
+        File.WriteAllText(sourceFilePath, expectedContent);
+        File.WriteAllText(destinationFilePath, "with other content");
+
+        Assert.IsTrue(File.Exists(sourceFilePath), "Source file should exist before moving.");
+        Assert.IsTrue(File.Exists(destinationFilePath), "file should exist before moving.");
+
+        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) =>
+        {
+            File.Replace(source, destination, null);
+        });
+
+        Assert.IsFalse(File.Exists(sourceFilePath), "Source file should not exist after moving.");
+        Assert.IsTrue(File.Exists(destinationFilePath), "Destination file should exist after moving.");
+
+        string actualContent = File.ReadAllText(destinationFilePath);
+        Assert.AreEqual(expectedContent, actualContent, "The content of the moved file should match the expected content.");
+
+        // Clean up: Delete the files after the test
+        if (File.Exists(sourceFilePath))
+        {
+            File.Delete(sourceFilePath);
+        }
+
+        if (File.Exists(destinationFilePath))
+        {
+            File.Delete(destinationFilePath);
+        }
     }
 }

@@ -89,6 +89,43 @@ namespace Odin.Core.Util
                 ReleaseLock(filePath);
             }
         }
+        public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
+        {
+            FileLock sourceLock = null, destinationLock = null;
+
+            try
+            {
+                // Lock destination first to avoid deadlocks
+                destinationLock = GetLock(destinationPath);
+                destinationLock.Lock.EnterWriteLock();
+
+                sourceLock = GetLock(sourcePath);
+
+                // Try to acquire the source lock. If not possible, exit early.
+                if (!sourceLock.Lock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100))) // Adjust timeout as necessary
+                {
+                    throw new InvalidOperationException("Cannot acquire lock on source file.");
+                }
+
+                // Perform the move operation
+                moveAction(sourcePath, destinationPath);
+            }
+            finally
+            {
+                // Release locks in reverse order of acquisition
+                if (sourceLock != null && sourceLock.Lock.IsWriteLockHeld)
+                {
+                    sourceLock.Lock.ExitWriteLock();
+                    ReleaseLock(sourcePath);
+                }
+
+                if (destinationLock != null)
+                {
+                    destinationLock.Lock.ExitWriteLock();
+                    ReleaseLock(destinationPath);
+                }
+            }
+        }
     }
 
 
