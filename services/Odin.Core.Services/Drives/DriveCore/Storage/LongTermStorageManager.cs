@@ -19,14 +19,13 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         private readonly StorageDrive _drive;
         private readonly OdinConfiguration _odinConfiguration;
-
-        private const int WriteChunkSize = 1024;
+        private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration, DriveFileReaderWriter driveFileReaderWriter)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
@@ -36,6 +35,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
             _logger = logger;
             _odinConfiguration = odinConfiguration;
+            _driveFileReaderWriter = driveFileReaderWriter;
             _drive = drive;
         }
 
@@ -56,11 +56,11 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public Task WritePartStream(Guid fileId, FilePart part, Stream stream)
+        public Task WriteHeaderStream(Guid fileId, Stream stream)
         {
-            string filePath = GetFilenameAndPath(fileId, part, true);
-            string tempFilePath = GetTempFilePath(fileId, part, null);
-            return WriteFile(filePath, tempFilePath, stream);
+            string filePath = GetFilenameAndPath(fileId, FilePart.Header, true);
+            _driveFileReaderWriter.WriteStream(filePath, stream);
+            return Task.CompletedTask;
         }
 
         public Task DeleteThumbnailFile(Guid fileId, string payloadKey, int height, int width)
@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public Task DeleteAllPayloadFiles(Guid fileId)
         {
-            string path = GetPayloadPath(fileId);
+            // string path = GetPayloadPath(fileId);
             var seekPath = this.GetFilename(fileId, "-*", FilePart.Payload);
             string dir = GetFilePath(fileId, FilePart.Payload);
 
@@ -148,7 +148,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            // var fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
             if (null != chunk)
             {
                 var buffer = new byte[chunk.Length];
@@ -188,7 +189,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey);
             string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+
             return Task.FromResult((Stream)fileStream);
         }
 
@@ -287,6 +290,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(destinationFile));
             Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
+            _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
+
             // Sanity #1;
             // try
             // {
@@ -318,36 +323,39 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             //issue -  the destination file is locked and I suspect it's because we're allowing 
             // multiple writers using the same version tag
 
-            if (IoUtils.WaitForFileUnlock(destinationFile,
-                    TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
-            {
-                IoUtils.RetryOperation(() => File.Move(sourceFile, destinationFile, true),
-                    _odinConfiguration.Host.FileMoveRetryAttempts,
-                    _odinConfiguration.Host.FileMoveRetryDelayMs,
-                    $"MovePayloadToLongTerm - source ({sourceFile} to {destinationFile})");
-
-                _logger.LogInformation("File Moved to {dest}", destinationFile);
-            }
-            else
-            {
-                _logger.LogWarning($"Timeout waiting {_odinConfiguration.Host.FileMoveWaitTimeoutSeconds} seconds for destination file [{destinationFile}] to be unlocked.");
-                throw new OdinFileWriteException($"IO Exception while reading file {sourceFile} to write to {destinationFile}");
-            }
+            //
+            // if (IoUtils.WaitForFileUnlock(destinationFile,
+            //         TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
+            // {
+            //     IoUtils.RetryOperation(() => File.Move(sourceFile, destinationFile, true),
+            //         _odinConfiguration.Host.FileMoveRetryAttempts,
+            //         _odinConfiguration.Host.FileMoveRetryDelayMs,
+            //         $"MovePayloadToLongTerm - source ({sourceFile} to {destinationFile})");
+            //
+            //     _logger.LogInformation("File Moved to {dest}", destinationFile);
+            // }
+            // else
+            // {
+            //     _logger.LogWarning($"Timeout waiting {_odinConfiguration.Host.FileMoveWaitTimeoutSeconds} seconds for destination file [{destinationFile}] to be unlocked.");
+            //     throw new OdinFileWriteException($"IO Exception while reading file {sourceFile} to write to {destinationFile}");
+            // }
 
             return Task.CompletedTask;
         }
 
-        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, string payloadKey, ThumbnailDescriptor thumbnailDescriptor)
+        public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnailFilePath, string payloadKey, ThumbnailDescriptor thumbnailDescriptor)
         {
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
             var destinationFile = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey);
             Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
-            // File.Move(sourceThumbnail, dest, true);
-            IoUtils.RetryOperation(() => File.Move(sourceThumbnail, destinationFile, true),
-                _odinConfiguration.Host.FileMoveRetryAttempts,
-                _odinConfiguration.Host.FileMoveRetryDelayMs,
-                $"MoveThumbnailToLongTerm source ({sourceThumbnail}) to ({destinationFile})");
+            _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
+
+            // // File.Move(sourceThumbnail, dest, true);
+            // IoUtils.RetryOperation(() => File.Move(sourceThumbnail, destinationFile, true),
+            //     _odinConfiguration.Host.FileMoveRetryAttempts,
+            //     _odinConfiguration.Host.FileMoveRetryDelayMs,
+            //     $"MoveThumbnailToLongTerm source ({sourceThumbnail}) to ({destinationFile})");
 
             _logger.LogInformation($"File Moved to {destinationFile}");
 
@@ -529,57 +537,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             string dir = GetFilePath(fileId, part, ensureExists);
             string filename = $"{Guid.NewGuid()}{part}{suffix}.tmp";
             return Path.Combine(dir, filename);
-        }
-
-        private Task WriteFile(string targetFilePath, string tempFilePath, Stream stream)
-        {
-            //TODO: this is probably highly inefficient and probably need to revisit
-            try
-            {
-                //Process: if there's a file, we write to a temp file then rename.
-                if (File.Exists(targetFilePath))
-                {
-                    WriteStream(stream, tempFilePath);
-                    lock (targetFilePath)
-                    {
-                        // File.WriteAllBytes(targetFilePath, stream.ToByteArray());
-                        //TODO: need to know if this replace method is faster than renaming files
-                        File.Replace(tempFilePath, targetFilePath, null, true);
-                    }
-                }
-                else
-                {
-                    WriteStream(stream, targetFilePath);
-                }
-            }
-            finally
-            {
-                //TODO: should clean up the temp file in case of failure?
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        private void WriteStream(Stream stream, string filePath)
-        {
-            var buffer = new byte[WriteChunkSize];
-
-            using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
-            {
-                var bytesRead = 0;
-                do
-                {
-                    bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    output.Write(buffer, 0, bytesRead);
-                } while (bytesRead > 0);
-
-                // stream.Close();
-                output.Close();
-            }
         }
 
         private void DeleteAllThumbnails(Guid fileId)

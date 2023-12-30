@@ -30,13 +30,16 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         protected DriveStorageServiceBase(
             OdinContextAccessor contextAccessor,
             ILoggerFactory loggerFactory,
             IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService,
-            DriveManager driveManager, OdinConfiguration odinConfiguration)
+            DriveManager driveManager,
+            OdinConfiguration odinConfiguration,
+            DriveFileReaderWriter driveFileReaderWriter)
         {
             ContextAccessor = contextAccessor;
             _loggerFactory = loggerFactory;
@@ -44,6 +47,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _driveManager = driveManager;
             _odinConfiguration = odinConfiguration;
+            _driveFileReaderWriter = driveFileReaderWriter;
             DriveManager = driveManager;
         }
 
@@ -176,18 +180,21 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
-        public Task<Stream> GetTempStream(InternalDriveFileId file, string extension)
+        /// <summary>
+        /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
+        /// </summary>
+        /// <returns></returns>
+        public Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension)
         {
             this.AssertCanReadDrive(file.DriveId);
-
-            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+            var bytes = GetTempStorageManager(file.DriveId).GetAllFileBytes(file.FileId, extension);
+            return bytes;
         }
 
-        public Task<Stream> GetTempStreamForWriting(InternalDriveFileId file, string extension)
+        public Task<byte[]> GetAllFileBytesForWriting(InternalDriveFileId file, string extension)
         {
             this.AssertCanWriteToDrive(file.DriveId);
-
-            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+            return GetTempStorageManager(file.DriveId).GetAllFileBytes(file.FileId, extension);
         }
 
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
@@ -780,7 +787,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration);
+            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration, _driveFileReaderWriter);
             return manager;
         }
 
@@ -788,7 +795,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var logger = _loggerFactory.CreateLogger<TempStorageManager>();
-            return new TempStorageManager(drive, logger);
+            return new TempStorageManager(drive, logger, _driveFileReaderWriter);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
@@ -805,7 +812,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
-            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
+            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WriteHeaderStream(header.FileMetadata.File.FileId, stream);
         }
 
         /// <summary>

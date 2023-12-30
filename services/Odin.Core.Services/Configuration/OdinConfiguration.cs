@@ -224,6 +224,8 @@ namespace Odin.Core.Services.Configuration
                 FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 5);
                 FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
                 FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
+                
+                FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
             }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
@@ -241,6 +243,11 @@ namespace Odin.Core.Services.Configuration
             /// Number of milliseconds to delay between file.move attempts
             /// </summary>
             public int FileMoveRetryDelayMs { get; set; }
+
+            /// <summary>
+            /// Specifies the number of bytes to write when writing a stream to disk in chunks
+            /// </summary>
+            public int FileWriteChunkSizeInBytes { get; set; }
         }
 
         public class ListenEntry
