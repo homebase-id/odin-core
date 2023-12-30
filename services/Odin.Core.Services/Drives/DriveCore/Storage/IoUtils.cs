@@ -43,7 +43,7 @@ public static class IoUtils
             try
             {
                 // Try to open the file with read access and share mode set to none.
-                using (FileStream stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.None))
+                using (FileStream stream = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Read, FileShare.None))
                 {
                     stream.Close();
                     return true; // File is unlocked and accessible.
