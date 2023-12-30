@@ -44,10 +44,17 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
-
+            
             var metadataStream = await fs.Storage.GetTempStreamForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
-            var json = await new StreamReader(metadataStream).ReadToEndAsync();
-            metadataStream.Close();
+            string json = "";
+            try
+            {
+                json = await new StreamReader(metadataStream).ReadToEndAsync();
+            }
+            finally
+            {
+                metadataStream.Close();
+            }
 
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 

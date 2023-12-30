@@ -140,15 +140,15 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return GetChunkedStream(path, chunk);
         }
 
-        public Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
+        private Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
         {
             if (!File.Exists(path))
             {
                 return Task.FromResult(Stream.Null);
             }
 
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
+            // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             if (null != chunk)
             {
                 var buffer = new byte[chunk.Length];
@@ -159,11 +159,12 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
                 fileStream.Position = chunk.Start;
                 var bytesRead = fileStream.Read(buffer);
-                fileStream.Close();
+                // fileStream.Close();
+                fileStream.Dispose();
 
                 // if(bytesRead == 0) //TODO: handle end of stream?
 
-                //resize if lenght requested was too large (happens if we hit the end of the stream)
+                //resize if length requested was too large (happens if we hit the end of the stream)
                 if (bytesRead < buffer.Length)
                 {
                     Array.Resize(ref buffer, bytesRead);
@@ -277,14 +278,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Moves the specified <param name="sourcePath"></param> to long term storage.
+        /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// </summary>
-        public Task MovePayloadToLongTerm(Guid targetFileId, string key, string sourcePath)
+        public Task MovePayloadToLongTerm(Guid targetFileId, string key, string sourceFile)
         {
-            var dest = GetPayloadFilePath(targetFileId, key, ensureExists: true);
+            var destinationFile = GetPayloadFilePath(targetFileId, key, ensureExists: true);
 
-            _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(dest));
-            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
+            _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(destinationFile));
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
             // Sanity #1;
             // try
@@ -314,16 +315,24 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             //     _logger.LogWarning(ex, "I could not create/overwrite destination file {file} with exclusive access", dest);
             // }
 
-            if (IoUtils.WaitForFileUnlock(sourcePath, TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
+            //issue -  the destination file is locked and I suspect it's because we're allowing 
+            // multiple writers using the same version tag
+
+            if (IoUtils.WaitForFileUnlock(destinationFile,
+                    TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
             {
-                IoUtils.RetryOperation(() => File.Move(sourcePath, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+                IoUtils.RetryOperation(() => File.Move(sourceFile, destinationFile, true),
+                    _odinConfiguration.Host.FileMoveRetryAttempts,
+                    _odinConfiguration.Host.FileMoveRetryDelayMs,
+                    $"MovePayloadToLongTerm - source ({sourceFile} to {destinationFile})");
+
+                _logger.LogInformation("File Moved to {dest}", destinationFile);
             }
             else
             {
-                throw new OdinFileWriteException($"IO Exception while reading file {sourcePath} to write to {dest}");
+                _logger.LogWarning($"Timeout waiting {_odinConfiguration.Host.FileMoveWaitTimeoutSeconds} seconds for destination file [{destinationFile}] to be unlocked.");
+                throw new OdinFileWriteException($"IO Exception while reading file {sourceFile} to write to {destinationFile}");
             }
-
-            _logger.LogInformation("File Moved to {dest}", dest);
 
             return Task.CompletedTask;
         }
@@ -331,13 +340,16 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, string payloadKey, ThumbnailDescriptor thumbnailDescriptor)
         {
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
-            var dest = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
+            var destinationFile = GetThumbnailPath(targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight, payloadKey);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
             // File.Move(sourceThumbnail, dest, true);
-            IoUtils.RetryOperation(() => File.Move(sourceThumbnail, dest, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+            IoUtils.RetryOperation(() => File.Move(sourceThumbnail, destinationFile, true),
+                _odinConfiguration.Host.FileMoveRetryAttempts,
+                _odinConfiguration.Host.FileMoveRetryDelayMs,
+                $"MoveThumbnailToLongTerm source ({sourceThumbnail}) to ({destinationFile})");
 
-            _logger.LogInformation($"File Moved to {dest}");
+            _logger.LogInformation($"File Moved to {destinationFile}");
 
             return Task.CompletedTask;
         }

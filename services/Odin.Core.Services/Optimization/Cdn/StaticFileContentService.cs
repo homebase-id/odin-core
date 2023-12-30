@@ -161,7 +161,10 @@ public class StaticFileContentService
         string finalTargetPath = Path.Combine(targetFolder, filename);
 
         // File.Move(tempTargetPath, finalTargetPath, true);
-        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true),
+            _odinConfiguration.Host.FileMoveRetryAttempts,
+            _odinConfiguration.Host.FileMoveRetryDelayMs, 
+            $"Publish source ({tempTargetPath}) to {finalTargetPath}");
         
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
@@ -184,7 +187,10 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         // File.Move(tempTargetPath, finalTargetPath, true);
-        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), 
+            _odinConfiguration.Host.FileMoveRetryAttempts, 
+            _odinConfiguration.Host.FileMoveRetryDelayMs, 
+            $"PublishProfileImage source ({tempTargetPath}) to {finalTargetPath}");
 
         var config = new StaticFileConfiguration()
         {
@@ -208,7 +214,10 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         // File.Move(tempTargetPath, finalTargetPath, true);
-        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true), _odinConfiguration.Host.FileMoveRetryAttempts, _odinConfiguration.Host.FileMoveRetryDelayMs);
+        IoUtils.RetryOperation(() => File.Move(tempTargetPath, finalTargetPath, true),
+            _odinConfiguration.Host.FileMoveRetryAttempts,
+            _odinConfiguration.Host.FileMoveRetryDelayMs, 
+            $"PublishProfileCard source ({tempTargetPath}) to {finalTargetPath}");
 
         var config = new StaticFileConfiguration()
         {

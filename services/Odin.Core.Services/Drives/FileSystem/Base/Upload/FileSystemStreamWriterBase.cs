@@ -292,14 +292,20 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-
+        Stream metadataStream = null;
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), clientSharedSecret, package.InstructionSet.TransferIv);
-        metadataStream.Close();
-
-        var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
-
+        string json = null;
+        try
+        {
+            metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+            var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), clientSharedSecret, package.InstructionSet.TransferIv);
+            json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
+        }
+        finally
+        {
+            metadataStream?.Close();
+        }
+        
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
