@@ -41,7 +41,7 @@ public sealed class DriveFileReaderWriter
     {
         var buffer = new byte[chunkSize];
 
-        using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        using (var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
             var bytesRead = 0;
             do

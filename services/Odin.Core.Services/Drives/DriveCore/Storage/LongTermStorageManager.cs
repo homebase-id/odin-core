@@ -59,7 +59,13 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task WriteHeaderStream(Guid fileId, Stream stream)
         {
             string filePath = GetFilenameAndPath(fileId, FilePart.Header, true);
-            _driveFileReaderWriter.WriteStream(filePath, stream);
+            var bytesWritten = _driveFileReaderWriter.WriteStream(filePath, stream);
+
+            if (bytesWritten != stream.Length)
+            {
+                throw new OdinSystemException($"BytesWritten mismatch for file [{filePath}]");
+            }
+
             return Task.CompletedTask;
         }
 
@@ -394,17 +400,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
-            var stream = await this.GetFilePartStream(fileId, FilePart.Header);
-            if (stream == Stream.Null)
+            string headerFilepath = GetFilenameAndPath(fileId, FilePart.Header);
+            if (!File.Exists(headerFilepath))
             {
-                stream.Close();
                 return null;
             }
 
-            var json = await new StreamReader(stream).ReadToEndAsync();
-            stream.Close();
-            await stream.DisposeAsync();
-            var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(json);
+            var bytes = _driveFileReaderWriter.GetAllFileBytes(headerFilepath);
+            var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(bytes.ToStringFromUtf8Bytes());
             return header;
         }
 
