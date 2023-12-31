@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,7 +7,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Peer;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -70,8 +68,9 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        string extension = DriveFileUtility.GetPayloadFileExtension(key);
+
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, extension, data);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()

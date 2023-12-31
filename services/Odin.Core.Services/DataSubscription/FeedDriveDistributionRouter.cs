@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;

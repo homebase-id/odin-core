@@ -77,6 +77,13 @@ namespace Odin.Hosting.Middleware
                 var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
                 await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
+            catch (OdinFileWriteException)
+            {
+                // TODD: note to SEB - i put this place for the interim to convert
+                // file write issues to a client exception as we understand
+                // this locking issue
+                await HandleExceptionAsync(context, new ConflictException("File locked during write", OdinClientErrorCode.FileLockedDuringWriteOperation));
+            }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(context, ex);
