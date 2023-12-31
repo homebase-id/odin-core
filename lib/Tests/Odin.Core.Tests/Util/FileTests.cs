@@ -40,7 +40,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void ReadFile_Doubly()
     {
-        string testFilePath = "testfile01.txt";
+        string testFilePath = "testfile39.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
         string expectedContent = "Hello, world!";
@@ -72,7 +72,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void ReadWhileWritingFail()
     {
-        string testFilePath = "testfile01.txt";
+        string testFilePath = "testfile40.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
         string expectedContent = "Hello, world!";
@@ -113,7 +113,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void WriteWhileWritingFail()
     {
-        string testFilePath = "testfile01.txt";
+        string testFilePath = "testfile41.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
         string expectedContent = "Hello, world!";
@@ -148,6 +148,59 @@ public class ConcurrentFileManagerTests
 
         Assert.AreEqual(expectedContent, actualContent1);
         Assert.AreEqual(actualContent2, null);
+    }
+
+    [Test]
+    public void StreamDispose_ReleasesLock_AllowsWrite()
+    {
+        string testFilePath = "testfile42.txt";
+        string newContent = "New content";
+        var fileManager = new ConcurrentFileManager();
+
+        fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent) );
+
+        // Open a stream for reading
+        var stream = fileManager.ReadStream(testFilePath);
+
+        // Attempt to write to the file in a separate task, which should fail due to the Stream's lock
+        var writeTask = Task.Run(() =>
+        {
+            try
+            {
+                fileManager.WriteFile(testFilePath, path =>
+                {
+                    File.WriteAllText(path, newContent);
+                });
+                Assert.Fail("Write operation should not succeed while the stream is open.");
+            }
+            catch (TimeoutException)
+            {
+                // Expected exception due to the read lock held by the stream
+            }
+        });
+
+        // Wait for the write task to complete
+        writeTask.Wait();
+
+        // Dispose the stream, releasing the lock
+        stream.Dispose();
+
+        // Test that we can now write to the file after the stream is disposed
+        bool writeSucceeded = false;
+        try
+        {
+            fileManager.WriteFile(testFilePath, path =>
+            {
+                File.WriteAllText(path, newContent);
+                writeSucceeded = true;
+            });
+        }
+        catch
+        {
+            // If an exception is thrown here, the test should fail
+        }
+
+        Assert.IsTrue(writeSucceeded, "Write operation should succeed after the stream is disposed.");
     }
 
     [Test]
