@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
-namespace Odin.Core.Util;
-
 public class ConcurrentFileManager
 {
+    private const int threadTimeout = 1000;
     private class FileLock
     {
         public ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
@@ -46,7 +45,10 @@ public class ConcurrentFileManager
     public void ReadFile(string filePath, Action<string> readAction)
     {
         var fileLock = GetLock(filePath);
-        fileLock.Lock.EnterReadLock();
+
+        if (fileLock.Lock.TryEnterReadLock(threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for ReadFile() read lock for file {filePath}");
+
         try
         {
             readAction(filePath);
@@ -61,7 +63,9 @@ public class ConcurrentFileManager
     public void WriteFile(string filePath, Action<string> writeAction)
     {
         var fileLock = GetLock(filePath);
-        fileLock.Lock.EnterWriteLock();
+        if (fileLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for WriteFile() write lock for file {filePath}");
+
         try
         {
             writeAction(filePath);
@@ -76,7 +80,8 @@ public class ConcurrentFileManager
     public void DeleteFile(string filePath)
     {
         var fileLock = GetLock(filePath);
-        fileLock.Lock.EnterWriteLock();
+        if (fileLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for DeleteFile() write lock for file {filePath}");
         try
         {
             File.Delete(filePath);
@@ -91,37 +96,31 @@ public class ConcurrentFileManager
     {
         FileLock sourceLock = null, destinationLock = null;
 
+        // Lock destination first to avoid deadlocks
+        destinationLock = GetLock(destinationPath);
+        if (destinationLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for MoveFile() destiation file write lock for file {destinationPath}");
+
         try
         {
-            // Lock destination first to avoid deadlocks
-            destinationLock = GetLock(destinationPath);
-            destinationLock.Lock.EnterWriteLock();
-
             sourceLock = GetLock(sourcePath);
 
-            // Try to acquire the source lock. If not possible, exit early.
-            if (!sourceLock.Lock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100))) // Adjust timeout as necessary
-            {
-                throw new InvalidOperationException("Cannot acquire lock on source file.");
-            }
+            if (sourceLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+                throw new TimeoutException($"Timeout waiting for MoveFile() source file write lock for file {sourcePath}");
 
             // Perform the move operation
             moveAction(sourcePath, destinationPath);
         }
         finally
         {
-            // Release locks in reverse order of acquisition
-            if (sourceLock != null && sourceLock.Lock.IsWriteLockHeld)
+            if (sourceLock.Lock.IsWriteLockHeld)
             {
                 sourceLock.Lock.ExitWriteLock();
                 ReleaseLock(sourcePath);
             }
 
-            if (destinationLock != null)
-            {
-                destinationLock.Lock.ExitWriteLock();
-                ReleaseLock(destinationPath);
-            }
+            destinationLock.Lock.ExitWriteLock();
+            ReleaseLock(destinationPath);
         }
     }
 }

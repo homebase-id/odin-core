@@ -1,10 +1,12 @@
 using NUnit.Framework;
 using Odin.Core.Util;
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-[TestFixture]
+namespace Odin.Core.Util;
+
 public class ConcurrentFileManagerTests
 {
     private ConcurrentFileManager fileManager;
@@ -33,6 +35,119 @@ public class ConcurrentFileManagerTests
         fileManager.ReadFile(testFilePath, path => actualContent = File.ReadAllText(path));
 
         Assert.AreEqual(expectedContent, actualContent);
+    }
+
+    [Test]
+    public void ReadFile_Doubly()
+    {
+        string testFilePath = "testfile01.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
+        string expectedContent = "Hello, world!";
+        File.WriteAllText(testFilePath, expectedContent);
+
+        string actualContent1 = null;
+        string actualContent2 = null;
+        var innerTaskFinished = new ManualResetEvent(false);
+        fileManager.ReadFile(testFilePath, path => 
+        { 
+            actualContent1 = File.ReadAllText(path);
+            Task innerTask = Task.Run(() =>
+            {
+                fileManager.ReadFile(testFilePath, innerPath =>
+                {
+                    actualContent2 = File.ReadAllText(innerPath);
+                });
+                innerTaskFinished.Set();
+            });
+
+            // Wait for the inner task to complete
+            innerTaskFinished.WaitOne();
+        });
+
+        Assert.AreEqual(expectedContent, actualContent1);
+        Assert.AreEqual(expectedContent, actualContent2);
+    }
+
+    [Test]
+    public void ReadWhileWritingFail()
+    {
+        string testFilePath = "testfile01.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
+        string expectedContent = "Hello, world!";
+
+        string actualContent1 = null;
+        string actualContent2 = null;
+        var innerTaskFinished = new ManualResetEvent(false);
+        fileManager.WriteFile(testFilePath, path =>
+        {
+            File.WriteAllText(path, expectedContent);
+            actualContent1 = File.ReadAllText(path);
+            Task innerTask = Task.Run(() =>
+            {
+                try
+                {
+                    fileManager.ReadFile(testFilePath, innerPath =>
+                    {
+                        actualContent2 = File.ReadAllText(innerPath);
+                    });
+                    Assert.Fail("Not supposed to be here");
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for ReadFile"), "The exception message does not contain the expected substring.");
+                }
+                innerTaskFinished.Set();
+            });
+
+            // Wait for the inner task to complete
+            innerTaskFinished.WaitOne();
+        });
+
+        Assert.AreEqual(expectedContent, actualContent1);
+        Assert.AreEqual(actualContent2, null);
+    }
+
+
+    [Test]
+    public void WriteWhileWritingFail()
+    {
+        string testFilePath = "testfile01.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
+        string expectedContent = "Hello, world!";
+
+        string actualContent1 = null;
+        string actualContent2 = null;
+        var innerTaskFinished = new ManualResetEvent(false);
+        fileManager.WriteFile(testFilePath, path =>
+        {
+            File.WriteAllText(path, expectedContent);
+            actualContent1 = File.ReadAllText(path);
+            Task innerTask = Task.Run(() =>
+            {
+                try
+                {
+                    fileManager.WriteFile(testFilePath, innerPath =>
+                    {
+                        actualContent2 = File.ReadAllText(innerPath);
+                    });
+                    Assert.Fail("Not supposed to be here");
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for WriteFile"), "The exception message does not contain the expected substring.");
+                }
+                innerTaskFinished.Set();
+            });
+
+            // Wait for the inner task to complete
+            innerTaskFinished.WaitOne();
+        });
+
+        Assert.AreEqual(expectedContent, actualContent1);
+        Assert.AreEqual(actualContent2, null);
     }
 
     [Test]
