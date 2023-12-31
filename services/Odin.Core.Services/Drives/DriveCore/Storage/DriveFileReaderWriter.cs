@@ -1,4 +1,5 @@
 using System.IO;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Util;
 
@@ -34,6 +35,12 @@ public sealed class DriveFileReaderWriter
         uint bytesWritten = 0;
         _concurrentFileManager.WriteFile(filePath,
             path => WriteStreamInternal(path, stream, _configuration.Host.FileWriteChunkSizeInBytes, out bytesWritten));
+
+        if (bytesWritten != stream.Length)
+        {
+            throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {stream.Length}");
+        }
+        
         return bytesWritten;
     }
 

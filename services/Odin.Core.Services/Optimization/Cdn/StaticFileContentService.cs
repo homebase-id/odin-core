@@ -154,7 +154,8 @@ public class StaticFileContentService
         var ms = new MemoryStream();
         await OdinSystemSerializer.Serialize(ms, sectionOutputList, sectionOutputList.GetType());
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        _driveFileReaderWriter.WriteStream(finalTargetPath, ms);
+        ms.Seek(0L, SeekOrigin.Begin);
+        var bytesWritten = _driveFileReaderWriter.WriteStream(finalTargetPath, ms);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
