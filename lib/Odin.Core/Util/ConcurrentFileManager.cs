@@ -3,6 +3,32 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
+public class LockManagedFileStream : FileStream
+{
+    private readonly ReaderWriterLockSlim _lock;
+
+    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ReaderWriterLockSlim lockObj)
+        : base(path, mode, access, share)
+    {
+        _lock = lockObj;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing)
+        {
+            // Release the read lock when the stream is disposed
+            if (_lock.IsReadLockHeld)
+            {
+                _lock.ExitReadLock();
+            }
+        }
+    }
+}
+
+
 public class ConcurrentFileManager
 {
     private const int threadTimeout = 1000;
@@ -59,6 +85,31 @@ public class ConcurrentFileManager
             ReleaseLock(filePath);
         }
     }
+
+    public Stream ReadStream(string filePath)
+    {
+        var fileLock = GetLock(filePath);
+        if (fileLock.Lock.TryEnterReadLock(threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for ReadStream() read lock for file {filePath}");
+
+        try
+        {
+            // Create and return the custom stream that manages the lock
+            return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, fileLock.Lock);
+        }
+        catch
+        {
+            // If an error occurs, make sure to exit the read lock before throwing the exception
+            if (fileLock.Lock.IsReadLockHeld)
+            {
+                fileLock.Lock.ExitReadLock();
+            }
+            ReleaseLock(filePath);
+            throw;
+        }
+        // Note: Lock release is managed by the LockManagedFileStream when it is disposed
+    }
+
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
