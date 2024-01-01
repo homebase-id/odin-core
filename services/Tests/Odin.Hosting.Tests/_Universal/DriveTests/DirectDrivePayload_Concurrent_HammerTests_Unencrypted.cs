@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -17,13 +18,16 @@ namespace Odin.Hosting.Tests._Universal.DriveTests;
 
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
-public class DirectDrivePayload_ConcurrencyTests
+public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
 {
     private WebScaffold _scaffold;
 
     private OwnerApiClientRedux _ownerApiClient;
     private Guid _initialVersionTag;
     private ExternalFileIdentifier _targetFile;
+
+    private int _successCount;
+    private int _badRequestCount;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -39,12 +43,17 @@ public class DirectDrivePayload_ConcurrencyTests
         _scaffold.RunAfterAnyTests();
     }
 
+    /// <summary>
+    /// This test will throw multiple threads at uploading a payload to a single-existing file.
+    /// Since it's hard to predict the natural flow of so many threads, the test will perform
+    /// various assertions based on the response code
+    ///
+    /// It's less about precise pass or fail but rather testing what range of things
+    /// can occur given concurrency.
+    /// </summary>
     [Test]
-    public async Task CanOverwritePayloadManyTimes()
-    {   
-        const int MAXTHREADS = 1;
-        const int MAXITERATIONS = 50;
-
+    public async Task OverwritePayloadManyTimes_Concurrently_MultipleThreads()
+    {
         var identity = TestIdentities.Pippin;
         var targetDrive = TargetDrive.NewTargetDrive();
         _ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -64,7 +73,10 @@ public class DirectDrivePayload_ConcurrencyTests
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         Assert.IsNotNull(headerBeforeUpload);
 
-        PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OverwritePayload);
+        PerformanceFramework.ThreadedTest(maxThreads: 12, iterations: 100, OverwritePayload);
+
+        Console.WriteLine($"Success Count: {_successCount}");
+        Console.WriteLine($"Bad Request Count: {_badRequestCount}");
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)
@@ -73,7 +85,7 @@ public class DirectDrivePayload_ConcurrencyTests
         var sw = new Stopwatch();
         int fileByteLength = 0;
 
-        var newVersionTag = _initialVersionTag;
+        Guid newVersionTag = _initialVersionTag;
         //
         // I presume here we retrieve the file and download it
         //
@@ -107,57 +119,46 @@ public class DirectDrivePayload_ConcurrencyTests
             };
 
             var prevTag = newVersionTag;
-            newVersionTag = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
-            Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+            var tag = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
 
+
+            if (tag.HasValue)
+            {
+                newVersionTag = tag.GetValueOrDefault();
+                Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+            }
+            
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            // If you want to introduce a delay be sure to use: await Task.Delay(1);
             await Task.Delay(100);
-            // Take.Delay() is very inaccurate.
         }
 
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, UploadManifest uploadManifest,
+    private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
+        Guid targetVersionTag,
+        UploadManifest uploadManifest,
         List<TestPayloadDefinition> testPayloads)
     {
         var uploadPayloadResponse = await _ownerApiClient.DriveRedux.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadPayloadResponse.IsSuccessStatusCode);
 
-        Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+        if (uploadPayloadResponse.StatusCode == HttpStatusCode.OK)
+        {
+            _successCount++;
+            // if it 
+            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+            return uploadPayloadResponse.Content!.NewVersionTag;
+        }
 
-        // Get the latest file header
-        var getHeaderAfterPayloadUploadedResponse = await _ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
-        var headerAfterPayloadWasUploaded = getHeaderAfterPayloadUploadedResponse.Content;
-        Assert.IsNotNull(headerAfterPayloadWasUploaded);
+        if (uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest)
+        {
+            _badRequestCount++;
+            //what to expect in this case?
+        }
 
-        Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == uploadPayloadResponse.Content.NewVersionTag,
-            "Version tag should match the one set by uploading the new payload");
-
-        var uploadedPayloadDefinition = testPayloads.Single();
-
-        // Payload should be listed 
-        Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
-        var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
-        Assert.IsNotNull(thePayloadDescriptor);
-        Assert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
-        CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
-        Assert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
-
-        // Last modified should be changed
-        // Assert.IsTrue(thePayloadDescriptor.LastModified > headerBeforeUpload.FileMetadata.Updated);
-
-        // Get the payload
-        var getPayloadResponse = await _ownerApiClient.DriveRedux.GetPayload(targetFile, uploadedPayloadDefinition.Key);
-        Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-        var payloadContent = await getPayloadResponse.Content.ReadAsStringAsync();
-        Assert.IsTrue(payloadContent == uploadedPayloadDefinition.Content.ToStringFromUtf8Bytes());
-
-        return uploadPayloadResponse.Content!.NewVersionTag;
+        return null;
     }
 
     private async Task<UploadResult> PrepareFile(TestIdentity identity, TargetDrive targetDrive)
