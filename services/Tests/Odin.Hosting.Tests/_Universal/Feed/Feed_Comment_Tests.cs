@@ -86,11 +86,10 @@ public class Feed_Comment_Tests
             new List<TargetDrive>() { });
 
         Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
-        
+
         // Frodo will post on Sam's identity
-        
-        
-        
+
+
         //
         // Validation - check that frodo has 2 files in his feed; files are from Sam, one encrypted, one is not encrypted
         //
@@ -121,7 +120,6 @@ public class Feed_Comment_Tests
                 s.FileMetadata.IsEncrypted &&
                 s.FileMetadata.AppData.Content == encryptedFriendsFileContent64);
             Assert.IsNotNull(expectedFriendsOnlyFile);
-
 
 
             //
@@ -194,13 +192,13 @@ public class Feed_Comment_Tests
         const string friendsOnlyContent = "some secured friends only content";
         var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
         friendsFile.AllowDistribution = true;
-        var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+        var (friendsFileUploadResponse, encryptedJsonContent64) = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,
             friendsFile,
             useGlobalTransitId: true);
 
-        Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
+        Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode);
 
-        return (friendsFileUploadResponse.encryptedJsonContent64);
+        return encryptedJsonContent64;
     }
 }

@@ -56,6 +56,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
                 return new PayloadDescriptor()
                 {
+                    Iv = p.Iv,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,

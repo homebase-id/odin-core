@@ -75,6 +75,7 @@ public abstract class PayloadStreamWriterBase
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()
             {
+                Iv = descriptor.Iv,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
@@ -195,7 +196,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
         }
 
-        if (existingServerFileHeader.FileMetadata.IsEncrypted && _package.Payloads.All(p => p.HasStrongIv()))
+        if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
         {
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
         }
