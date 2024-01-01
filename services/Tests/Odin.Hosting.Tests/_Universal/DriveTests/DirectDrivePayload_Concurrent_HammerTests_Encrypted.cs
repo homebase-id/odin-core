@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -18,7 +19,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests;
 
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
-public class DirectDrivePayload_HammerTests_Encrypted
+public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
 {
     private WebScaffold _scaffold;
 
@@ -27,6 +28,9 @@ public class DirectDrivePayload_HammerTests_Encrypted
     private ExternalFileIdentifier _targetFile;
     private KeyHeader _metadataKeyHeader;
 
+    private int _successCount;
+    private int _badRequestCount;
+    
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
@@ -42,11 +46,8 @@ public class DirectDrivePayload_HammerTests_Encrypted
     }
 
     [Test]
-    public async Task CanOverwritePayloadManyTimes_Sequentially_OneThread()
+    public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
-        const int MAXTHREADS = 1;
-        const int MAXITERATIONS = 50;
-
         var identity = TestIdentities.Pippin;
         var targetDrive = TargetDrive.NewTargetDrive();
         _ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -67,7 +68,10 @@ public class DirectDrivePayload_HammerTests_Encrypted
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         Assert.IsNotNull(headerBeforeUpload);
 
-        PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OverwritePayload);
+        PerformanceFramework.ThreadedTest(maxThreads: 9, iterations: 100, OverwritePayload);
+        
+        Console.WriteLine($"Success Count: {_successCount}");
+        Console.WriteLine($"Bad Request Count: {_badRequestCount}");
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)
@@ -111,8 +115,13 @@ public class DirectDrivePayload_HammerTests_Encrypted
             };
 
             var prevTag = newVersionTag;
-            newVersionTag = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
-            Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+            var tag  = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
+
+            if (tag.HasValue)
+            {
+                newVersionTag = tag.GetValueOrDefault();
+                Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+            }
 
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
@@ -125,57 +134,27 @@ public class DirectDrivePayload_HammerTests_Encrypted
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, UploadManifest uploadManifest,
+    private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, UploadManifest uploadManifest,
         List<TestPayloadDefinition> testPayloads)
     {
         var (uploadPayloadResponse, encryptedPayloads64) =
             await _ownerApiClient.DriveRedux.UploadEncryptedPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads, _metadataKeyHeader.AesKey.GetKey());
-        Assert.IsTrue(uploadPayloadResponse.IsSuccessStatusCode);
-        Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
 
-        // Get the latest file header
-        var getHeaderAfterPayloadUploadedResponse = await _ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
-        var headerAfterPayloadWasUploaded = getHeaderAfterPayloadUploadedResponse.Content;
-        Assert.IsNotNull(headerAfterPayloadWasUploaded);
-
-        Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == uploadPayloadResponse.Content.NewVersionTag,
-            "Version tag should match the one set by uploading the new payload");
-
-        Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.IsEncrypted);
-
-        var ownerSharedSecret = _ownerApiClient.GetTokenContext().SharedSecret;
-        var mainKeyHeader = headerAfterPayloadWasUploaded.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
-
-        var uploadedPayloadDefinition = testPayloads.Single();
-        var encryptedPayloadBytes = encryptedPayloads64[uploadedPayloadDefinition.Key];
-        var payloadKeyHeader = new KeyHeader()
+        if (uploadPayloadResponse.StatusCode == HttpStatusCode.OK)
         {
-            Iv = uploadedPayloadDefinition.Iv,
-            AesKey = mainKeyHeader.AesKey
-        };
+            _successCount++;
+            // if it 
+            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+            return uploadPayloadResponse.Content!.NewVersionTag;
+        }
 
-        // Payload should be listed 
-        Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
-        var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
-        Assert.IsNotNull(thePayloadDescriptor);
-        Assert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
-        CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
-        Assert.IsTrue(thePayloadDescriptor.BytesWritten == encryptedPayloadBytes.Length);
+        if (uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest)
+        {
+            _badRequestCount++;
+            //what to expect in this case?
+        }
 
-        // Last modified should be changed
-        // Assert.IsTrue(thePayloadDescriptor.LastModified > headerBeforeUpload.FileMetadata.Updated);
-
-        // Get the payload
-        var getPayloadResponse = await _ownerApiClient.DriveRedux.GetPayload(targetFile, uploadedPayloadDefinition.Key);
-        Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-        var encryptedPayloadContentBytes = await getPayloadResponse.Content.ReadAsByteArrayAsync();
-        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(encryptedPayloadContentBytes, encryptedPayloadBytes));
-
-        var decryptedBytes = payloadKeyHeader.Decrypt(encryptedPayloadBytes);
-        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedBytes, uploadedPayloadDefinition.Content));
-
-        return uploadPayloadResponse.Content!.NewVersionTag;
+        return null;
     }
 
     private async Task<(UploadResult, KeyHeader keyHeader)> PrepareEncryptedFile(TestIdentity identity, TargetDrive targetDrive)

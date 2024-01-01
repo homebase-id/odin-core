@@ -70,7 +70,7 @@ public abstract class PayloadStreamWriterBase
 
         string extension = DriveFileUtility.GetPayloadFileExtension(key);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, extension, data);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()
@@ -122,7 +122,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
 
-        await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
