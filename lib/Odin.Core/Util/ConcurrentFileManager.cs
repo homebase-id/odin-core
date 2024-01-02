@@ -28,12 +28,14 @@ public class ConcurrentFileLock
 
 public class LockManagedFileStream : FileStream
 {
-    private readonly ConcurrentFileLock _lock;
+    private readonly ConcurrentFileManager _dictionaryLocks;
+    private string _path;
 
-    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileLock lockObj)
+    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
         : base(path, mode, access, share)
     {
-        _lock = lockObj;
+        _dictionaryLocks = lockObj;
+        _path = path;
     }
 
     protected override void Dispose(bool disposing)
@@ -42,15 +44,7 @@ public class LockManagedFileStream : FileStream
 
         if (disposing)
         {
-            lock (_lock)
-            {
-                // Release the read lock when the stream is disposed
-                if (_lock.Lock.IsReadLockHeld)
-                {
-                    _lock.Lock.ExitReadLock();
-                    _lock.Decrement();
-                }
-            }
+             _dictionaryLocks.ReleaseLock(_path);
         }
     }
 }
@@ -58,32 +52,36 @@ public class LockManagedFileStream : FileStream
 
 public class ConcurrentFileManager
 {
-    private const int threadTimeout = 1000;
-    private readonly Dictionary<string, ConcurrentFileLock> locks = new Dictionary<string, ConcurrentFileLock>();
+    private const int _threadTimeout = 1000;
+    private readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
 
     private ConcurrentFileLock GetLock(string filePath)
     {
-        lock (locks)
+        lock (_dictionaryLocks)
         {
-            if (!locks.ContainsKey(filePath))
+            if (!_dictionaryLocks.ContainsKey(filePath))
             {
-                locks[filePath] = new ConcurrentFileLock();
+                _dictionaryLocks[filePath] = new ConcurrentFileLock();
             }
-            locks[filePath].Increment();
-            return locks[filePath];
+            _dictionaryLocks[filePath].Increment();
+            return _dictionaryLocks[filePath];
         }
     }
 
-    private void ReleaseLock(string filePath)
+    /// <summary>
+    /// Don't use this except from the ConcurrentFileLock class
+    /// </summary>
+    /// <param name="filePath"></param>
+    public void ReleaseLock(string filePath)
     {
-        lock (locks)
+        lock (_dictionaryLocks)
         {
-            if (locks.ContainsKey(filePath))
+            if (_dictionaryLocks.ContainsKey(filePath))
             {
-                locks[filePath].Decrement();
-                if (locks[filePath].ReferenceCount == 0)
+                _dictionaryLocks[filePath].Decrement();
+                if (_dictionaryLocks[filePath].ReferenceCount == 0)
                 {
-                    locks.Remove(filePath);
+                    _dictionaryLocks.Remove(filePath);
                 }
             }
         }
@@ -93,7 +91,7 @@ public class ConcurrentFileManager
     {
         var fileLock = GetLock(filePath);
 
-        if (fileLock.Lock.TryEnterReadLock(threadTimeout) == false)
+        if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
             throw new TimeoutException($"Timeout waiting for ReadFile() read lock for file {filePath}");
 
         try
@@ -110,13 +108,13 @@ public class ConcurrentFileManager
     public Stream ReadStream(string filePath)
     {
         var fileLock = GetLock(filePath);
-        if (fileLock.Lock.TryEnterReadLock(threadTimeout) == false)
+        if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
             throw new TimeoutException($"Timeout waiting for ReadStream() read lock for file {filePath}");
 
         try
         {
             // Create and return the custom stream that manages the lock
-            return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, fileLock);
+            return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, this);
         }
         catch
         {
@@ -135,7 +133,7 @@ public class ConcurrentFileManager
     public void WriteFile(string filePath, Action<string> writeAction)
     {
         var fileLock = GetLock(filePath);
-        if (fileLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+        if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
             throw new TimeoutException($"Timeout waiting for WriteFile() write lock for file {filePath}");
 
         try
@@ -152,7 +150,7 @@ public class ConcurrentFileManager
     public void DeleteFile(string filePath)
     {
         var fileLock = GetLock(filePath);
-        if (fileLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+        if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
             throw new TimeoutException($"Timeout waiting for DeleteFile() write lock for file {filePath}");
         try
         {
@@ -170,14 +168,14 @@ public class ConcurrentFileManager
 
         // Lock destination first to avoid deadlocks
         destinationLock = GetLock(destinationPath);
-        if (destinationLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+        if (destinationLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
             throw new TimeoutException($"Timeout waiting for MoveFile() destiation file write lock for file {destinationPath}");
 
         try
         {
             sourceLock = GetLock(sourcePath);
 
-            if (sourceLock.Lock.TryEnterWriteLock(threadTimeout) == false)
+            if (sourceLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
                 throw new TimeoutException($"Timeout waiting for MoveFile() source file write lock for file {sourcePath}");
 
             // Perform the move operation
