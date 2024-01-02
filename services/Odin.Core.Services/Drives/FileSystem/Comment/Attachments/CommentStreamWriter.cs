@@ -24,7 +24,9 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
 
     protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header)
     {
-        return await FileSystem.Storage.UpdatePayloads(package.InternalFile,
+        return await FileSystem.Storage.UpdatePayloads(
+            // package.InternalFile,
+            package.TempFile,
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors());
     }

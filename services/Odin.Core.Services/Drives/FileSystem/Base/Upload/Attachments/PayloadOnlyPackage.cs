@@ -19,6 +19,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
             Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
             Guard.Argument(internalFile.DriveId, nameof(internalFile.DriveId)).NotEqual(Guid.Empty);
 
+            this.TempFile = internalFile with { FileId = Guid.NewGuid() };
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.Payloads = new List<PackagePayloadDescriptor>();
@@ -27,6 +28,15 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
         public UploadPayloadInstructionSet InstructionSet { get; init; }
 
+        /// <summary>
+        /// The temporary file to which incoming payloads are written.  This is
+        /// not the same as the target file to which the payloads will be attach
+        /// </summary>
+        public InternalDriveFileId TempFile { get; init; }
+
+        /// <summary>
+        /// The file to which the payloads will be attached
+        /// </summary>
         public InternalDriveFileId InternalFile { get; init; }
 
         public List<PackagePayloadDescriptor> Payloads { get; }
@@ -56,6 +66,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
                 return new PayloadDescriptor()
                 {
+                    Iv = p.Iv,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
@@ -66,11 +77,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 
             return descriptors.ToList();
         }
-        
+
         public List<PackagePayloadDescriptor> GetPayloadsWithValidIVs()
         {
             return Payloads.Where(p => p.HasIv()).ToList();
         }
-        
     }
 }

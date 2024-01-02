@@ -547,7 +547,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<Guid> UpdatePayloads(InternalDriveFileId sourceFile,
+        public async Task<Guid> UpdatePayloads(
+            InternalDriveFileId tempSourceFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads)
         {
@@ -565,7 +566,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
-            var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(tempSourceFile.DriveId);
 
             //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
             foreach (var descriptor in incomingPayloads)
@@ -574,7 +575,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
                 string extenstion = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
 
-                string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, extenstion);
+                string sourceFilePath = await tempStorageManager.GetPath(tempSourceFile.FileId, extenstion);
                 await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFilePath);
 
                 // Delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
@@ -583,7 +584,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
-                    var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
+                    var sourceThumbnail = await tempStorageManager.GetPath(tempSourceFile.FileId, extension);
                     await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor.Key, thumb);
                 }
             }
