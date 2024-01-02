@@ -109,7 +109,10 @@ public class ConcurrentFileManager
     {
         var fileLock = GetLock(filePath);
         if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
+        {
+            ReleaseLock(filePath);
             throw new TimeoutException($"Timeout waiting for ReadStream() read lock for file {filePath}");
+        }
 
         try
         {
@@ -134,7 +137,10 @@ public class ConcurrentFileManager
     {
         var fileLock = GetLock(filePath);
         if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
+        {
+            ReleaseLock(filePath);
             throw new TimeoutException($"Timeout waiting for WriteFile() write lock for file {filePath}");
+        }
 
         try
         {
@@ -151,7 +157,11 @@ public class ConcurrentFileManager
     {
         var fileLock = GetLock(filePath);
         if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
+        {
+            ReleaseLock(filePath);
             throw new TimeoutException($"Timeout waiting for DeleteFile() write lock for file {filePath}");
+        }
+
         try
         {
             File.Delete(filePath);
@@ -162,6 +172,7 @@ public class ConcurrentFileManager
             ReleaseLock(filePath);
         }
     }
+
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
         ConcurrentFileLock sourceLock = null, destinationLock = null;
@@ -169,14 +180,22 @@ public class ConcurrentFileManager
         // Lock destination first to avoid deadlocks
         destinationLock = GetLock(destinationPath);
         if (destinationLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
+        {
+            ReleaseLock(destinationPath);
             throw new TimeoutException($"Timeout waiting for MoveFile() destiation file write lock for file {destinationPath}");
+        }
 
         try
         {
             sourceLock = GetLock(sourcePath);
 
             if (sourceLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
+            {
+                destinationLock.Lock.ExitWriteLock();
+                ReleaseLock(destinationPath);
+                ReleaseLock(sourcePath);
                 throw new TimeoutException($"Timeout waiting for MoveFile() source file write lock for file {sourcePath}");
+            }
 
             // Perform the move operation
             moveAction(sourcePath, destinationPath);
@@ -186,11 +205,11 @@ public class ConcurrentFileManager
             if (sourceLock.Lock.IsWriteLockHeld)
             {
                 sourceLock.Lock.ExitWriteLock();
-                ReleaseLock(sourcePath);
             }
-
-            destinationLock.Lock.ExitWriteLock();
+            if (destinationLock.Lock.IsWriteLockHeld)
+                destinationLock.Lock.ExitWriteLock();
             ReleaseLock(destinationPath);
+            ReleaseLock(sourcePath);
         }
     }
 }
