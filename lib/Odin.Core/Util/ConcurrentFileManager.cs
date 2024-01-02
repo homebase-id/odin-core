@@ -92,7 +92,10 @@ public class ConcurrentFileManager
         var fileLock = GetLock(filePath);
 
         if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
+        {
+            ReleaseLock(filePath);
             throw new TimeoutException($"Timeout waiting for ReadFile() read lock for file {filePath}");
+        }
 
         try
         {
