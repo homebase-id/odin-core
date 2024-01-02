@@ -28,13 +28,13 @@ public class ConcurrentFileLock
 
 public class LockManagedFileStream : FileStream
 {
-    private readonly ConcurrentFileManager _dictionaryLocks;
+    private readonly ConcurrentFileManager _concurrentFileManagerGlobal;
     private string _path;
 
     public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
         : base(path, mode, access, share)
     {
-        _dictionaryLocks = lockObj;
+        _concurrentFileManagerGlobal = lockObj;
         _path = path;
     }
 
@@ -44,7 +44,7 @@ public class LockManagedFileStream : FileStream
 
         if (disposing)
         {
-            _dictionaryLocks.ReleaseLockObject(_path, true);
+            _concurrentFileManagerGlobal.ReleaseLockObjectCounter(_path, true, false);
         }
     }
 }
@@ -55,7 +55,7 @@ public class ConcurrentFileManager
     private const int _threadTimeout = 1000;
     private readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
 
-    private ConcurrentFileLock ReadyLockObject(string filePath)
+    private ConcurrentFileLock ReadyLockObjectCounter(string filePath)
     {
         lock (_dictionaryLocks)
         {
@@ -72,7 +72,7 @@ public class ConcurrentFileManager
     /// Don't use this except from the ConcurrentFileLock class
     /// </summary>
     /// <param name="filePath"></param>
-    public void ReleaseLockObject(string filePath, bool exitReadLock)
+    public void ReleaseLockObjectCounter(string filePath, bool exitReadLock, bool exitWriteLock)
     {
         lock (_dictionaryLocks)
         {
@@ -82,6 +82,9 @@ public class ConcurrentFileManager
 
                 if (exitReadLock)
                     _dictionaryLocks[filePath].Lock.ExitReadLock();
+
+                if (exitWriteLock)
+                    _dictionaryLocks[filePath].Lock.ExitWriteLock();
 
                 if (_dictionaryLocks[filePath].ReferenceCount == 0)
                 {
@@ -94,11 +97,11 @@ public class ConcurrentFileManager
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
-        var fileLock = ReadyLockObject(filePath);
+        var fileLock = ReadyLockObjectCounter(filePath);
 
         if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
         {
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, false);
             throw new TimeoutException($"Timeout waiting for ReadFile() read lock for file {filePath}");
         }
 
@@ -108,17 +111,16 @@ public class ConcurrentFileManager
         }
         finally
         {
-            fileLock.Lock.ExitReadLock();
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, true, false);
         }
     }
 
     public Stream ReadStream(string filePath)
     {
-        var fileLock = ReadyLockObject(filePath);
+        var fileLock = ReadyLockObjectCounter(filePath);
         if (fileLock.Lock.TryEnterReadLock(_threadTimeout) == false)
         {
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, false);
             throw new TimeoutException($"Timeout waiting for ReadStream() read lock for file {filePath}");
         }
 
@@ -130,8 +132,7 @@ public class ConcurrentFileManager
         catch
         {
             // If an error occurs, make sure to exit the read lock before throwing the exception
-            fileLock.Lock.ExitReadLock();
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, true, false);
             throw;
         }
         // Note: Lock release is managed by the LockManagedFileStream when it is disposed
@@ -140,10 +141,10 @@ public class ConcurrentFileManager
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
-        var fileLock = ReadyLockObject(filePath);
+        var fileLock = ReadyLockObjectCounter(filePath);
         if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
         {
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, false);
             throw new TimeoutException($"Timeout waiting for WriteFile() write lock for file {filePath}");
         }
 
@@ -153,17 +154,16 @@ public class ConcurrentFileManager
         }
         finally
         {
-            fileLock.Lock.ExitWriteLock();
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, true);
         }
     }
 
     public void DeleteFile(string filePath)
     {
-        var fileLock = ReadyLockObject(filePath);
+        var fileLock = ReadyLockObjectCounter(filePath);
         if (fileLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
         {
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, false);
             throw new TimeoutException($"Timeout waiting for DeleteFile() write lock for file {filePath}");
         }
 
@@ -173,8 +173,7 @@ public class ConcurrentFileManager
         }
         finally
         {
-            fileLock.Lock.ExitWriteLock();
-            ReleaseLockObject(filePath, false);
+            ReleaseLockObjectCounter(filePath, false, true);
         }
     }
 
@@ -183,22 +182,21 @@ public class ConcurrentFileManager
         ConcurrentFileLock sourceLock = null, destinationLock = null;
 
         // Lock destination first to avoid deadlocks
-        destinationLock = ReadyLockObject(destinationPath);
+        destinationLock = ReadyLockObjectCounter(destinationPath);
         if (destinationLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
         {
-            ReleaseLockObject(destinationPath, false);
+            ReleaseLockObjectCounter(destinationPath, false, false);
             throw new TimeoutException($"Timeout waiting for MoveFile() destiation file write lock for file {destinationPath}");
         }
 
         try
         {
-            sourceLock = ReadyLockObject(sourcePath);
+            sourceLock = ReadyLockObjectCounter(sourcePath);
 
             if (sourceLock.Lock.TryEnterWriteLock(_threadTimeout) == false)
             {
-                destinationLock.Lock.ExitWriteLock();
-                ReleaseLockObject(destinationPath, false);
-                ReleaseLockObject(sourcePath, false);
+                ReleaseLockObjectCounter(destinationPath, false, true);
+                ReleaseLockObjectCounter(sourcePath, false, false);
                 throw new TimeoutException($"Timeout waiting for MoveFile() source file write lock for file {sourcePath}");
             }
 
@@ -207,10 +205,8 @@ public class ConcurrentFileManager
         }
         finally
         {
-            sourceLock.Lock.ExitWriteLock();
-            destinationLock.Lock.ExitWriteLock();
-            ReleaseLockObject(destinationPath, false);
-            ReleaseLockObject(sourcePath, false);
+            ReleaseLockObjectCounter(destinationPath, false, true);
+            ReleaseLockObjectCounter(sourcePath, false, true);
         }
     }
 }
