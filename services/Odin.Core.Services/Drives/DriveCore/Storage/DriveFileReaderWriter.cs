@@ -100,8 +100,21 @@ public sealed class DriveFileReaderWriter
     /// </summary>
     public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.ReadWrite)
     {
-        Stream fileStream = _concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
-        
+        Stream fileStream = null;
+        _concurrentFileManager.ReadFile(filePath, path =>
+        {
+            // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
+            fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, fileShare);
+        });
+
+        /* _concurrentFileManager.ReadFile(filePath, path =>
+        {
+            // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
+            fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare);
+        });*/
+
+        //  Stream fileStream = _concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
+
         return fileStream;
     }
 }
