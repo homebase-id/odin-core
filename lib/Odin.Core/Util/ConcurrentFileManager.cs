@@ -1,13 +1,36 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
+
+public class ConcurrentFileLock
+{
+    public ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
+    public int ReferenceCount = 0;
+
+    public void Increment()
+    { 
+        lock (Lock)
+        {
+            ReferenceCount++;
+        }
+    }
+
+    public void Decrement()
+    {
+        lock (Lock)
+        {
+            ReferenceCount--;
+        }
+    }
+}
 
 public class LockManagedFileStream : FileStream
 {
-    private readonly ReaderWriterLockSlim _lock;
+    private readonly ConcurrentFileLock _lock;
 
-    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ReaderWriterLockSlim lockObj)
+    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileLock lockObj)
         : base(path, mode, access, share)
     {
         _lock = lockObj;
@@ -20,9 +43,10 @@ public class LockManagedFileStream : FileStream
         if (disposing)
         {
             // Release the read lock when the stream is disposed
-            if (_lock.IsReadLockHeld)
+            if (_lock.Lock.IsReadLockHeld)
             {
-                _lock.ExitReadLock();
+                _lock.Lock.ExitReadLock();
+                _lock.Decrement();
             }
         }
     }
@@ -32,23 +56,17 @@ public class LockManagedFileStream : FileStream
 public class ConcurrentFileManager
 {
     private const int threadTimeout = 1000;
-    private class FileLock
-    {
-        public ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
-        public int ReferenceCount = 0;
-    }
+    private readonly Dictionary<string, ConcurrentFileLock> locks = new Dictionary<string, ConcurrentFileLock>();
 
-    private readonly Dictionary<string, FileLock> locks = new Dictionary<string, FileLock>();
-
-    private FileLock GetLock(string filePath)
+    private ConcurrentFileLock GetLock(string filePath)
     {
         lock (locks)
         {
             if (!locks.ContainsKey(filePath))
             {
-                locks[filePath] = new FileLock();
+                locks[filePath] = new ConcurrentFileLock();
             }
-            locks[filePath].ReferenceCount++;
+            locks[filePath].Increment();
             return locks[filePath];
         }
     }
@@ -59,7 +77,7 @@ public class ConcurrentFileManager
         {
             if (locks.ContainsKey(filePath))
             {
-                locks[filePath].ReferenceCount--;
+                locks[filePath].Decrement();
                 if (locks[filePath].ReferenceCount == 0)
                 {
                     locks.Remove(filePath);
@@ -95,7 +113,7 @@ public class ConcurrentFileManager
         try
         {
             // Create and return the custom stream that manages the lock
-            return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, fileLock.Lock);
+            return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, fileLock);
         }
         catch
         {
@@ -145,7 +163,7 @@ public class ConcurrentFileManager
     }
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
-        FileLock sourceLock = null, destinationLock = null;
+        ConcurrentFileLock sourceLock = null, destinationLock = null;
 
         // Lock destination first to avoid deadlocks
         destinationLock = GetLock(destinationPath);
