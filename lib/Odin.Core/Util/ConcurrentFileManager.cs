@@ -42,11 +42,14 @@ public class LockManagedFileStream : FileStream
 
         if (disposing)
         {
-            // Release the read lock when the stream is disposed
-            if (_lock.Lock.IsReadLockHeld)
+            lock (_lock)
             {
-                _lock.Lock.ExitReadLock();
-                _lock.Decrement();
+                // Release the read lock when the stream is disposed
+                if (_lock.Lock.IsReadLockHeld)
+                {
+                    _lock.Lock.ExitReadLock();
+                    _lock.Decrement();
+                }
             }
         }
     }
