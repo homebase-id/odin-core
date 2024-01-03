@@ -190,7 +190,7 @@ public static class DriveFileUtility
             string markedStorageUid = $"{PayloadUidStartMarker}{storageUid:N}{PayloadUidEndMarker}";
             return Path.Combine($"{markedStorageUid}{extension}");
         }
-        
+
         // OLD string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
         return extension;
     }
@@ -268,5 +268,10 @@ public static class DriveFileUtility
             throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
         }
     }
-    
+
+    public static string GetPayloadSearchPattern(string payloadKey)
+    {
+        var payloadExtension = GetPayloadFileExtension(payloadKey);
+        return $"*.{payloadExtension}";
+    }
 }

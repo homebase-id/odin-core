@@ -83,12 +83,21 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public Task DeletePayloadFile(Guid fileId, string key)
         {
-            string path = GetPayloadFilePath(fileId, key);
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            // string path = GetPayloadFilePath(fileId, key);
+            var payloadsFileNames = GetAllPayloadFilesByKey(fileId, key);
 
+            foreach (var path in payloadsFileNames)
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning($"Could not delete payload file [{path}]");
+                }
+            }
+            
             return Task.CompletedTask;
         }
 
@@ -138,11 +147,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             //  1. If there is only one payload for this; return it
             //  2. If there are multiple payload files, parse the payload UID and return the most recent
 
-            var payloadExtension = DriveFileUtility.GetPayloadFileExtension(payloadKey);
-            var searchPath = GetStoragePayloadPath(fileId);
-            //*.-{payloadKey}.payload
-            var payloadsFileNames = Directory.GetFiles(searchPath, $"*.{payloadExtension}");
-
+            var payloadsFileNames = GetAllPayloadFilesByKey(fileId, payloadKey);
             //
             // Backwards compat - Support files w/o the
             // sequential UID (or just the single payload
@@ -176,6 +181,14 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             return GetChunkedStream(latestFile, chunk);
+        }
+
+        private List<string> GetAllPayloadFilesByKey(Guid fileId, string payloadKey)
+        {
+            var searchPattern = DriveFileUtility.GetPayloadSearchPattern(payloadKey);
+            var searchPath = GetStoragePayloadPath(fileId);
+            //*.-{payloadKey}.payload
+            return Directory.GetFiles(searchPath, searchPattern).ToList();
         }
 
         private Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
