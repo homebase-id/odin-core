@@ -788,7 +788,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration, _driveFileReaderWriter);
+            var manager = new LongTermStorageManager(drive, logger, _driveFileReaderWriter);
             return manager;
         }
 

@@ -6,8 +6,8 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -18,14 +18,13 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
-        private readonly OdinConfiguration _odinConfiguration;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration, DriveFileReaderWriter driveFileReaderWriter)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
@@ -34,7 +33,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             drive.EnsureDirectories();
 
             _logger = logger;
-            _odinConfiguration = odinConfiguration;
             _driveFileReaderWriter = driveFileReaderWriter;
             _drive = drive;
         }
@@ -114,7 +112,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public Int64 GetPayloadDiskUsage(Guid fileId)
         {
-            string payloadFilePath = GetPayloadPath(fileId);
+            string payloadFilePath = GetStoragePayloadPath(fileId);
             if (!Directory.Exists(payloadFilePath))
             {
                 return 0;
@@ -131,19 +129,53 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return usage;
         }
 
-        /// <summary>
-        /// Gets a read stream for the given <see cref="FilePart"/>
-        /// </summary>
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
+        public Task<Stream> GetPayloadStream(Guid fileId, string payloadKey, FileChunk chunk = null)
         {
-            string path = GetFilenameAndPath(fileId, filePart);
-            return GetChunkedStream(path, chunk);
-        }
+            // To transparently support a UID for a payload while also support backwards compatibility
+            // we'll need to hunt for the right payload to return; priority is a follows:
 
-        public Task<Stream> GetPayloadStream(Guid fileId, string key, FileChunk chunk = null)
-        {
-            var path = GetPayloadFilePath(fileId, key);
-            return GetChunkedStream(path, chunk);
+            // For the specified payload key, 
+            //  1. If there is only one payload for this; return it
+            //  2. If there are multiple payload files, parse the payload UID and return the most recent
+
+            var payloadExtension = DriveFileUtility.GetPayloadFileExtension(payloadKey);
+            var searchPath = GetStoragePayloadPath(fileId);
+            //*.-{payloadKey}.payload
+            var payloadsFileNames = Directory.GetFiles(searchPath, $"*.{payloadExtension}");
+
+            //
+            // Backwards compat - Support files w/o the
+            // sequential UID (or just the single payload
+            // that exists)
+            //
+            if (payloadsFileNames.Length == 1)
+            {
+                return GetChunkedStream(payloadsFileNames.Single(), chunk);
+            }
+
+            UnixTimeUtc? prevTimestamp = null;
+            string latestFile = payloadsFileNames.First();
+
+            foreach (var file in payloadsFileNames)
+            {
+                var storageUidMatch = DriveFileUtility.PayloadUidRegex.Match(file);
+                if (storageUidMatch.Success && Guid.TryParse(storageUidMatch.Value, out var uid))
+                {
+                    var uidAsTimestamp = SequentialGuid.ToUnixTimeUtc(uid);
+
+                    if (prevTimestamp.HasValue)
+                    {
+                        if (uidAsTimestamp > prevTimestamp.GetValueOrDefault())
+                        {
+                            latestFile = file;
+                        }
+                    }
+
+                    prevTimestamp = uidAsTimestamp;
+                }
+            }
+
+            return GetChunkedStream(latestFile, chunk);
         }
 
         private Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
@@ -153,8 +185,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 return Task.FromResult(Stream.Null);
             }
 
-            // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            // var fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
             if (null != chunk)
             {
@@ -180,7 +210,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 return Task.FromResult((Stream)new MemoryStream(buffer, false));
             }
 
-            return Task.FromResult((Stream)fileStream);
+            return Task.FromResult(fileStream);
         }
 
         /// <summary>
@@ -198,7 +228,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
 
-            return Task.FromResult((Stream)fileStream);
+            return Task.FromResult(fileStream);
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey)
@@ -291,43 +321,13 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task MovePayloadToLongTerm(Guid targetFileId, string key, string sourceFile)
         {
-            var destinationFile = GetPayloadFilePath(targetFileId, key, ensureExists: true);
+            Guid storageUid = SequentialGuid.CreateGuid();
+            var destinationFile = GetPayloadFilePath(targetFileId, key, storageUid, ensureExists: true);
 
             _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(destinationFile));
             Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
             _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
-
-            // Sanity #1;
-            // try
-            // {
-            //     // Open the file with exclusive access.
-            //     using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            // }
-            // catch (IOException ex)
-            // {
-            //     _logger.LogWarning(ex, "I could not get exclusive access to source file {file}", sourcePath);
-            // }
-            //
-            // // Sanity #2
-            // if (File.Exists(dest))
-            // {
-            //     _logger.LogWarning("Destination {dest} already exists", dest);
-            // }
-            //
-            // // Sanity #3
-            // try
-            // {
-            //     // Open the file with exclusive access.
-            //     using var fileStream = new FileStream(dest!, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            // }
-            // catch (IOException ex)
-            // {
-            //     _logger.LogWarning(ex, "I could not create/overwrite destination file {file} with exclusive access", dest);
-            // }
-
-            //issue -  the destination file is locked and I suspect it's because we're allowing 
-            // multiple writers using the same version tag
 
             //
             // if (IoUtils.WaitForFileUnlock(destinationFile,
@@ -417,7 +417,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task DeleteMissingPayloads(Guid fileId, List<PayloadDescriptor> payloadsToKeep)
         {
             //get all payloads in the path
-            var payloadFileDirectory = this.GetPayloadPath(fileId);
+            var payloadFileDirectory = this.GetStoragePayloadPath(fileId);
 
             if (Directory.Exists(payloadFileDirectory))
             {
@@ -467,7 +467,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                     var width = int.Parse(sizeParts[0]);
                     var height = int.Parse(sizeParts[1]);
 
-                    var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
+                    var keepThumbnail = list!.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
                     if (!keepThumbnail)
                     {
                         File.Delete(thumbnailFilePath);
@@ -524,22 +524,16 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Path.Combine(dir, GetFilename(fileId, string.Empty, part));
         }
 
-        private string GetPayloadPath(Guid fileId, bool ensureExists = false)
+        private string GetStoragePayloadPath(Guid fileId, bool ensureExists = false)
         {
             return this.GetFilePath(fileId, FilePart.Payload, ensureExists);
         }
 
-        private string GetPayloadFilePath(Guid fileId, string key, bool ensureExists = false)
+        private string GetPayloadFilePath(Guid fileId, string key, Guid? storageUid = null, bool ensureExists = false)
         {
-            var extension = DriveFileUtility.GetPayloadFileExtension(key);
-            return Path.Combine(GetPayloadPath(fileId, ensureExists), $"{fileId.ToString()}{extension}");
-        }
-
-        private string GetTempFilePath(Guid fileId, FilePart part, string suffix, bool ensureExists = false)
-        {
-            string dir = GetFilePath(fileId, part, ensureExists);
-            string filename = $"{Guid.NewGuid()}{part}{suffix}.tmp";
-            return Path.Combine(dir, filename);
+            var storagePath = GetStoragePayloadPath(fileId, ensureExists);
+            var extension = DriveFileUtility.GetPayloadFileExtension(key, storageUid);
+            return Path.Combine(storagePath, $"{fileId.ToString()}{extension}");
         }
 
         private void DeleteAllThumbnails(Guid fileId)

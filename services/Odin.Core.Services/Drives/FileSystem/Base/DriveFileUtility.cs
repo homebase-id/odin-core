@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using NodaTime;
 using NodaTime.Text;
@@ -22,6 +24,11 @@ public static class DriveFileUtility
     public const string PayloadDelimiter = "-";
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
+
+    public const string PayloadUidStartMarker = "u-";
+    public const string PayloadUidEndMarker = "-u";
+
+    public static readonly Regex PayloadUidRegex = new(@"u-[a-fA-F0-9]{32}-u");
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -111,7 +118,7 @@ public static class DriveFileUtility
             {
                 throw new OdinSystemException("payload descriptor is missing IV (initialization vector)");
             }
-            
+
             //TODO: consider falling back
 
             keyHeader.Iv = payloadDescriptor.Iv;
@@ -172,12 +179,20 @@ public static class DriveFileUtility
         return nextSizeUp;
     }
 
-    public static string GetPayloadFileExtension(string key)
+    public static string GetPayloadFileExtension(string key, Guid? storageUid = null)
     {
         AssertValidPayloadKey(key);
-        // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
-        string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
-        return extenstion;
+
+        string extension = string.Format(PayloadExtensionSpecifier, key.ToLower());
+
+        if (storageUid.HasValue)
+        {
+            string markedStorageUid = $"{PayloadUidStartMarker}{storageUid:N}{PayloadUidEndMarker}";
+            return Path.Combine($"{markedStorageUid}{extension}");
+        }
+        
+        // OLD string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
+        return extension;
     }
 
     public static bool TryParseLastModifiedHeader(HttpContentHeaders headers, out UnixTimeUtc? lastModified)
@@ -253,4 +268,5 @@ public static class DriveFileUtility
             throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
         }
     }
+    
 }
