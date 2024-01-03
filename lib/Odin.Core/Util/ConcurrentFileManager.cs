@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
@@ -10,12 +11,6 @@ public enum ConcurrentFileLockEnum
 {
     ReadLock,
     WriteLock
-}
-
-public class ConcurrentFileLock
-{
-    public ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
-    public int ReferenceCount = 0;
 }
 
 public class LockManagedFileStream : FileStream
@@ -36,39 +31,55 @@ public class LockManagedFileStream : FileStream
 
         if (disposing)
         {
-            _concurrentFileManagerGlobal.ReleaseLockObjectCounter(_path);
+            _concurrentFileManagerGlobal.ExitLock(_path);
         }
     }
 }
 
 public class ConcurrentFileManager
 {
+    internal class ConcurrentFileLock
+    {
+        public ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
+        public int ReferenceCount = 0;
+        public int DebugCount;
+        public readonly ConcurrentFileLockEnum Type;
+
+        public ConcurrentFileLock(ConcurrentFileLockEnum type)
+        {
+            Type = type;
+        }
+    }
+
     private const int _threadTimeout = 1000;
     internal readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
-    private ConcurrentFileLockEnum _type;
 
-    private ConcurrentFileLock ReadyLockObjectCounter(string filePath, ConcurrentFileLockEnum lockType)
+
+    private ConcurrentFileLock EnterLock(string filePath, ConcurrentFileLockEnum lockType)
     {
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
             {
-                _dictionaryLocks[filePath] = new ConcurrentFileLock();
-                _type = lockType;
+                _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
             }
 
-            if (lockType != _type)
+            if (lockType != _dictionaryLocks[filePath].Type)
                 throw new Exception("Cannot mix read and write lock types");
 
-            if (_type == ConcurrentFileLockEnum.ReadLock)
+            if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.ReadLock)
             {
                 if (_dictionaryLocks[filePath].Lock.TryEnterReadLock(_threadTimeout) == false)
                     throw new TimeoutException($"Timeout waiting for read lock for file {filePath}");
+                if (_dictionaryLocks[filePath].Lock.IsReadLockHeld == false)
+                    throw new Exception("kapow read");
             }
-            else if (_type == ConcurrentFileLockEnum.WriteLock)
+            else if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.WriteLock)
             {
                 if (_dictionaryLocks[filePath].Lock.TryEnterWriteLock(_threadTimeout) == false)
                     throw new TimeoutException($"Timeout waiting for write lock for file {filePath}");
+                if (_dictionaryLocks[filePath].Lock.IsWriteLockHeld == false)
+                    throw new Exception("kapow write");
             }
 
             _dictionaryLocks[filePath].ReferenceCount++;
@@ -80,29 +91,44 @@ public class ConcurrentFileManager
     /// Don't use this except from the ConcurrentFileLock class
     /// </summary>
     /// <param name="filePath"></param>
-    public void ReleaseLockObjectCounter(string filePath)
+    public void ExitLock(string filePath)
     {
         lock (_dictionaryLocks)
         {
             if (_dictionaryLocks.ContainsKey(filePath))
             {
+                if (_dictionaryLocks[filePath].ReferenceCount < 1)
+                    throw new Exception("kapow you called with too small a reference count");
+
+                Console.WriteLine($"Exiting lock for {filePath} {_dictionaryLocks[filePath].ReferenceCount}--");
+
                 _dictionaryLocks[filePath].ReferenceCount--;
 
-                if (_type == ConcurrentFileLockEnum.ReadLock)
-                    _dictionaryLocks[filePath].Lock.ExitReadLock();
+                if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.ReadLock)
+                {
+                    if (_dictionaryLocks[filePath].Lock.IsReadLockHeld == false)
+                        throw new Exception($"No read lock held {filePath}");
 
-                if (_type == ConcurrentFileLockEnum.WriteLock)
+                    _dictionaryLocks[filePath].Lock.ExitReadLock();
+                }
+                else if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.WriteLock)
+                {
+                    if (_dictionaryLocks[filePath].Lock.IsWriteLockHeld == false)
+                        throw new Exception($"No write lock held {filePath}");
                     _dictionaryLocks[filePath].Lock.ExitWriteLock();
+                }
 
                 if (_dictionaryLocks[filePath].ReferenceCount == 0)
                     _dictionaryLocks.Remove(filePath);
             }
+            else
+                throw new Exception($"Non existent filePath {filePath}");
         }
     }
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
-        var fileLock = ReadyLockObjectCounter(filePath, ConcurrentFileLockEnum.ReadLock);
+        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
         {
@@ -110,13 +136,13 @@ public class ConcurrentFileManager
         }
         finally
         {
-            ReleaseLockObjectCounter(filePath);
+            ExitLock(filePath);
         }
     }
 
     public Stream ReadStream(string filePath)
     {
-        var fileLock = ReadyLockObjectCounter(filePath, ConcurrentFileLockEnum.ReadLock);
+        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
         {
@@ -126,16 +152,17 @@ public class ConcurrentFileManager
         catch
         {
             // If an error occurs, make sure to exit the read lock before throwing the exception
-            ReleaseLockObjectCounter(filePath);
+            ExitLock(filePath);
             throw;
         }
+
         // Note: Lock release is managed by the LockManagedFileStream when it is disposed
     }
 
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
-        var fileLock = ReadyLockObjectCounter(filePath, ConcurrentFileLockEnum.WriteLock);
+        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
@@ -143,13 +170,13 @@ public class ConcurrentFileManager
         }
         finally
         {
-            ReleaseLockObjectCounter(filePath);
+            ExitLock(filePath);
         }
     }
 
     public void DeleteFile(string filePath)
     {
-        var fileLock = ReadyLockObjectCounter(filePath, ConcurrentFileLockEnum.WriteLock);
+        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
@@ -157,7 +184,7 @@ public class ConcurrentFileManager
         }
         finally
         {
-            ReleaseLockObjectCounter(filePath);
+            ExitLock(filePath);
         }
     }
 
@@ -166,23 +193,23 @@ public class ConcurrentFileManager
         ConcurrentFileLock sourceLock = null, destinationLock = null;
 
         // Lock destination first to avoid deadlocks
-        destinationLock = ReadyLockObjectCounter(destinationPath, ConcurrentFileLockEnum.WriteLock);
+        destinationLock = EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
-            sourceLock = ReadyLockObjectCounter(sourcePath, ConcurrentFileLockEnum.WriteLock);
+            sourceLock = EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
                 moveAction(sourcePath, destinationPath);
             }
             finally
             {
-                ReleaseLockObjectCounter(sourcePath);
+                ExitLock(sourcePath);
             }
         }
         finally
         {
-            ReleaseLockObjectCounter(destinationPath);
+            ExitLock(destinationPath);
         }
     }
 }
