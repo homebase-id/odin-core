@@ -49,7 +49,7 @@ public class ConcurrentFileManager
         public SemaphoreSlim Lock;
         public int ReferenceCount = 0;
         public readonly ConcurrentFileLockEnum Type;
-        public int DebugCount;
+        //public int DebugCount;
 
         public ConcurrentFileLock(ConcurrentFileLockEnum type)
         {
@@ -61,8 +61,8 @@ public class ConcurrentFileManager
         }
     }
 
-    private int _debugCount = 42;
-    private StringBuilder _sb = new StringBuilder();
+    //private int _debugCount = 42;
+    //private StringBuilder _sb = new StringBuilder();
 
     private const int _threadTimeout = 1000;
     internal readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
@@ -77,7 +77,7 @@ public class ConcurrentFileManager
             if (!_dictionaryLocks.ContainsKey(filePath))
             {
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
-                _dictionaryLocks[filePath].DebugCount = _debugCount++;
+                //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
                 _dictionaryLocks[filePath].Lock.Wait();
                 return;
@@ -192,8 +192,6 @@ public class ConcurrentFileManager
 
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
-        ConcurrentFileLock sourceLock = null, destinationLock = null;
-
         // Lock destination first to avoid deadlocks
         EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
