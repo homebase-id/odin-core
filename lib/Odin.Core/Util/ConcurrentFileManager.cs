@@ -68,83 +68,69 @@ public class ConcurrentFileManager
     internal readonly Dictionary<string, ConcurrentFileLock> _dictionaryLocks = new Dictionary<string, ConcurrentFileLock>();
 
 
-    private ConcurrentFileLock EnterLock(string filePath, ConcurrentFileLockEnum lockType)
+    private void EnterLock(string filePath, ConcurrentFileLockEnum lockType)
     {
+        ConcurrentFileLock fileLock;
+
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
             {
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
                 _dictionaryLocks[filePath].DebugCount = _debugCount++;
-                _sb.AppendLine($"New dictionary entry for i{_dictionaryLocks[filePath].DebugCount}");
+                _dictionaryLocks[filePath].ReferenceCount = 1;
+                _dictionaryLocks[filePath].Lock.Wait();
+                return;
             }
 
-            if (lockType != _dictionaryLocks[filePath].Type)
-                throw new Exception("Cannot mix read and write lock types");
+            fileLock = _dictionaryLocks[filePath];
 
-            if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.ReadLock)
-            {
-                _sb.AppendLine($"Enter read lock i{_dictionaryLocks[filePath].DebugCount}");
+            if (lockType != fileLock.Type)
+                throw new Exception("No access, file is already being written or read by another thread");
+        }
 
-                if (_dictionaryLocks[filePath].Lock.Wait(_threadTimeout) == false)
-                    throw new TimeoutException($"Timeout waiting for read lock for file {filePath}");
-                _sb.AppendLine($"Made read lock i{_dictionaryLocks[filePath].DebugCount}");
-            }
-            else if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.WriteLock)
-            {
-                _sb.AppendLine($"Enter write lock i{_dictionaryLocks[filePath].DebugCount}");
-                if (_dictionaryLocks[filePath].Lock.Wait(_threadTimeout) == false)
-                    throw new TimeoutException($"Timeout waiting for write lock for file {filePath}");
-                _sb.AppendLine($"Made write lock i{_dictionaryLocks[filePath].DebugCount}");
-            }
+        if (fileLock.Lock.Wait(_threadTimeout) == false)
+            throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
 
-            _dictionaryLocks[filePath].ReferenceCount++;
-            _sb.AppendLine($"Lock i{_dictionaryLocks[filePath].DebugCount} locked with count {_dictionaryLocks[filePath].ReferenceCount}");
-            return _dictionaryLocks[filePath];
+        lock (_dictionaryLocks)
+        {
+            _dictionaryLocks[filePath].ReferenceCount++; 
         }
     }
 
     /// <summary>
-    /// Don't use this except from the ConcurrentFileLock class
+    /// Don't use this except from the ConcurrentFileLock class' Dispose
+    /// PROBLEM: We'd like to be able to release while a thread is waiting in Enter...
     /// </summary>
     /// <param name="filePath"></param>
     public void ExitLock(string filePath)
     {
+        ConcurrentFileLock fileLock;
+
         lock (_dictionaryLocks)
         {
             if (_dictionaryLocks.ContainsKey(filePath))
             {
-                if (_dictionaryLocks[filePath].ReferenceCount < 1)
+                fileLock = _dictionaryLocks[filePath];
+
+                if (fileLock.ReferenceCount < 1)
                     throw new Exception("kapow you called with too small a reference count");
 
-                _dictionaryLocks[filePath].ReferenceCount--;
+                fileLock.ReferenceCount--;
 
-                if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.ReadLock)
-                {
-                    _sb.AppendLine($"Exiting read lock for i{_dictionaryLocks[filePath].DebugCount} count {_dictionaryLocks[filePath].ReferenceCount}");
-
-                    _dictionaryLocks[filePath].Lock.Release();
-                }
-                else if (_dictionaryLocks[filePath].Type == ConcurrentFileLockEnum.WriteLock)
-                {
-                    _sb.AppendLine($"Exiting write lock for i{_dictionaryLocks[filePath].DebugCount} count {_dictionaryLocks[filePath].ReferenceCount}");
-
-                    _dictionaryLocks[filePath].Lock.Release();
-                }
-
-                _sb.AppendLine($"Lock i{_dictionaryLocks[filePath].DebugCount} released count {_dictionaryLocks[filePath].ReferenceCount}");
-
-                if (_dictionaryLocks[filePath].ReferenceCount == 0)
+                if (fileLock.ReferenceCount == 0)
                     _dictionaryLocks.Remove(filePath);
             }
             else
                 throw new Exception($"Non existent filePath {filePath}");
         }
+
+        fileLock.Lock.Release();
     }
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
-        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
+        EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
         {
@@ -158,7 +144,7 @@ public class ConcurrentFileManager
 
     public Stream ReadStream(string filePath)
     {
-        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
+        EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
         {
@@ -178,7 +164,7 @@ public class ConcurrentFileManager
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
-        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
+        EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
@@ -192,7 +178,7 @@ public class ConcurrentFileManager
 
     public void DeleteFile(string filePath)
     {
-        var fileLock = EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
+        EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
@@ -209,11 +195,11 @@ public class ConcurrentFileManager
         ConcurrentFileLock sourceLock = null, destinationLock = null;
 
         // Lock destination first to avoid deadlocks
-        destinationLock = EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
+        EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
-            sourceLock = EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
+            EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
                 moveAction(sourcePath, destinationPath);

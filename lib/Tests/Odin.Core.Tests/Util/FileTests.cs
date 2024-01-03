@@ -130,7 +130,7 @@ public class ConcurrentFileManagerTests
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message.Contains("Cannot mix read and write"), "The exception message does not contain the expected substring.");
+                    Assert.IsTrue(ex.Message.Contains("No access, file is already being"), "The exception message does not contain the expected substring.");
                 }
                 finally
                 { 
@@ -174,7 +174,7 @@ public class ConcurrentFileManagerTests
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for write lock"), "The exception message does not contain the expected substring.");
+                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for lock"), "The exception message does not contain the expected substring.");
                 }
                 finally 
                 { 
@@ -215,7 +215,7 @@ public class ConcurrentFileManagerTests
             }
             catch (Exception ex)
             {
-                Assert.IsTrue(ex.Message.Contains("Cannot mix read and write"), "The exception message does not contain the expected substring.");
+                Assert.IsTrue(ex.Message.Contains("No access, file is already being"), "The exception message does not contain the expected substring.");
             }
         });
 
