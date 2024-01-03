@@ -153,7 +153,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             // sequential UID (or just the single payload
             // that exists)
             //
-            if (payloadsFileNames.Length == 1)
+            if(payloadsFileNames.Count == 1)
             {
                 return GetChunkedStream(payloadsFileNames.Single(), chunk);
             }
