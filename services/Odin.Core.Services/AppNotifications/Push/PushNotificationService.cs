@@ -15,6 +15,7 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.EncryptionKeyService;
@@ -80,7 +81,7 @@ public class PushNotificationService : INotificationHandler<ConnectionRequestAcc
 
     public async Task ProcessBatch()
     {
-        const int batchSize = 100; //todo: configure
+        int batchSize = _configuration.Host.PushNotificationBatchSize;
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
 
         //TODO: add throttling
@@ -96,28 +97,51 @@ public class PushNotificationService : INotificationHandler<ConnectionRequestAcc
 
             foreach (var record in group)
             {
-                var appReg = await _appRegistrationService.GetAppRegistration(record.Options.AppId);
+                var (validAppName, appName) = await TryResolveAppName(record.Options.AppId);
 
-                pushContent.Payloads.Add(new PushNotificationPayload()
+                if (validAppName)
                 {
-                    AppDisplayName = appReg?.Name ?? "a Homebase app",
-                    Options = record.Options,
-                    SenderId = record.SenderId,
-                    Timestamp = record.Timestamp,
-                });
+                    pushContent.Payloads.Add(new PushNotificationPayload()
+                    {
+                        AppDisplayName = appName,
+                        Options = record.Options,
+                        SenderId = record.SenderId,
+                        Timestamp = record.Timestamp,
+                    });
 
-                //add to system list
-                await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
+                    //add to system list
+                    await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
+                    {
+                        Timestamp = record.Timestamp,
+                        AppNotificationOptions = record.Options,
+                    });
+
+                    await _pushNotificationOutbox.MarkComplete(record.Marker);
+                }
+                else
                 {
-                    Timestamp = record.Timestamp,
-                    AppNotificationOptions = record.Options,
-                });
-
-                await _pushNotificationOutbox.MarkComplete(record.Marker);
+                    Log.Warning($"No app registered with Id {record.Options.AppId}");
+                }
             }
 
             await this.Push(pushContent);
         }
+    }
+
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId)
+    {
+        if (appId == SystemAppConstants.OwnerAppId)
+        {
+            return (true, "Homebase Owner");
+        }
+
+        if (appId == SystemAppConstants.FeedAppId)
+        {
+            return (true, "Homebase Feed");
+        }
+
+        var appReg = await _appRegistrationService.GetAppRegistration(appId);
+        return (appReg != null, appReg?.Name);
     }
 
     public async Task Push(PushNotificationContent content)
@@ -218,7 +242,7 @@ public class PushNotificationService : INotificationHandler<ConnectionRequestAcc
         var tenant = _contextAccessor.GetCurrent().Tenant;
         _serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
     }
-    
+
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
     {
         this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()

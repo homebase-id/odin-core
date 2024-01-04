@@ -82,7 +82,14 @@ namespace Odin.Core.Services.DataSubscription
         public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
             //handle comments when added to my identity from a user who's on my home page
-            var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
+            if (string.IsNullOrEmpty(notification.ServerFileHeader.FileMetadata.SenderOdinId))
+            {
+                //no need to send a notification to myself
+                return Task.CompletedTask;
+            }
+            
+            var sender =(OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
+            
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
                 && sender != _tenantContext.HostOdinId)
             {
