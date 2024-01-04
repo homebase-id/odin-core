@@ -87,14 +87,21 @@ public class ConcurrentFileManager
 
             if (lockType != fileLock.Type)
                 throw new Exception("No access, file is already being written or read by another thread");
+
+            // Optimistically increase the reference count
+            _dictionaryLocks[filePath].ReferenceCount++;
         }
 
         if (fileLock.Lock.Wait(_threadTimeout) == false)
-            throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
-
-        lock (_dictionaryLocks)
         {
-            _dictionaryLocks[filePath].ReferenceCount++; 
+            lock (_dictionaryLocks)
+            {
+                _dictionaryLocks[filePath].ReferenceCount--;
+
+                if (fileLock.ReferenceCount == 0)
+                    _dictionaryLocks.Remove(filePath);
+            }
+            throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
     }
 
