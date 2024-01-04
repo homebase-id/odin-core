@@ -155,6 +155,8 @@ public class TenantConfigService
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest);
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
@@ -277,9 +279,76 @@ public class TenantConfigService
     private async Task RegisterBuiltInApps()
     {
         await RegisterChatApp();
-        // await RegisterFeedApp();
+        await RegisterFeedApp();
         // await RegisterPhotosApp();
     }
+
+    private async Task RegisterFeedApp()
+    {
+        var request = new AppRegistrationRequest()
+        {
+            AppId = SystemAppConstants.FeedAppId,
+            Name = "Homebase - Feed",
+            AuthorizedCircles = new List<Guid>(),
+            CircleMemberPermissionGrant = new PermissionSetGrantRequest(),
+            Drives =
+            [
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.FeedDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ProfileDrive,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.HomePageConfig,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                        Permission = DrivePermission.All
+                    }
+                }
+            ],
+            PermissionSet = new PermissionSet(
+                PermissionKeys.ReadConnections,
+                PermissionKeys.ReadCircleMembership,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadWhoIFollow,
+                PermissionKeys.ReadMyFollowers,
+                PermissionKeys.ManageFeed,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.UseTransitRead,
+                PermissionKeys.UseTransitWrite)
+        };
+
+        await _appRegistrationService.RegisterApp(request);
+    }
+
 
     private async Task RegisterChatApp()
     {
@@ -290,7 +359,7 @@ public class TenantConfigService
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
                 CircleConstants.ConnectedIdentitiesSystemCircleId
-            }, 
+            },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
                 Drives =
@@ -321,12 +390,28 @@ public class TenantConfigService
                         Drive = SystemDriveConstants.ChatDrive,
                         Permission = DrivePermission.ReadWrite
                     }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ProfileDrive,
+                        Permission = DrivePermission.Read
+                    }
                 }
             ],
             PermissionSet = new PermissionSet(
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
-                PermissionKeys.UseTransitRead,
+                // PermissionKeys.UseTransitRead,
                 PermissionKeys.UseTransitWrite)
         };
 
