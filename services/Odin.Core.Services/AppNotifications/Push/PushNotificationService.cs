@@ -60,7 +60,7 @@ public class PushNotificationService : INotificationHandler<ConnectionRequestAcc
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options)
+    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
     {
         //TODO: which security to check?
         //app permissions? I.e does the calling app on the recipient server have access to send notifications?

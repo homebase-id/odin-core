@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -11,6 +12,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer;
+using Odin.Core.Storage;
 using Serilog;
 
 namespace Odin.Core.Services.DataSubscription
@@ -28,6 +30,11 @@ namespace Odin.Core.Services.DataSubscription
         private readonly PushNotificationService _pushNotificationService;
         private readonly TenantContext _tenantContext;
 
+        private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
+
+        private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");
+
+
         public FeedNotificationMapper(DriveManager driveManager, PushNotificationService pushNotificationService, TenantContext tenantContext)
         {
             _driveManager = driveManager;
@@ -37,7 +44,8 @@ namespace Odin.Core.Services.DataSubscription
 
         public Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
-            if (IsFeedDriveRelated(notification).GetAwaiter().GetResult())
+            var driveId = notification.Reaction.FileId.DriveId;
+            if (IsFeedDriveRelated(driveId).GetAwaiter().GetResult())
             {
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != _tenantContext.HostOdinId)
@@ -57,10 +65,12 @@ namespace Odin.Core.Services.DataSubscription
 
         public Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
+            var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
+
             _pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.FeedAppId,
-                TypeId = notification.NotificationTypeId,
+                TypeId = typeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
             });
@@ -81,9 +91,8 @@ namespace Odin.Core.Services.DataSubscription
             return Task.CompletedTask;
         }
 
-        private async Task<bool> IsFeedDriveRelated(ReactionContentAddedNotification notification)
+        private async Task<bool> IsFeedDriveRelated(Guid driveId)
         {
-            var driveId = notification.Reaction.FileId.DriveId;
             var drive = await _driveManager.GetDrive(driveId, false);
             if (null == drive)
             {
