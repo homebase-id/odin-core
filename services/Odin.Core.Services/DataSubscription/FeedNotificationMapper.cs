@@ -86,13 +86,13 @@ namespace Odin.Core.Services.DataSubscription
                 ? CommentNotificationTypeId
                 : PostNotificationTypeId;
 
-            _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.FeedAppId,
-                TypeId = typeId,
-                TagId = sender.ToHashId(),
-                Silent = false,
-            });
+            // _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+            // {
+            //     AppId = SystemAppConstants.FeedAppId,
+            //     TypeId = typeId,
+            //     TagId = sender.ToHashId(),
+            //     Silent = false,
+            // });
 
             return Task.CompletedTask;
         }
