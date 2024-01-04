@@ -11,6 +11,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
 using Serilog;
@@ -24,7 +25,7 @@ namespace Odin.Core.Services.DataSubscription
     /// Yes, this is more Feed hack'ish stuff that indicates we need to build a feed subsystem in the core
     /// </summary>
     public class FeedNotificationMapper : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
-        INotificationHandler<NewFollowerNotification>
+        INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
         private readonly DriveManager _driveManager;
         private readonly PushNotificationService _pushNotificationService;
@@ -72,6 +73,24 @@ namespace Odin.Core.Services.DataSubscription
                 AppId = SystemAppConstants.FeedAppId,
                 TypeId = typeId,
                 TagId = notification.Sender.ToHashId(),
+                Silent = false,
+            });
+
+            return Task.CompletedTask;
+        }
+
+        public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
+        {
+            var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
+            var typeId = notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
+                ? CommentNotificationTypeId
+                : PostNotificationTypeId;
+
+            _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.FeedAppId,
+                TypeId = typeId,
+                TagId = sender.ToHashId(),
                 Silent = false,
             });
 

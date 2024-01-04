@@ -70,6 +70,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<NewFeedItemReceived>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
