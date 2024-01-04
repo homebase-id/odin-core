@@ -15,6 +15,8 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
@@ -25,8 +27,8 @@ using WebPush;
 
 namespace Odin.Core.Services.AppNotifications.Push;
 
-public class PushNotificationService : INotificationHandler<NewFollowerNotification>, INotificationHandler<ConnectionRequestAccepted>,
-    INotificationHandler<ConnectionRequestReceived>, INotificationHandler<NewFeedItemReceived>
+public class PushNotificationService : INotificationHandler<ConnectionRequestAccepted>,
+    INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
@@ -101,7 +103,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
                     AppDisplayName = appReg?.Name ?? "a Homebase app",
                     Options = record.Options,
                     SenderId = record.SenderId,
-                    Timestamp = record.Timestamp, 
+                    Timestamp = record.Timestamp,
                 });
 
                 //add to system list
@@ -216,20 +218,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
         var tenant = _contextAccessor.GetCurrent().Tenant;
         _serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
     }
-
-    public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
-    {
-        this.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.OdinId.ToHashId(),
-            Silent = false
-        });
-
-        return Task.CompletedTask;
-    }
-
+    
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
     {
         this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
@@ -250,20 +239,6 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
             TypeId = notification.NotificationTypeId,
             TagId = notification.Sender.ToHashId(),
             Silent = false
-        });
-
-        return Task.CompletedTask;
-    }
-
-    public Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
-    {
-        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.FeedAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.Sender.ToHashId(),
-            Silent = false,
-            UnEncryptedMessage = "You have new content in your feed."
         });
 
         return Task.CompletedTask;

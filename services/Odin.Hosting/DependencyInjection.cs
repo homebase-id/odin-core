@@ -59,15 +59,23 @@ namespace Odin.Hosting
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<NewFeedItemReceived>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
+            cb.RegisterType<FeedNotificationMapper>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<NewFeedItemReceived>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
+                .AsSelf()
+                .SingleInstance();
+
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
@@ -187,7 +195,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 
