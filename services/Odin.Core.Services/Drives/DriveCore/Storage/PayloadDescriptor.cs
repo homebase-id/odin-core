@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Time;
 
@@ -41,6 +42,12 @@ public class PayloadDescriptor
     /// </summary>
     public List<ThumbnailDescriptor> Thumbnails { get; set; }
 
+    /// <summary>
+    /// A sequential guid used for each instance of this payload.This is used as part of storage
+    /// and changes each time you upload a new payload with this key
+    /// </summary>
+    public Guid Uid { get; set; }
+    
     public string GetLastModifiedHttpHeaderValue()
     {
         return LastModified.ToDateTime().ToString("R");

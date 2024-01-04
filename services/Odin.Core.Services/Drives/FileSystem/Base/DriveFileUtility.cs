@@ -253,4 +253,9 @@ public static class DriveFileUtility
             throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
         }
     }
+
+    public static string GetFileIdForStorage(Guid fileId)
+    {
+        return $"{fileId.ToString("N").ToLower()}";
+    }
 }

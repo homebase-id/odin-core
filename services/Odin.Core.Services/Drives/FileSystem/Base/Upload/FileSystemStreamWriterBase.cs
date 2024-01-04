@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -17,7 +16,6 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
-using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 

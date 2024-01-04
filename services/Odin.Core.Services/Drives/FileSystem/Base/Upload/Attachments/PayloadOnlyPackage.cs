@@ -71,7 +71,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),
-                    BytesWritten = p.BytesWritten
+                    BytesWritten = p.BytesWritten,
+                    
+                    DescriptorContent = p.DescriptorContent,
+                    PreviewThumbnail = p.PreviewThumbnail
                 };
             });
 
