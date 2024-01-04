@@ -63,9 +63,6 @@ namespace Odin.Hosting
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
-                .As<INotificationHandler<NewFollowerNotification>>()
-                .As<INotificationHandler<NewFeedItemReceived>>()
-                .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

@@ -43,7 +43,6 @@ namespace Odin.Core.Services.DataSubscription
                     TypeId = notification.NotificationTypeId,
                     TagId = sender.ToHashId(),
                     Silent = false,
-                    UnEncryptedMessage = "You have new content in your feed."
                 });
             }
 
@@ -58,7 +57,6 @@ namespace Odin.Core.Services.DataSubscription
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
-                UnEncryptedMessage = "You have new content in your feed."
             });
 
             return Task.CompletedTask;
@@ -86,7 +84,7 @@ namespace Odin.Core.Services.DataSubscription
                 Log.Warning("notification sent with invalid driveId - this is totes rare");
                 return false;
             }
-            
+
             return drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType ||
                    drive.TargetDriveInfo == SystemDriveConstants.FeedDrive;
         }
