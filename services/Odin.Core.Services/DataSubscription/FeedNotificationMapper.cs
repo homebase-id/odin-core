@@ -81,18 +81,19 @@ namespace Odin.Core.Services.DataSubscription
 
         public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
+            //handle comments when added to my identity from a user who's on my home page
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
-            var typeId = notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                ? CommentNotificationTypeId
-                : PostNotificationTypeId;
-
-            // _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-            // {
-            //     AppId = SystemAppConstants.FeedAppId,
-            //     TypeId = typeId,
-            //     TagId = sender.ToHashId(),
-            //     Silent = false,
-            // });
+            if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
+                && sender != _tenantContext.HostOdinId)
+            {
+                _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                {
+                    AppId = SystemAppConstants.FeedAppId,
+                    TypeId = CommentNotificationTypeId,
+                    TagId = sender.ToHashId(),
+                    Silent = false,
+                });
+            }
 
             return Task.CompletedTask;
         }
