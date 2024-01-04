@@ -6,6 +6,7 @@ using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Drives.Reactions;
@@ -25,11 +26,13 @@ namespace Odin.Core.Services.DataSubscription
     {
         private readonly DriveManager _driveManager;
         private readonly PushNotificationService _pushNotificationService;
+        private readonly TenantContext _tenantContext;
 
-        public FeedNotificationMapper(DriveManager driveManager, PushNotificationService pushNotificationService)
+        public FeedNotificationMapper(DriveManager driveManager, PushNotificationService pushNotificationService, TenantContext tenantContext)
         {
             _driveManager = driveManager;
             _pushNotificationService = pushNotificationService;
+            _tenantContext = tenantContext;
         }
 
         public Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
@@ -37,13 +40,16 @@ namespace Odin.Core.Services.DataSubscription
             if (IsFeedDriveRelated(notification).GetAwaiter().GetResult())
             {
                 var sender = (OdinId)notification.Reaction.OdinId;
-                _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                if (sender != _tenantContext.HostOdinId)
                 {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = notification.NotificationTypeId,
-                    TagId = sender.ToHashId(),
-                    Silent = false,
-                });
+                    _pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = notification.NotificationTypeId,
+                        TagId = sender.ToHashId(),
+                        Silent = false,
+                    });
+                }
             }
 
             return Task.CompletedTask;
