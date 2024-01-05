@@ -50,11 +50,14 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
-        foreach (var pd in instructionSet.Manifest.PayloadDescriptors)
+        if (instructionSet.Manifest?.PayloadDescriptors != null)
         {
-            //These are created in advance to ensure we can
-            //upload thumbnails and payloads in any order
-            pd.PayloadUid = SequentialGuid.CreateGuid();
+            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = SequentialGuid.CreateGuid();
+            }
         }
         
         this._package = new PayloadOnlyPackage(file, instructionSet!);
