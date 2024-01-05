@@ -604,7 +604,7 @@ namespace Odin.Core.Services.Membership.Connections
 
             CircleDefinition def = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
-            var grants = def.DriveGrants.ToList();
+            var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
             grants.Add(new DriveGrantRequest()
             {
                 PermissionedDrive = new PermissionedDrive()

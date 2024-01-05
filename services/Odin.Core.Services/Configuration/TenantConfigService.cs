@@ -153,14 +153,15 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest);
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCircle();
+
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest);
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
@@ -321,7 +322,7 @@ public class TenantConfigService
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
-                        Drive = SystemDriveConstants.HomePageConfig,
+                        Drive = SystemDriveConstants.HomePageConfigDrive,
                         Permission = DrivePermission.Read
                     }
                 },

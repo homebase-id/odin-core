@@ -46,7 +46,7 @@ public static class SystemDriveConstants
         Type = GuidId.FromString("feed_drive")
     };
     
-    public static readonly TargetDrive HomePageConfig = new()
+    public static readonly TargetDrive HomePageConfigDrive = new()
     {
         Alias = Guid.Parse("ec83345af6a747d4404ef8b0f8844caa"),
         Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
@@ -82,7 +82,7 @@ public static class SystemDriveConstants
         Name = "Homepage Config",
         AllowAnonymousReads = true,
         Metadata = "",
-        TargetDrive = HomePageConfig,
+        TargetDrive = HomePageConfigDrive,
         OwnerOnly = false
     };
     
