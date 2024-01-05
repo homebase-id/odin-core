@@ -71,11 +71,14 @@ public class UploadManifestPayloadDescriptor
     /// The thumbnails expected for this payload key
     /// </summary>
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
+
+    public Guid PayloadUid { get; set; }
 }
 
 public class UploadedManifestThumbnailDescriptor
 {
     public string ThumbnailKey { get; set; }
+    
     public int PixelWidth { get; set; }
 
     public int PixelHeight { get; set; }

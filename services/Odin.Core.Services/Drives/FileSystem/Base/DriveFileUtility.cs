@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using NodaTime;
-using NodaTime.Text;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
@@ -20,6 +20,7 @@ public static class DriveFileUtility
 {
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
     public const string PayloadDelimiter = "-";
+    public const string FileNameSectionDelimiter = "-";
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
 
@@ -111,7 +112,7 @@ public static class DriveFileUtility
             {
                 throw new OdinSystemException("payload descriptor is missing IV (initialization vector)");
             }
-            
+
             //TODO: consider falling back
 
             keyHeader.Iv = payloadDescriptor.Iv;
@@ -172,13 +173,21 @@ public static class DriveFileUtility
         return nextSizeUp;
     }
 
-    public static string GetPayloadFileExtension(string key)
-    {
-        AssertValidPayloadKey(key);
-        // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
-        string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
-        return extenstion;
-    }
+    // public static string GetPayloadFileExtension(string key)
+    // {
+    //     AssertValidPayloadKey(key);
+    //     // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
+    //     string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
+    //     return extenstion;
+    // }
+
+    // public static string GetTempPayloadFileExtension(string key)
+    // {
+    //     AssertValidPayloadKey(key);
+    //     // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
+    //     string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
+    //     return extenstion;
+    // }
 
     public static bool TryParseLastModifiedHeader(HttpContentHeaders headers, out UnixTimeUtc? lastModified)
     {
@@ -233,18 +242,18 @@ public static class DriveFileUtility
         }
     }
 
-    public static string GetThumbnailFileExtension(int width, int height, string payloadKey)
-    {
-        if (string.IsNullOrEmpty(payloadKey?.Trim()))
-        {
-            throw new OdinClientException($"PayloadKey is null or empty for the thumbnail with width:{width} x height:{height}.",
-                OdinClientErrorCode.InvalidPayloadNameOrKey);
-        }
-
-        //TODO: move this down into the long term storage manager
-        string extenstion = $"-{width}x{height}-{payloadKey}.thumb";
-        return extenstion.ToLower();
-    }
+    // public static string GetThumbnailFileExtension(int width, int height, string payloadKey)
+    // {
+    //     if (string.IsNullOrEmpty(payloadKey?.Trim()))
+    //     {
+    //         throw new OdinClientException($"PayloadKey is null or empty for the thumbnail with width:{width} x height:{height}.",
+    //             OdinClientErrorCode.InvalidPayloadNameOrKey);
+    //     }
+    //
+    //     //TODO: move this down into the long term storage manager
+    //     string extenstion = $"-{width}x{height}-{payloadKey}.thumb";
+    //     return extenstion.ToLower();
+    // }
 
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
     {
@@ -257,5 +266,23 @@ public static class DriveFileUtility
     public static string GetFileIdForStorage(Guid fileId)
     {
         return $"{fileId.ToString("N").ToLower()}";
+    }
+
+    public static string GetPayloadFileNameWithExtension(string payloadKey, Guid payloadUid)
+    {
+        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+        return $"{bn}.payload";
+    }
+
+    public static string GetThumbnailFileNameWithExtension(string payloadKey, Guid payloadUid, int width, int height)
+    {
+        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+        return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
+    }
+
+    private static string CreateBasePayloadFileName(string payloadKey, Guid payloadUid)
+    {
+        var parts = new[] { payloadKey, payloadUid.ToString("N") };
+        return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
     }
 }

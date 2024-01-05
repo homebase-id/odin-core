@@ -19,7 +19,9 @@ public class PackagePayloadDescriptor
     public string DescriptorContent { get; set; }
 
     public ThumbnailContent PreviewThumbnail { get; set; }
-    
+
+    public Guid Uid { get; set; }
+
     public bool HasIv()
     {
         if (Iv == null || Iv.Length == 0)

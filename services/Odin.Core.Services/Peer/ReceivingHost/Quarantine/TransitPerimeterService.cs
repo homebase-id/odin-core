@@ -346,7 +346,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 return (null, default, null, null, default, null);
             }
 
-            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey);
+            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height, payloadKey, payloadDescriptor.Uid);
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType, payloadDescriptor.LastModified, thumb);
         }

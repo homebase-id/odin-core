@@ -67,7 +67,6 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        // var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
         var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
@@ -89,6 +88,13 @@ public abstract class FileSystemStreamWriterBase
                 DriveId = driveId,
                 FileId = overwriteFileId
             };
+        }
+
+        foreach (var pd in instructionSet.Manifest.PayloadDescriptors)
+        {
+            //These are created in advance to ensure we can
+            //upload thumbnails and payloads in any order
+            pd.PayloadUid = SequentialGuid.CreateGuid();
         }
 
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
@@ -114,13 +120,15 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+        var extension = DriveFileUtility.GetPayloadFileNameWithExtension(key, descriptor.PayloadUid);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data);
+
         if (bytesWritten > 0)
         {
             Package.Payloads.Add(new PackagePayloadDescriptor()
             {
                 Iv = descriptor.Iv,
+                Uid = descriptor.PayloadUid,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
@@ -148,6 +156,7 @@ public abstract class FileSystemStreamWriterBase
             return new
             {
                 PayloadKey = pd.PayloadKey,
+                PayloadUid = pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -161,10 +170,12 @@ public abstract class FileSystemStreamWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+        string extenstion = DriveFileUtility.GetThumbnailFileNameWithExtension(
+            result.PayloadKey,
+            result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
-            result.ThumbnailDescriptor.PixelHeight,
-            result.PayloadKey);
+            result.ThumbnailDescriptor.PixelHeight
+        );
 
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
 
@@ -290,11 +301,11 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        byte[] metdataBytes = null;
+        byte[] metadataBytes = null;
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
 
-        metdataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-        var decryptedJsonBytes = AesCbc.Decrypt(metdataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)

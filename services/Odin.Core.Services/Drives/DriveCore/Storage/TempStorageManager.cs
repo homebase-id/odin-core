@@ -3,9 +3,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -131,13 +128,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         {
             string dir = GetFileDirectory(fileId, ensureExists);
             return Path.Combine(dir, GetFilename(fileId, extension));
-        }
-
-        private string GetTempFilePath(Guid fileId, string extension, bool ensureExists = false)
-        {
-            string dir = GetFileDirectory(fileId, ensureExists);
-            string filename = $"{Guid.NewGuid()}-{extension}.tmp";
-            return Path.Combine(dir, filename);
         }
     }
 }

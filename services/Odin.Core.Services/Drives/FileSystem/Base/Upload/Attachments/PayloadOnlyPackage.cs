@@ -68,6 +68,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
                 {
                     Iv = p.Iv,
                     Key = p.PayloadKey,
+                    Uid = p.Uid,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),

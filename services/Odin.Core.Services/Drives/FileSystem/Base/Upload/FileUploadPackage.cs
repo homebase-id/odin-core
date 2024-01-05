@@ -71,6 +71,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 return new PayloadDescriptor()
                 {
                     Iv = p.Iv,
+                    Uid = p.Uid,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,

@@ -131,7 +131,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
-                request.Width, request.Height, request.PayloadKey, request.DirectMatchOnly);
+                request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, request.DirectMatchOnly);
 
             if (thumbPayload == Stream.Null)
             {
