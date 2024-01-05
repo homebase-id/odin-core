@@ -60,7 +60,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             return AuthenticateResult.Fail("Invalid Path");
         }
-        
+
         //
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -79,7 +79,7 @@ namespace Odin.Hosting.Authentication.YouAuth
         }
 
         //
-        
+
         private async Task<AuthenticateResult> HandleAppAuth(OdinContext odinContext)
         {
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
@@ -125,7 +125,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
-            
+
             if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
                 return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext);
@@ -151,10 +151,10 @@ namespace Odin.Hosting.Authentication.YouAuth
                     }
                 }
             }
-            
+
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
             var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken);
-    
+
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
@@ -266,13 +266,18 @@ namespace Odin.Hosting.Authentication.YouAuth
             };
             return claims;
         }
-        
-        private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken, bool fallbackToHeader = false)
+
+        private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken, bool preferHeader = false)
         {
-            var clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
-            if (clientAccessTokenValue64.IsNullOrWhiteSpace() && fallbackToHeader)
+            var clientAccessTokenValue64 = string.Empty;
+            if (preferHeader)
             {
                 clientAccessTokenValue64 = Context.Request.Headers[cookieName];
+            }
+
+            if (clientAccessTokenValue64.IsNullOrWhiteSpace())
+            {
+                clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
             }
 
             return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
