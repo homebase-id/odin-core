@@ -19,12 +19,20 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
             Guard.Argument(internalFile.DriveId, nameof(internalFile.DriveId)).NotEqual(Guid.Empty);
 
+            // this.TempFile = internalFile with { FileId = Guid.NewGuid() };
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
             this.Thumbnails = new List<PackageThumbnailDescriptor>();
             this.Payloads = new List<PackagePayloadDescriptor>();
         }
+
+        /// <summary>
+        /// The file to whi This is not the same as the
+        /// target file to which the payloads will be attach
+        /// </summary>
+        //TODO
+        // public InternalDriveFileId TempFile { get; set; }
 
         public UploadInstructionSet InstructionSet { get; init; }
 

@@ -17,6 +17,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -144,7 +145,6 @@ public abstract class FileSystemStreamWriterBase
         }
 
         //find the thumbnail details for the given key
-        //TODO: I'm not so sure this is gonna work out...
         var result = descriptors.Select(pd =>
         {
             return new
@@ -292,15 +292,12 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-
+        byte[] metdataBytes = null;
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), clientSharedSecret, package.InstructionSet.TransferIv);
-        metadataStream.Close();
 
-        var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
-
-        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(json);
+        metdataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var decryptedJsonBytes = AesCbc.Decrypt(metdataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {

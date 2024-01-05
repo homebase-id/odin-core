@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
@@ -28,19 +29,25 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly IMediator _mediator;
         private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
+        private readonly OdinConfiguration _odinConfiguration;
+        private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         protected DriveStorageServiceBase(
             OdinContextAccessor contextAccessor,
             ILoggerFactory loggerFactory,
             IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService,
-            DriveManager driveManager)
+            DriveManager driveManager,
+            OdinConfiguration odinConfiguration,
+            DriveFileReaderWriter driveFileReaderWriter)
         {
             ContextAccessor = contextAccessor;
             _loggerFactory = loggerFactory;
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _driveManager = driveManager;
+            _odinConfiguration = odinConfiguration;
+            _driveFileReaderWriter = driveFileReaderWriter;
             DriveManager = driveManager;
         }
 
@@ -173,18 +180,21 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
-        public Task<Stream> GetTempStream(InternalDriveFileId file, string extension)
+        /// <summary>
+        /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
+        /// </summary>
+        /// <returns></returns>
+        public Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension)
         {
             this.AssertCanReadDrive(file.DriveId);
-
-            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+            var bytes = GetTempStorageManager(file.DriveId).GetAllFileBytes(file.FileId, extension);
+            return bytes;
         }
 
-        public Task<Stream> GetTempStreamForWriting(InternalDriveFileId file, string extension)
+        public Task<byte[]> GetAllFileBytesForWriting(InternalDriveFileId file, string extension)
         {
             this.AssertCanWriteToDrive(file.DriveId);
-
-            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+            return GetTempStorageManager(file.DriveId).GetAllFileBytes(file.FileId, extension);
         }
 
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
@@ -537,7 +547,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<Guid> UpdatePayloads(InternalDriveFileId sourceFile,
+        public async Task<Guid> UpdatePayloads(
+            InternalDriveFileId tempSourceFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads)
         {
@@ -555,7 +566,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
-            var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(tempSourceFile.DriveId);
 
             //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
             foreach (var descriptor in incomingPayloads)
@@ -564,7 +575,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
                 string extenstion = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
 
-                string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, extenstion);
+                string sourceFilePath = await tempStorageManager.GetPath(tempSourceFile.FileId, extenstion);
                 await storageManager.MovePayloadToLongTerm(targetFile.FileId, descriptor.Key, sourceFilePath);
 
                 // Delete any thumbnail that are no longer in the descriptor.Thumbnails from disk
@@ -573,7 +584,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
-                    var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
+                    var sourceThumbnail = await tempStorageManager.GetPath(tempSourceFile.FileId, extension);
                     await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, descriptor.Key, thumb);
                 }
             }
@@ -777,7 +788,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger);
+            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration, _driveFileReaderWriter);
             return manager;
         }
 
@@ -785,7 +796,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var logger = _loggerFactory.CreateLogger<TempStorageManager>();
-            return new TempStorageManager(drive, logger);
+            return new TempStorageManager(drive, logger, _driveFileReaderWriter);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
@@ -802,7 +813,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
-            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
+            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WriteHeaderStream(header.FileMetadata.File.FileId, stream);
         }
 
         /// <summary>

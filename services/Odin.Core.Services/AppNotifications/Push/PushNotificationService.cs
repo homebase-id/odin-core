@@ -9,10 +9,15 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Dns.PowerDns;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
@@ -23,7 +28,7 @@ using WebPush;
 
 namespace Odin.Core.Services.AppNotifications.Push;
 
-public class PushNotificationService : INotificationHandler<NewFollowerNotification>, INotificationHandler<ConnectionRequestAccepted>,
+public class PushNotificationService : INotificationHandler<ConnectionRequestAccepted>,
     INotificationHandler<ConnectionRequestReceived>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
@@ -31,6 +36,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     private readonly TwoKeyValueStorage _deviceSubscriptionStorage;
     private readonly OdinContextAccessor _contextAccessor;
 
+    private readonly OdinConfiguration _configuration;
     private readonly NotificationListService _notificationListService;
     private readonly PushNotificationOutbox _pushNotificationOutbox;
     private readonly PublicPrivateKeyService _keyService;
@@ -40,13 +46,14 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
     public PushNotificationService(TenantSystemStorage storage, OdinContextAccessor contextAccessor, PublicPrivateKeyService keyService,
         TenantSystemStorage tenantSystemStorage, ServerSystemStorage serverSystemStorage, NotificationListService notificationListService,
-        IAppRegistrationService appRegistrationService)
+        IAppRegistrationService appRegistrationService, OdinConfiguration configuration)
     {
         _contextAccessor = contextAccessor;
         _keyService = keyService;
         _serverSystemStorage = serverSystemStorage;
         _notificationListService = notificationListService;
         _appRegistrationService = appRegistrationService;
+        _configuration = configuration;
         _pushNotificationOutbox = new PushNotificationOutbox(tenantSystemStorage, contextAccessor);
         _deviceSubscriptionStorage = storage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     }
@@ -54,7 +61,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options)
+    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
     {
         //TODO: which security to check?
         //app permissions? I.e does the calling app on the recipient server have access to send notifications?
@@ -74,50 +81,72 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
 
     public async Task ProcessBatch()
     {
-        const int batchSize = 100; //todo: configure
+        int batchSize = _configuration.Host.PushNotificationBatchSize;
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
 
         //TODO: add throttling
         //group by appId + typeId
         var groupings = list.GroupBy(r => new Guid(ByteArrayUtil.EquiByteArrayXor(r.Options.AppId.ToByteArray(), r.Options.TypeId.ToByteArray())));
-        
+
         foreach (var group in groupings)
         {
             var pushContent = new PushNotificationContent()
             {
                 Payloads = new List<PushNotificationPayload>()
             };
-            
-            foreach(var record in group)
+
+            foreach (var record in group)
             {
-                var appReg = await _appRegistrationService.GetAppRegistration(record.Options.AppId);
+                var (validAppName, appName) = await TryResolveAppName(record.Options.AppId);
 
-                pushContent.Payloads.Add(new PushNotificationPayload()
+                if (validAppName)
                 {
-                    AppDisplayName = appReg?.Name,
-                    Options = record.Options,
-                    SenderId = record.SenderId,
-                    Timestamp = record.Timestamp,
-                });
+                    pushContent.Payloads.Add(new PushNotificationPayload()
+                    {
+                        AppDisplayName = appName,
+                        Options = record.Options,
+                        SenderId = record.SenderId,
+                        Timestamp = record.Timestamp,
+                    });
 
-                //add to system list
-                await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
+                    //add to system list
+                    await _notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
+                    {
+                        Timestamp = record.Timestamp,
+                        AppNotificationOptions = record.Options,
+                    });
+
+                    await _pushNotificationOutbox.MarkComplete(record.Marker);
+                }
+                else
                 {
-                    Timestamp = record.Timestamp,
-                    AppNotificationOptions = record.Options,
-                });
-
-                await _pushNotificationOutbox.MarkComplete(record.Marker);
+                    Log.Warning($"No app registered with Id {record.Options.AppId}");
+                }
             }
-            
+
             await this.Push(pushContent);
         }
+    }
+
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId)
+    {
+        if (appId == SystemAppConstants.OwnerAppId)
+        {
+            return (true, "Homebase Owner");
+        }
+
+        if (appId == SystemAppConstants.FeedAppId)
+        {
+            return (true, "Homebase Feed");
+        }
+
+        var appReg = await _appRegistrationService.GetAppRegistration(appId);
+        return (appReg != null, appReg?.Name);
     }
 
     public async Task Push(PushNotificationContent content)
     {
         _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
-        // _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         var subscriptions = await GetAllSubscriptions();
         var keys = _keyService.GetNotificationsKeys();
@@ -127,7 +156,7 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
             //TODO: enforce sub.ExpirationTime
 
             var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails("mailto:info@homebase.id", keys.PublicKey64, keys.PrivateKey64); //TODO: config
+            var vapidDetails = new VapidDetails(_configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
 
             var data = OdinSystemSerializer.Serialize(content);
 
@@ -212,19 +241,6 @@ public class PushNotificationService : INotificationHandler<NewFollowerNotificat
     {
         var tenant = _contextAccessor.GetCurrent().Tenant;
         _serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
-    }
-
-    public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
-    {
-        this.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.OdinId.ToHashId(),
-            Silent = false
-        });
-
-        return Task.CompletedTask;
     }
 
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)

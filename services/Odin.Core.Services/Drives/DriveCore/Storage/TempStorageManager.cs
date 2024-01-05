@@ -3,6 +3,9 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -12,35 +15,31 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
     public class TempStorageManager
     {
         private readonly ILogger<TempStorageManager> _logger;
+        private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         private readonly StorageDrive _drive;
-        private const int WriteChunkSize = 1024;
 
-        public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger)
+        public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
-            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
-            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath), sd => $"No directory for drive storage at {sd.TempDataRootPath}");
 
             drive.EnsureDirectories();
 
             _logger = logger;
+            _driveFileReaderWriter = driveFileReaderWriter;
             _drive = drive;
         }
 
-        /// <summary>
-        /// The drive managed by this instance
-        /// </summary>
-        public StorageDrive Drive { get; }
+        // public StorageDrive Drive { get; }
 
         /// <summary>
         /// Gets a stream of data for the specified file
         /// </summary>
-        public Task<Stream> GetStream(Guid fileId, string extension)
+        public Task<byte[]> GetAllFileBytes(Guid fileId, string extension)
         {
-            string path = GetFilenameAndPath(fileId, extension);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
-            return Task.FromResult((Stream)fileStream);
+            string path = GetTempFilenameAndPath(fileId, extension);
+            var bytes = _driveFileReaderWriter.GetAllFileBytes(path);
+            return Task.FromResult(bytes);
         }
 
         /// <summary>
@@ -48,47 +47,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
         {
-            //TODO: this is probably highly inefficient and probably need to revisit 
-            string filePath = GetFilenameAndPath(fileId, extension, true);
-            string tempFilePath = GetTempFilePath(fileId, extension);
-
-            uint bytesWritten;
-            try
-            {
-                //Process: if there's a file, we write to a temp file then rename.
-                if (File.Exists(filePath))
-                {
-                    bytesWritten = WriteStream(stream, tempFilePath);
-                    lock (filePath)
-                    {
-                        // File.WriteAllBytes(filePath, stream.ToByteArray());
-                        //TODO: need to know if this replace method is faster than renaming files
-                        File.Replace(tempFilePath, filePath, null, true);
-                    }
-                }
-                else
-                {
-                    bytesWritten = WriteStream(stream, filePath);
-                }
-            }
-            finally
-            {
-                //TODO: should clean up the temp file in case of failure?
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
-
+            string filePath = GetTempFilenameAndPath(fileId, extension, true);
+            uint bytesWritten = _driveFileReaderWriter.WriteStream(filePath, stream);
             return Task.FromResult(bytesWritten);
-        }
-
-        /// <summary>
-        /// Checks if the file exists.  Returns true if all parts exist, otherwise false
-        /// </summary>
-        public bool FileExists(Guid fileId, string extension)
-        {
-            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -96,7 +57,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task EnsureDeleted(Guid fileId, string extension)
         {
-            string filePath = GetFilenameAndPath(fileId, extension);
+            string filePath = GetTempFilenameAndPath(fileId, extension);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
@@ -129,7 +90,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task<string> GetPath(Guid fileId, string extension)
         {
-            string filePath = GetFilenameAndPath(fileId, extension);
+            string filePath = GetTempFilenameAndPath(fileId, extension);
             return Task.FromResult(filePath);
         }
 
@@ -166,7 +127,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
 
-        private string GetFilenameAndPath(Guid fileId, string extension, bool ensureExists = false)
+        private string GetTempFilenameAndPath(Guid fileId, string extension, bool ensureExists = false)
         {
             string dir = GetFileDirectory(fileId, ensureExists);
             return Path.Combine(dir, GetFilename(fileId, extension));
@@ -177,26 +138,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             string dir = GetFileDirectory(fileId, ensureExists);
             string filename = $"{Guid.NewGuid()}-{extension}.tmp";
             return Path.Combine(dir, filename);
-        }
-
-        private uint WriteStream(Stream stream, string filePath)
-        {
-            var buffer = new byte[WriteChunkSize];
-
-            using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
-            {
-                var bytesRead = 0;
-                do
-                {
-                    // stream.ReadAsync(buffer, 0, buffer.Length).GetAwaiter().GetResult();
-                    bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    output.Write(buffer, 0, bytesRead);
-                } while (bytesRead > 0);
-
-                var bytesWritten = output.Length;
-                output.Close();
-                return (uint)bytesWritten;
-            }
         }
     }
 }

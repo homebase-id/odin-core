@@ -25,6 +25,7 @@ using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Dns;
 using Odin.Core.Services.Dns.PowerDns;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
@@ -32,6 +33,7 @@ using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;
+using Odin.Core.Util;
 using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
@@ -84,7 +86,8 @@ namespace Odin.Hosting
             //
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-
+            services.AddSingleton<DriveFileReaderWriter>();
+            
             services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
             services.AddQuartz(q =>
             {

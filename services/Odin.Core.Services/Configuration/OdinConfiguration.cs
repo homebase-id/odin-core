@@ -217,10 +217,39 @@ namespace Odin.Core.Services.Configuration
                 HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
+
+                //TODO: changed to required when Seb and I can coordinate config changes
+                PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
+                PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
+
+                FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 5);
+                FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
+                FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
+                FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
             }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
+            public string PushNotificationSubject { get; set; }
+
+            /// <summary>
+            /// Number of times to retry a file.move operation
+            /// </summary>
+            public int FileMoveRetryAttempts { get; set; }
+
+            public int FileMoveWaitTimeoutSeconds { get; set; }
+
+            /// <summary>
+            /// Number of milliseconds to delay between file.move attempts
+            /// </summary>
+            public int FileMoveRetryDelayMs { get; set; }
+
+            /// <summary>
+            /// Specifies the number of bytes to write when writing a stream to disk in chunks
+            /// </summary>
+            public int FileWriteChunkSizeInBytes { get; set; }
+
+            public int PushNotificationBatchSize { get; set; }
         }
 
         public class ListenEntry

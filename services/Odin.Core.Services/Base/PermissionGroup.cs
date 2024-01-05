@@ -94,7 +94,7 @@ public class PermissionGroup
     {
         return new RedactedPermissionGroup()
         {
-            PermissionSet = _permissionSet.Redacted(),
+            PermissionSet = _permissionSet == null ? new PermissionSet().Redacted() : _permissionSet.Redacted(),
             DriveGrants = _driveGrants?.Select(r => r.Redacted()) ?? new List<RedactedDriveGrant>()
         };
     }

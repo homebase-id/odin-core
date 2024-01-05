@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
@@ -19,17 +21,19 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         private readonly IDriveFileSystem _fileSystem;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
+        private readonly IMediator _mediator;
 
         public FeedDistributionPerimeterService(
             OdinContextAccessor contextAccessor,
             IDriveFileSystem fileSystem,
             FileSystemResolver fileSystemResolver,
-            FollowerService followerService)
+            FollowerService followerService, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _fileSystem = fileSystem;
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
+            _mediator = mediator;
         }
         
         public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
@@ -95,6 +99,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
                 if (null == fileId)
                 {
+                    //new file
                     var internalFile = _fileSystem.Storage.CreateInternalFileId(driveId);
 
                     var keyHeader = KeyHeader.Empty();
@@ -107,9 +112,16 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                     request.FileMetadata.SenderOdinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
                     var serverFileHeader = await _fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
                     await _fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
+                    
+                    await _mediator.Publish(new NewFeedItemReceived()
+                    {
+                        Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+                    });
                 }
                 else
                 {
+                    
+                    // update
                     try
                     {
                         await _fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);

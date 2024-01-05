@@ -65,6 +65,7 @@ public enum OdinClientErrorCode
     InvalidQuery = 4162,
     InvalidUpload = 4163,
     InvalidPayloadNameOrKey = 4164,
+    FileLockedDuringWriteOperation = 4165,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

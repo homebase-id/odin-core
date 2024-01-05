@@ -251,14 +251,14 @@ namespace Odin.Core.Services.DataSubscription
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
         /// </summary>
-        private async Task<List<OdinId>> DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
+        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
         {
             var file = notification.File;
 
             var followers = await GetFollowers(notification.File.DriveId);
             if (!followers.Any())
             {
-                return new List<OdinId>();
+                return;
             }
 
             //find all followers that are connected, return those which are not to be processed differently
@@ -282,12 +282,12 @@ namespace Odin.Core.Services.DataSubscription
                 await SendFileOverTransit(header, connectedFollowers);
             }
 
-            return followers.Except(connectedFollowers).ToList();
+            // return followers.Except(connectedFollowers).ToList();
         }
 
         private async Task<List<OdinId>> GetFollowers(Guid driveId)
         {
-            int maxRecords = 10000; //TODO: cursor thru batches instead
+            int maxRecords = 100000; //TODO: cursor thru batches instead
 
             //
             // Get followers for this drive and merge with followers who want everything
@@ -314,7 +314,17 @@ namespace Odin.Core.Services.DataSubscription
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
-                RemoteTargetDrive = SystemDriveConstants.FeedDrive
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive,
+                
+                // UseAppNotification = true,
+                // AppNotificationOptions = new AppNotificationOptions
+                // {
+                //     AppId = SystemAppConstants.FeedAppId,
+                //     TypeId = FeedAppConstants.NotificationTypeId,
+                //     TagId = Guid.NewGuid(),
+                //     Silent = false,
+                //     UnEncryptedMessage = $"You have a new "
+                // }
             };
 
             var transferStatusMap = await _transitService.SendFile(

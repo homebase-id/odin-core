@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Storage;
@@ -13,8 +15,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard
     public class StandardFileDriveStorageService : DriveStorageServiceBase
     {
         public StandardFileDriveStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager) :
-            base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager)
+            IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, OdinConfiguration odinConfiguration, DriveFileReaderWriter driveFileReaderWriter) :
+            base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
         {
         }
 
@@ -34,9 +36,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard
             // {
             //     ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             // }
-            
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
+            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
         }
 
         public override void AssertCanReadOrWriteToDrive(Guid driveId)
@@ -54,7 +55,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Standard
                 }
             }
         }
-        
+
         public override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Standard;

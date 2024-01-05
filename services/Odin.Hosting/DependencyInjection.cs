@@ -5,6 +5,7 @@ using MediatR;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Authentication.Owner;
@@ -58,14 +59,21 @@ namespace Odin.Hosting
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<PushNotificationService>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
-                .As<INotificationHandler<NewFollowerNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
+            cb.RegisterType<FeedNotificationMapper>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
+                .As<INotificationHandler<NewFeedItemReceived>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
@@ -185,7 +193,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 

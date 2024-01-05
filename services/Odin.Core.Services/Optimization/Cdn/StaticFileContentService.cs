@@ -42,14 +42,16 @@ public class StaticFileContentService
     private readonly TenantContext _tenantContext;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
+    private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
     public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-        DriveManager driveManager, StandardFileSystem fileSystem)
+        DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter)
     {
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
         _fileSystem = fileSystem;
+        _driveFileReaderWriter = driveFileReaderWriter;
 
         const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
         _staticFileConfigStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
@@ -69,8 +71,6 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         Guard.Argument(sections, nameof(sections)).NotNull().NotEmpty();
         string targetFolder = EnsurePath();
-        string tempFile = Guid.NewGuid().ToString("N");
-        string tempTargetPath = Path.Combine(targetFolder, tempFile);
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -151,13 +151,11 @@ public class StaticFileContentService
             });
         }
 
-        await using var fileStream = File.Create(tempTargetPath);
-        await OdinSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
-        fileStream.Close();
-
+        var ms = new MemoryStream();
+        await OdinSystemSerializer.Serialize(ms, sectionOutputList, sectionOutputList.GetType());
         string finalTargetPath = Path.Combine(targetFolder, filename);
-
-        File.Move(tempTargetPath, finalTargetPath, true);
+        ms.Seek(0L, SeekOrigin.Begin);
+        var bytesWritten = _driveFileReaderWriter.WriteStream(finalTargetPath, ms);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
@@ -171,15 +169,10 @@ public class StaticFileContentService
     {
         string filename = StaticFileConstants.ProfileImageFileName;
         string targetFolder = EnsurePath();
-        string tempTargetPath = Path.Combine(targetFolder, Guid.NewGuid().ToString("N"));
-
-        await using var fileStream = File.Create(tempTargetPath);
-        var imageBytes = Convert.FromBase64String(image64);
-        await fileStream.WriteAsync(imageBytes);
-        fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        File.Move(tempTargetPath, finalTargetPath, true);
+        var imageBytes = Convert.FromBase64String(image64);
+        _driveFileReaderWriter.WriteAllBytes(finalTargetPath, imageBytes);
 
         var config = new StaticFileConfiguration()
         {
@@ -189,20 +182,17 @@ public class StaticFileContentService
         };
 
         _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
+
+        await Task.CompletedTask;
     }
 
     public async Task PublishProfileCard(string json)
     {
         string filename = StaticFileConstants.PublicProfileCardFileName;
         string targetFolder = EnsurePath();
-        string tempTargetPath = Path.Combine(targetFolder, Guid.NewGuid().ToString("N"));
-
-        await using var fileStream = new StreamWriter(File.Create(tempTargetPath));
-        await fileStream.WriteAsync(json);
-        fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        File.Move(tempTargetPath, finalTargetPath, true);
+        _driveFileReaderWriter.WriteString(finalTargetPath, json);
 
         var config = new StaticFileConfiguration()
         {
@@ -213,6 +203,8 @@ public class StaticFileContentService
 
         config.ContentType = MediaTypeNames.Application.Json;
         _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
+        
+        await Task.CompletedTask;
     }
 
     private GuidId GetConfigKey(string filename)
@@ -241,8 +233,8 @@ public class StaticFileContentService
             }
         }
 
-        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return Task.FromResult((config, fileExists: true, (Stream)fileStream));
+        var fileStream = _driveFileReaderWriter.OpenStreamForReading(targetFile);
+        return Task.FromResult((config, fileExists: true, fileStream));
     }
 
     private string EnsurePath()

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,7 +7,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Peer;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -70,12 +68,14 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        string extension = DriveFileUtility.GetPayloadFileExtension(key);
+
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()
             {
+                Iv = descriptor.Iv,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
@@ -122,7 +122,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight,
             result.PayloadKey);
 
-        await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -196,7 +196,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
         }
 
-        if (existingServerFileHeader.FileMetadata.IsEncrypted && _package.Payloads.All(p => p.HasStrongIv()))
+        if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
         {
             throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
         }

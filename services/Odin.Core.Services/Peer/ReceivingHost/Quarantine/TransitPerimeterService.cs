@@ -7,6 +7,7 @@ using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.AppNotifications.Push;
+using Odin.Core.Services.AppNotifications.SystemNotifications;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -136,11 +137,26 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                 if (responseCode == TransitResponseCode.AcceptedDirectWrite ||
                     responseCode == TransitResponseCode.AcceptedIntoInbox)
                 {
-                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
-                    if (null != notificationOptions)
+                    //Feed hack (again)
+                    if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
+                        item.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                     {
-                        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        //Note: we say new few item here because comments are never pushed into the feed drive; so any
+                        //item going into the feed is new content (i.e. post/image, etc.)
+                        await _mediator.Publish(new NewFeedItemReceived()
+                        {
+                            FileSystemType = item.TransferInstructionSet.FileSystemType,
+                            Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+                        });
+                    }
+                    else
+                    {
+                        var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                        if (null != notificationOptions)
+                        {
+                            var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                            await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        }
                     }
                 }
 

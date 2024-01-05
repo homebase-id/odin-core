@@ -106,6 +106,14 @@ public static class DriveFileUtility
             var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             // The design is such that the client uses a different iv for each payload but the same aesKey;
+
+            if (payloadDescriptor.Iv == null)
+            {
+                throw new OdinSystemException("payload descriptor is missing IV (initialization vector)");
+            }
+            
+            //TODO: consider falling back
+
             keyHeader.Iv = payloadDescriptor.Iv;
             var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             return EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref clientSharedSecret);

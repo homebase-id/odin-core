@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
@@ -77,7 +76,7 @@ public class PushNotificationOutbox
         var items = records.Select(r =>
         {
             var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(r.value.ToStringFromUtf8Bytes());
-            record.Timestamp = r.timeStamp.seconds;
+            record.Timestamp = r.timeStamp.milliseconds;
             record.Marker = r.popStamp.GetValueOrDefault();
             return record;
         });

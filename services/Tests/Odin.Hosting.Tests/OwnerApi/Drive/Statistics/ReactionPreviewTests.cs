@@ -30,7 +30,7 @@ public class ReactionPreviewTests
     {
         _scaffold.RunAfterAnyTests();
     }
-
+    
     [Test]
     public async Task AddingCommentUpdatesReactionPreview()
     {

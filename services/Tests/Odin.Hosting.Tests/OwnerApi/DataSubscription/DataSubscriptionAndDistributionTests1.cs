@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -514,7 +513,7 @@ public class DataSubscriptionAndDistributionTests1
         {
             Drives = new List<DriveGrantRequest>()
             {
-                new ()
+                new()
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
@@ -584,7 +583,7 @@ public class DataSubscriptionAndDistributionTests1
             remoteTargetDrive: frodoChannelDrive,
             overwriteGlobalTransitFileId: null,
             thumbnail: null,
-            fileSystemType:FileSystemType.Comment
+            fileSystemType: FileSystemType.Comment
         );
 
         //comment should have made it directly to the recipient's server
@@ -1137,6 +1136,61 @@ public class DataSubscriptionAndDistributionTests1
         await merryOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
 
+    [Test]
+    public async Task CommentingOn_EncryptedStandardFile_Updates_ReactionPreview()
+    {
+        const int fileType = 11345;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
+            allowSubscriptions: true);
+
+        await frodoOwnerClient.Network.SendConnectionRequestTo(samOwnerClient.Identity, new List<GuidId>() { });
+        await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
+
+        // Sam to follow everything from frodo
+        await samOwnerClient.OwnerFollower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var (uploadResult, encryptedJsonContent64, _) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+
+        //Process the outbox since we're sending an encrypted file
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+
+        var qp = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            // FileType = new List<int>() { fileType }
+            GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
+        };
+
+        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
+        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        var theFile = batch.SearchResults.First();
+        Assert.IsTrue(theFile.FileState == FileState.Active);
+        Assert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+
+        //All done
+
+        await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+        await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
+        await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+
     private async Task AssertFeedDrive_HasDeletedFile(OwnerApiClient client, UploadResult uploadResult)
     {
         var qp = new FileQueryParams()
@@ -1148,7 +1202,7 @@ public class DataSubscriptionAndDistributionTests1
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
         Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
-    
+
     private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
     {
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);

@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
@@ -23,14 +24,16 @@ namespace Odin.Hosting.Controllers.Peer.Membership.Feed
         private readonly OdinContextAccessor _contextAccessor;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
+        private readonly IMediator _mediator;
 
         /// <summary />
         public FeedDrivePerimeterController(OdinContextAccessor contextAccessor,
-            FileSystemResolver fileSystemResolver, FollowerService followerService)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
+            _mediator = mediator;
         }
 
         [HttpPost("filemetadata")]
@@ -54,7 +57,8 @@ namespace Odin.Hosting.Controllers.Peer.Membership.Feed
                 _contextAccessor,
                 fileSystem,
                 _fileSystemResolver,
-                _followerService);
+                _followerService,
+                _mediator);
         }
     }
 }
