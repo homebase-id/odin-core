@@ -213,9 +213,7 @@ public class ConcurrentFileManager
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
-#if DEBUG
-                Thread.Sleep(5000);
-#endif
+                // Thread.Sleep(5000);
                 moveAction(sourcePath, destinationPath);
             }
             finally
@@ -234,7 +232,7 @@ public class ConcurrentFileManager
         StackTrace stackTrace = new StackTrace(true);
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"ThreadId:{threadId}, LockType:{lockType} File path [{filePath}] locked by stack [{methods}]");
+        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\t File path [{filePath}]\n\tStack:[{methods}]\n\n");
     }
 
     private static void LogUnlockStackTrace(string filePath)
@@ -243,6 +241,6 @@ public class ConcurrentFileManager
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
 
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"ThreadId:{threadId} File path [{filePath}] unlocked by stack [{methods}]");
+        Log.Information($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
     }
 }
