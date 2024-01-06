@@ -1,7 +1,12 @@
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Util;
+using Serilog;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
@@ -96,17 +101,27 @@ public sealed class DriveFileReaderWriter
     }
 
     /// <summary>
-    /// Opens a filestream.  You must remember to close it.
+    /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.ReadWrite)
+    public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.Read)
     {
+        /* 
+        Orignal:
+
         Stream fileStream = null;
         _concurrentFileManager.ReadFile(filePath, path =>
         {
             // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
             fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, fileShare);
-        });
-        
+        }); */
+
+        /* _concurrentFileManager.ReadFile(filePath, path =>
+        {
+            // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
+            fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare);
+        });*/
+        Stream fileStream = _concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
+
         return fileStream;
     }
 }

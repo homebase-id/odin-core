@@ -38,6 +38,40 @@ public class ConcurrentFileManagerTests
     }
 
     [Test]
+    public void ReadFile_Counters()
+    {
+        var cfm = new ConcurrentFileManager();
+        string testFilePath = "testfile101.txt";
+        string testFilePath2 = "testfile102.txt";
+        File.WriteAllText(testFilePath, string.Empty);
+
+        Assert.IsTrue(cfm._dictionaryLocks.Count == 0);
+
+        string actualContent = null;
+        cfm.ReadFile(testFilePath, path =>
+        {
+            Assert.IsTrue(cfm._dictionaryLocks.Count == 1);
+            actualContent = File.ReadAllText(path);
+
+            var innerTask = Task.Run(() =>
+            {
+                cfm.ReadFile(testFilePath2, innerPath =>
+                {
+                    Assert.IsTrue(cfm._dictionaryLocks.Count == 2);
+                    // No need to read content here
+                });
+            });
+
+            // Wait for the inner task to complete
+            innerTask.Wait();
+            Assert.IsTrue(cfm._dictionaryLocks.Count == 1);
+        });
+
+        Assert.IsTrue(cfm._dictionaryLocks.Count == 0);
+    }
+
+
+    [Test]
     public void ReadFile_Doubly()
     {
         string testFilePath = "testfile39.txt";
@@ -96,9 +130,12 @@ public class ConcurrentFileManagerTests
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for ReadFile"), "The exception message does not contain the expected substring.");
+                    Assert.IsTrue(ex.Message.Contains("No access, file is already being"), "The exception message does not contain the expected substring.");
                 }
-                innerTaskFinished.Set();
+                finally
+                { 
+                    innerTaskFinished.Set(); 
+                }
             });
 
             // Wait for the inner task to complete
@@ -137,9 +174,12 @@ public class ConcurrentFileManagerTests
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for WriteFile"), "The exception message does not contain the expected substring.");
+                    Assert.IsTrue(ex.Message.Contains("Timeout waiting for lock"), "The exception message does not contain the expected substring.");
                 }
-                innerTaskFinished.Set();
+                finally 
+                { 
+                    innerTaskFinished.Set(); 
+                }
             });
 
             // Wait for the inner task to complete
@@ -173,9 +213,9 @@ public class ConcurrentFileManagerTests
                 });
                 Assert.Fail("Write operation should not succeed while the stream is open.");
             }
-            catch (TimeoutException)
+            catch (Exception ex)
             {
-                // Expected exception due to the read lock held by the stream
+                Assert.IsTrue(ex.Message.Contains("No access, file is already being"), "The exception message does not contain the expected substring.");
             }
         });
 
