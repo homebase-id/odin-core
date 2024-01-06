@@ -91,7 +91,7 @@ public class ConcurrentFileManager
             fileLock = _dictionaryLocks[filePath];
 
             if (lockType != fileLock.Type)
-                throw new Exception("No access, file is already being written or read by another thread");
+                throw new Exception($"No access, file is already being written or read by another thread ({filePath})");
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
@@ -232,7 +232,7 @@ public class ConcurrentFileManager
         StackTrace stackTrace = new StackTrace(true);
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\t File path [{filePath}]\n\tStack:[{methods}]\n\n");
+        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
     }
 
     private static void LogUnlockStackTrace(string filePath)
