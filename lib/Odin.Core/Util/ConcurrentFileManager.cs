@@ -83,6 +83,7 @@ public class ConcurrentFileManager
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
                 //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
+                LogLockStackTrace(filePath, lockType);
                 _dictionaryLocks[filePath].Lock.Wait();
                 return;
             }
@@ -94,7 +95,6 @@ public class ConcurrentFileManager
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
-            LogLockStackTrace(filePath, lockType);
         }
 
         if (fileLock.Lock.Wait(_threadTimeout) == false)
@@ -109,7 +109,6 @@ public class ConcurrentFileManager
 
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
-
     }
 
     /// <summary>
@@ -214,6 +213,9 @@ public class ConcurrentFileManager
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
+#if DEBUG
+                Thread.Sleep(5000);
+#endif
                 moveAction(sourcePath, destinationPath);
             }
             finally
