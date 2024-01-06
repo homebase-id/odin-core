@@ -76,6 +76,7 @@ public class ConcurrentFileManager
     {
         ConcurrentFileLock fileLock;
 
+        Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
@@ -89,9 +90,9 @@ public class ConcurrentFileManager
             }
 
             fileLock = _dictionaryLocks[filePath];
-
+            
             if (lockType != fileLock.Type)
-                throw new Exception($"No access, file is already being written or read by another thread ({filePath})");
+                throw new Exception($"No access, file is already being written or read by another thread. \nRequested Lock Type:[{lockType}]\nActual Lock Type:[{fileLock}]\nFile:[{filePath}]");
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
