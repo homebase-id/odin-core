@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using Serilog;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
@@ -35,6 +38,7 @@ public class LockManagedFileStream : FileStream
             {
                 _concurrentFileManagerGlobal.ExitLock(_path);
             }
+
             _isDisposed = true;
         }
 
@@ -90,6 +94,7 @@ public class ConcurrentFileManager
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
+            LogLockStackTrace(filePath, lockType);
         }
 
         if (fileLock.Lock.Wait(_threadTimeout) == false)
@@ -101,8 +106,10 @@ public class ConcurrentFileManager
                 if (fileLock.ReferenceCount == 0)
                     _dictionaryLocks.Remove(filePath);
             }
+
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
+
     }
 
     /// <summary>
@@ -133,6 +140,7 @@ public class ConcurrentFileManager
         }
 
         fileLock.Lock.Release();
+        LogUnlockStackTrace(filePath);
     }
 
     public void ReadFile(string filePath, Action<string> readAction)
@@ -158,16 +166,14 @@ public class ConcurrentFileManager
             // Create and return the custom stream that manages the lock
             return new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, this);
         }
-        catch
+        finally
         {
             // If an error occurs, make sure to exit the read lock before throwing the exception
             ExitLock(filePath);
-            throw;
         }
 
         // Note: Lock release is managed by the LockManagedFileStream when it is disposed
     }
-
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
@@ -218,5 +224,22 @@ public class ConcurrentFileManager
         {
             ExitLock(destinationPath);
         }
+    }
+
+    public static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType)
+    {
+        StackTrace stackTrace = new StackTrace(true);
+        var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
+        var threadId = Thread.CurrentThread.ManagedThreadId;
+        Log.Information($"ThreadId:{threadId}, LockType:{lockType} File path [{filePath}] locked by stack [{methods}]");
+    }
+
+    public static void LogUnlockStackTrace(string filePath)
+    {
+        StackTrace stackTrace = new StackTrace(true);
+        var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
+
+        var threadId = Thread.CurrentThread.ManagedThreadId;
+        Log.Information($"ThreadId:{threadId} File path [{filePath}] unlocked by stack [{methods}]");
     }
 }
