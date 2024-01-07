@@ -118,10 +118,9 @@ public class ConcurrentFileManager
 
     /// <summary>
     /// Don't use this except from the ConcurrentFileLock class' Dispose
-    /// PROBLEM: We'd like to be able to release while a thread is waiting in Enter...
     /// </summary>
     /// <param name="filePath"></param>
-    public void ExitLock(string filePath)
+    internal void ExitLock(string filePath)
     {
         ConcurrentFileLock fileLock;
 
@@ -214,12 +213,13 @@ public class ConcurrentFileManager
 
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
-        Log.Information($"MoveFile Lock requested on source file [{sourcePath}] to destination  [{destinationPath}]");
+        Log.Information($"MoveFile Lock requested on source file [{sourcePath}]");
         // Lock destination first to avoid deadlocks
         EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
+            Log.Information($"MoveFile Lock requested on destination file [{destinationPath}]");
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
