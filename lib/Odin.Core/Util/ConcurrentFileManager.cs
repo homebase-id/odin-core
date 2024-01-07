@@ -76,7 +76,9 @@ public class ConcurrentFileManager
     {
         ConcurrentFileLock fileLock;
 
-        Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
+        // I replaced this with more detailed logs in the calling functions
+        // Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
+        //
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
@@ -92,7 +94,7 @@ public class ConcurrentFileManager
             fileLock = _dictionaryLocks[filePath];
             
             if (lockType != fileLock.Type)
-                throw new Exception($"No access, file is already being written or read by another thread. \nRequested Lock Type:[{lockType}]\nActual Lock Type:[{fileLock}]\nFile:[{filePath}]");
+                throw new Exception($"No access, file is already being written or read by another thread. \nRequested Lock Type:[{lockType}]\nActual Lock Type:[{fileLock}]\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]\nFile:[{filePath}]");
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
@@ -110,6 +112,8 @@ public class ConcurrentFileManager
 
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
+        else
+            LogLockStackTrace(filePath, lockType);
     }
 
     /// <summary>
@@ -145,6 +149,7 @@ public class ConcurrentFileManager
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
+        Log.Information($"ReadFile Lock requested on file [{filePath}]");
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -159,6 +164,7 @@ public class ConcurrentFileManager
 
     public Stream ReadStream(string filePath)
     {
+        Log.Information($"ReadStream Lock requested on file [{filePath}]");
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -178,6 +184,7 @@ public class ConcurrentFileManager
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
+        Log.Information($"WriteFile Lock requested on file [{filePath}]");
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -192,6 +199,7 @@ public class ConcurrentFileManager
 
     public void DeleteFile(string filePath)
     {
+        Log.Information($"DeleteFile Lock requested on file [{filePath}]");
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -206,6 +214,7 @@ public class ConcurrentFileManager
 
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
+        Log.Information($"MoveFile Lock requested on source file [{sourcePath}] to destination  [{destinationPath}]");
         // Lock destination first to avoid deadlocks
         EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
