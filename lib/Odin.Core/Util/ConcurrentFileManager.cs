@@ -76,6 +76,7 @@ public class ConcurrentFileManager
     {
         ConcurrentFileLock fileLock;
 
+        int referenceCount;
         // I replaced this with more detailed logs in the calling functions
         // Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
         //
@@ -86,7 +87,7 @@ public class ConcurrentFileManager
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
                 //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
-                LogLockStackTrace(filePath, lockType);
+                LogLockStackTrace(filePath, lockType, 1);
                 _dictionaryLocks[filePath].Lock.Wait();
                 return;
             }
@@ -98,6 +99,7 @@ public class ConcurrentFileManager
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
+            referenceCount = fileLock.ReferenceCount;
         }
 
         if (fileLock.Lock.Wait(_threadTimeout) == false)
@@ -113,7 +115,7 @@ public class ConcurrentFileManager
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
         else
-            LogLockStackTrace(filePath, lockType);
+            LogLockStackTrace(filePath, lockType, referenceCount);
     }
 
     /// <summary>
@@ -237,12 +239,12 @@ public class ConcurrentFileManager
         }
     }
 
-    private static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType)
+    private static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
     {
         StackTrace stackTrace = new StackTrace(true);
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
+        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n");
     }
 
     private static void LogUnlockStackTrace(string filePath)
