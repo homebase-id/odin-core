@@ -119,7 +119,7 @@ public class ConcurrentFileManager
     }
 
     /// <summary>
-    /// Don't use this except from the ConcurrentFileLock class' Dispose
+    /// Don't use this except from here and the LockManagedFileStream class' Dispose
     /// </summary>
     /// <param name="filePath"></param>
     internal void ExitLock(string filePath)
