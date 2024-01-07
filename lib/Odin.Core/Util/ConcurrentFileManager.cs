@@ -76,6 +76,7 @@ public class ConcurrentFileManager
     {
         ConcurrentFileLock fileLock;
 
+        Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
@@ -83,18 +84,18 @@ public class ConcurrentFileManager
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
                 //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
+                LogLockStackTrace(filePath, lockType);
                 _dictionaryLocks[filePath].Lock.Wait();
                 return;
             }
 
             fileLock = _dictionaryLocks[filePath];
-
+            
             if (lockType != fileLock.Type)
-                throw new Exception("No access, file is already being written or read by another thread");
+                throw new Exception($"No access, file is already being written or read by another thread. \nRequested Lock Type:[{lockType}]\nActual Lock Type:[{fileLock}]\nFile:[{filePath}]");
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
-            LogLockStackTrace(filePath, lockType);
         }
 
         if (fileLock.Lock.Wait(_threadTimeout) == false)
@@ -109,7 +110,6 @@ public class ConcurrentFileManager
 
             throw new TimeoutException($"Timeout waiting for lock for file {filePath}");
         }
-
     }
 
     /// <summary>
@@ -214,6 +214,7 @@ public class ConcurrentFileManager
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
+                // Thread.Sleep(5000);
                 moveAction(sourcePath, destinationPath);
             }
             finally
@@ -232,7 +233,7 @@ public class ConcurrentFileManager
         StackTrace stackTrace = new StackTrace(true);
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"ThreadId:{threadId}, LockType:{lockType} File path [{filePath}] locked by stack [{methods}]");
+        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
     }
 
     private static void LogUnlockStackTrace(string filePath)
@@ -241,6 +242,6 @@ public class ConcurrentFileManager
         var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
 
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"ThreadId:{threadId} File path [{filePath}] unlocked by stack [{methods}]");
+        Log.Information($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
     }
 }
