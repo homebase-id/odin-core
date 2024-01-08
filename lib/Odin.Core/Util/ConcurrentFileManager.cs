@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
+using Odin.Core.Logging.CorrelationId;
 using Serilog;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
@@ -48,6 +48,17 @@ public class LockManagedFileStream : FileStream
 
 public class ConcurrentFileManager
 {
+    private readonly ICorrelationContext _correlationContext;
+
+    public ConcurrentFileManager()
+    {
+    }
+
+    public ConcurrentFileManager(ICorrelationContext correlationContext)
+    {
+        _correlationContext = correlationContext;
+    }
+
     internal class ConcurrentFileLock
     {
         public SemaphoreSlim Lock;
@@ -62,6 +73,26 @@ public class ConcurrentFileManager
                 Lock = new SemaphoreSlim(100);
             else
                 Lock = new SemaphoreSlim(1);
+        }
+
+        public LockingInfo LockingInfo { get; set; }
+    }
+
+    internal class LockingInfo
+    {
+        public int ThreadId { get; set; }
+        public string CorrelationId { get; set; }
+        public string CallStack { get; set; }
+        public ConcurrentFileLockEnum LockType { get; set; }
+
+        public override string ToString()
+        {
+            return $"Locking Info\n" +
+                   $"\nCorrelationId: {CorrelationId}" +
+                   $"\nThreadId: {ThreadId}" +
+                   $"\nLockType: {LockType}" +
+                   $"\nCall Stack:" +
+                   $"\n{CallStack}\n\n";
         }
     }
 
@@ -87,15 +118,31 @@ public class ConcurrentFileManager
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
                 //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
+
+                _dictionaryLocks[filePath].LockingInfo = new LockingInfo()
+                {
+                    CorrelationId = _correlationContext?.Id,
+                    ThreadId = Thread.CurrentThread.ManagedThreadId,
+                    LockType = lockType,
+                    CallStack = GetCallStack()
+                };
+
                 LogLockStackTrace(filePath, lockType, 1);
                 _dictionaryLocks[filePath].Lock.Wait();
                 return;
             }
 
             fileLock = _dictionaryLocks[filePath];
-            
+
             if (lockType != fileLock.Type)
-                throw new Exception($"No access, file is already being written or read by another thread. \nRequested Lock Type:[{lockType}]\nActual Lock Type:[{fileLock}]\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]\nFile:[{filePath}]");
+            {
+                string message = $"No access, file is already being written or read by another thread." +
+                                 $"\nRequested Lock Type:[{lockType}]" +
+                                 $"\n{fileLock.LockingInfo}" +
+                                 $"\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]" +
+                                 $"\nFile:[{filePath}]";
+                throw new Exception(message);
+            }
 
             // Optimistically increase the reference count
             _dictionaryLocks[filePath].ReferenceCount++;
@@ -117,7 +164,7 @@ public class ConcurrentFileManager
         else
             LogLockStackTrace(filePath, lockType, referenceCount);
     }
-
+    
     /// <summary>
     /// Don't use this except from here and the LockManagedFileStream class' Dispose
     /// </summary>
@@ -225,7 +272,6 @@ public class ConcurrentFileManager
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
-                // Thread.Sleep(5000);
                 moveAction(sourcePath, destinationPath);
             }
             finally
@@ -242,17 +288,55 @@ public class ConcurrentFileManager
     private static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
     {
         StackTrace stackTrace = new StackTrace(true);
-        var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
+        var methods = GetCallStack();
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n");
+        Log.Information(
+            $"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n");
     }
 
     private static void LogUnlockStackTrace(string filePath)
     {
-        StackTrace stackTrace = new StackTrace(true);
-        var methods = string.Join(" -> ", stackTrace.GetFrames().Select(f => f.GetMethod()?.Name ?? "No method name"));
-
         var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n");
+        Log.Information($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{GetCallStack()}]\n\n");
     }
+    
+    private static string GetCallStack()
+    {
+        var ignoreList = new List<string>()
+        {
+            "GetCallStack",
+            "LogLockStackTrace",
+            "LogUnlockStackTrace",
+            "lambda",
+            "InvokeCore",
+            "Invoke",
+            "InvokeNextActionFilterAsync",
+            "Next",
+            "MoveNext",
+            "Dispatch",
+            "RunContinuations",
+            "StartCallback",
+            "WorkerThreadStart",
+            "ExecuteWithThreadLocal",
+            "TrySetResult",
+            "SetExistingTaskResult",
+            "SetResult",
+            "RunOrScheduleAction",
+            "ProcessRequestsAsync",
+            "WorkerThreadStart",
+            "Run",
+            "StartCallback",
+            "Execute",
+            "Start"
+        };
+        return string.Join(" -> ", new StackTrace(true).GetFrames()
+            .Where(f =>
+            {
+                var method = f.GetMethod()?.Name ?? "";
+                var excludeMethod = ignoreList.Any(text => method.Contains(text));
+                return !excludeMethod;
+            })
+            .Select(f => f.GetMethod()?.Name ?? "No method name"));
+    }
+
 }
