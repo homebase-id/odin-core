@@ -146,31 +146,31 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
             _logger.LogInformation($"Get Chunked Stream called on file [{path}]");
             var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
-            if (null != chunk)
+            try
             {
-                try
+                if (null != chunk)
                 {
-                    var buffer = new byte[chunk.Length];
-                    if (chunk.Start > fileStream.Length)
-                    {
-                        throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
-                    }
+                        var buffer = new byte[chunk.Length];
+                        if (chunk.Start > fileStream.Length)
+                        {
+                            throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
+                        }
 
-                    fileStream.Position = chunk.Start;
-                    var bytesRead = fileStream.Read(buffer);
+                        fileStream.Position = chunk.Start;
+                        var bytesRead = fileStream.Read(buffer);
 
-                    //resize if length requested was too large (happens if we hit the end of the stream)
-                    if (bytesRead < buffer.Length)
-                    {
-                        Array.Resize(ref buffer, bytesRead);
-                    }
+                        //resize if length requested was too large (happens if we hit the end of the stream)
+                        if (bytesRead < buffer.Length)
+                        {
+                            Array.Resize(ref buffer, bytesRead);
+                        }
 
-                    return Task.FromResult((Stream)new MemoryStream(buffer, false));
+                        return Task.FromResult((Stream)new MemoryStream(buffer, false));
                 }
-                finally
-                {
-                    fileStream.Dispose();
-                }
+            }
+            finally
+            {
+                fileStream.Dispose();
             }
 
             return Task.FromResult(fileStream);
