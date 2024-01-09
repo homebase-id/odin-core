@@ -46,7 +46,7 @@ public class PayloadDescriptor
     /// A sequential guid used for each instance of this payload.This is used as part of storage
     /// and changes each time you upload a new payload with this key
     /// </summary>
-    public Guid Uid { get; set; }
+    public UnixTimeUtcUnique Uid { get; set; }
     
     public string GetLastModifiedHttpHeaderValue()
     {

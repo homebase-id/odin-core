@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
@@ -268,21 +267,21 @@ public static class DriveFileUtility
         return $"{fileId.ToString("N").ToLower()}";
     }
 
-    public static string GetPayloadFileNameWithExtension(string payloadKey, Guid payloadUid)
+    public static string GetPayloadFileNameWithExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}.payload";
     }
 
-    public static string GetThumbnailFileNameWithExtension(string payloadKey, Guid payloadUid, int width, int height)
+    public static string GetThumbnailFileNameWithExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
     }
 
-    private static string CreateBasePayloadFileName(string payloadKey, Guid payloadUid)
+    private static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
-        var parts = new[] { payloadKey, payloadUid.ToString("N") };
+        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString("N") };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
     }
 }

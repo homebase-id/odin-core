@@ -20,7 +20,7 @@ public class PackagePayloadDescriptor
 
     public ThumbnailContent PreviewThumbnail { get; set; }
 
-    public Guid Uid { get; set; }
+    public UnixTimeUtcUnique Uid { get; set; }
 
     public bool HasIv()
     {

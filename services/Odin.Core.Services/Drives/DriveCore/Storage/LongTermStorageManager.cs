@@ -8,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -70,7 +71,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        public Task DeleteThumbnailFile(Guid fileId, string payloadKey, Guid payloadUid, int height, int width)
+        public Task DeleteThumbnailFile(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height, int width)
         {
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
             string dir = GetFilePath(fileId, FilePart.Thumb);
@@ -178,7 +179,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Gets a read stream of the thumbnail
         /// </summary>
-        public Task<Stream> GetThumbnailStream(Guid fileId, int width, int height, string payloadKey, Guid payloadUid)
+        public Task<Stream> GetThumbnailStream(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
             string dir = GetFilePath(fileId, FilePart.Thumb);
@@ -188,7 +189,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.FromResult(fileStream);
         }
 
-        private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, Guid payloadUid)
+        private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileNameWithExtension(payloadKey, payloadUid, width, height);
             return $"{fileId.ToString()}.{extension}";
@@ -438,7 +439,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        private string GetThumbnailPath(Guid fileId, int width, int height, string payloadKey, Guid payloadUid)
+        private string GetThumbnailPath(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var thumbnailFileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
             var filePath = GetFilePath(fileId, FilePart.Thumb);

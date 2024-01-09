@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -72,7 +73,7 @@ public class UploadManifestPayloadDescriptor
     /// </summary>
     public IEnumerable<UploadedManifestThumbnailDescriptor> Thumbnails { get; set; }
 
-    public Guid PayloadUid { get; set; }
+    public UnixTimeUtcUnique PayloadUid { get; set; }
 }
 
 public class UploadedManifestThumbnailDescriptor

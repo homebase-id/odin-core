@@ -218,7 +218,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
-            string payloadKey, Guid payloadUid, bool directMatchOnly = false)
+            string payloadKey, UnixTimeUtcUnique payloadUid, bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
 

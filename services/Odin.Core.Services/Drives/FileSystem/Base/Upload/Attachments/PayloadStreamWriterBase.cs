@@ -56,7 +56,7 @@ public abstract class PayloadStreamWriterBase
             {
                 //These are created in advance to ensure we can
                 //upload thumbnails and payloads in any order
-                pd.PayloadUid = SequentialGuid.CreateGuid();
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
             }
         }
         
