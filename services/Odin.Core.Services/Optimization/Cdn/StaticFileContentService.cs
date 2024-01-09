@@ -127,12 +127,25 @@ public class StaticFileContentService
                         }
 
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
-                        payloads.Add(new PayloadStaticFileResponse()
+                        try
                         {
-                            Key = ps.Key,
-                            ContentType = ps.ContentType,
-                            Data = ps.Stream.ToByteArray().ToBase64()
-                        });
+                            payloads.Add(new PayloadStaticFileResponse()
+                            {
+                                Key = ps.Key,
+                                ContentType = ps.ContentType,
+                                Data = ps.Stream.ToByteArray().ToBase64()
+                            });
+                        }
+                        finally
+                        {
+                            // TODO: PayloadStream should probably have some sort of dtor or
+                            // know if it needs to dispose if the stream it is holding on to
+                            if (ps.Stream != null)
+                            {
+                                await ps.Stream.DisposeAsync();
+                            }
+                            ps = null;
+                        }
                     }
                 }
 
