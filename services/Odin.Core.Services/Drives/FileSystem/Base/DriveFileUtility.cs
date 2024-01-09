@@ -172,22 +172,6 @@ public static class DriveFileUtility
         return nextSizeUp;
     }
 
-    // public static string GetPayloadFileExtension(string key)
-    // {
-    //     AssertValidPayloadKey(key);
-    //     // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
-    //     string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
-    //     return extenstion;
-    // }
-
-    // public static string GetTempPayloadFileExtension(string key)
-    // {
-    //     AssertValidPayloadKey(key);
-    //     // string extenstion = $"-{key.ToLower()}.{FilePart.Payload.ToString().ToLower()}";
-    //     string extenstion = string.Format(PayloadExtensionSpecifier, key.ToLower());
-    //     return extenstion;
-    // }
-
     public static bool TryParseLastModifiedHeader(HttpContentHeaders headers, out UnixTimeUtc? lastModified)
     {
         if (headers?.TryGetValues(HttpHeaderConstants.LastModified, out var values) ?? false)
@@ -241,19 +225,6 @@ public static class DriveFileUtility
         }
     }
 
-    // public static string GetThumbnailFileExtension(int width, int height, string payloadKey)
-    // {
-    //     if (string.IsNullOrEmpty(payloadKey?.Trim()))
-    //     {
-    //         throw new OdinClientException($"PayloadKey is null or empty for the thumbnail with width:{width} x height:{height}.",
-    //             OdinClientErrorCode.InvalidPayloadNameOrKey);
-    //     }
-    //
-    //     //TODO: move this down into the long term storage manager
-    //     string extenstion = $"-{width}x{height}-{payloadKey}.thumb";
-    //     return extenstion.ToLower();
-    // }
-
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
     {
         if (currentVersionTag != versionTagToCompare)
@@ -267,13 +238,13 @@ public static class DriveFileUtility
         return $"{fileId.ToString("N").ToLower()}";
     }
 
-    public static string GetPayloadFileNameWithExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
+    public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}.payload";
     }
 
-    public static string GetThumbnailFileNameWithExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
@@ -281,7 +252,7 @@ public static class DriveFileUtility
 
     private static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
-        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString("N") };
+        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
     }
 }

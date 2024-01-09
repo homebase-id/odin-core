@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Drives.FileSystem.Base;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -120,7 +121,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         private string GetFilename(Guid fileId, string extension)
         {
-            string file = fileId.ToString();
+            string file = DriveFileUtility.GetFileIdForStorage(fileId);
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
 

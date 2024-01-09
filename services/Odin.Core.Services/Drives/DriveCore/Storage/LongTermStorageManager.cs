@@ -193,12 +193,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = DriveFileUtility.GetThumbnailFileNameWithExtension(payloadKey, payloadUid, width, height);
-            return $"{fileId.ToString()}.{extension}";
-
-            // var suffix = string.Format(ThumbnailSuffixFormatSpecifier, width, height);
-            // string fileName = this.GetFilename(fileId, suffix, FilePart.Thumb);
-            // return fileName;
+            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
+            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}.{extension}";
         }
 
         /// <summary>
@@ -282,10 +278,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task MovePayloadToLongTerm(Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
             var destinationFile = GetPayloadFilePath(targetFileId, descriptor, ensureExists: true);
-
-            _logger.LogDebug("MovePayloadToLongTerm: create dir {dir}", Path.GetDirectoryName(destinationFile));
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
-
             _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
 
             //
@@ -495,11 +487,9 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         private string GetPayloadFilePath(Guid fileId, PayloadDescriptor descriptor, bool ensureExists = false)
         {
-            var payloadFileName = DriveFileUtility.GetPayloadFileNameWithExtension(descriptor.Key, descriptor.Uid);
+            var extension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
+            var payloadFileName = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
             return Path.Combine(GetPayloadPath(fileId, ensureExists), $"{payloadFileName}");
-
-            // var extension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key);
-            // return Path.Combine(GetPayloadPath(fileId, ensureExists), $"{fileId.ToString()}{extension}");
         }
 
         private void DeleteAllThumbnails(Guid fileId)

@@ -226,7 +226,7 @@ namespace Odin.Hosting.Controllers.Peer.Drive
                 throw new HostToHostTransferException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = DriveFileUtility.GetPayloadFileNameWithExtension(payloadKey, payloadDescriptor.Uid);
+            string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Payload, extension,
@@ -260,7 +260,7 @@ namespace Odin.Hosting.Controllers.Peer.Drive
                 throw new HostToHostTransferException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = DriveFileUtility.GetThumbnailFileNameWithExtension(payloadKey, payloadDescriptor.Uid, width, height);
+            string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
 
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension,
                 fileSection.FileStream);
