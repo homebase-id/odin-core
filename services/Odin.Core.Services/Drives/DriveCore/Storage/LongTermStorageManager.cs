@@ -146,34 +146,36 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 return Task.FromResult(Stream.Null);
             }
 
-            // var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            // var fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            _logger.LogInformation($"Get Chunked Stream called on file [{path}]");
             var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
             if (null != chunk)
             {
-                var buffer = new byte[chunk.Length];
-                if (chunk.Start > fileStream.Length)
+                try
                 {
-                    throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
+                    var buffer = new byte[chunk.Length];
+                    if (chunk.Start > fileStream.Length)
+                    {
+                        throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
+                    }
+
+                    fileStream.Position = chunk.Start;
+                    var bytesRead = fileStream.Read(buffer);
+
+                    //resize if length requested was too large (happens if we hit the end of the stream)
+                    if (bytesRead < buffer.Length)
+                    {
+                        Array.Resize(ref buffer, bytesRead);
+                    }
+
+                    return Task.FromResult((Stream)new MemoryStream(buffer, false));
                 }
-
-                fileStream.Position = chunk.Start;
-                var bytesRead = fileStream.Read(buffer);
-                // fileStream.Close();
-                fileStream.Dispose();
-
-                // if(bytesRead == 0) //TODO: handle end of stream?
-
-                //resize if length requested was too large (happens if we hit the end of the stream)
-                if (bytesRead < buffer.Length)
+                finally
                 {
-                    Array.Resize(ref buffer, bytesRead);
+                    fileStream.Dispose();
                 }
-
-                return Task.FromResult((Stream)new MemoryStream(buffer, false));
             }
 
-            return Task.FromResult((Stream)fileStream);
+            return Task.FromResult(fileStream);
         }
 
         /// <summary>

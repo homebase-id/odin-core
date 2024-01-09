@@ -138,10 +138,14 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                     responseCode == TransitResponseCode.AcceptedIntoInbox)
                 {
                     //Feed hack (again)
-                    if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive)
+                    if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
+                        item.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                     {
+                        //Note: we say new few item here because comments are never pushed into the feed drive; so any
+                        //item going into the feed is new content (i.e. post/image, etc.)
                         await _mediator.Publish(new NewFeedItemReceived()
                         {
+                            FileSystemType = item.TransferInstructionSet.FileSystemType,
                             Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
                         });
                     }

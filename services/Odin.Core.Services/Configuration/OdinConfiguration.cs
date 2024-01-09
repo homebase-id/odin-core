@@ -220,11 +220,11 @@ namespace Odin.Core.Services.Configuration
 
                 //TODO: changed to required when Seb and I can coordinate config changes
                 PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
+                PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
 
                 FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 5);
                 FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
                 FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
-                
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
             }
 
@@ -248,6 +248,8 @@ namespace Odin.Core.Services.Configuration
             /// Specifies the number of bytes to write when writing a stream to disk in chunks
             /// </summary>
             public int FileWriteChunkSizeInBytes { get; set; }
+
+            public int PushNotificationBatchSize { get; set; }
         }
 
         public class ListenEntry
