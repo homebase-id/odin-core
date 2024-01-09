@@ -76,10 +76,6 @@ namespace Odin.Hosting.Controllers.Anonymous
             //sanity
             if (!fileExists || (null == stream || stream == Stream.Null))
             {
-                if (stream != null)
-                {
-                    await stream.DisposeAsync();
-                }
                 return NotFound();
             }
 
