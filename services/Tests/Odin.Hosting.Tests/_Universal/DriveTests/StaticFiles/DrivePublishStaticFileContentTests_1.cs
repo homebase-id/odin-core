@@ -145,8 +145,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
                 Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
                 Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
-
-
+                
                 var getFileResponse = await staticFileClient.GetStaticFile(publishRequest.Filename);
                 Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
                 Assert.IsNotNull(getFileResponse.Content);

@@ -29,26 +29,11 @@ public class UniversalStaticFileApiClient
         return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPublicProfileImage()
-    {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
-        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, sharedSecret);
-        var response = await staticFileSvc.GetPublicProfileImage();
-        return response;
-    }
-
     public async Task<ApiResponse<HttpContent>> PublishPublicProfileImage(PublishPublicProfileImageRequest request)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         var staticFileSvc = RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, sharedSecret);
         return await staticFileSvc.PublishPublicProfileImage(request);
-    }
-
-    public async Task<ApiResponse<HttpContent>> GetPublicProfileCard()
-    {
-        var client = _factory.CreateHttpClient(_identity, out _);
-        var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
-        return await staticFileSvc.GetPublicProfileCard();
     }
 
     public async Task<ApiResponse<HttpContent>> PublishPublicProfileCard(PublishPublicProfileCardRequest request)
@@ -58,10 +43,25 @@ public class UniversalStaticFileApiClient
         return await staticFileSvc.PublishPublicProfileCard(request);
     }
 
+    public async Task<ApiResponse<HttpContent>> GetPublicProfileCard()
+    {
+        var client = _factory.CreateHttpClient(_identity, out _);
+        var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
+        return await staticFileSvc.GetPublicProfileCard();
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPublicProfileImage()
+    {
+        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
+        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalPublicStaticFileHttpClientApi>(client, sharedSecret);
+        var response = await staticFileSvc.GetPublicProfileImage();
+        return response;
+    }
+
     public async Task<ApiResponse<HttpContent>> GetStaticFile(string filename)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
-        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, sharedSecret);
+        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalPublicStaticFileHttpClientApi>(client, sharedSecret);
         return await staticFileSvc.GetStaticFile(filename);
     }
 }
