@@ -1,13 +1,7 @@
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using Odin.Core.Exceptions;
-using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Util;
-using Serilog;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
@@ -20,10 +14,10 @@ public sealed class DriveFileReaderWriter
     private readonly ConcurrentFileManager _concurrentFileManager;
     private readonly OdinConfiguration _configuration;
 
-    public DriveFileReaderWriter(OdinConfiguration configuration, ICorrelationContext correlationContext)
+    public DriveFileReaderWriter(OdinConfiguration configuration, ConcurrentFileManager concurrentFileManager)
     {
-        _concurrentFileManager = new ConcurrentFileManager(correlationContext);
         _configuration = configuration;
+        _concurrentFileManager = concurrentFileManager;
     }
 
     public void WriteString(string filePath, string data)
