@@ -2,16 +2,16 @@
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Optimization.Cdn;
-using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.Base.Cdn;
 using Odin.Hosting.Controllers.OwnerToken.Cdn;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
+namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IStaticFileTestHttpClientForOwner
+    public interface IUniversalStaticFileHttpClientApi
     {
         private const string RootEndpoint = OwnerApiPathConstants.CdnV1;
 

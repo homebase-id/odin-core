@@ -16,7 +16,9 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
+using Odin.Hosting.Controllers.Base.Cdn;
 using Odin.Hosting.Controllers.OwnerToken.Cdn;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -31,7 +33,7 @@ namespace Odin.Hosting.Tests.Performance
         private const int MAXTHREADS = 12;
         const int MAXITERATIONS = 100;
 
-        IStaticFileTestHttpClientForOwner getStaticFileSvc;
+        IUniversalStaticFileHttpClientApi _getUniversalStaticFileSvc;
         PublishStaticFileRequest publishRequest;
         StaticFilePublishResult pubResult;
 
@@ -158,7 +160,7 @@ TaskPerformanceTest
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             var staticFileSvc =
-                RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
+                RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, ownerSharedSecret);
 
             //publish a static file
             publishRequest = new PublishStaticFileRequest()
@@ -219,7 +221,7 @@ TaskPerformanceTest
             Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
 
-            getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+            _getUniversalStaticFileSvc = RestService.For<IUniversalStaticFileHttpClientApi>(client);
 
 
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
@@ -260,7 +262,7 @@ TaskPerformanceTest
                 sw.Restart();
 
                 // Do all the work here
-                var getFileResponse = await getStaticFileSvc.GetStaticFile(publishRequest.Filename);
+                var getFileResponse = await _getUniversalStaticFileSvc.GetStaticFile(publishRequest.Filename);
                 if (!getFileResponse.IsSuccessStatusCode)
                     Console.WriteLine("GetStaticFile(): " + getFileResponse.ReasonPhrase);
                 Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);

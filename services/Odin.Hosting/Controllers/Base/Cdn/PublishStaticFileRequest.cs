@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Odin.Core.Services.Optimization.Cdn;
 
-namespace Odin.Hosting.Controllers.OwnerToken.Cdn;
+namespace Odin.Hosting.Controllers.Base.Cdn;
 
 public class PublishStaticFileRequest
 {

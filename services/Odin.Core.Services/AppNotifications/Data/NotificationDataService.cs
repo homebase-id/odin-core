@@ -28,7 +28,7 @@ public class NotificationListService
 
     public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
