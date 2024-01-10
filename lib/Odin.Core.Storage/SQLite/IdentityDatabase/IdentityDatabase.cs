@@ -68,6 +68,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
+            // Drive
+            tblDriveMainIndex = new TableDriveMainIndex(this, _cache);
+            tblDriveAclIndex = new TableDriveAclIndex(this, _cache);
+            tblDriveTagIndex = new TableDriveTagIndex(this, _cache);
+            tblDriveCommandMessageQueue = new TableDriveCommandMessageQueue(this, _cache);
+            tblDriveReactions = new TableDriveReactions(this, _cache);
+
+            // Identity
             tblAppGrants = new TableAppGrants(this, _cache);
             tblKeyValue = new TableKeyValue(this, _cache);
             tblKeyTwoValue = new TableKeyTwoValue(this, _cache);
@@ -406,7 +414,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             else
             {
                 listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                            $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
+                            $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
             }
 
             if (IsSet(fileStateAnyOf))
@@ -457,7 +465,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(tagsAnyOf))
             {
-                listWhereAnd.Add($"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
+                listWhereAnd.Add($"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(tagsAllOf))
@@ -489,7 +497,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT {selectOutputFields} FROM mainindex " + strWhere + $" ORDER BY {order} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT {selectOutputFields} FROM drivemainindex " + strWhere + $" ORDER BY {order} LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -781,7 +789,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(tagsAnyOf))
             {
-                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
+                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
             }
 
             // if (IsSet(aclAnyOf))
@@ -792,7 +800,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (IsSet(aclAnyOf))
             {
                 strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                                 $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
+                                 $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
             }
             else
             {
@@ -805,12 +813,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 strWhere += $"AND {AndHexList(tagsAllOf)} ";
             }
 
-            if (strWhere != "")
-            {
-                strWhere = "WHERE " + strWhere;
-            }
-
-            stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            stm = $"SELECT fileid, modified FROM drivemainindex " + strWhere + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -924,11 +927,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid= x'{Convert.ToHexString(list[0].ToByteArray())}' ";
+            s = $"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0].ToByteArray())}' ";
 
             for (int i = 0 + 1; i < len; i++)
             {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM tagindex WHERE tagid= x'{Convert.ToHexString(list[i].ToByteArray())}' ";
+                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[i].ToByteArray())}' ";
             }
 
             s += ") ";
@@ -954,11 +957,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid= x'{Convert.ToHexString(list[0])}' ";
+            s = $"fileid IN (SELECT DISTINCT fileid drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0])}' ";
 
             for (int i = 0 + 1; i < len; i++)
             {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM tagindex WHERE tagid= x'{Convert.ToHexString(list[i])}' ";
+                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[i])}' ";
             }
 
             s += ") ";

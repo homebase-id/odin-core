@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _sizeCommand = _database.CreateCommand();
 
                     _sizeCommand.CommandText =
-                        $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM mainindex WHERE driveid = $driveId; PRAGMA read_uncommitted = 0;";
+                        $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE driveid = $driveId; PRAGMA read_uncommitted = 0;";
 
                     _sparam1 = _sizeCommand.CreateParameter();
                     _sparam1.ParameterName = "$driveId";
@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _touchCommand = _database.CreateCommand();
 
                     _touchCommand.CommandText =
-                        $"UPDATE mainindex SET modified=$modified WHERE driveId = $driveId AND fileid = $fileid;";
+                        $"UPDATE drivemainindex SET modified=$modified WHERE driveId = $driveId AND fileid = $fileid;";
 
                     _tparam1 = _touchCommand.CreateParameter();
                     _tparam2 = _touchCommand.CreateParameter();
@@ -237,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
 
                 _updateCommand.CommandText =
-                    $"UPDATE mainindex SET " + stm + $" WHERE driveid = x'{Convert.ToHexString(driveId.ToByteArray())}' AND fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
+                    $"UPDATE drivemainindex SET " + stm + $" WHERE driveid = x'{Convert.ToHexString(driveId.ToByteArray())}' AND fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
                 _uparam1.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
                 _uparam2.Value = fileType ?? (object)DBNull.Value;

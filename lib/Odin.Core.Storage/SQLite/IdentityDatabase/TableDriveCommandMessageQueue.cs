@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 using (_selectCommand = _database.CreateCommand())
                 {
-                    _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+                    _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
 
                     using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {

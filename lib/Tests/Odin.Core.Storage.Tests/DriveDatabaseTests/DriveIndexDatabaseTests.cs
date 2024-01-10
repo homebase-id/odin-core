@@ -526,7 +526,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntry(driveId, driveId, f2, fileState: 43);
+            _testDatabase.UpdateEntry(driveId, f2, fileState: 43);
 
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, fileStateAnyOf: new List<Int32>() { 42,43 }, requiredSecurityGroup: allIntRange);
@@ -600,7 +600,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntry(driveId, driveId, f2, archivalStatus: 7);
+            _testDatabase.UpdateEntry(driveId, f2, archivalStatus: 7);
 
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -1966,7 +1966,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
-            _testDatabase.UpdateEntry(driveId, driveId, f1, uniqueId: u2);
+            _testDatabase.UpdateEntry(driveId, f1, uniqueId: u2);
             data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 

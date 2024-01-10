@@ -64,8 +64,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
 
-
-
         [Test]
         // Test we can insert and read a row
         public void InsertRowTest()
