@@ -133,7 +133,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                         var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
                         if (null != command)
                         {
-                            await ProcessCommand(command);
+                            await ProcessCommand(deviceSocket, command);
                         }
                     }
                 }
@@ -252,7 +252,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             }
         }
 
-        public async Task ProcessCommand(SocketCommand command)
+        public async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command)
         {
             //process the command
             switch (command.Command)
@@ -265,6 +265,13 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 case SocketCommandType.ProcessInbox:
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    break;
+
+                case SocketCommandType.Ping:
+                    await this.SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+                    {
+                        NotificationType = ClientNotificationType.Pong,
+                    }));
                     break;
 
                 default:

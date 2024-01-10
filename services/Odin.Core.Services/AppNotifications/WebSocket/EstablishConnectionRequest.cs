@@ -21,6 +21,8 @@ public class SocketCommand
 public enum SocketCommandType
 {
     ProcessTransitInstructions = 111,
-    
-    ProcessInbox = 222
+
+    ProcessInbox = 222,
+
+    Ping = 999,
 }
