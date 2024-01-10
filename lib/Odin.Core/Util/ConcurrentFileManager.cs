@@ -5,9 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
-using Serilog;
-using Serilog.Events;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
@@ -15,14 +14,12 @@ namespace Odin.Core.Util;
 
 public class ConcurrentFileManager
 {
+    private readonly ILogger<ConcurrentFileManager> _logger;
     private readonly ICorrelationContext _correlationContext;
 
-    public ConcurrentFileManager()
+    public ConcurrentFileManager(ILogger<ConcurrentFileManager> logger, ICorrelationContext correlationContext)
     {
-    }
-
-    public ConcurrentFileManager(ICorrelationContext correlationContext)
-    {
+        _logger = logger;
         _correlationContext = correlationContext;
     }
 
@@ -83,7 +80,7 @@ public class ConcurrentFileManager
                 //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
 
-                if (Log.IsEnabled(LogEventLevel.Verbose))
+                if (_logger.IsEnabled(LogLevel.Trace))
                 {
                     _dictionaryLocks[filePath].LockingInfo = new LockingInfo()
                     {
@@ -165,7 +162,7 @@ public class ConcurrentFileManager
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
-        Log.Verbose($"ReadFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("ReadFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -180,7 +177,7 @@ public class ConcurrentFileManager
 
     public Stream ReadStream(string filePath)
     {
-        Log.Verbose($"ReadStream Lock requested on file [{filePath}]");
+        _logger.LogTrace("ReadStream Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -200,7 +197,7 @@ public class ConcurrentFileManager
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
-        Log.Verbose($"WriteFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -215,7 +212,7 @@ public class ConcurrentFileManager
 
     public void DeleteFile(string filePath)
     {
-        Log.Verbose($"DeleteFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("DeleteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -230,13 +227,13 @@ public class ConcurrentFileManager
 
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
-        Log.Verbose($"MoveFile Lock requested on source file [{sourcePath}]");
+        _logger.LogTrace("MoveFile Lock requested on source file {sourcePath}", sourcePath);
         // Lock destination first to avoid deadlocks
         EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
-            Log.Verbose($"MoveFile Lock requested on destination file [{destinationPath}]");
+            _logger.LogTrace("MoveFile Lock requested on destination file {destinationPath}", destinationPath);
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
@@ -253,29 +250,33 @@ public class ConcurrentFileManager
         }
     }
 
-    private static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
+    private void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
     {
-        if (Log.IsEnabled(LogEventLevel.Verbose))
+        if (_logger.IsEnabled(LogLevel.Trace))
         {
             var methods = GetCallStack();
             var threadId = Thread.CurrentThread.ManagedThreadId;
-            Log.Verbose(
-                $"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n");
+            _logger.LogTrace(
+                "\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n",
+                threadId, lockType, filePath, referenceCount, methods);
         }
     }
 
-    private static void LogUnlockStackTrace(string filePath)
+    private void LogUnlockStackTrace(string filePath)
     {
-        if (Log.IsEnabled(LogEventLevel.Verbose))
+        if (_logger.IsEnabled(LogLevel.Trace))
         {
+            var methods = GetCallStack();
             var threadId = Thread.CurrentThread.ManagedThreadId;
-            Log.Verbose($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{GetCallStack()}]\n\n");
+            _logger.LogTrace(
+                "\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n",
+                threadId, filePath, methods);
         }
     }
 
-    private static string GetCallStack()
+    private string GetCallStack()
     {
-        if (!Log.IsEnabled(LogEventLevel.Verbose))
+        if (!_logger.IsEnabled(LogLevel.Trace))
         {
             return string.Empty;
         }

@@ -1,20 +1,27 @@
-using NUnit.Framework;
-using Odin.Core.Util;
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using NUnit.Framework;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Util;
+using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
-namespace Odin.Core.Util;
+namespace Odin.Core.Tests.Util;
 
 public class ConcurrentFileManagerTests
 {
-    private ConcurrentFileManager fileManager;
+    private readonly ILogger<ConcurrentFileManager> _logger =
+        TestLogFactory.CreateConsoleLogger<ConcurrentFileManager>(LogEventLevel.Verbose);
+    private readonly CorrelationContext _correlationContext = new(new CorrelationUniqueIdGenerator());
+    private ConcurrentFileManager _fileManager;
 
     [SetUp]
     public void Setup()
     {
-        fileManager = new ConcurrentFileManager();
+        _fileManager = new ConcurrentFileManager(_logger, _correlationContext);
     }
 
     [TearDown]
@@ -32,7 +39,7 @@ public class ConcurrentFileManagerTests
         File.WriteAllText(testFilePath, expectedContent);
 
         string actualContent = null;
-        fileManager.ReadFile(testFilePath, path => actualContent = File.ReadAllText(path));
+        _fileManager.ReadFile(testFilePath, path => actualContent = File.ReadAllText(path));
 
         Assert.AreEqual(expectedContent, actualContent);
     }
@@ -40,7 +47,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void ReadFile_Counters()
     {
-        var cfm = new ConcurrentFileManager();
+        var cfm = new ConcurrentFileManager(_logger, _correlationContext);
         string testFilePath = "testfile101.txt";
         string testFilePath2 = "testfile102.txt";
         File.WriteAllText(testFilePath, string.Empty);
@@ -83,12 +90,12 @@ public class ConcurrentFileManagerTests
         string actualContent1 = null;
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
-        fileManager.ReadFile(testFilePath, path => 
+        _fileManager.ReadFile(testFilePath, path =>
         { 
             actualContent1 = File.ReadAllText(path);
             Task innerTask = Task.Run(() =>
             {
-                fileManager.ReadFile(testFilePath, innerPath =>
+                _fileManager.ReadFile(testFilePath, innerPath =>
                 {
                     actualContent2 = File.ReadAllText(innerPath);
                 });
@@ -114,7 +121,7 @@ public class ConcurrentFileManagerTests
         string actualContent1 = null;
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
-        fileManager.WriteFile(testFilePath, path =>
+        _fileManager.WriteFile(testFilePath, path =>
         {
             File.WriteAllText(path, expectedContent);
             actualContent1 = File.ReadAllText(path);
@@ -122,7 +129,7 @@ public class ConcurrentFileManagerTests
             {
                 try
                 {
-                    fileManager.ReadFile(testFilePath, innerPath =>
+                    _fileManager.ReadFile(testFilePath, innerPath =>
                     {
                         actualContent2 = File.ReadAllText(innerPath);
                     });
@@ -158,7 +165,7 @@ public class ConcurrentFileManagerTests
         string actualContent1 = null;
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
-        fileManager.WriteFile(testFilePath, path =>
+        _fileManager.WriteFile(testFilePath, path =>
         {
             File.WriteAllText(path, expectedContent);
             actualContent1 = File.ReadAllText(path);
@@ -166,7 +173,7 @@ public class ConcurrentFileManagerTests
             {
                 try
                 {
-                    fileManager.WriteFile(testFilePath, innerPath =>
+                    _fileManager.WriteFile(testFilePath, innerPath =>
                     {
                         actualContent2 = File.ReadAllText(innerPath);
                     });
@@ -195,7 +202,7 @@ public class ConcurrentFileManagerTests
     {
         string testFilePath = "testfile42.txt";
         string newContent = "New content";
-        var fileManager = new ConcurrentFileManager();
+        var fileManager = new ConcurrentFileManager(_logger, _correlationContext);
 
         fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent) );
 
@@ -251,7 +258,7 @@ public class ConcurrentFileManagerTests
 
         string contentToWrite = "Sample content";
 
-        fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite));
+        _fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite));
 
         string actualContent = File.ReadAllText(testFilePath);
         Assert.AreEqual(contentToWrite, actualContent);
@@ -263,7 +270,7 @@ public class ConcurrentFileManagerTests
         string testFilePath = "testfile03.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
-        fileManager.DeleteFile(testFilePath);
+        _fileManager.DeleteFile(testFilePath);
 
         Assert.IsFalse(File.Exists(testFilePath));
     }
@@ -282,7 +289,7 @@ public class ConcurrentFileManagerTests
 
         Parallel.For(0, numberOfReads, (i) =>
         {
-            fileManager.ReadFile(testFilePath, path =>
+            _fileManager.ReadFile(testFilePath, path =>
             {
                 Assert.AreEqual(expectedContent, File.ReadAllText(path));
                 Interlocked.Increment(ref readCount);
@@ -296,7 +303,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void MoveFile_FileMovedSuccessfully()
     {
-        ConcurrentFileManager fileManager = new ConcurrentFileManager();
+        ConcurrentFileManager fileManager = new ConcurrentFileManager(_logger, _correlationContext);
         string sourceFilePath = "sourceFile1.txt";
         string destinationFilePath = "destinationFile1.txt";
         string expectedContent = "This is a test file.";
@@ -335,7 +342,7 @@ public class ConcurrentFileManagerTests
     [Test]
     public void MoveFile_FileMovedOverwriteSuccessfully()
     {
-        ConcurrentFileManager fileManager = new ConcurrentFileManager();
+        ConcurrentFileManager fileManager = new ConcurrentFileManager(_logger, _correlationContext);
         string sourceFilePath = "sourceFile2.txt";
         string destinationFilePath = "destinationFile2.txt";
         string expectedContent = "This is a test file.";
