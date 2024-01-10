@@ -17,6 +17,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost.Quarantine;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Refit;
 using Serilog;

@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 
 /*
