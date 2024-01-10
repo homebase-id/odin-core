@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Test.Helpers.Benchmark;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
