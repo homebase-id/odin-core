@@ -66,9 +66,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
 
             var (ra1, ra2, n) = db.tblDriveReactions.GetPostReactionsWithDetails(driveId, k1);
         }
@@ -85,9 +85,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
         }
 
 
@@ -103,9 +103,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-            db.tblDriveReactions.Insert(new DriveReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":smile:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.tblDriveReactions.Insert(new DriveReactionsRecord { driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":smile:" });
 
             string[] array = { ":lol:", ":wink:", ":smile:" };
             var rs = db.tblDriveReactions.GetIdentityPostReactionDetails(new OdinId("frodo.baggins.me"), driveId, k1);

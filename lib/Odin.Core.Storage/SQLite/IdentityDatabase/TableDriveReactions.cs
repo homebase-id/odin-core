@@ -75,7 +75,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$postId";
@@ -132,7 +132,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT COUNT(singleReaction) as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId AND driveId = $driveId;";
+                        $"SELECT COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identity=$identity AND postId=$postId AND driveId = $driveId;";
 
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param2 = _select2Command.CreateParameter();
@@ -178,7 +178,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select3Command = _database.CreateCommand();
                     _select3Command.CommandText =
-                        $"SELECT singleReaction as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId AND driveId = $driveId;";
+                        $"SELECT singleReaction as reactioncount FROM driveReactions WHERE identity=$identity AND postId=$postId AND driveId = $driveId;";
 
                     _s3param1 = _select3Command.CreateParameter();
                     _s3param2 = _select3Command.CreateParameter();
@@ -223,7 +223,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select4Command = _database.CreateCommand();
                     _select4Command.CommandText =
-                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
                     _s4param1 = _select4Command.CreateParameter();
                     _s4param2 = _select4Command.CreateParameter();
@@ -276,7 +276,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_getPaging0Command == null)
                 {
                     _getPaging0Command = _database.CreateCommand();
-                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM reactions " +
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM driveReactions " +
                                                  "WHERE driveId = $driveId AND postId = $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
 
                     _getPaging0Param1 = _getPaging0Command.CreateParameter();
