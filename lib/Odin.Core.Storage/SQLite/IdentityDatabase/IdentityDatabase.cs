@@ -62,7 +62,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public readonly string CN;
 
-        internal readonly CacheHelper _cache = new CacheHelper("identity");
+        public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
 
