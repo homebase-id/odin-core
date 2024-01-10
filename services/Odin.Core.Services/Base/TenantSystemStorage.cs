@@ -12,7 +12,7 @@ namespace Odin.Core.Services.Base
     {
         private readonly ILogger<TenantSystemStorage> _logger;
 
-        private readonly IdentityDatabase _db;
+        public IdentityDatabase IdentityDatabase { get; }
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
@@ -29,21 +29,21 @@ namespace Odin.Core.Services.Base
             }
 
             string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-            _db = new IdentityDatabase($"Data Source={finalPath}");
-            _db.CreateDatabase(false);
+            IdentityDatabase = new IdentityDatabase($"Data Source={finalPath}");
+            IdentityDatabase.CreateDatabase(false);
 
             // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
-            Connections = _db.tblConnections;
-            CircleMemberStorage = _db.tblCircleMember;
-            AppGrants = _db.tblAppGrants;
+            Connections = IdentityDatabase.tblConnections;
+            CircleMemberStorage = IdentityDatabase.tblCircleMember;
+            AppGrants = IdentityDatabase.tblAppGrants;
 
-            Outbox = _db.tblOutbox;
-            Inbox = _db.tblInbox;
-            WhoIFollow = _db.tblImFollowing;
-            Followers = _db.tblFollowsMe;
-            Feedbox = _db.tblFeedDistributionOutbox;
-            AppNotifications = _db.tblAppNotificationsTable;
+            Outbox = IdentityDatabase.tblOutbox;
+            Inbox = IdentityDatabase.tblInbox;
+            WhoIFollow = IdentityDatabase.tblImFollowing;
+            Followers = IdentityDatabase.tblFollowsMe;
+            Feedbox = IdentityDatabase.tblFeedDistributionOutbox;
+            AppNotifications = IdentityDatabase.tblAppNotificationsTable;
         }
 
         public TableAppGrants AppGrants { get; }
@@ -66,7 +66,7 @@ namespace Odin.Core.Services.Base
 
         public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
         {
-            return _db.CreateCommitUnitOfWork();
+            return IdentityDatabase.CreateCommitUnitOfWork();
         }
 
         /// <summary>
@@ -74,12 +74,12 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
         {
-            return new SingleKeyValueStorage(_db.tblKeyValue, contextKey);
+            return new SingleKeyValueStorage(IdentityDatabase.tblKeyValue, contextKey);
         }
 
         public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
         {
-            return new TwoKeyValueStorage(_db.tblKeyTwoValue, contextKey);
+            return new TwoKeyValueStorage(IdentityDatabase.tblKeyTwoValue, contextKey);
         }
 
         /// <summary>
@@ -88,12 +88,12 @@ namespace Odin.Core.Services.Base
         /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
         public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
         {
-            return new ThreeKeyValueStorage(_db.TblKeyThreeValue, contextKey);
+            return new ThreeKeyValueStorage(IdentityDatabase.TblKeyThreeValue, contextKey);
         }
 
         public void Dispose()
         {
-            _db.Dispose();
+            IdentityDatabase.Dispose();
         }
     }
 }
