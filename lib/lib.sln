@@ -22,6 +22,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Storage.Tests", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Storage", "Odin.Core.Storage\Odin.Core.Storage.csproj", "{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Test.Helpers", "..\services\Tests\Odin.Test.Helpers\Odin.Test.Helpers.csproj", "{6BA14DA6-5925-42CC-9133-EE684C05E2A0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,10 @@ Global
 		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BA14DA6-5925-42CC-9133-EE684C05E2A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BA14DA6-5925-42CC-9133-EE684C05E2A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BA14DA6-5925-42CC-9133-EE684C05E2A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BA14DA6-5925-42CC-9133-EE684C05E2A0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,6 +66,7 @@ Global
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{78719110-F5A0-4492-A08F-C689E99E0241} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{6BA14DA6-5925-42CC-9133-EE684C05E2A0} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

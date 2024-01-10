@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Odin.Core.Storage.Tests.DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     
     public class TableCommandMessageQueueTests
@@ -13,8 +13,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Usage example
         public void ExampleUsageTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var a1 = new List<Guid>();
 
@@ -33,27 +34,27 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             a1.Add(t4);
 
             // We save the 5 fileIds (randomly shuffled for fun) to the CommandMessageQueue
-            db.TblCmdMsgQueue.InsertRows(a1);
+            db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
 
             // Now we get the oldest fileId from the queue
-            var md = db.TblCmdMsgQueue.Get(1);
+            var md = db.tblDriveCommandMessageQueue.Get(driveId, 1);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 1);
             if (ByteArrayUtil.muidcmp(md[0].fileId, t1) != 0)
                 Assert.Fail();
 
             // We get the same one again, and it's still the same
-            md = db.TblCmdMsgQueue.Get(1);
+            md = db.tblDriveCommandMessageQueue.Get(driveId, 1);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 1);
             if (ByteArrayUtil.muidcmp(md[0].fileId, t1) != 0)
                 Assert.Fail();
 
             // We delete only the oldest one
-            db.TblCmdMsgQueue.DeleteRow(new List<Guid>() { t1 });
+            db.tblDriveCommandMessageQueue.DeleteRow(driveId, new List<Guid>() { t1 });
 
             // We get all the rest
-            md = db.TblCmdMsgQueue.Get(10);
+            md = db.tblDriveCommandMessageQueue.Get(driveId, 10);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 4);
             Debug.Assert(ByteArrayUtil.muidcmp(md[0].fileId, t2) == 0);
@@ -69,21 +70,22 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            var md = db.TblCmdMsgQueue.Get(1);
+            var md = db.tblDriveCommandMessageQueue.Get(driveId, 1);
 
             if (md != null)
                 Assert.Fail();
 
-            db.TblCmdMsgQueue.InsertRows(a1);
+            db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
 
-            md = db.TblCmdMsgQueue.Get(1);
+            md = db.tblDriveCommandMessageQueue.Get(driveId, 1);
 
             if (md == null)
                 Assert.Fail();
@@ -99,8 +101,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -108,9 +111,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             a1.Add(Guid.NewGuid());
             a1.Add(Guid.NewGuid());
 
-            db.TblCmdMsgQueue.InsertRows(a1);
+            db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
 
-            var md = db.TblCmdMsgQueue.Get(5);
+            var md = db.tblDriveCommandMessageQueue.Get(driveId, 5);
 
             if (md == null)
                 Assert.Fail();
@@ -137,8 +140,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -149,7 +153,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             bool ok = false;
             try
             {
-                db.TblCmdMsgQueue.InsertRows(a1);
+                db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
                 ok = false;
             }
             catch
@@ -166,18 +170,19 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.TblCmdMsgQueue.InsertRows(a1);
+            db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
             bool ok = false;
             try
             {
-                db.TblCmdMsgQueue.InsertRows(a1);
+                db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
                 ok = false;
             }
             catch
@@ -193,8 +198,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -205,13 +211,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             a1.Add(v1);
             a1.Add(v2);
 
-            db.TblCmdMsgQueue.InsertRows(a1);
+            db.tblDriveCommandMessageQueue.InsertRows(driveId, a1);
 
             // Delete all tagmembers of the first key entirely
-            db.TblCmdMsgQueue.DeleteRow(a1);
+            db.tblDriveCommandMessageQueue.DeleteRow(driveId, a1);
 
             // Check that k1 is now gone
-            var md = db.TblCmdMsgQueue.Get(10);
+            var md = db.tblDriveCommandMessageQueue.Get(driveId, 10);
             if (md != null)
                 Assert.Fail();
         }

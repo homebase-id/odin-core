@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Odin.Core.Storage.Tests.DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     
     public class TableTagIndexTests
@@ -12,21 +12,22 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            var md = db.TblTagIndex.Get(k1);
+            var md = db.tblDriveTagIndex.Get(driveId, k1);
 
             if (md != null)
                 Assert.Fail();
 
-            db.TblTagIndex.InsertRows(k1, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
 
-            md = db.TblTagIndex.Get(k1);
+            md = db.tblDriveTagIndex.Get(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
@@ -42,8 +43,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -51,9 +53,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             a1.Add(Guid.NewGuid());
             a1.Add(Guid.NewGuid());
 
-            db.TblTagIndex.InsertRows(k1, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
 
-            var md = db.TblTagIndex.Get(k1);
+            var md = db.tblDriveTagIndex.Get(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
@@ -80,8 +82,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -92,7 +95,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             bool ok = false;
             try
             {
-                db.TblTagIndex.InsertRows(k1, a1);
+                db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
                 ok = false;
             }
             catch
@@ -108,22 +111,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can insert the same tagmember on two different keys
         public void InsertDoubletagMemberTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.TblTagIndex.InsertRows(k1, a1);
-            db.TblTagIndex.InsertRows(k2, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k2, a1);
 
-            var md = db.TblTagIndex.Get(k1);
+            var md = db.tblDriveTagIndex.Get(driveId, k1);
             if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
                 Assert.Fail();
 
-            md = db.TblTagIndex.Get(k2);
+            md = db.tblDriveTagIndex.Get(driveId, k2);
             if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
                 Assert.Fail();
         }
@@ -132,18 +136,19 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.TblTagIndex.InsertRows(k1, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
             bool ok = false;
             try
             {
-                db.TblTagIndex.InsertRows(k1, a1);
+                db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
                 ok = false;
             }
             catch
@@ -159,8 +164,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
@@ -171,23 +177,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             a1.Add(v1);
             a1.Add(v2);
 
-            db.TblTagIndex.InsertRows(k1, a1);
-            db.TblTagIndex.InsertRows(k2, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
+            db.tblDriveTagIndex.InsertRows(driveId, k2, a1);
 
             // Delete all tagmembers of the first key entirely
-            db.TblTagIndex.DeleteRow(k1, a1);
+            db.tblDriveTagIndex.DeleteRow(driveId, k1, a1);
 
             // Check that k1 is now gone
-            var md = db.TblTagIndex.Get(k1);
+            var md = db.tblDriveTagIndex.Get(driveId, k1);
             if (md != null)
                 Assert.Fail();
 
             // Remove one of the tagmembers from the list, delete it, and make sure we have the other one
             a1.RemoveAt(0); // Remove v1
-            db.TblTagIndex.DeleteRow(k2, a1);  // Delete v2
+            db.tblDriveTagIndex.DeleteRow(driveId, k2, a1);  // Delete v2
 
             // Check that we have one left
-            md = db.TblTagIndex.Get(k2);
+            md = db.tblDriveTagIndex.Get(driveId, k2);
             if (md.Count != 1)
                 Assert.Fail();
 

@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
 
 
-namespace Odin.Core.Storage.Tests.DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class DriveIndexDatabasePerformanceTests
     {
@@ -31,8 +31,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
             
             var tmpacllist = new List<Guid>();
             for (int j = 0; j < 1; j++)
@@ -49,7 +50,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Start();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.AddEntry(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -71,7 +72,8 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new IdentityDatabase($"");
+            var driveId = Guid.NewGuid();
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -90,7 +92,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // _testDatabase.BeginTransaction();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.AddEntry(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
@@ -119,8 +121,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
-            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
             var stopWatch = new Stopwatch();
 
 
@@ -135,7 +138,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             {
                 tasks[i] = Task.Run(() =>
                 {
-                    WriteRows(i, MAXITERATIONS, _testDatabase);
+                    WriteRows(i, MAXITERATIONS, _testDatabase, driveId);
                 });
             }
 
@@ -169,7 +172,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             GC.WaitForPendingFinalizers();
         }
 
-        public long[] WriteRows(int threadno, int iterations, DriveDatabase db)
+        public long[] WriteRows(int threadno, int iterations, IdentityDatabase db, Guid driveId)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -194,7 +197,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             //
             for (int count = 0; count < iterations; count++)
             {
-                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                db.AddEntry(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
 
             return timers;

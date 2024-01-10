@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Test.Helpers.Benchmark;
 
-namespace Odin.Core.Storage.Tests.DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class DriveIndexDatabaseTests
     {
@@ -24,7 +23,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void FileLineTest()
         {
-            DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
             _testDatabase = null;
         }*/
@@ -33,32 +32,33 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsEmpty01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             QueryBatchCursor cursor = null;
 
             // Do twice on each to ensure nothing changes state wise
 
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
 
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId,10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(10, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 10, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(outCursor.uniqueTime == 0);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
-            (result, moreRows) = _testDatabase.QueryModified(10, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 10, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(outCursor.uniqueTime == 0);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
@@ -73,8 +73,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -84,15 +85,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
 
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5); // Check we got everything, we are done because result.Count < 100
             Debug.Assert(moreRows == false);
 
@@ -104,7 +105,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
-            (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
@@ -113,7 +114,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
-            (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.nextBoundaryCursor == null);
@@ -128,8 +129,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -139,42 +141,42 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f4.ToByteArray(), cursor.pagingCursor) == 0);
             Debug.Assert(moreRows == true);
 
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f2.ToByteArray(), cursor.pagingCursor) == 0);
             Debug.Assert(moreRows == true);
 
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(moreRows == false);
 
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(moreRows == false);
 
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -188,8 +190,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -199,14 +202,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -215,7 +218,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 
 
             // Now there should be no more items
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -225,12 +228,12 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -238,7 +241,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -246,7 +249,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Double check
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -258,8 +261,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -269,11 +273,11 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
 
@@ -283,7 +287,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             List<Guid> result;
             for (int i = 1; i < 100; i++)
             {
-                (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+                (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -293,14 +297,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Add two more items
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+                (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -310,17 +314,17 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Add five more items
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+                (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -337,8 +341,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBoundaryTest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(100));
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -348,14 +353,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
-            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(moreRows == false);
@@ -374,8 +379,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsUDBoundaryTest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -385,14 +391,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
-            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(new UnixTimeUtc(2000) == cursor.userDateStopAtBoundary);
@@ -409,8 +415,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBoundaryTest02()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(200001));
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -420,14 +427,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
 
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
-            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(moreRows == false);
@@ -444,8 +451,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsUDBoundaryTest02()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -455,14 +463,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
-            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatch(driveId, 100, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(new UnixTimeUtc(-1000) == cursor.userDateStopAtBoundary);
@@ -477,8 +485,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void FileStateTest()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -488,38 +497,38 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 3 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 3 });
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 1, 2 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 1, 2 });
             Debug.Assert(result.Count == 4);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntryZapZap(f1, fileState: 42);
+            _testDatabase.UpdateEntryZapZap(driveId, f1, fileState: 42);
 
             var c2 = new UnixTimeUtcUnique(0);
-            (result, moreRows) = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 10, ref c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntry(f2, fileState: 43);
+            _testDatabase.UpdateEntry(driveId, driveId, f2, fileState: 43);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, fileStateAnyOf: new List<Int32>() { 42,43 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, fileStateAnyOf: new List<Int32>() { 42,43 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
         }
@@ -529,8 +538,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void ArchivalStatusTest()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -540,59 +550,59 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 6);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 0 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 0 });
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 1 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 1 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 2 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 2 });
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0, 1 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0, 1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
             UnixTimeUtcUnique c2 = new UnixTimeUtcUnique(0);
-            (result, moreRows) = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 10, ref c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntryZapZap(f1, archivalStatus: 7);
+            _testDatabase.UpdateEntryZapZap(driveId, f1, archivalStatus: 7);
 
             c2 = new UnixTimeUtcUnique(0);
-            (result, moreRows) = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 10, ref c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
-            _testDatabase.UpdateEntry(f2, archivalStatus: 7);
+            _testDatabase.UpdateEntry(driveId, driveId, f2, archivalStatus: 7);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
         }
@@ -604,8 +614,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -615,14 +626,14 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -632,11 +643,11 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now there should be no more items (recursive call in QueryBatch())
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -644,7 +655,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items (recursive call in QueryBatch())
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -669,8 +680,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsBatch07ExampleTest()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -681,15 +693,15 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
 
             // Add five items to the chat database
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f4) == 0);
@@ -702,7 +714,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
@@ -713,12 +725,12 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
@@ -731,8 +743,8 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Now add two more items
             var f9 = SequentialGuid.CreateGuid();
             var f10 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
             // because there is only 1 left in the previous range. A second request will get the
@@ -740,7 +752,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
             // waiting for the next query
             //
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f6) == 0);
@@ -750,7 +762,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(moreRows == true);
 
             // Now we get two more items, only one should be left (f9)
-            (result, moreRows) = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f9) == 0);
             Debug.Assert(moreRows == false);
@@ -764,8 +776,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchCursorNewestHasRows01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -773,20 +786,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
         }
@@ -795,8 +808,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorNewestHasRows01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -804,20 +818,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
         }
@@ -826,8 +840,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchCursorOldestHasRows01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -835,20 +850,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
         }
@@ -857,8 +872,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorOldestHasRows01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -866,20 +882,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
         }
@@ -888,8 +904,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchCursorNewest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -897,22 +914,22 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
@@ -921,8 +938,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorNewest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -930,23 +948,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
@@ -957,8 +975,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchCursorOldest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -966,22 +985,22 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
@@ -991,7 +1010,8 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorOldest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            var driveId = Guid.NewGuid();
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
@@ -1000,25 +1020,25 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
 
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
@@ -1028,8 +1048,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void QueryBatchCursorOldestNewest01()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1037,18 +1058,18 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Check we get the oldest and newest items
 
             QueryBatchCursor cursor = null;
-            var (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
 
             cursor = null;
-            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
         }
 
@@ -1056,8 +1077,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void TestQueryBatchStartPointGuid()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1068,18 +1090,18 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
             cursor.CursorStartPoint(f3.ToByteArray());
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
@@ -1092,7 +1114,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             cursor.CursorStartPoint(f3.ToByteArray());
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1103,8 +1125,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void TestQueryBatchStartPointTime()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1118,18 +1141,18 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
             cursor.CursorStartPoint(t3, false);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
@@ -1142,7 +1165,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             cursor.CursorStartPoint(t3, false);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1154,8 +1177,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void TestQueryBatchUserDateStartPointTime()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1169,18 +1193,18 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
             cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
@@ -1194,7 +1218,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
@@ -1205,8 +1229,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void TestQueryBatchStopBoundaryGuid()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1217,23 +1242,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor(f3.ToByteArray());
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
@@ -1245,13 +1270,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             cursor = new QueryBatchCursor(f3.ToByteArray());
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
@@ -1263,8 +1288,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void TestQueryBatchStopBoundaryTime()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1277,23 +1303,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor(t3, false);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            var (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
@@ -1305,13 +1331,13 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             cursor = new QueryBatchCursor(t3, false);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            (result, hasRows) = _testDatabase.QueryBatch(driveId, 10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
@@ -1325,8 +1351,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsModified01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1336,20 +1363,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
-            var (result, moreRows) = _testDatabase.QueryModified(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryModified(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
             Debug.Assert(cursor.uniqueTime == 0);
             Debug.Assert(moreRows == false);
 
             // Do a double check that even if the timestamp is "everything forever" then we still get nothing.
-            (result, moreRows) = _testDatabase.QueryModified(100, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
             Debug.Assert(cursor.uniqueTime == 0);
             Debug.Assert(moreRows == false);
@@ -1362,8 +1389,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void CursorsModified02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1373,28 +1401,28 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
 
             UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
-            var (result, moreRows) = _testDatabase.QueryModified(2, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryModified(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // Modify one item make sure we can get it.
-            _testDatabase.TblMainIndex.TestTouch(f2);
-            (result, moreRows) = _testDatabase.QueryModified(2, ref cursor, requiredSecurityGroup: allIntRange);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f2);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
             // Debug.Assert(ByteArrayUtil.muidcmp(cursor, f2.ToByteArray()) == 0);
             Debug.Assert(moreRows == false);
 
             // Make sure cursor is updated and we're at the end
-            (result, moreRows) = _testDatabase.QueryModified(2, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
         }
@@ -1404,9 +1432,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void RequiredSecurityGroupBatch01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
-
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1417,45 +1445,45 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
 
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 4, end: 10));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 4, end: 10));
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 2));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 2));
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
         }
@@ -1464,8 +1492,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void RequiredSecurityGroupModified02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.Random);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1476,50 +1505,50 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
-            var (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing has been modified
             Debug.Assert(moreRows == false);
 
-            _testDatabase.TblMainIndex.TestTouch(f1);
-            _testDatabase.TblMainIndex.TestTouch(f2);
-            _testDatabase.TblMainIndex.TestTouch(f3);
-            _testDatabase.TblMainIndex.TestTouch(f4);
-            _testDatabase.TblMainIndex.TestTouch(f5);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f1);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f2);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f3);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f4);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f5);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5); // Ensure everything is now "modified"
             Debug.Assert(moreRows == false);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             outCursor = UnixTimeUtcUnique.ZeroTime;
-            (result, moreRows) = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: new IntRange(start: 2, end: 3));
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref outCursor, requiredSecurityGroup: new IntRange(start: 2, end: 3));
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
         }
@@ -1527,8 +1556,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void SecurityGroupAndAclBatch01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -1544,53 +1574,53 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var a3 = SequentialGuid.CreateGuid();
             var a4 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
             QueryBatchCursor cursor = null;
 
             // For any security group, we should have 5 entries
             cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
             // For any security group, and an ACL, then the OR statement ignores the ACL, we should still have 5 entries
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
             // For NO valid security group, and a valid ACL, just the valid ACLs
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // For just security Group 1 we have 2 entries
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // For security Group 1 or any of the ACLs a1 we have 3
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
 
             // For security Group 1 or any of the ACLs a3, a4 we have 3
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
 
             // For no security Group 1 getting ACLs a1we have 2
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
         }
@@ -1600,22 +1630,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add one and retrieve it
         public void GlobalTransitId01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
             Debug.Assert(moreRows == false);
         }
@@ -1624,29 +1655,30 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add two and retrieve them
         public void GlobalTransitId02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var f2 = SequentialGuid.CreateGuid();
             var g2 = Guid.NewGuid();
-            _testDatabase.AddEntry(f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f2);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f2);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
         }
 
@@ -1655,19 +1687,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test that we cannot add a duplicate
         public void GlobalTransitId03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(f2, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntry(driveId, f2, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
                 Assert.Fail();
             }
             catch
@@ -1681,22 +1714,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can handle NULL
         public void GlobalTransitId04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(data.globalTransitId == null);
         }
 
@@ -1705,31 +1739,32 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void GlobalTransitId05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
             // We shouldn't be able to find any like this:
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // Now we should be able to find it
-            (result, moreRows) = _testDatabase.QueryBatchAuto(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
-            _testDatabase.TblMainIndex.TestTouch(f1); // Make sure we can find it
-            (result, moreRows) = _testDatabase.QueryModified(1, ref outCursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f1); // Make sure we can find it
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 1, ref outCursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
         }
@@ -1739,8 +1774,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void GlobalTransitId06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var g1 = Guid.NewGuid();
@@ -1749,17 +1785,17 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-            _testDatabase.UpdateEntry(f1, globalTransitId: g2, archivalStatus: 7);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            _testDatabase.UpdateEntry(driveId, f1, globalTransitId: g2, archivalStatus: 7);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
-            _testDatabase.UpdateEntryZapZap(f1, globalTransitId: g3);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            _testDatabase.UpdateEntryZapZap(driveId, f1, globalTransitId: g3);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
         }
 
@@ -1769,23 +1805,24 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add one and retrieve it
         public void UniqueId01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
         }
 
@@ -1793,29 +1830,30 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add two and retrieve them
         public void UniqueId02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var f2 = SequentialGuid.CreateGuid();
             var u2 = Guid.NewGuid();
-            _testDatabase.AddEntry(f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f2);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f2);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
         }
 
@@ -1824,19 +1862,20 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test that we cannot add a duplicate
         public void UniqueId03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(f2, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                _testDatabase.AddEntry(driveId, f2, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
                 Assert.Fail();
             }
             catch
@@ -1850,22 +1889,23 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can handle NULL
         public void UniqueId04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(data.uniqueId == null);
         }
 
@@ -1874,31 +1914,32 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void UniqueId05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
             // We shouldn't be able to find any like this:
-            var (result, moreRows) = _testDatabase.QueryBatchAuto(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // Now we should be able to find it
-            (result, moreRows) = _testDatabase.QueryBatchAuto(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
-            _testDatabase.TblMainIndex.TestTouch(f1); // Make sure we can find it
-            (result, moreRows) = _testDatabase.QueryModified(1, ref outCursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f1); // Make sure we can find it
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 1, ref outCursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
         }
@@ -1908,8 +1949,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void UniqueId06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             var f1 = SequentialGuid.CreateGuid();
             var u1 = Guid.NewGuid();
@@ -1918,17 +1960,17 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            _testDatabase.AddEntry(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
-            var data = _testDatabase.TblMainIndex.Get(f1);
+            var data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
-            _testDatabase.UpdateEntry(f1, uniqueId: u2);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            _testDatabase.UpdateEntry(driveId, driveId, f1, uniqueId: u2);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
-            _testDatabase.UpdateEntryZapZap(f1, uniqueId: u3);
-            data = _testDatabase.TblMainIndex.Get(f1);
+            _testDatabase.UpdateEntryZapZap(driveId, f1, uniqueId: u3);
+            data = _testDatabase.tblDriveMainIndex.Get(driveId, f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u3) == 0);
         }
 
@@ -1938,10 +1980,10 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void UpdateTest()
         {
-            var (testDatabase, fileId, conversationId, aclMembers, tags) = this.Init("update_entry_test.db");
+            var (testDatabase, driveId, fileId, conversationId, aclMembers, tags) = this.Init("update_entry_test.db");
 
-            var _acllist = testDatabase.TblAclIndex.Get(fileId[0]);
-            var _taglist = testDatabase.TblTagIndex.Get(fileId[0]);
+            var _acllist = testDatabase.tblDriveAclIndex.Get(driveId, fileId[0]);
+            var _taglist = testDatabase.tblDriveTagIndex.Get(driveId, fileId[0]);
 
             var acllist = new List<Guid>();
             var taglist = new List<Guid>();
@@ -1960,9 +2002,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             acladd.Add(Guid.NewGuid());
             tagadd.Add(Guid.NewGuid());
 
-            testDatabase.UpdateEntry(fileId[0], requiredSecurityGroup: 44, addAccessControlList: acladd, deleteAccessControlList: acllist, addTagIdList: tagadd, deleteTagIdList: taglist);
-            var acllistres = testDatabase.TblAclIndex.Get(fileId[0]);
-            var taglistres = testDatabase.TblTagIndex.Get(fileId[0]);
+            testDatabase.UpdateEntry(driveId, fileId[0], requiredSecurityGroup: 44, addAccessControlList: acladd, deleteAccessControlList: acllist, addTagIdList: tagadd, deleteTagIdList: taglist);
+            var acllistres = testDatabase.tblDriveAclIndex.Get(driveId, fileId[0]);
+            var taglistres = testDatabase.tblDriveTagIndex.Get(driveId, fileId[0]);
 
             Debug.Assert(acllistres.Count == 1);
             Debug.Assert(taglistres.Count == 1);
@@ -1971,9 +2013,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(taglistres[0], tagadd[0]) == 0);
 
             // Fix it back to where [0] was
-            testDatabase.UpdateEntry(fileId[0], addAccessControlList: acllist, deleteAccessControlList: acladd, addTagIdList: taglist, deleteTagIdList: tagadd);
-            acllistres = testDatabase.TblAclIndex.Get(fileId[0]);
-            taglistres = testDatabase.TblTagIndex.Get(fileId[0]);
+            testDatabase.UpdateEntry(driveId, fileId[0], addAccessControlList: acllist, deleteAccessControlList: acladd, addTagIdList: taglist, deleteTagIdList: tagadd);
+            acllistres = testDatabase.tblDriveAclIndex.Get(driveId, fileId[0]);
+            taglistres = testDatabase.tblDriveTagIndex.Get(driveId, fileId[0]);
             Debug.Assert(acllistres.Count == 4);
             Debug.Assert(taglistres.Count == 4);
 
@@ -1984,7 +2026,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         [Test]
         public void AddEntryTest()
         {
-            var (testDatabase, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_test.db");
+            var (testDatabase, driveId, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_test.db");
 
             Stopwatch stopWatch = new Stopwatch();
             Console.WriteLine($"Test built in batch");
@@ -1999,55 +2041,55 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // var cursorTimestamp = testDatabase.GetTimestamp();
             QueryBatchCursor cursor = null;
 
-            var (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 400);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 1]) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[399], fileId[fileId.Count - 400]) == 0);
             Debug.Assert(moreRows == true);
 
-            var md = testDatabase.TblMainIndex.Get(fileId[0]);
+            var md = testDatabase.tblDriveMainIndex.Get(driveId, fileId[0]);
 
-            var p1 = testDatabase.TblAclIndex.Get(fileId[0]);
+            var p1 = testDatabase.tblDriveAclIndex.Get(driveId, fileId[0]);
             Debug.Assert(p1 != null);
             Debug.Assert(p1.Count == 4);
 
-            var p2 = testDatabase.TblTagIndex.Get(fileId[0]);
+            var p2 = testDatabase.tblDriveTagIndex.Get(driveId, fileId[0]);
             Debug.Assert(p2 != null);
             Debug.Assert(p2.Count == 4);
 
 
-            (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 400);
             Debug.Assert(moreRows == true);
 
-            (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 200); // We put 1,000 lines into the index. 400+400+200 = 1,000
             Debug.Assert(moreRows == false);
 
             stopWatch.Stop();
-            TestBenchmark.StopWatchStatus("Built in QueryBatch()", stopWatch);
+            TestBenchmark.StopWatchStatus("Built in QueryBatch(driveId, )", stopWatch);
 
             // Try to get a batch stopping at boundaryCursor. We should get none.
-            (result, moreRows) = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // There should be no more
             Debug.Assert(moreRows == false);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
             // Now let's be sure that there are no modified items. 0 gets everything that was ever modified
-            (result, moreRows) = testDatabase.QueryModified(100, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryModified(driveId, 100, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             var theguid = conversationId[42];
-            testDatabase.UpdateEntry(fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
+            testDatabase.UpdateEntry(driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
 
             // Now check that we can find the one modified item with our cursor timestamp
-            (result, moreRows) = testDatabase.QueryModified(100, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryModified(driveId, 100, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[420]) == 0);
             Debug.Assert(moreRows == false);
 
-            md = testDatabase.TblMainIndex.Get(fileId[420]);
+            md = testDatabase.tblDriveMainIndex.Get(driveId, fileId[420]);
             Debug.Assert(md.fileType == 5);
             Debug.Assert(md.dataType == 6);
             Debug.Assert(md.userDate == new UnixTimeUtc(42));
@@ -2056,7 +2098,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 
-            (result, moreRows) = testDatabase.QueryModified(100, ref outCursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryModified(driveId, 100, ref outCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
@@ -2064,11 +2106,11 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that if we fetch the first record, it is the latest fileId
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 1, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == true);
 
-            if (testDatabase.GetKind() == DatabaseIndexKind.TimeSeries)
+            if (true)
             {
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 1]) == 0);
             }
@@ -2077,10 +2119,10 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                 throw new Exception("What to expect here?");
             }
 
-            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 1, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == true);
-            if (testDatabase.GetKind() == DatabaseIndexKind.TimeSeries)
+            if (true)
             {
                 Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 2]) == 0);
             }
@@ -2093,7 +2135,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that fileType works. We know row #1 has filetype 0.
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 1, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(moreRows == true);
             Debug.Assert(result.Count >= 1);
 
@@ -2101,7 +2143,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that we can find a row with Tags. We know row 0 has tag 0..3
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 100, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
@@ -2111,7 +2153,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that we can find a row with Acls. We know row 0 has acl 0..3
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 1, ref cursor,
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == true);
@@ -2122,19 +2164,19 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // From three on it's a repeat code.
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 1, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
@@ -2143,7 +2185,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that we can execute a query with all main attributes set
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 10,
                 ref cursor,
                 filetypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
                 datatypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
@@ -2157,7 +2199,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that we can find a row with Acls AND Tags
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 100, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
@@ -2168,7 +2210,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             // Test that we can find a row with Acls AND Tags
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(driveId, 100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
@@ -2179,7 +2221,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             testDatabase.Dispose();
         }
 
-        private (DriveDatabase, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags) Init(string filename)
+        private (IdentityDatabase, Guid driveId, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags) Init(string filename)
         {
             var fileId = new List<Guid>();
             var conversationId = new List<Guid>();
@@ -2191,8 +2233,9 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             Utils.DummyTypes(aclMembers, 1000);
             Utils.DummyTypes(tags, 1000);
 
-            DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            IdentityDatabase _testDatabase = new IdentityDatabase($"");
             _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
 
             Random myRnd = new Random();
 
@@ -2225,7 +2268,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             tmptaglist.Add(tags[2]);
             tmptaglist.Add(tags[3]);
 
-            _testDatabase.AddEntry(fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+            _testDatabase.AddEntry(driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
             // Insert a lot of random data
             for (var i = 0 + 1; i < fileId.Count; i++)
@@ -2252,7 +2295,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
                     countTags++;
                 }
 
-                _testDatabase.AddEntry(fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.AddEntry(driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
             }
 
             _testDatabase.Commit();
@@ -2260,7 +2303,7 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
             stopWatch.Stop();
             TestBenchmark.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
 
-            return (_testDatabase, fileId, conversationId, aclMembers, tags);
+            return (_testDatabase, driveId, fileId, conversationId, aclMembers, tags);
         }
     }
 }
