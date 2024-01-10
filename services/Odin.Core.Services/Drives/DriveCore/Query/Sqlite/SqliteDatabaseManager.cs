@@ -8,11 +8,10 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Serilog;
-using QueryBatchCursor = Odin.Core.Storage.SQLite.DriveDatabase.QueryBatchCursor;
+using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 
