@@ -46,8 +46,8 @@ public class UniversalStaticFileApiClient
 
     public async Task<ApiResponse<HttpContent>> GetPublicProfileCard()
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
-        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, sharedSecret);
+        var client = _factory.CreateHttpClient(_identity, out _);
+        var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         return await staticFileSvc.GetPublicProfileCard();
     }
 

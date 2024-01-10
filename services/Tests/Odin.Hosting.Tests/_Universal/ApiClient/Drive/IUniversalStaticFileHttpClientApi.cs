@@ -13,8 +13,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
     /// </summary>
     public interface IUniversalStaticFileHttpClientApi
     {
-        private const string RootEndpoint = OwnerApiPathConstants.CdnV1;
-
+        private const string RootEndpoint = "/optimization/cdn";
+        
         [Post(RootEndpoint + "/publish")]
         Task<ApiResponse<StaticFilePublishResult>> Publish([Body] PublishStaticFileRequest request);
         
@@ -24,13 +24,5 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Post(RootEndpoint + "/profilecard")]
         Task<ApiResponse<HttpContent>> PublishPublicProfileCard([Body] PublishPublicProfileCardRequest request);
 
-        [Get("/cdn/{filename}")]
-        Task<ApiResponse<HttpContent>> GetStaticFile(string filename);
-        
-        [Get("/pub/image")]
-        Task<ApiResponse<HttpContent>> GetPublicProfileImage();
-        
-        [Get("/pub/profile")]
-        Task<ApiResponse<HttpContent>> GetPublicProfileCard();
     }
 }

@@ -31,4 +31,8 @@
     <ProjectReference Include="..\..\Odin.Hosting\Odin.Hosting.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="_Universal\DriveTests\Optimization\" />
+  </ItemGroup>
+
 </Project>

@@ -17,12 +17,8 @@ using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Hosting.Controllers.Base.Cdn;
-using Odin.Hosting.Controllers.OwnerToken.Cdn;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests.AppAPI.Utils;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.Optimization.Cdn;
 using Refit;
 
 namespace Odin.Hosting.Tests.Performance
