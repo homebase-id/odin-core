@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Xml;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.SQLite.DriveDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
-    public class TableMainIndex : TableMainIndexCRUD
+    public class TableDriveMainIndex : TableDriveMainIndexCRUD
     {
         private SqliteCommand _updateCommand = null;
         private SqliteParameter _uparam1 = null;
@@ -25,17 +24,19 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteCommand _touchCommand = null;
         private SqliteParameter _tparam1 = null;
         private SqliteParameter _tparam2 = null;
+        private SqliteParameter _tparam3 = null;
         private Object _touchLock = new Object();
 
         private SqliteCommand _sizeCommand = null;
+        private SqliteParameter _sparam1 = null;
         private Object _sizeLock = new Object();
 
-        public TableMainIndex(xDriveDatabase db, CacheHelper cache) : base(db, cache)
+        public TableDriveMainIndex(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
 
-        ~TableMainIndex()
+        ~TableDriveMainIndex()
         {
         }
 
@@ -48,11 +49,14 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _touchCommand?.Dispose();
             _touchCommand = null;
 
+            _sizeCommand?.Dispose();
+            _sizeCommand = null;
+
             base.Dispose();
         }
 
 
-        public (Int64, Int64) GetDriveSize()
+        public (Int64, Int64) GetDriveSize(Guid driveId)
         {
             lock (_sizeLock)
             {
@@ -62,8 +66,14 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _sizeCommand = _database.CreateCommand();
 
                     _sizeCommand.CommandText =
-                        $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM mainindex; PRAGMA read_uncommitted = 0;";
+                        $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM mainindex WHERE driveid = $driveId; PRAGMA read_uncommitted = 0;";
+
+                    _sparam1 = _sizeCommand.CreateParameter();
+                    _sparam1.ParameterName = "$driveId";
+                    _sizeCommand.Parameters.Add(_sparam1);
                 }
+
+                _sparam1.Value = driveId.ToByteArray();
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
                 {
@@ -84,7 +94,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         /// For testing only. Updates the updatedTimestamp for the supplied item.
         /// </summary>
         /// <param name="fileId">Item to touch</param>
-        public void TestTouch(Guid fileId)
+        public void TestTouch(Guid driveId, Guid fileId)
         {
             lock (_touchLock)
             {
@@ -94,38 +104,44 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _touchCommand = _database.CreateCommand();
 
                     _touchCommand.CommandText =
-                        $"UPDATE mainindex SET modified=$modified WHERE fileid = $fileid;";
+                        $"UPDATE mainindex SET modified=$modified WHERE driveId = $driveId AND fileid = $fileid;";
 
                     _tparam1 = _touchCommand.CreateParameter();
-                    _tparam1.ParameterName = "$fileid";
-                    _touchCommand.Parameters.Add(_tparam1);
-
                     _tparam2 = _touchCommand.CreateParameter();
+                    _tparam3 = _touchCommand.CreateParameter();
+
+                    _tparam1.ParameterName = "$fileid";
                     _tparam2.ParameterName = "$modified";
+                    _tparam3.ParameterName = "$driveId";
+
+                    _touchCommand.Parameters.Add(_tparam1);
                     _touchCommand.Parameters.Add(_tparam2);
+                    _touchCommand.Parameters.Add(_tparam3);
                 }
 
                 _tparam1.Value = fileId.ToByteArray();
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
+                _tparam3.Value = driveId.ToByteArray();
 
                 _database.ExecuteNonQuery(_touchCommand);
             }
         }
 
-        public override int Update(MainIndexRecord item)
+        public override int Update(DriveMainIndexRecord item)
         {
             throw new Exception("can't use");
         }
 
         // It is not allowed to update the GlobalTransitId
-        public void UpdateRow(Guid fileId,
+        public void UpdateRow(Guid driveId, 
+            Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
             Int32? dataType = null,
             byte[] senderId = null,
             Guid? groupId = null,
-            xDriveDatabase.NullableGuid nullableUniqueId = null,
+            IdentityDatabase.NullableGuid nullableUniqueId = null,
             Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
@@ -150,40 +166,30 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _uparam11 = _updateCommand.CreateParameter();
                     _uparam12 = _updateCommand.CreateParameter();
 
-                    _uparam1.ParameterName = "modified";
-                    _updateCommand.Parameters.Add(_uparam1);
-
+                    _uparam1.ParameterName = "$modified";
                     _uparam2.ParameterName = "$filetype";
-                    _updateCommand.Parameters.Add(_uparam2);
-
                     _uparam3.ParameterName = "$datatype";
-                    _updateCommand.Parameters.Add(_uparam3);
-
                     _uparam4.ParameterName = "$senderid";
-                    _updateCommand.Parameters.Add(_uparam4);
-
                     _uparam5.ParameterName = "$groupid";
-                    _updateCommand.Parameters.Add(_uparam5);
-
                     _uparam6.ParameterName = "$uniqueid";
-                    _updateCommand.Parameters.Add(_uparam6);
-
                     _uparam7.ParameterName = "$userdate";
-                    _updateCommand.Parameters.Add(_uparam7);
-
                     _uparam8.ParameterName = "$requiredSecurityGroup";
-                    _updateCommand.Parameters.Add(_uparam8);
-
                     _uparam9.ParameterName = "$globaltransitid";
-                    _updateCommand.Parameters.Add(_uparam9);
-
                     _uparam10.ParameterName = "$archivalStatus";
-                    _updateCommand.Parameters.Add(_uparam10);
-
                     _uparam11.ParameterName = "$fileState";
-                    _updateCommand.Parameters.Add(_uparam11);
-
                     _uparam12.ParameterName = "$byteCount";
+
+                    _updateCommand.Parameters.Add(_uparam1);
+                    _updateCommand.Parameters.Add(_uparam2);
+                    _updateCommand.Parameters.Add(_uparam3);
+                    _updateCommand.Parameters.Add(_uparam4);
+                    _updateCommand.Parameters.Add(_uparam5);
+                    _updateCommand.Parameters.Add(_uparam6);
+                    _updateCommand.Parameters.Add(_uparam7);
+                    _updateCommand.Parameters.Add(_uparam8);
+                    _updateCommand.Parameters.Add(_uparam9);
+                    _updateCommand.Parameters.Add(_uparam10);
+                    _updateCommand.Parameters.Add(_uparam11);
                     _updateCommand.Parameters.Add(_uparam12);
                 }
 
@@ -231,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 }
 
                 _updateCommand.CommandText =
-                    $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
+                    $"UPDATE mainindex SET " + stm + $" WHERE driveid = x'{Convert.ToHexString(driveId.ToByteArray())}' AND fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
                 _uparam1.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
                 _uparam2.Value = fileType ?? (object)DBNull.Value;

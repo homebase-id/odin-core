@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
 
-        public TableTagIndexCRUD(DriveDatabase db, CacheHelper cache) : base(db)
+        public TableTagIndexCRUD(xDriveDatabase db, CacheHelper cache) : base(db)
         {
         }
 

@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class TableAclIndex : TableAclIndexCRUD
     {
-        public TableAclIndex(DriveDatabase db, CacheHelper cache) : base(db, cache)
+        public TableAclIndex(xDriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

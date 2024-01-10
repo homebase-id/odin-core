@@ -3,20 +3,20 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.SQLite.DriveDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
-    public class TableCommandMessageQueue : TableCommandMessageQueueCRUD
+    public class TableDriveCommandMessageQueue : TableDriveCommandMessageQueueCRUD
     {
         private SqliteCommand _selectCommand = null;
         
         private Object _selectLock = new Object();
 
 
-        public TableCommandMessageQueue(xDriveDatabase db, CacheHelper cache) : base(db, cache)
+        public TableDriveCommandMessageQueue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
-        ~TableCommandMessageQueue()
+        ~TableDriveCommandMessageQueue()
         {
         }
 
@@ -30,18 +30,18 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 
 
         // Returns up to count items
-        public List<CommandMessageQueueRecord> Get(int count)
+        public List<DriveCommandMessageQueueRecord> Get(Guid driveId, int count)
         {
             lock (_selectLock)
             {
                 using (_selectCommand = _database.CreateCommand())
                 {
-                    _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue ORDER BY fileid ASC LIMIT {count}";
+                    _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
 
                     using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
-                        var queue = new List<CommandMessageQueueRecord>();
+                        var queue = new List<DriveCommandMessageQueueRecord>();
 
                         while (rdr.Read())
                         {
@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             }
         }
 
-        public void InsertRows(List<Guid> fileId)
+        public void InsertRows(Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             // Since we are writing multiple rows we do a logic unit here
             using (_database.CreateCommitUnitOfWork())
             {
-                var item = new CommandMessageQueueRecord() { timeStamp = new UnixTimeUtc(0) };
+                var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
                 for (int i = 0; i < fileId.Count; i++)
                 {
                     item.fileId = fileId[i];
@@ -75,7 +75,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             }
         }
 
-        public void DeleteRow(List<Guid> fileId)
+        public void DeleteRow(Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             {
                 for (int i = 0; i < fileId.Count; i++)
                 {
-                    Delete(fileId[i]);
+                    Delete(driveId, fileId[i]);
                 }
             }
         }

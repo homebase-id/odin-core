@@ -52,7 +52,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         }
     }
 
-    public class DriveDatabase : DatabaseBase
+    public class xDriveDatabase : DatabaseBase
     {
         public class NullableGuid { public Guid? uniqueId; }
 
@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private readonly string _file;
         private readonly int _line;
 
-        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public xDriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
 
@@ -86,7 +86,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         }
 
 
-        ~DriveDatabase()
+        ~xDriveDatabase()
         {
 #if DEBUG
             if (!_wasDisposed)
@@ -205,7 +205,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             {
 
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, new DriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                    groupId: groupId, new xDriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 TblAclIndex.InsertRows(fileId, addAccessControlList);
                 TblTagIndex.InsertRows(fileId, addTagIdList);
@@ -237,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, new DriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                    groupId: groupId, new xDriveDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 TblAclIndex.DeleteAllRows(fileId);
                 TblAclIndex.InsertRows(fileId, accessControlList);

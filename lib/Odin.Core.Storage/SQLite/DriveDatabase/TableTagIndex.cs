@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class TableTagIndex : TableTagIndexCRUD
     {
-        public TableTagIndex(DriveDatabase db, CacheHelper cache) : base(db, cache)
+        public TableTagIndex(xDriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
