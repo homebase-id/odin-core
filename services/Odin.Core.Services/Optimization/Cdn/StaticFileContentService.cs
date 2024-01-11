@@ -9,6 +9,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -66,7 +67,7 @@ public class StaticFileContentService
 
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
 
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         Guard.Argument(sections, nameof(sections)).NotNull().NotEmpty();
@@ -127,12 +128,25 @@ public class StaticFileContentService
                         }
 
                         var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
-                        payloads.Add(new PayloadStaticFileResponse()
+                        try
                         {
-                            Key = ps.Key,
-                            ContentType = ps.ContentType,
-                            Data = ps.Stream.ToByteArray().ToBase64()
-                        });
+                            payloads.Add(new PayloadStaticFileResponse()
+                            {
+                                Key = ps.Key,
+                                ContentType = ps.ContentType,
+                                Data = ps.Stream.ToByteArray().ToBase64()
+                            });
+                        }
+                        finally
+                        {
+                            // TODO: PayloadStream should probably have some sort of dtor or
+                            // know if it needs to dispose if the stream it is holding on to
+                            if (ps.Stream != null)
+                            {
+                                await ps.Stream.DisposeAsync();
+                            }
+                            ps = null;
+                        }
                     }
                 }
 
