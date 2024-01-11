@@ -111,7 +111,7 @@ public static class DriveFileUtility
             {
                 throw new OdinSystemException("payload descriptor is missing IV (initialization vector)");
             }
-            
+
             //TODO: consider falling back
 
             keyHeader.Iv = payloadDescriptor.Iv;
@@ -128,6 +128,10 @@ public static class DriveFileUtility
         {
             Created = fileMetadata.Created,
             Updated = fileMetadata.Updated,
+
+            TransitCreated = fileMetadata.TransitCreated,
+            TransitUpdated = fileMetadata.TransitUpdated,
+
             AppData = fileMetadata.AppData,
             GlobalTransitId = fileMetadata.GlobalTransitId,
             IsEncrypted = fileMetadata.IsEncrypted,

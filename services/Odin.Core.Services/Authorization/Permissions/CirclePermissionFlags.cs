@@ -24,6 +24,8 @@ namespace Odin.Core.Services.Authorization.Permissions
 
         public const int SendPushNotifications = 405;
 
+        public const int PublishStaticContent = 505;
+        
         public static readonly List<int> All = new List<int>()
         {
             ReadConnections,
@@ -34,7 +36,8 @@ namespace Odin.Core.Services.Authorization.Permissions
             UseTransitWrite,
             UseTransitRead,
             SendPushNotifications,
-            ManageFeed
+            ManageFeed,
+            PublishStaticContent
         };
     }
 
@@ -54,7 +57,8 @@ namespace Odin.Core.Services.Authorization.Permissions
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead,
                 PermissionKeys.SendPushNotifications,
-                PermissionKeys.ManageFeed
+                PermissionKeys.ManageFeed,
+                PermissionKeys.PublishStaticContent
             });
 
             Circles = new ReadOnlyCollection<int>(new List<int>()

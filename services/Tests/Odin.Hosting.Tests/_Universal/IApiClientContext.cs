@@ -18,12 +18,3 @@ public interface IApiClientContext
 
     IApiClientFactory GetFactory();
 }
-
-public static class ScenarioUtil
-{
-    public static IApiClientContext Instantiate(Type scenarioType, TestPermissionKeyList testPermissionKeyList)
-    {
-        var scenario = (IApiClientContext)Activator.CreateInstance(scenarioType, testPermissionKeyList);
-        return scenario;
-    }
-}

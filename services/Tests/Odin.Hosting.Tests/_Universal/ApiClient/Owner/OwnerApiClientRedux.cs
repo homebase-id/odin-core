@@ -38,7 +38,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
-            
+
+            StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
+
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
@@ -47,7 +49,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             Connections = new CircleNetworkRequestsApiClient(ownerApi, identity);
 
             AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
-
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -69,6 +70,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public DriveManagementApiClient DriveManager { get; }
 
         public UniversalDriveApiClient DriveRedux { get; }
+
+        public UniversalStaticFileApiClient StaticFilePublisher { get; }
 
         public OwnerConfigurationApiClient Configuration { get; }
 

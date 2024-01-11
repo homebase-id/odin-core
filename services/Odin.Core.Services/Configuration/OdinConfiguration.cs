@@ -18,6 +18,7 @@ namespace Odin.Core.Services.Configuration
         public HostSection Host { get; init; }
 
         public RegistrySection Registry { get; init; }
+
         public DevelopmentSection Development { get; init; }
 
         public LoggingSection Logging { get; init; }
@@ -226,7 +227,10 @@ namespace Odin.Core.Services.Configuration
                 FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
                 FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
+                ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
             }
+
+            public string ReportContentUrl { get; set; }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
