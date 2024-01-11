@@ -87,7 +87,7 @@ namespace Odin.Hosting
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<DriveFileReaderWriter>();
-            
+
             services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
             services.AddQuartz(q =>
             {
@@ -341,11 +341,14 @@ namespace Odin.Hosting
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
 
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
-
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3002/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
 
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
@@ -375,21 +378,20 @@ namespace Odin.Hosting
                             return;
                         });
                     });
-                
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
-                    chatApp =>
-                    {
-                        var chatPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat");
-                        chatApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(chatPath),
-                            RequestPath = "/apps/chat"
-                        });
 
-                        chatApp.Run(async context =>
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
+                    feedApp =>
+                    {
+                        var feedPath = Path.Combine(env.ContentRootPath, "client", "apps", "feed");
+                        feedApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(feedPath),
+                            RequestPath = "/apps/feed"
+                        });
+                        feedApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(chatPath, "index.html"));
+                            await context.Response.SendFileAsync(Path.Combine(feedPath, "index.html"));
                             return;
                         });
                     });
@@ -403,6 +405,7 @@ namespace Odin.Hosting
                             FileProvider = new PhysicalFileProvider(chatPath),
                             RequestPath = "/apps/chat"
                         });
+
                         chatApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
