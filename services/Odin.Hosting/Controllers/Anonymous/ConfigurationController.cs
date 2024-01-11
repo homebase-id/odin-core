@@ -22,6 +22,8 @@ public class HostingCompanyAnonymousConfigController : Controller
     [HttpGet("config/reporting")]
     public ContentReportingConfig GetReportContentUrl()
     {
+        // Accessible from anywhere, as any identity can request the report url of this user;
+        HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
         return new ContentReportingConfig()
         {
             Url = _configuration.Host.ReportContentUrl
