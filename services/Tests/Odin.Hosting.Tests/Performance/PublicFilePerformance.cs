@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.Performance
         private const int MAXTHREADS = 12;
         const int MAXITERATIONS = 100;
 
-        IUniversalPublicStaticFileHttpClientApi _getUniversalStaticFileSvc;
+        UniversalStaticFileApiClient _getUniversalStaticFileSvc;
         PublishStaticFileRequest publishRequest;
         StaticFilePublishResult pubResult;
 
@@ -154,9 +154,9 @@ TaskPerformanceTest
                 },
                 additionalThumbs: new List<ThumbnailContent>() { thumbnail2 });
 
-            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
-            var staticFileSvc =
-                RefitCreator.RestServiceFor<IUniversalStaticFileHttpClientApi>(client, ownerSharedSecret);
+
+            var client = _scaffold.CreateOwnerApiClientRedux(identity);
+
 
             //publish a static file
             publishRequest = new PublishStaticFileRequest()
@@ -202,7 +202,7 @@ TaskPerformanceTest
                 }
             });
 
-            var publishResponse = await staticFileSvc.Publish(publishRequest);
+            var publishResponse = await client.StaticFilePublisher.Publish(publishRequest);
             if (!publishResponse.IsSuccessStatusCode)
                 Console.WriteLine("staticFileSvc.Publish(publishRequest): " + publishResponse.ReasonPhrase);
 
@@ -216,9 +216,7 @@ TaskPerformanceTest
             Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
             Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
-
-            _getUniversalStaticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
-
+            _getUniversalStaticFileSvc = client.StaticFilePublisher;
 
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
         }
