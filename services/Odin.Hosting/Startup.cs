@@ -380,15 +380,15 @@ namespace Odin.Hosting
                     });
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
-                    chatApp =>
+                    feedApp =>
                     {
                         var feedPath = Path.Combine(env.ContentRootPath, "client", "apps", "feed");
-                        chatApp.UseStaticFiles(new StaticFileOptions()
+                        feedApp.UseStaticFiles(new StaticFileOptions()
                         {
                             FileProvider = new PhysicalFileProvider(feedPath),
                             RequestPath = "/apps/feed"
                         });
-                        chatApp.Run(async context =>
+                        feedApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(feedPath, "index.html"));
