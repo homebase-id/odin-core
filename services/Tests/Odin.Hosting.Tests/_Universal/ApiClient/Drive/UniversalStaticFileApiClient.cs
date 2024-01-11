@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Threading.Tasks;
@@ -46,22 +47,25 @@ public class UniversalStaticFileApiClient
     public async Task<ApiResponse<HttpContent>> GetPublicProfileCard()
     {
         var client = _factory.CreateHttpClient(_identity, out _);
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
         var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         return await staticFileSvc.GetPublicProfileCard();
     }
 
     public async Task<ApiResponse<HttpContent>> GetPublicProfileImage()
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
-        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalPublicStaticFileHttpClientApi>(client, sharedSecret);
+        var client = _factory.CreateHttpClient(_identity, out _);
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
+        var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         var response = await staticFileSvc.GetPublicProfileImage();
         return response;
     }
 
     public async Task<ApiResponse<HttpContent>> GetStaticFile(string filename)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
-        var staticFileSvc = RefitCreator.RestServiceFor<IUniversalPublicStaticFileHttpClientApi>(client, sharedSecret);
+        var client = _factory.CreateHttpClient(_identity, out _);
+        client.BaseAddress = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}");
+        var staticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
         return await staticFileSvc.GetStaticFile(filename);
     }
 }

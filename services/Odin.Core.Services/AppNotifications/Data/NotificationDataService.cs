@@ -50,6 +50,8 @@ public class NotificationListService
 
     public Task<NotificationsListResult> GetList(GetNotificationListRequest request)
     {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
 
         var nr = new NotificationsListResult()
@@ -70,7 +72,8 @@ public class NotificationListService
 
     public Task Delete(DeleteNotificationsRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         foreach (var id in request.IdList)
         {
             _storage.Delete(id);
@@ -82,7 +85,7 @@ public class NotificationListService
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var update in request.Updates)
         {

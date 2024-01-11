@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.Performance
         private const int MAXTHREADS = 12;
         const int MAXITERATIONS = 100;
 
-        IUniversalStaticFileHttpClientApi _getUniversalStaticFileSvc;
+        IUniversalPublicStaticFileHttpClientApi _getUniversalStaticFileSvc;
         PublishStaticFileRequest publishRequest;
         StaticFilePublishResult pubResult;
 
@@ -217,7 +217,7 @@ TaskPerformanceTest
             Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
 
-            _getUniversalStaticFileSvc = RestService.For<IUniversalStaticFileHttpClientApi>(client);
+            _getUniversalStaticFileSvc = RestService.For<IUniversalPublicStaticFileHttpClientApi>(client);
 
 
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);

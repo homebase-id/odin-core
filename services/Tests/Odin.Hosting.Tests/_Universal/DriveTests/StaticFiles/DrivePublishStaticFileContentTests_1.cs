@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
@@ -38,12 +39,33 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
 
         public static IEnumerable TestCases()
         {
-            yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
-            yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-            yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+            yield return new object[]
+            {
+                new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), 
+                HttpStatusCode.MethodNotAllowed
+            };
+            
+            yield return new object[]
+            {
+                //no permissions
+                new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite, new TestPermissionKeyList()), 
+                HttpStatusCode.Forbidden,
+            };
+            
+            yield return new object[]
+            {
+                new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite, new TestPermissionKeyList(PermissionKeys.PublishStaticContent)),
+                HttpStatusCode.OK
+            };
+            
+            yield return new object[]
+            {
+                new OwnerClientContext(TargetDrive.NewTargetDrive()), 
+                HttpStatusCode.OK
+            };
         }
 
-        [Test(Description = "publish static content to file, including payload and thumbnails")]
+        [Test(Description = "Publish static content to file, including payload and thumbnails")]
         [TestCaseSource(nameof(TestCases))]
         public async Task CanPublishStaticFileContentWithThumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
         {
@@ -84,9 +106,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 tags: new List<Guid>() { Guid.NewGuid() },
                 SamplePayloadDefinitions.PayloadDefinitionWithThumbnail1);
 
-
             var staticFileClient = new UniversalStaticFileApiClient(identity.OdinId, callerContext.GetFactory());
-            
+
             //publish a static file
             var publishRequest = new PublishStaticFileRequest()
             {
@@ -132,10 +153,10 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             });
 
             var response = await staticFileClient.Publish(publishRequest);
-            
+
             Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
 
-            if(expectedStatusCode == HttpStatusCode.OK)
+            if (expectedStatusCode == HttpStatusCode.OK)
             {
                 Assert.NotNull(response.Content);
 
@@ -145,7 +166,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
                 Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
                 Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
-                
+
                 var getFileResponse = await staticFileClient.GetStaticFile(publishRequest.Filename);
                 Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
                 Assert.IsNotNull(getFileResponse.Content);
@@ -165,7 +186,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             }
         }
 
-        private async Task CreateAnonymousUnEncryptedFile(UniversalDriveApiClient driveClient,TargetDrive targetDrive, int fileType, int dataType,
+        private async Task CreateAnonymousUnEncryptedFile(UniversalDriveApiClient driveClient, TargetDrive targetDrive, int fileType, int dataType,
             string jsonContent,
             List<Guid> tags,
             TestPayloadDefinition payload)
