@@ -50,6 +50,16 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
+        if (instructionSet.Manifest?.PayloadDescriptors != null)
+        {
+            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
+            }
+        }
+        
         this._package = new PayloadOnlyPackage(file, instructionSet!);
         await Task.CompletedTask;
     }
@@ -68,8 +78,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extension = DriveFileUtility.GetPayloadFileExtension(key);
-
+        var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data);
         if (bytesWritten > 0)
         {
@@ -77,6 +86,7 @@ public abstract class PayloadStreamWriterBase
             {
                 Iv = descriptor.Iv,
                 PayloadKey = key,
+                Uid = descriptor.PayloadUid,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
@@ -104,6 +114,7 @@ public abstract class PayloadStreamWriterBase
             return new
             {
                 PayloadKey = pd.PayloadKey,
+                PayloadUid = pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -118,9 +129,10 @@ public abstract class PayloadStreamWriterBase
 
         //TODO: should i validate width and height are > 0?
         string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+            result.PayloadKey,
+            result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
-            result.ThumbnailDescriptor.PixelHeight,
-            result.PayloadKey);
+            result.ThumbnailDescriptor.PixelHeight);
 
         await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data);
 

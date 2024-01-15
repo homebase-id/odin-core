@@ -20,6 +20,8 @@ public class PackagePayloadDescriptor
 
     public ThumbnailContent PreviewThumbnail { get; set; }
 
+    public UnixTimeUtcUnique Uid { get; set; }
+
     public bool HasIv()
     {
         if (Iv == null || Iv.Length == 0)

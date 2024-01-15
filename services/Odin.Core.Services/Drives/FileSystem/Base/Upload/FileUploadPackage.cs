@@ -28,10 +28,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         }
 
         /// <summary>
-        /// The file to whi This is not the same as the
-        /// target file to which the payloads will be attach
+        /// A temp file name for use while storing the temporary file being uploaded
+        /// This is not the same as the final target file.
         /// </summary>
-        //TODO
         // public InternalDriveFileId TempFile { get; set; }
 
         public UploadInstructionSet InstructionSet { get; init; }
@@ -71,6 +70,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 return new PayloadDescriptor()
                 {
                     Iv = p.Iv,
+                    Uid = p.Uid,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,

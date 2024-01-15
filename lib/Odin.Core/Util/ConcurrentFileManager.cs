@@ -10,41 +10,7 @@ using Odin.Core.Logging.CorrelationId;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
-public enum ConcurrentFileLockEnum
-{
-    ReadLock,
-    WriteLock
-}
-
-public class LockManagedFileStream : FileStream
-{
-    private readonly ConcurrentFileManager _concurrentFileManagerGlobal;
-    private string _path;
-    private bool _isDisposed = false;
-
-
-    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
-        : base(path, mode, access, share)
-    {
-        _concurrentFileManagerGlobal = lockObj;
-        _path = path;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (!_isDisposed)
-        {
-            if (disposing)
-            {
-                _concurrentFileManagerGlobal.ExitLock(_path);
-            }
-
-            _isDisposed = true;
-        }
-
-        base.Dispose(disposing);
-    }
-}
+namespace Odin.Core.Util;
 
 public class ConcurrentFileManager
 {
@@ -106,9 +72,6 @@ public class ConcurrentFileManager
         ConcurrentFileLock fileLock;
 
         int referenceCount;
-        // I replaced this with more detailed logs in the calling functions
-        // Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
-        //
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
@@ -137,9 +100,10 @@ public class ConcurrentFileManager
 
             if (lockType != fileLock.Type)
             {
+                string lockingInfo = fileLock.LockingInfo?.ToString() ?? "Enable verbose logging to see locking info";
                 string message = $"No access, file is already being written or read by another thread." +
                                  $"\nRequested Lock Type:[{lockType}]" +
-                                 $"\n{fileLock.LockingInfo}" +
+                                 $"\n{lockingInfo}" +
                                  $"\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]" +
                                  $"\nFile:[{filePath}]";
                 throw new Exception(message);
@@ -316,7 +280,6 @@ public class ConcurrentFileManager
         {
             return string.Empty;
         }
-
         var ignoreList = new List<string>()
         {
             "GetCallStack",
@@ -353,5 +316,4 @@ public class ConcurrentFileManager
             })
             .Select(f => f.GetMethod()?.Name ?? "No method name"));
     }
-
 }
