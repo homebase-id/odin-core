@@ -280,7 +280,6 @@ public class ConcurrentFileManager
         {
             return string.Empty;
         }
-        
         var ignoreList = new List<string>()
         {
             "GetCallStack",

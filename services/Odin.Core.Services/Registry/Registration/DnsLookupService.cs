@@ -146,7 +146,7 @@ public class DnsLookupService : IDnsLookupService
         };
         foreach (var record in dnsConfigs)
         {
-            var recordStatus = await VerifyDnsRecord(
+            var (recordStatus, records) = await VerifyDnsRecord(
                 authority.NameServers,
                 queryOptions,
                 domain,
@@ -155,6 +155,7 @@ public class DnsLookupService : IDnsLookupService
                 record.Value);
 
             record.QueryResults[authority.AuthorativeNameServer] = recordStatus;
+            record.Records[authority.AuthorativeNameServer] = records.ToArray();
             record.Status = recordStatus;
         }
 
@@ -179,7 +180,7 @@ public class DnsLookupService : IDnsLookupService
         {
             foreach (var record in dnsConfigs)
             {
-                var recordStatus = await VerifyDnsRecord(
+                var (recordStatus, records) = await VerifyDnsRecord(
                     new [] {resolver},
                     queryOptions,
                     domain,
@@ -188,6 +189,7 @@ public class DnsLookupService : IDnsLookupService
                     record.Value);
 
                 record.QueryResults[resolver] = recordStatus;
+                record.Records[resolver] = records.ToArray();
                 if (record.Status is DnsLookupRecordStatus.Unknown or not DnsLookupRecordStatus.Success)
                 {
                     record.Status = recordStatus;
@@ -272,7 +274,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<DnsLookupRecordStatus> VerifyDnsRecord(
+    private async Task<(DnsLookupRecordStatus, List<string> records)> VerifyDnsRecord(
         IReadOnlyCollection<string> resolvers,
         DnsQueryOptions options,
         string domain,
@@ -281,6 +283,7 @@ public class DnsLookupService : IDnsLookupService
         string expectedValue)
     {
         var result = DnsLookupRecordStatus.Unknown;
+        List<string> records;
 
         var sw = new Stopwatch();
         sw.Start();
@@ -297,11 +300,11 @@ public class DnsLookupService : IDnsLookupService
         var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
         if (response?.Answers.AaaaRecords().Any() == true)
         {
+            records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? new List<string>();
             result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
         }
         else
         {
-            List<string> records;
             switch (type)
             {
                 case "A":
@@ -338,7 +341,7 @@ public class DnsLookupService : IDnsLookupService
             _logger.LogError("Unexpected result '{result}'. Your logic is faulty!", result);
         }
 
-        return result;
+        return (result, records);
     }
 
     //

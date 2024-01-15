@@ -15,6 +15,7 @@ using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.ReceivingHost.Incoming;
 using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Peer.ReceivingHost
 {
@@ -76,7 +77,6 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             };
 
             metadata!.SenderOdinId = sender;
-
             switch (transferFileType)
             {
                 case TransferFileType.CommandMessage:
@@ -171,6 +171,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
                 //
+                metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                 await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
                 return;
             }
@@ -191,6 +192,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
+                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                     await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
                     return;
                 }
@@ -222,6 +224,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 //one is written any time you save a header)
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
+                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: true);
                 return;
@@ -238,6 +241,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
                     // Write a new file
+                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                     await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
                     return;
                 }
@@ -253,6 +257,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 };
 
                 //note: we also update the key header because it might have been changed by the sender
+                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads);
                 return;
             }
@@ -268,6 +273,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
                 if (existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
+                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                     await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
                     return;
                 }
@@ -284,6 +290,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost
 
                 metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
                 //note: we also update the key header because it might have been changed by the sender
+                metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayload: false);
                 return;
             }

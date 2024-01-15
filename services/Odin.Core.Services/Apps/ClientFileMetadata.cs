@@ -19,6 +19,10 @@ public class ClientFileMetadata
 
     public Int64 Updated { get; set; }
     
+    public Int64 TransitCreated { get; set; }
+
+    public Int64 TransitUpdated { get; set; }
+    
     /// <summary>
     /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
     /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)

@@ -12,4 +12,5 @@ public class DnsConfig
     public DnsLookupRecordStatus Status { get; set; } = DnsLookupRecordStatus.Unknown;
 
     public Dictionary<string, DnsLookupRecordStatus> QueryResults { get; } = new (); // query results per DNS ip address
+    public Dictionary<string, string[]> Records { get; } = new (); // parsed records per DNS ip address
 }

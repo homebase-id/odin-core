@@ -488,6 +488,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
 
+            newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
+            newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
+            
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
