@@ -194,7 +194,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
-            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}.{extension}";
+            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
         }
 
         /// <summary>
