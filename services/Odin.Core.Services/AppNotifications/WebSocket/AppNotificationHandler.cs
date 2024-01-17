@@ -104,6 +104,10 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             {
                 _logger.LogWarning("WebSocketException: {error}", e.Message);
             }
+            catch (System.Text.Json.JsonException e)
+            {
+                _logger.LogWarning("JsonException: {error}", e.Message);
+            }
         }
 
         private async Task AwaitCommands(DeviceSocket deviceSocket)
@@ -140,6 +144,11 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 catch (WebSocketException e)
                 {
                     _logger.LogWarning("WebSocketException: {error}", e.Message);
+                    break;
+                }
+                catch (System.Text.Json.JsonException e)
+                {
+                    _logger.LogWarning("JsonException: {error}", e.Message);
                     break;
                 }
             }
