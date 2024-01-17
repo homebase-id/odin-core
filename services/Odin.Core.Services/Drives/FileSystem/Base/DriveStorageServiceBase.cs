@@ -140,7 +140,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             }
             else
             {
-                metadata.Created = UnixTimeUtc.Now().milliseconds;
+                metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
                 metadata.FileState = FileState.Active;
             }
 
@@ -490,7 +490,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
-            
+
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
