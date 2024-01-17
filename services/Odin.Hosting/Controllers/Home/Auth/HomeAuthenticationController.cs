@@ -93,15 +93,13 @@ namespace Odin.Hosting.Controllers.Home.Auth
             catch (OdinClientException)
             {
                 string url = $"{authState.FinalUrl}?error=remoteValidationCallFailed";
-                Redirect(url);
+                return Redirect(url);
             }
             catch
             {
                 string url = $"{authState.FinalUrl}?error=unknown";
-                Redirect(url);
+                return Redirect(url);
             }
-
-            throw new OdinSystemException("Unhandled scenario");
         }
 
         /// <summary>
