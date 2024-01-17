@@ -320,7 +320,8 @@ namespace Odin.Core.Services.Peer.SendingHost
                     SenderOdinId = sourceMetadata.SenderOdinId,
                     ReferencedFile = sourceMetadata.ReferencedFile,
                     VersionTag = sourceMetadata.VersionTag,
-                    Payloads = sourceMetadata.Payloads
+                    Payloads = sourceMetadata.Payloads,
+                    FileState = sourceMetadata.FileState,
                 };
 
                 var json = OdinSystemSerializer.Serialize(redactedMetadata);

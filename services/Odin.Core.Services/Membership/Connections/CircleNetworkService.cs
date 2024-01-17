@@ -295,7 +295,8 @@ namespace Odin.Core.Services.Membership.Connections
         public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-            var result = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.Identity)
+            //added override:true because PermissionKeys.ReadCircleMembership is present
+            var result = _circleMembershipService.GetDomainsInCircle(circleId, overrideHack: true).Where(d => d.DomainType == DomainType.Identity)
                 .Select(m => new OdinId(m.Domain));
             return await Task.FromResult(result);
         }
@@ -573,7 +574,7 @@ namespace Odin.Core.Services.Membership.Connections
         private async Task HandleDriveUpdated(StorageDrive drive)
         {
             //examine system circle; remove drive if needed
-            CircleDefinition systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            CircleDefinition systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
 
             var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
             if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
@@ -602,7 +603,7 @@ namespace Odin.Core.Services.Membership.Connections
                 return;
             }
 
-            CircleDefinition def = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            CircleDefinition def = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
 
             var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
             grants.Add(new DriveGrantRequest()
@@ -654,8 +655,8 @@ namespace Odin.Core.Services.Membership.Connections
                                     var message = $"Key with value [{kvp.Key} already exists in grants.]";
                                     message += $"\n Existing key has [{existingKeyJson}]";
                                     message += $"\n appGrant Key [{newKeyJson}]";
-                                    
-                                    Log.Warning(message);    
+
+                                    Log.Warning(message);
                                 }
                                 else
                                 {

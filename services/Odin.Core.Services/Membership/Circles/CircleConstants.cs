@@ -4,7 +4,7 @@ using Odin.Core.Services.Drives;
 
 namespace Odin.Core.Services.Membership.Circles;
 
-public static class CircleConstants
+public static class SystemCircleConstants
 {
     public static readonly GuidId ConnectedIdentitiesSystemCircleId = GuidId.FromString("we_are_connected");
 

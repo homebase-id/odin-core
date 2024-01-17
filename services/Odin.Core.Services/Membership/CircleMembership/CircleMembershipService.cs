@@ -63,7 +63,7 @@ public class CircleMembershipService
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
 
-            if (circleId == CircleConstants.ConnectedIdentitiesSystemCircleId)
+            if (circleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId)
             {
                 _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             }
@@ -119,7 +119,7 @@ public class CircleMembershipService
     {
         // Always put identities in the system circle
         var list = circleIds ?? new List<GuidId>();
-        list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
+        list.Add(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
         return await this.CreateCircleGrantList(list, keyStoreKey);
     }
 

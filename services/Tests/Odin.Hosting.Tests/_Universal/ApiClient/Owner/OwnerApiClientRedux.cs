@@ -11,6 +11,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using SQLitePCL;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 {
@@ -58,7 +59,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         }
 
         public TestIdentity Identity => _identity;
-
+        
         public CronApiClient Cron { get; }
 
         public UniversalFollowerApiClient Follower { get; }

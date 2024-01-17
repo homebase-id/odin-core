@@ -92,7 +92,7 @@ namespace Odin.Core.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
-                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == CircleConstants.ConnectedIdentitiesSystemCircleId),
+                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConnectedIdentitiesSystemCircleId),
                 SecurityLevel = this.SecurityLevel,
             };
         }

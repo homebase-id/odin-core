@@ -69,11 +69,17 @@ public class CircleNetworkServiceAppTests
 
         // Frodo must accept the connection request.  this Should grant Sam access to the chat friend's circle
         var circlesGrantedToSender = new List<GuidId>() { circleId };
+     
         //ignoring await so we send both at the same time
         var response1 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
-        var response2 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
-        var response3 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
+        Assert.IsTrue(response1.IsSuccessStatusCode);
         
+        var response2 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
+        Assert.IsFalse(response2.IsSuccessStatusCode);
+        
+        var response3 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
+        Assert.IsFalse(response3.IsSuccessStatusCode);
+   
         // All done
         await frodoOwnerClient.Connections.DisconnectFrom(samOwnerClient.Identity.OdinId);
         await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);

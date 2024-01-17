@@ -264,7 +264,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // System circle exists and has correct grants
             //
 
-            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.ConnectedIdentitiesSystemCircleId);
+            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             Assert.IsNotNull(systemCircle, "system circle should exist");
             Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");

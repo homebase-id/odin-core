@@ -18,7 +18,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-
         protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
         {
@@ -251,9 +250,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     }
                     else
                     {
+                        
                         Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
-                                  "storage key to decrypt the file {file} on drive {drive}.",
+                                  "storage key to decrypt the file {file} on drive {drive}. ",
                             ContextAccessor.GetCurrent().Caller.OdinId,
                             serverFileHeader.FileMetadata.IsEncrypted,
                             file.FileId,

@@ -359,7 +359,7 @@ public class TenantConfigService
             Name = "Homebase - Chat",
             AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
             {
-                CircleConstants.ConnectedIdentitiesSystemCircleId
+                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
             },
             CircleMemberPermissionGrant = new PermissionSetGrantRequest()
             {
@@ -446,7 +446,7 @@ public class TenantConfigService
 
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
-        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
+        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
 
 
         if (shouldGrantKey)
