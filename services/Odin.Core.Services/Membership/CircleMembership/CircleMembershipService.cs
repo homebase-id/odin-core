@@ -98,7 +98,7 @@ public class CircleMembershipService
             }).ToUtf8ByteArray()
         };
 
-        _tenantSystemStorage.CircleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
+        _tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
     }
 
     // Grants
