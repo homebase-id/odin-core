@@ -19,6 +19,20 @@ namespace Odin.Core.Time
             writer.WriteNumberValue(value.milliseconds);
         }
     }
+    
+    public class UnixTimeUtcUniqueConverter : JsonConverter<UnixTimeUtcUnique>
+    {
+        public override UnixTimeUtcUnique Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetInt64();
+            return new UnixTimeUtcUnique(value);
+        }
+
+        public override void Write(Utf8JsonWriter writer, UnixTimeUtcUnique value, JsonSerializerOptions options)
+        {
+            writer.WriteNumberValue(value.uniqueTime);
+        }
+    }
 
     /// <summary>
     /// UnixTimeUtc: Keeps track of UNIX time in milliseconds since UTC January 1, year 1970 gregorian.
@@ -215,6 +229,7 @@ namespace Odin.Core.Time
     /// timestamp contains the number of milliseconds since UnixEpoch, and the next 16 bits of
     /// the timestamp is a 16-bit counter allowing 65K timestamps per millisecond. 
     /// </summary>
+    [JsonConverter(typeof(UnixTimeUtcUniqueConverter))]
     public struct UnixTimeUtcUnique
     {
         public static readonly UnixTimeUtcUnique ZeroTime = new UnixTimeUtcUnique(0);

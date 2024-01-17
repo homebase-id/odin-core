@@ -104,6 +104,10 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             {
                 _logger.LogWarning("WebSocketException: {error}", e.Message);
             }
+            catch (System.Text.Json.JsonException e)
+            {
+                _logger.LogWarning("JsonException: {error}", e.Message);
+            }
         }
 
         private async Task AwaitCommands(DeviceSocket deviceSocket)
@@ -133,13 +137,18 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                         var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
                         if (null != command)
                         {
-                            await ProcessCommand(command);
+                            await ProcessCommand(deviceSocket, command);
                         }
                     }
                 }
                 catch (WebSocketException e)
                 {
                     _logger.LogWarning("WebSocketException: {error}", e.Message);
+                    break;
+                }
+                catch (System.Text.Json.JsonException e)
+                {
+                    _logger.LogWarning("JsonException: {error}", e.Message);
                     break;
                 }
             }
@@ -252,7 +261,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             }
         }
 
-        public async Task ProcessCommand(SocketCommand command)
+        public async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command)
         {
             //process the command
             switch (command.Command)
@@ -265,6 +274,13 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 case SocketCommandType.ProcessInbox:
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    break;
+
+                case SocketCommandType.Ping:
+                    await this.SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+                    {
+                        NotificationType = ClientNotificationType.Pong,
+                    }));
                     break;
 
                 default:

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -53,6 +54,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public Int64 Updated { get; set; }
         
+        public Int64 TransitCreated { get; set; }
+
+        public Int64 TransitUpdated { get; set; }
+
         public ReactionSummary ReactionPreview { get; set; }
 
         /// <summary>
@@ -71,7 +76,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }
-        
+
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
             return Payloads?.SingleOrDefault(pk => pk.Key == key);

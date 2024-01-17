@@ -68,11 +68,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
                 {
                     Iv = p.Iv,
                     Key = p.PayloadKey,
+                    Uid = p.Uid,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),
-                    BytesWritten = p.BytesWritten,
-                    DescriptorContent = p.DescriptorContent
+                    BytesWritten = p.BytesWritten,                    
+                    DescriptorContent = p.DescriptorContent,
+                    PreviewThumbnail = p.PreviewThumbnail
                 };
             });
 

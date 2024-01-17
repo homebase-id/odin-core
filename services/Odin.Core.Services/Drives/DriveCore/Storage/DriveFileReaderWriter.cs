@@ -14,10 +14,10 @@ public sealed class DriveFileReaderWriter
     private readonly ConcurrentFileManager _concurrentFileManager;
     private readonly OdinConfiguration _configuration;
 
-    public DriveFileReaderWriter(OdinConfiguration configuration)
+    public DriveFileReaderWriter(OdinConfiguration configuration, ConcurrentFileManager concurrentFileManager)
     {
-        _concurrentFileManager = new ConcurrentFileManager();
         _configuration = configuration;
+        _concurrentFileManager = concurrentFileManager;
     }
 
     public void WriteString(string filePath, string data)
@@ -115,7 +115,6 @@ public sealed class DriveFileReaderWriter
             // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
             fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare);
         });*/
-
         Stream fileStream = _concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
 
         return fileStream;

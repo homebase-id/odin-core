@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Membership.Circles;
 
 namespace Odin.Core.Services.Base
 {
@@ -90,6 +92,7 @@ namespace Odin.Core.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
+                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == CircleConstants.ConnectedIdentitiesSystemCircleId),
                 SecurityLevel = this.SecurityLevel,
             };
         }
@@ -99,5 +102,6 @@ namespace Odin.Core.Services.Base
     {
         public OdinId? OdinId { get; init; }
         public SecurityGroupType SecurityLevel { get; init; }
+        public bool IsGrantedConnectedIdentitiesSystemCircle { get; set; }
     }
 }

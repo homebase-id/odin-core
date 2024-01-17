@@ -35,5 +35,9 @@
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
 
         public const string CommandSenderV1 = BasePathV1 + "/commands";
+        
+        public const string OptimizationV1 = BasePathV1 + "/optimization";
+
+        public const string CdnV1 = OptimizationV1 + "/cdn";
     }
 }

@@ -35,7 +35,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             _followerService = followerService;
             _mediator = mediator;
         }
-        
+
         public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
@@ -112,7 +112,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                     request.FileMetadata.SenderOdinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
                     var serverFileHeader = await _fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
                     await _fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
-                    
+
                     await _mediator.Publish(new NewFeedItemReceived()
                     {
                         Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
@@ -120,10 +120,11 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 }
                 else
                 {
-                    
+
                     // update
                     try
                     {
+                        request.FileMetadata.SenderOdinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
                         await _fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
                     }
                     catch (OdinSecurityException)

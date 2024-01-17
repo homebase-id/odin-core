@@ -85,7 +85,7 @@ namespace Odin.Core.Services.Base
             }
         }
 
-        public bool HasPermission(int permissionKey)
+        private bool HasPermission(int permissionKey)
         {
             if (_isSystem)
             {
@@ -131,8 +131,7 @@ namespace Odin.Core.Services.Base
                 throw new OdinSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
-
-
+        
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>

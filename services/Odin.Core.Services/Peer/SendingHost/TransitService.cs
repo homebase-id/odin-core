@@ -256,7 +256,7 @@ namespace Odin.Core.Services.Peer.SendingHost
 
                 //look up transfer key
                 var transferInstructionSet = outboxItem.TransferInstructionSet;
-                
+
                 if (null == transferInstructionSet)
                 {
                     return new SendResult()
@@ -281,7 +281,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                 {
                     transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
                 }
-                
+
                 var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(
                     new MemoryStream(transferInstructionSetBytes),
@@ -334,7 +334,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                     foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
                     {
                         var payloadKey = descriptor.Key;
-
+                        
                         string contentType = "application/unknown";
 
                         //TODO: consider what happens if the payload has been delete from disk
@@ -347,7 +347,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                         foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                         {
                             var (thumbStream, thumbHeader) =
-                                await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key);
+                                await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
 
                             var thumbnailKey =
                                 $"{payloadKey}" +
@@ -428,7 +428,7 @@ namespace Odin.Core.Services.Peer.SendingHost
             {
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
-            
+
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
