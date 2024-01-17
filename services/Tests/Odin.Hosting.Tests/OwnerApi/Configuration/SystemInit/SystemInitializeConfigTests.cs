@@ -124,7 +124,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            Assert.IsTrue(createdDrives.Results.Count == 6);
+            Assert.IsTrue(createdDrives.Results.Count == 8);
 
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
                 $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
@@ -136,6 +136,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
                 $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
+
+            Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.HomePageConfigDrive),
+                $"expected drive [{SystemDriveConstants.HomePageConfigDrive}] not found");
+
+            Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.PublicPostsChannelDrive),
+                $"expected drive [{SystemDriveConstants.PublicPostsChannelDrive}] not found");
 
 
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
@@ -151,7 +157,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");
 
             Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(systemCircle.DriveGrants.Count() == 3,
+            Assert.IsTrue(systemCircle.DriveGrants.Count() == 5,
                 "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
@@ -227,11 +233,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //check if system drives exist
             var expectedDrives = new List<TargetDrive>()
             {
-                standardProfileDrive,
-                contactDrive,
-                SystemDriveConstants.WalletDrive,
+                SystemDriveConstants.ContactDrive,
+                SystemDriveConstants.ProfileDrive,
                 SystemDriveConstants.ChatDrive,
                 SystemDriveConstants.FeedDrive,
+                SystemDriveConstants.HomePageConfigDrive,
+                SystemDriveConstants.PublicPostsChannelDrive,
+                SystemDriveConstants.WalletDrive,
                 SystemDriveConstants.TransientTempDrive,
                 newDrive.TargetDrive
             };
