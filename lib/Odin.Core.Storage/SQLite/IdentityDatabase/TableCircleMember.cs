@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Insert(CircleMemberRecordList[i]);
+                    Upsert(CircleMemberRecordList[i]);
         }
 
 

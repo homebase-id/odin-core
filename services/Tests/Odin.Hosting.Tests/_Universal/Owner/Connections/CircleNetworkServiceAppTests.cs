@@ -72,9 +72,8 @@ public class CircleNetworkServiceAppTests
         //ignoring await so we send both at the same time
         var response1 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
         var response2 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
+        var response3 = await frodoOwnerClient.Connections.AcceptConnectionRequest(samOwnerClient.Identity.OdinId, circlesGrantedToSender);
         
-            
-
         // All done
         await frodoOwnerClient.Connections.DisconnectFrom(samOwnerClient.Identity.OdinId);
         await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);

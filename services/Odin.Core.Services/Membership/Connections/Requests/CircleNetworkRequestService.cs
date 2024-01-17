@@ -337,7 +337,11 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             header.Validate();
 
             var pendingRequest = await GetPendingRequest((OdinId)header.Sender);
-            Guard.Argument(pendingRequest, nameof(pendingRequest)).NotNull($"No pending request was found from sender [{header.Sender}]");
+            if (null == pendingRequest)
+            {
+                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]");
+            }
+            
             pendingRequest.Validate();
 
             var senderOdinId = (OdinId)pendingRequest.SenderOdinId;
@@ -359,7 +363,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantListWithSystemCircle(header.CircleIds?.ToList() ?? new List<GuidId>(),
+                    keyStoreKey),
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
@@ -449,8 +454,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
 
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             //since i have the icr key, i could create a client and make a request across the wire to pull
-            using (new FeedDriveSynchronizerSecurityContext(_contextAccessor, feedDriveId.GetValueOrDefault(), 
-                       tempKey, 
+            using (new FeedDriveSynchronizerSecurityContext(_contextAccessor, feedDriveId.GetValueOrDefault(),
+                       tempKey,
                        originalRequest.TempEncryptedFeedDriveStorageKey,
                        originalRequest.TempEncryptedIcrKey))
             {
