@@ -12,10 +12,10 @@ namespace DbUpgrade2
         static void Main(string[] args)
         {
             /*
-              
+
              from production; redacted
              running tree -L 4
-             where identity = 777bc322-5551-4be5-a9fd-bfa7294002e2          
+             where identity = 777bc322-5551-4be5-a9fd-bfa7294002e2
 
              /identity-host/data/tenants/registrations/777bc322-5551-4be5-a9fd-bfa7294002e2/headers
                ├── drives
@@ -26,15 +26,17 @@ namespace DbUpgrade2
                │   │       └── index.db
                └── sys.db
              */
-            
+
+            string root = "/Users/taud/tmp/dotyou/tenants/registrations/afd77e15-c0c0-48c6-9251-aa8a13168e64";
+
             Console.WriteLine("We're in the root directory of any identity here");
-            
+
             //  
-            using var db = new IdentityDatabase("Data Source=headers/sys.db"); // Todd - name of identity db here\            \
+            using var db = new IdentityDatabase($"Data Source={root}/headers/sys.db"); // Todd - name of identity db here\            \
 
             db.CreateDatabase(false); // This will create the missing 5 tables
 
-            var drives = GetDrives(db, "headers");
+            var drives = GetDrives(db, Path.Combine(root, "headers"));
 
             // Todd  Now loop through each drive
             foreach (var drive in drives)
