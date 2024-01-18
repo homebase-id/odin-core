@@ -11,37 +11,64 @@ namespace DbUpgrade2
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("We're in the root directory of any identity here");
+            /*
+              
+             from production; redacted
+             running tree -L 4
+             where identity = 777bc322-5551-4be5-a9fd-bfa7294002e2          
 
+             /identity-host/data/tenants/registrations/777bc322-5551-4be5-a9fd-bfa7294002e2/headers
+               ├── drives
+               │   ├── 111e655546834487895aecab98d55780 <driveId>
+               │   │   ├── files
+               │   │   │   └── ...
+               │   │   └── idx
+               │   │       └── index.db
+               └── sys.db
+             */
+            
+            Console.WriteLine("We're in the root directory of any identity here");
+            
             //  
             using var db = new IdentityDatabase("Data Source=headers/sys.db"); // Todd - name of identity db here\            \
 
             db.CreateDatabase(false); // This will create the missing 5 tables
 
-            var drives = GetDrives(db);
+            var drives = GetDrives(db, "headers");
 
             // Todd  Now loop through each drive
             foreach (var drive in drives)
             {
-                string driveName = "drive.db"; // Todd, db file name
                 Guid driveGuid = drive.Id;
-
-                using (var driveDb = new xDriveDatabase($"Data Source={driveName}", DatabaseIndexKind.Random))
+                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
+                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
                 {
                     // Michael, code to transfer the data
                 }
             }
         }
 
-
-        static List<StorageDriveBase> GetDrives(IdentityDatabase db)
+        static List<StorageDrive> GetDrives(IdentityDatabase db, string headerDataStoragePath)
         {
+            const string tempStoragePath = "";
+            const string payloadStoragePath = "";
+
+            StorageDrive ToStorageDrive(StorageDriveBase sdb)
+            {
+                //TODO: this should probably go in config
+                const string driveFolder = "drives";
+                return new StorageDrive(
+                    Path.Combine(headerDataStoragePath, driveFolder),
+                    Path.Combine(tempStoragePath, driveFolder),
+                    Path.Combine(payloadStoragePath, driveFolder), sdb);
+            }
+
             byte[] driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
             Guid driveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
             var storage = new ThreeKeyValueStorage(db.TblKeyThreeValue, driveContextKey);
 
             var allDrives = storage.GetByCategory<StorageDriveBase>(driveDataType);
-            return allDrives.ToList();
+            return allDrives.Select(ToStorageDrive).ToList();
         }
     }
 }
