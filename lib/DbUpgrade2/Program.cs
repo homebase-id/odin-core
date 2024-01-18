@@ -1,4 +1,8 @@
-﻿using Odin.Core.Storage.SQLite.DriveDatabase;
+﻿using Odin.Core;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Peer;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace DbUpgrade2
@@ -9,19 +13,35 @@ namespace DbUpgrade2
         {
             Console.WriteLine("We're in the root directory of any identity here");
 
-            using var db = new IdentityDatabase("Data Source=identity.db"); // Todd - name of identity db here
+            //  
+            using var db = new IdentityDatabase("Data Source=headers/sys.db"); // Todd - name of identity db here\            \
 
             db.CreateDatabase(false); // This will create the missing 5 tables
 
+            var drives = GetDrives(db);
+
             // Todd  Now loop through each drive
-
-            string driveName = "drive.db"; // Todd, db file name
-            Guid driveGuid = Guid.NewGuid(); // Todd, drive guid
-
-            using (var driveDb = new xDriveDatabase($"Data Source={driveName}", DatabaseIndexKind.Random))
+            foreach (var drive in drives)
             {
-                // Michael, code to transfer the data
+                string driveName = "drive.db"; // Todd, db file name
+                Guid driveGuid = drive.Id;
+
+                using (var driveDb = new xDriveDatabase($"Data Source={driveName}", DatabaseIndexKind.Random))
+                {
+                    // Michael, code to transfer the data
+                }
             }
+        }
+
+
+        static List<StorageDriveBase> GetDrives(IdentityDatabase db)
+        {
+            byte[] driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
+            Guid driveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
+            var storage = new ThreeKeyValueStorage(db.TblKeyThreeValue, driveContextKey);
+
+            var allDrives = storage.GetByCategory<StorageDriveBase>(driveDataType);
+            return allDrives.ToList();
         }
     }
 }
