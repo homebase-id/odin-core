@@ -112,14 +112,26 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
 
         private async Task AwaitCommands(DeviceSocket deviceSocket)
         {
-            var buffer = new byte[1024 * 4];
-
             while (true)
             {
                 try
                 {
-                    var receiveResult =
-                        await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    // Read the chunks from the web socket and accumulate all into the buffer
+                    var chunks = new ArraySegment<byte>(new byte[1024]);
+                    WebSocketReceiveResult receiveResult = null;
+                    var allBytes = new List<byte>();
+
+                    do
+                    {
+                        receiveResult = await deviceSocket.Socket.ReceiveAsync(chunks, CancellationToken.None);
+                        for (int i = 0; i < receiveResult.Count; i++)
+                        {
+                            allBytes.Add(chunks.Array[i]);
+                        }
+                    }
+                    while (!receiveResult.EndOfMessage);
+
+                    var buffer = allBytes.ToArray();
 
                     if (receiveResult.MessageType == WebSocketMessageType.Close)
                     {
