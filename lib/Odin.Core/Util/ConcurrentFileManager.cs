@@ -6,11 +6,32 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
 namespace Odin.Core.Util;
+
+public class LockConflictException : OdinSystemException
+{
+    public string FilePath { get; private set; }
+    public ConcurrentFileLockEnum RequestedLockType { get; private set; }
+    public ConcurrentFileLockEnum ExistingLockType { get; private set; }
+    public string LockingInfo { get; private set; }
+    public int ReferenceCount { get; private set; }
+
+    public LockConflictException(string message, string filePath, ConcurrentFileLockEnum requestedLockType, ConcurrentFileLockEnum existingLockType, string debugInfo, int referenceCount)
+        : base(message)
+    {
+        FilePath = filePath;
+        RequestedLockType = requestedLockType;
+        ExistingLockType = existingLockType;
+        LockingInfo = debugInfo;
+        ReferenceCount = referenceCount;
+    }
+}
+
 
 public class ConcurrentFileManager
 {
@@ -77,7 +98,6 @@ public class ConcurrentFileManager
             if (!_dictionaryLocks.ContainsKey(filePath))
             {
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
-                //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
 
                 if (_logger.IsEnabled(LogLevel.Trace))
@@ -101,12 +121,12 @@ public class ConcurrentFileManager
             if (lockType != fileLock.Type)
             {
                 string lockingInfo = fileLock.LockingInfo?.ToString() ?? "Enable verbose logging to see locking info";
-                string message = $"No access, file is already being written or read by another thread." +
+                string message = $"No access, file is already being {(fileLock.Type == ConcurrentFileLockEnum.ReadLock ? "read":"written")} by another thread." +
                                  $"\nRequested Lock Type:[{lockType}]" +
                                  $"\n{lockingInfo}" +
                                  $"\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]" +
                                  $"\nFile:[{filePath}]";
-                throw new Exception(message);
+                throw new LockConflictException(message, filePath, lockType, fileLock.Type, lockingInfo, _dictionaryLocks[filePath].ReferenceCount);
             }
 
             // Optimistically increase the reference count
