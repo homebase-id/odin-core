@@ -47,7 +47,8 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task FollowingIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task FollowingIdentity_PopulatesConnectedFollowersFeedWithAnonymousAndSecuredFiles(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         // what is the primary thing being tested here? - frodo's feed has 2 posts from sam, one secured, one public
 
@@ -83,10 +84,6 @@ public class FeedBackPopulationTests_ConnectedFollowers
             frodoPublicTargetDrive,
             postFileType: fileType);
 
-        var followSamResponse1 = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId,
-            FollowerNotificationType.AllNotifications,
-            new List<TargetDrive>() { });
-        
         // grant frodo access to friends only
         await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, new List<GuidId>() { samFriendsOnlyCircle });
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { frodoFriendsOnlyCircle });
@@ -191,7 +188,8 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // sam posts 1 item to a public channel drive
 
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false, allowSubscriptions: true);
+        await samOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false,
+            allowSubscriptions: true);
         await samOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false, false, true);
 
         await samOwnerClient.Network.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest()
@@ -244,7 +242,8 @@ public class FeedBackPopulationTests_ConnectedFollowers
         // sam posts 1 item to a public channel drive
 
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        await frodoOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false, allowSubscriptions: true);
+        await frodoOwnerClient.DriveManager.CreateDrive(publicTargetDrive, "Public Channel Drive", "", allowAnonymousReads: true, false,
+            allowSubscriptions: true);
         await frodoOwnerClient.DriveManager.CreateDrive(friendsOnlyTargetDrive, "Secured Channel Drive", "", false, false, true);
 
         await frodoOwnerClient.Network.CreateCircle(circleId, "Friends Only", new PermissionSetGrantRequest()

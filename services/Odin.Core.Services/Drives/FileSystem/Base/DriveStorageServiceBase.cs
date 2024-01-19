@@ -19,6 +19,7 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Core.Util;
 
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
@@ -889,7 +890,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
         {
-            var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
+            var mgr = GetLongTermStorageManager(file.DriveId);
+            
+            var header = await RetryUtil.Retry(
+                operation: () => mgr.GetServerFileHeader(file.FileId),
+                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
+                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs)
+            );
 
             if (null == header)
             {

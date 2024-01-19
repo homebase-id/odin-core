@@ -460,7 +460,11 @@ namespace Odin.Core.Services.Membership.YouAuth
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
                 //Store the circles for this registration
+                
+                //TODO: this is causing an issue where in the circles are also deleted for the ICR 
+                // 
                 _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
+                
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
                     var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.YouAuth);
@@ -472,7 +476,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     }
                 }
 
-                //clear them here so we don't hve two locations
+                //clear them here so we don't have two locations
                 registration.CircleGrants.Clear();
 
                 _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
