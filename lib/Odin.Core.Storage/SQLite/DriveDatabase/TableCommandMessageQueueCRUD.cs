@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class CommandMessageQueueRecord
     {
+        private Int32 _rowid;
+        public Int32 rowid
+        {
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
+        }
         private Guid _fileId;
         public Guid fileId
         {
@@ -51,6 +61,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
+        private SqliteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SqliteParameter _getPaging0Param1 = null;
+        private SqliteParameter _getPaging0Param2 = null;
 
         public TableCommandMessageQueueCRUD(xDriveDatabase db, CacheHelper cache) : base(db)
         {
@@ -73,6 +87,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
             _disposed = true;
         }
 
@@ -178,7 +194,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        // SELECT fileId,timeStamp
+        // SELECT rowid,fileId,timeStamp
         public CommandMessageQueueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<CommandMessageQueueRecord>();
@@ -193,17 +209,24 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                item.rowid = rdr.GetInt32(0);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(1));
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
             }
             return item;
        }
@@ -274,6 +297,54 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 } // using
             } // lock
         }
+
+        public List<CommandMessageQueueRecord> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = -1;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,fileId,timeStamp FROM commandMessageQueue " +
+                                                 "WHERE rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count+1;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<CommandMessageQueueRecord>();
+                    int n = 0;
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        result.Add(ReadRecordFromReaderAll(rdr));
+                    } // while
+                    if ((n > 0) && rdr.Read())
+                    {
+                            nextCursor = result[n - 1].rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
 
     }
 }

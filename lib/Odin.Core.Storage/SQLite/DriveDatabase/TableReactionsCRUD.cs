@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class ReactionsRecord
     {
+        private Int32 _rowid;
+        public Int32 rowid
+        {
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
+        }
         private OdinId _identity;
         public OdinId identity
         {
@@ -75,6 +85,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _get0Param1 = null;
         private SqliteParameter _get0Param2 = null;
         private SqliteParameter _get0Param3 = null;
+        private SqliteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SqliteParameter _getPaging0Param1 = null;
+        private SqliteParameter _getPaging0Param2 = null;
 
         public TableReactionsCRUD(xDriveDatabase db, CacheHelper cache) : base(db)
         {
@@ -99,6 +113,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
             _disposed = true;
         }
 
@@ -217,7 +233,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        // SELECT identity,postId,singleReaction
+        // SELECT rowid,identity,postId,singleReaction
         public ReactionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<ReactionsRecord>();
@@ -232,24 +248,31 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.identity = new OdinId(rdr.GetString(0));
+                item.rowid = rdr.GetInt32(0);
             }
 
             if (rdr.IsDBNull(1))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in postId...");
-                item.postId = new Guid(_guid);
+                item.identity = new OdinId(rdr.GetString(1));
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.singleReaction = rdr.GetString(2);
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in postId...");
+                item.postId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.singleReaction = rdr.GetString(3);
             }
             return item;
        }
@@ -364,6 +387,54 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 } // using
             } // lock
         }
+
+        public List<ReactionsRecord> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = -1;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM reactions " +
+                                                 "WHERE rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count+1;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<ReactionsRecord>();
+                    int n = 0;
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        result.Add(ReadRecordFromReaderAll(rdr));
+                    } // while
+                    if ((n > 0) && rdr.Read())
+                    {
+                            nextCursor = result[n - 1].rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
 
     }
 }

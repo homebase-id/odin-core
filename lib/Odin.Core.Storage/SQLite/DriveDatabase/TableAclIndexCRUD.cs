@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class AclIndexRecord
     {
+        private Int32 _rowid;
+        public Int32 rowid
+        {
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
+        }
         private Guid _fileId;
         public Guid fileId
         {
@@ -59,6 +69,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteCommand _get1Command = null;
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
+        private SqliteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SqliteParameter _getPaging0Param1 = null;
+        private SqliteParameter _getPaging0Param2 = null;
 
         public TableAclIndexCRUD(xDriveDatabase db, CacheHelper cache) : base(db)
         {
@@ -85,6 +99,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _get0Command = null;
             _get1Command?.Dispose();
             _get1Command = null;
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
             _disposed = true;
         }
 
@@ -191,7 +207,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        // SELECT fileId,aclMemberId
+        // SELECT rowid,fileId,aclMemberId
         public AclIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<AclIndexRecord>();
@@ -206,10 +222,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(_guid);
+                item.rowid = rdr.GetInt32(0);
             }
 
             if (rdr.IsDBNull(1))
@@ -217,6 +230,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             else
             {
                 bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in aclMemberId...");
                 item.aclMemberId = new Guid(_guid);
@@ -359,6 +382,54 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 } // using
             } // lock
         }
+
+        public List<AclIndexRecord> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = -1;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,fileId,aclMemberId FROM aclIndex " +
+                                                 "WHERE rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count+1;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<AclIndexRecord>();
+                    int n = 0;
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        result.Add(ReadRecordFromReaderAll(rdr));
+                    } // while
+                    if ((n > 0) && rdr.Read())
+                    {
+                            nextCursor = result[n - 1].rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
 
     }
 }

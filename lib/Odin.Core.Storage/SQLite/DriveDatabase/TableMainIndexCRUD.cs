@@ -8,6 +8,16 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class MainIndexRecord
     {
+        private Int32 _rowid;
+        public Int32 rowid
+        {
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
+        }
         private Guid _fileId;
         public Guid fileId
         {
@@ -235,6 +245,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
+        private SqliteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SqliteParameter _getPaging0Param1 = null;
+        private SqliteParameter _getPaging0Param2 = null;
 
         public TableMainIndexCRUD(xDriveDatabase db, CacheHelper cache) : base(db)
         {
@@ -257,6 +271,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
             _disposed = true;
         }
 
@@ -565,7 +581,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        // SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified
+        // SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified
         public MainIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<MainIndexRecord>();
@@ -580,124 +596,131 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                item.rowid = rdr.GetInt32(0);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in fileId...");
                 item.fileId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(1))
+            if (rdr.IsDBNull(2))
                 item.globalTransitId = null;
             else
             {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in globalTransitId...");
                 item.globalTransitId = new Guid(_guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileState = rdr.GetInt32(2);
             }
 
             if (rdr.IsDBNull(3))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.requiredSecurityGroup = rdr.GetInt32(3);
+                item.fileState = rdr.GetInt32(3);
             }
 
             if (rdr.IsDBNull(4))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.fileSystemType = rdr.GetInt32(4);
+                item.requiredSecurityGroup = rdr.GetInt32(4);
             }
 
             if (rdr.IsDBNull(5))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(5));
+                item.fileSystemType = rdr.GetInt32(5);
             }
 
             if (rdr.IsDBNull(6))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.fileType = rdr.GetInt32(6);
+                item.userDate = new UnixTimeUtc(rdr.GetInt64(6));
             }
 
             if (rdr.IsDBNull(7))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.dataType = rdr.GetInt32(7);
+                item.fileType = rdr.GetInt32(7);
             }
 
             if (rdr.IsDBNull(8))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.archivalStatus = rdr.GetInt32(8);
+                item.dataType = rdr.GetInt32(8);
             }
 
             if (rdr.IsDBNull(9))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.historyStatus = rdr.GetInt32(9);
+                item.archivalStatus = rdr.GetInt32(9);
             }
 
             if (rdr.IsDBNull(10))
-                item.senderId = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.senderId = rdr.GetString(10);
+                item.historyStatus = rdr.GetInt32(10);
             }
 
             if (rdr.IsDBNull(11))
+                item.senderId = null;
+            else
+            {
+                item.senderId = rdr.GetString(11);
+            }
+
+            if (rdr.IsDBNull(12))
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(12, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
                 item.groupId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(12))
+            if (rdr.IsDBNull(13))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(12, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(13, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
                 item.uniqueId = new Guid(_guid);
-            }
-
-            if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.byteCount = rdr.GetInt64(13);
             }
 
             if (rdr.IsDBNull(14))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(14));
+                        item.byteCount = rdr.GetInt64(14);
             }
 
             if (rdr.IsDBNull(15))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(15));
+            }
+
+            if (rdr.IsDBNull(16))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(15));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(16));
             }
             return item;
        }
@@ -875,6 +898,54 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 } // using
             } // lock
         }
+
+        public List<MainIndexRecord> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = -1;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,created,modified FROM mainIndex " +
+                                                 "WHERE rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count+1;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<MainIndexRecord>();
+                    int n = 0;
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        result.Add(ReadRecordFromReaderAll(rdr));
+                    } // while
+                    if ((n > 0) && rdr.Read())
+                    {
+                            nextCursor = result[n - 1].rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
 
     }
 }

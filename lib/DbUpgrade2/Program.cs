@@ -9,6 +9,170 @@ namespace DbUpgrade2
 {
     internal class Program
     {
+        static public void PurgeNewTables(IdentityDatabase _database)
+        {
+            using (var cmd = _database.CreateCommand())
+            {
+                cmd.CommandText =
+                    "DELETE FROM reactions; " +
+                    "DELETE FROM tagIndex; " +
+                    "DELETE FROM aclIndex; " +
+                    "DELETE FROM commandMessageQueue; " +
+                    "DELETE FROM mainIndex; ";
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
+            }
+        }
+
+        static public int TransferMain(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblMainIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var item = new Odin.Core.Storage.SQLite.IdentityDatabase.DriveMainIndexRecord();
+
+                    item.driveId = driveId;
+                    item.fileId = data[i].fileId;
+                    item.globalTransitId = data[i].globalTransitId;
+                    item.fileState = data[i].fileState;
+                    item.requiredSecurityGroup = data[i].requiredSecurityGroup;
+                    item.fileSystemType = data[i].fileSystemType;
+                    item.userDate = data[i].userDate;
+                    item.fileType = data[i].fileType;
+                    item.dataType = data[i].dataType;
+                    item.archivalStatus = data[i].archivalStatus;
+                    item.historyStatus = data[i].historyStatus;
+                    item.senderId = data[i].senderId;
+                    item.groupId = data[i].groupId;
+                    item.uniqueId = data[i].uniqueId;
+                    item.byteCount = data[i].byteCount;
+                    item.created = data[i].created;
+                    item.modified = data[i].modified;
+
+                    idb.tblDriveMainIndex.Insert(item);
+                }
+            }
+            while (inCursor != null);
+
+            idb.Commit();
+
+            return n;
+        }
+
+        static public int TransferAclIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblAclIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var item = new Odin.Core.Storage.SQLite.IdentityDatabase.DriveAclIndexRecord();
+
+                    item.driveId = driveId;
+                    item.fileId = data[i].fileId;
+                    item.aclMemberId = data[i].aclMemberId;
+
+                    idb.tblDriveAclIndex.Insert(item);
+                }
+            }
+            while (inCursor != null);
+
+            idb.Commit();
+
+            return n;
+        }
+
+        static public int TransferTagIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblTagIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var item = new Odin.Core.Storage.SQLite.IdentityDatabase.DriveTagIndexRecord();
+
+                    item.driveId = driveId;
+                    item.fileId = data[i].fileId;
+                    item.tagId = data[i].tagId;
+
+                    idb.tblDriveTagIndex.Insert(item);
+                }
+            }
+            while (inCursor != null);
+
+            idb.Commit();
+
+            return n;
+        }
+
+        static public int TransferReactions(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblReactions.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var item = new Odin.Core.Storage.SQLite.IdentityDatabase.DriveReactionsRecord();
+
+                    item.driveId = driveId;
+                    item.identity = data[i].identity;
+                    item.postId = data[i].postId;
+                    item.singleReaction = data[i].singleReaction;
+
+                    idb.tblDriveReactions.Insert(item);
+                }
+            }
+            while (inCursor != null);
+
+            idb.Commit();
+
+            return n;
+        }
+
+
+        static public int TransferCommands(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblCmdMsgQueue.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var item = new Odin.Core.Storage.SQLite.IdentityDatabase.DriveCommandMessageQueueRecord();
+
+                    item.driveId = driveId;
+                    item.fileId = data[i].fileId;
+                    item.timeStamp = data[i].timeStamp;
+
+                    idb.tblDriveCommandMessageQueue.Insert(item);
+                }
+            }
+            while (inCursor != null);
+
+            idb.Commit();
+
+            return n;
+        }
+
+
+
+
         static void Main(string[] args)
         {
             /*
@@ -29,12 +193,12 @@ namespace DbUpgrade2
 
             string root = "/Users/taud/tmp/dotyou/tenants/registrations/afd77e15-c0c0-48c6-9251-aa8a13168e64";
 
-            Console.WriteLine("We're in the root directory of any identity here");
+            Console.WriteLine("We're in the root directory of an identity here");
 
             //  
-            using var db = new IdentityDatabase($"Data Source={root}/headers/sys.db"); // Todd - name of identity db here\            \
-
+            using var db = new IdentityDatabase($"Data Source={root}/headers/sys.db"); // Todd - name of identity db here
             db.CreateDatabase(false); // This will create the missing 5 tables
+            PurgeNewTables(db);
 
             var drives = GetDrives(db, Path.Combine(root, "headers"));
 
@@ -45,9 +209,30 @@ namespace DbUpgrade2
                 var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
                 using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
                 {
-                    // Michael, code to transfer the data
+                    Console.Write("Transferring main index... ");
+                    int n = TransferMain(db, driveDb, driveGuid);
+                    Console.WriteLine($"transferred {n} records.");
+
+                    Console.Write("Transferring ACL index... ");
+                    n = TransferAclIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"transferred {n} records.");
+
+                    Console.Write("Transferring tag index... ");
+                    n = TransferTagIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"transferred {n} records.");
+
+                    Console.Write("Transferring reactions ... ");
+                    n = TransferReactions(db, driveDb, driveGuid);
+                    Console.WriteLine($"transferred {n} records.");
+
+                    Console.Write("Transferring commands ... ");
+                    n = TransferCommands(db, driveDb, driveGuid);
+                    Console.WriteLine($"transferred {n} records.");
+
                 }
             }
+
+            // Rename sys.db -> identity.db
         }
 
         static List<StorageDrive> GetDrives(IdentityDatabase db, string headerDataStoragePath)
