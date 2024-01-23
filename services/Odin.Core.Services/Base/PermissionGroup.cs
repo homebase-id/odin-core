@@ -47,7 +47,7 @@ public class PermissionGroup
     /// <returns></returns>
     public Guid? GetDriveId(TargetDrive drive)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.PermissionedDrive.Drive == drive);
+        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
         return grant?.DriveId;
     }
 
