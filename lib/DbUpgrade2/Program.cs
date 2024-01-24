@@ -14,11 +14,11 @@ namespace DbUpgrade2
             using (var cmd = _database.CreateCommand())
             {
                 cmd.CommandText =
-                    "DELETE FROM reactions; " +
-                    "DELETE FROM tagIndex; " +
-                    "DELETE FROM aclIndex; " +
-                    "DELETE FROM commandMessageQueue; " +
-                    "DELETE FROM mainIndex; ";
+                    "DROP TABLE IF EXISTS driveReactions; " +
+                    "DROP TABLE IF EXISTS driveTagIndex; " +
+                    "DROP TABLE IF EXISTS driveAclIndex; " +
+                    "DROP TABLE IF EXISTS driveCommandMessageQueue; " +
+                    "DROP TABLE IF EXISTS driveMainIndex; ";
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();
             }
@@ -191,14 +191,14 @@ namespace DbUpgrade2
                └── sys.db
              */
 
-            string root = "/Users/taud/tmp/dotyou/tenants/registrations/afd77e15-c0c0-48c6-9251-aa8a13168e64";
+            string root = "/temp/Git/dotyoucore/michael";
 
             Console.WriteLine("We're in the root directory of an identity here");
 
             //  
             using var db = new IdentityDatabase($"Data Source={root}/headers/sys.db"); // Todd - name of identity db here
-            db.CreateDatabase(false); // This will create the missing 5 tables
             PurgeNewTables(db);
+            db.CreateDatabase(false); // This will create the missing 5 tables
 
             var drives = GetDrives(db, Path.Combine(root, "headers"));
 

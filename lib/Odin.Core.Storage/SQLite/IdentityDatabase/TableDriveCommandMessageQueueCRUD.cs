@@ -103,7 +103,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveCommandMessageQueue("
                      +"driveId BLOB NOT NULL, "
-                     +"fileId BLOB NOT NULL UNIQUE, "
+                     +"fileId BLOB NOT NULL, "
                      +"timeStamp INT NOT NULL "
                      +", PRIMARY KEY (driveId,fileId)"
                      +");"
