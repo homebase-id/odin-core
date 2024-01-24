@@ -535,8 +535,7 @@ namespace Odin.Core.Services.Peer.SendingHost
                         case TransferFailureReason.RecipientServerRejected:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
-
-
+                        
                         case TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientDoesNotHavePermissionToFileAcl;
                             break;

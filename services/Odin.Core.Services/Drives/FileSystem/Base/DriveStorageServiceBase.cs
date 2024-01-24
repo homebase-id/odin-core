@@ -32,6 +32,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly DriveManager _driveManager;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
+        private readonly ILogger<DriveStorageServiceBase> _logger;
 
         protected DriveStorageServiceBase(
             OdinContextAccessor contextAccessor,
@@ -49,6 +50,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             _driveManager = driveManager;
             _odinConfiguration = odinConfiguration;
             _driveFileReaderWriter = driveFileReaderWriter;
+            _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
             DriveManager = driveManager;
         }
 
@@ -821,7 +823,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
-            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WriteHeaderStream(header.FileMetadata.File.FileId, stream);
+            var mgr = GetLongTermStorageManager(header.FileMetadata.File.DriveId);
+
+            await RetryUtil.Retry(
+                operation: () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream),
+                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
+                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
+                out var attempts
+            );
+
+            if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
+            {
+                _logger.LogTrace("It took {attempts} attempts to write file [{file}] on driveId [{driveId}]", attempts, file.FileId, file.DriveId);
+            }
         }
 
         /// <summary>
@@ -891,12 +905,18 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
         {
             var mgr = GetLongTermStorageManager(file.DriveId);
-            
+
             var header = await RetryUtil.Retry(
                 operation: () => mgr.GetServerFileHeader(file.FileId),
                 maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
-                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs)
+                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
+                out var attempts
             );
+
+            if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
+            {
+                _logger.LogTrace("It took {attempts} attempts to read file [{file}] on driveId [{driveId}]", attempts, file.FileId, file.DriveId);
+            }
 
             if (null == header)
             {

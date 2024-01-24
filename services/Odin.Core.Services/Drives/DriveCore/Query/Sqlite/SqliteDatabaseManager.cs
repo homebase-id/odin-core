@@ -121,7 +121,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         if (null == header)
         {
-            Log.Warning($"UpdateCurrentIndex called on null server file header");
+            _logger.LogWarning($"UpdateCurrentIndex called on null server file header");
             return Task.CompletedTask;
         }
         

@@ -344,6 +344,7 @@ public class TenantConfigService
                 PermissionKeys.ManageFeed,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.UseTransitRead,
+                PermissionKeys.PublishStaticContent,
                 PermissionKeys.UseTransitWrite)
         };
 
