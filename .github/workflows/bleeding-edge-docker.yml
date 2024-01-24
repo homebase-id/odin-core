@@ -40,6 +40,12 @@ jobs:
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
           path: client/apps
 
+      - name: Authenticate to Github packages
+        working-directory: ./client/apps
+        run: |
+          echo "@youfoundation:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+
       - name: Build libs & setup .env
         working-directory: ./client/apps
         run: |
