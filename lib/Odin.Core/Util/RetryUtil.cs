@@ -1,31 +1,34 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
+using Serilog.Events;
 
 namespace Odin.Core.Util;
 
 public static class RetryUtil
 {
-    public static T Retry<T>(
-        Func<T> operation,
+    public static T Retry<T>(Func<T> operation,
         int maxRetryCount,
-        TimeSpan delayBetweenRetries)
+        TimeSpan delayBetweenRetries, 
+        out int attempts)
     {
         int retryCount = 0;
         while (true)
         {
             try
             {
+                attempts = retryCount + 1;
                 return operation();
             }
-            catch (Exception)
+            catch
             {
                 retryCount++;
                 if (retryCount >= maxRetryCount)
                 {
                     throw;
                 }
-
+                
                 Thread.Sleep(delayBetweenRetries);
             }
         }
