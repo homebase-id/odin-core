@@ -19,5 +19,7 @@ public enum ClientNotificationType
     StatisticsChanged = 1002,
     ReactionContentAdded = 2003,
     ReactionContentDeleted = 2004,
-    AllReactionsByFileDeleted = 2005
+    AllReactionsByFileDeleted = 2005,
+
+    Error = 0xBADBEEF
 }
