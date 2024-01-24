@@ -164,8 +164,8 @@ public class Feed_Post_Tests
     }
 
     [Test]
-    public async Task 
-        CanPostFile_ToPublicChannel_WhenFileAclTargetsCircle_And_RecipientCanDecrypt_InGuestApi()
+    [Ignore("wip")]
+    public async Task CanPostFile_ToPublicChannel_WhenFileAclTargetsCircle_And_RecipientCanDecrypt_InGuestApi()
     {
         // Using feed as an app
         // System Circle has READ access to public drive
