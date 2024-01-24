@@ -1,9 +1,11 @@
 ﻿#nullable enable
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.AppNotifications;
+using Microsoft.Extensions.Hosting;
 using Odin.Core.Services.AppNotifications.WebSocket;
 using Odin.Core.Services.Authentication.Owner;
 
@@ -15,10 +17,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     public class OwnerAppNotificationSocketController : Controller
     {
         private readonly AppNotificationHandler _notificationHandler;
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
-        public OwnerAppNotificationSocketController(AppNotificationHandler notificationHandler)
+        public OwnerAppNotificationSocketController(
+            AppNotificationHandler notificationHandler,
+            IHostApplicationLifetime hostApplicationLifetime)
         {
             _notificationHandler = notificationHandler;
+            _hostApplicationLifetime = hostApplicationLifetime;
         }
 
         /// <summary />
@@ -26,18 +32,30 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
         [ApiExplorerSettings(IgnoreApi = true)]
         public async Task Connect()
         {
-            if (HttpContext.WebSockets.IsWebSocketRequest)
-            {
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
-                {
-                    DangerousEnableCompression = true
-                });
-                await _notificationHandler.EstablishConnection(webSocket);
-            }
-            else
+            if (!HttpContext.WebSockets.IsWebSocketRequest)
             {
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
+            using var cancellationTokenSources = CancellationTokenSource.CreateLinkedTokenSource(
+                HttpContext.RequestAborted,
+                _hostApplicationLifetime.ApplicationStopping);
+
+            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
+            {
+                DangerousEnableCompression = true
+            });
+
+            try
+            {
+                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // ignore
             }
         }
+
     }
 }
