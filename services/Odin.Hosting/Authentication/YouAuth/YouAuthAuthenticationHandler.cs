@@ -133,7 +133,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                return await HandleYouAuthToken(clientAuthToken, odinContext);
+                 return await HandleYouAuthToken(clientAuthToken, odinContext);
             }
 
             throw new OdinClientException("Unhandled youauth token type");

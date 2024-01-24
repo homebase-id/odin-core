@@ -98,6 +98,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+            await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
             await samOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
         }
 
@@ -177,6 +178,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             Assert.IsTrue(shouldBeDeletedResponse.Reactions.Count == 0);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+            await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
             await samOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
         }
 

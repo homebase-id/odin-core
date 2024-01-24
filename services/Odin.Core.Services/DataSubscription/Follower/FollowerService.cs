@@ -74,17 +74,23 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
                     OdinClientErrorCode.InvalidRecipient);
             }
+            
+            var existingFollow = await this.GetIdentityIFollowInternal(identityToFollow);
+            if (null != existingFollow)
+            {
+                throw new OdinClientException("You already follow the requested identity");
+            }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
 
-            var followRequest = new PerimeterFollowRequest()
+            var perimeterFollowRequest = new PerimeterFollowRequest()
             {
                 OdinId = _tenantContext.HostOdinId,
                 NotificationType = request.NotificationType,
                 Channels = request.Channels
             };
 
-            var json = OdinSystemSerializer.Serialize(followRequest);
+            var json = OdinSystemSerializer.Serialize(perimeterFollowRequest);
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {

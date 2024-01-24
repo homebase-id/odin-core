@@ -7,6 +7,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Drives;
+using Serilog;
 
 namespace Odin.Core.Services.Base;
 
@@ -31,8 +32,17 @@ public class PermissionGroup
 
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-        return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
+        // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+        // return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
+
+        if (null == _driveGrants)
+        {
+            return false;
+        }
+        
+        var hasPermission = _driveGrants.Any(g => g.DriveId == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
+        return hasPermission;
+
     }
 
     public bool HasPermission(int permission)
@@ -47,7 +57,7 @@ public class PermissionGroup
     /// <returns></returns>
     public Guid? GetDriveId(TargetDrive drive)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.PermissionedDrive.Drive == drive);
+        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
         return grant?.DriveId;
     }
 
@@ -56,31 +66,53 @@ public class PermissionGroup
     /// when the owner is making an HttpRequest.
     /// </summary>
     /// <returns></returns>
-    public SensitiveByteArray? GetDriveStorageKey(Guid driveId)
+    public SensitiveByteArray? GetDriveStorageKey(Guid driveId, out int grantsCount)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+        grantsCount = 0;
+        var grants = _driveGrants?.Where(g => g.DriveId == driveId).ToList();
 
-        if (null == grant)
+        if (grants == null)
         {
             return null;
         }
 
-        //If we cannot decrypt the storage key BUT the caller has access to the drive,
-        //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
-        if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+        grantsCount = grants.Count();
+
+        // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+        // var grant = grants?.FirstOrDefault();
+        // if (null == grant)
+        // {
+        //     return null;
+        // }
+
+        foreach (var grant in grants)
         {
-            // return Array.Empty<byte>().ToSensitiveByteArray();
-            return null;
+            //If we cannot decrypt the storage key BUT the caller has access to the drive,
+            //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
+            if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+            {
+                // return null;
+                continue;
+            }
+
+            var key = this._keyStoreKey;
+            try
+            {
+                var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
+                return storageKey;
+            }
+            catch 
+            {
+                Log.Warning("Failed tyring to decrypt storage key for drive {pd} ", grant.PermissionedDrive.Drive);
+            }
         }
 
-        var key = this._keyStoreKey;
-        var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
-        return storageKey;
+        return null;
     }
 
     public TargetDrive? GetTargetDrive(Guid driveId)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+        var grant = _driveGrants?.FirstOrDefault(g => g.DriveId == driveId);
         return grant?.PermissionedDrive.Drive;
     }
 
