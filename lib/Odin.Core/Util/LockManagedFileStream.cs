@@ -1,4 +1,7 @@
+using System;
 using System.IO;
+using static System.Net.WebRequestMethods;
+using System.Numerics;
 
 namespace Odin.Core.Util;
 
@@ -14,6 +17,18 @@ public class LockManagedFileStream : FileStream
     {
         _concurrentFileManagerGlobal = lockObj;
         _path = path;
+    }
+
+    ~LockManagedFileStream()
+    {
+        if (!_isDisposed)
+        {
+#if DEBUG
+            throw new Exception($"ManagedFileStream was not disposed properly {_path}.");
+#else
+           Serilog.Log.Error($"ManagedFileStream was not disposed properly {_path}.");
+#endif
+        }
     }
 
     protected override void Dispose(bool disposing)
