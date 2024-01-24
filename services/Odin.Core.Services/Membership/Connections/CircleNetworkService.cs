@@ -679,7 +679,7 @@ namespace Odin.Core.Services.Membership.Connections
                     }
                 }
             }
-
+            
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new PermissionSet(), new List<DriveGrantRequest>()

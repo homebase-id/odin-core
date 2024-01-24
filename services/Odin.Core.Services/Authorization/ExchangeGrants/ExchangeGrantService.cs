@@ -124,7 +124,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
                     {
                         _logger.LogInformation(
-                            $"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+                            $"Auth Token with Id: [{authToken.Id}] Access granted to drive [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias} | type: {x.PermissionedDrive.Drive.Type})");
                     }
                 }
             }

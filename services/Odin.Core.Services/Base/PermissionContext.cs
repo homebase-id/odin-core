@@ -4,6 +4,7 @@ using System.Linq;
 using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Drives;
+using Serilog;
 
 namespace Odin.Core.Services.Base
 {
@@ -131,7 +132,7 @@ namespace Odin.Core.Services.Base
                 throw new OdinSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
-        
+
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -229,9 +230,16 @@ namespace Odin.Core.Services.Base
             foreach (var key in PermissionGroups.Keys)
             {
                 var group = PermissionGroups[key];
-                storageKey = group.GetDriveStorageKey(driveId);
+                storageKey = group.GetDriveStorageKey(driveId, out var grantCount);
+
+                if (grantCount > 1)
+                {
+                    var td = GetTargetDrive(driveId);
+                    Log.Warning("Permission group with Key [{key}] has {grantCount} grants for drive [{td}]", key, grantCount, td);
+                }
+
                 var value = storageKey?.GetKey() ?? Array.Empty<byte>();
-                // if (storageKey?.IsSet() ?? false)
+
                 if (value.Length > 0)
                 {
                     return true;

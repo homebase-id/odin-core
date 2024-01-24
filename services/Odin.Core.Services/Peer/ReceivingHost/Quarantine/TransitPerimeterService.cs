@@ -141,7 +141,7 @@ namespace Odin.Core.Services.Peer.ReceivingHost.Quarantine
                     if (item.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
                         item.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                     {
-                        //Note: we say new few item here because comments are never pushed into the feed drive; so any
+                        //Note: we say new feed item here because comments are never pushed into the feed drive; so any
                         //item going into the feed is new content (i.e. post/image, etc.)
                         await _mediator.Publish(new NewFeedItemReceived()
                         {
