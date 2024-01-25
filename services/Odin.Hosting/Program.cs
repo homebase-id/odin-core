@@ -115,9 +115,19 @@ namespace Odin.Hosting
                 .WriteTo.LogLevelModifier(s => s.Async(
                     sink => sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
                         outputTemplate: logOutputTemplate)));
+
             if (services != null)
             {
                 loggerConfig.ReadFrom.Services(services);
+            }
+
+            if (odinConfig.Logging.EnableSeq)
+            {
+                loggerConfig.Enrich.WithProperty("SystemId", odinConfig.Logging.SeqSystemId);
+
+                // NOTE Seq logging is async by default
+                loggerConfig.WriteTo.LogLevelModifier(
+                    sink => sink.Seq(odinConfig.Logging.SeqUri, apiKey: odinConfig.Logging.SeqApiKey));
             }
 
             return loggerConfig;

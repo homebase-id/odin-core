@@ -312,6 +312,9 @@ namespace Odin.Core.Services.Configuration
         public class LoggingSection
         {
             public string LogFilePath { get; init; }
+            public string SeqApiKey{ get; init; }
+            public string SeqSystemId{ get; init; }
+            public string SeqUri { get; init; }
 
             public LoggingSection()
             {
@@ -321,7 +324,15 @@ namespace Odin.Core.Services.Configuration
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.Required<string>("Logging:LogFilePath");
+                SeqApiKey = config.GetOrDefault("Logging:SeqApiKey", "");
+                SeqSystemId = config.GetOrDefault("Logging:SeqSystemId", "");
+                SeqUri = config.GetOrDefault("Logging:SeqUri", "");
             }
+
+            public bool EnableSeq =>
+                !string.IsNullOrEmpty(SeqApiKey) &&
+                !string.IsNullOrEmpty(SeqSystemId) &&
+                !string.IsNullOrEmpty(SeqUri);
         }
 
         //
