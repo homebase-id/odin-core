@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [deploy-auto-stuff]
+    branches: [seq]
 
 permissions:
   contents: read
@@ -12,8 +12,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BRANCH_NAME: ''
-  DEPLOY_IMAGE: ''
+  BRANCH_NAME: ""
+  DEPLOY_IMAGE: ""
 
 jobs:
   build:
@@ -23,10 +23,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
-          registry-url: 'https://npm.pkg.github.com'
+          node-version: "18.x"
+          registry-url: "https://npm.pkg.github.com"
           # Defaults to the user or organization that owns the workflow file
-          scope: '@octocat'
+          scope: "@octocat"
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
