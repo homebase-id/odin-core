@@ -121,15 +121,6 @@ namespace Odin.Hosting
                 loggerConfig.ReadFrom.Services(services);
             }
 
-            if (odinConfig.Logging.EnableSeq)
-            {
-                loggerConfig.Enrich.WithProperty("SystemId", odinConfig.Logging.SeqSystemId);
-
-                // NOTE Seq logging is async by default
-                loggerConfig.WriteTo.LogLevelModifier(
-                    sink => sink.Seq(odinConfig.Logging.SeqUri, apiKey: odinConfig.Logging.SeqApiKey));
-            }
-
             return loggerConfig;
         }
 
