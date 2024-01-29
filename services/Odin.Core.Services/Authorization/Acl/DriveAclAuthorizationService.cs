@@ -41,7 +41,7 @@ namespace Odin.Core.Services.Authorization.Acl
             if (requiredCircles.Any())
             {
                 var icr = await _circleNetwork.GetIdentityConnectionRegistration(odinId, true);
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants.Select(cg => cg.Value.CircleId.Value)).Any();
+                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>()).Any();
                 return hasAtLeastOneCircle;
             }
 
