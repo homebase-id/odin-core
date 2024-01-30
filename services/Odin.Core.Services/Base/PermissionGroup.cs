@@ -39,10 +39,9 @@ public class PermissionGroup
         {
             return false;
         }
-        
+
         var hasPermission = _driveGrants.Any(g => g.DriveId == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
         return hasPermission;
-
     }
 
     public bool HasPermission(int permission)
@@ -91,6 +90,10 @@ public class PermissionGroup
             //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
             if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
+                Log.Information(
+                    "Grant for drive {permissionDrive} with permission value ({permission}) has null key store key:{kskNull} and null key store key encrypted storage key: {kskstoragekey}",
+                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
+
                 // return null;
                 continue;
             }
@@ -99,9 +102,14 @@ public class PermissionGroup
             try
             {
                 var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
+
+                Log.Information(
+                    "Grant for drive {permissionDrive} with permission value ({permission}) returned the storage key",
+                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission);
+                
                 return storageKey;
             }
-            catch 
+            catch
             {
                 Log.Warning("Failed tyring to decrypt storage key for drive {pd} ", grant.PermissionedDrive.Drive);
             }

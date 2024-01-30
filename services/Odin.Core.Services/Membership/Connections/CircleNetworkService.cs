@@ -626,8 +626,14 @@ namespace Odin.Core.Services.Membership.Connections
             AccessRegistration accessReg,
             bool applyAppCircleGrants)
         {
+            Log.Information("Creating permission context for caller [{caller}] in auth context [{authContext}]; applyAppCircleGrants:[{applyAppGrants}]",
+                _contextAccessor.GetCurrent().Caller.OdinId,
+                _contextAccessor.GetCurrent().AuthContext,
+                applyAppCircleGrants);
+
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
 
+            
             if (applyAppCircleGrants)
             {
                 foreach (var kvp in icr.AccessGrant.AppGrants)
@@ -652,9 +658,10 @@ namespace Odin.Core.Services.Membership.Connections
                                 {
                                     var existingKeyJson = OdinSystemSerializer.Serialize(v.Redacted());
                                     var newKeyJson = OdinSystemSerializer.Serialize(appCg);
-                                    var message = $"Key with value [{kvp.Key} already exists in grants.]";
+
+                                    var message = $"Key with value [{kvp.Key}] already exists in grants.";
                                     message += $"\n Existing key has [{existingKeyJson}]";
-                                    message += $"\n appGrant Key [{newKeyJson}]";
+                                    message += $"\n AppGrant Key [{newKeyJson}]";
 
                                     Log.Warning(message);
                                 }
@@ -679,7 +686,7 @@ namespace Odin.Core.Services.Membership.Connections
                     }
                 }
             }
-            
+
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new PermissionSet(), new List<DriveGrantRequest>()

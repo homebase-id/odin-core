@@ -166,7 +166,7 @@ public class CircleMembershipService
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
-            if (this.IsEnabled(cg.CircleId))
+            if (this.CircleIsEnabled(cg.CircleId, out var circleExists))
             {
                 enabledCircles.Add(cg.CircleId);
                 grants.Add(cg.CircleId, new ExchangeGrant()
@@ -180,6 +180,14 @@ public class CircleMembershipService
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet
                 });
+            }
+            else
+            {
+                if (!circleExists)
+                {
+                    _logger.LogInformation("Caller [{callingIdentity}] has been granted circleId:[{circleId}], which no longer exists",
+                        _contextAccessor.GetCurrent().Caller.OdinId, cg.CircleId);
+                }
             }
         }
 
@@ -281,8 +289,10 @@ public class CircleMembershipService
         return Task.CompletedTask;
     }
 
-    private bool IsEnabled(GuidId circleId)
+    private bool CircleIsEnabled(GuidId circleId, out bool exists)
     {
-        return _circleDefinitionService.IsEnabled(circleId);
+        var circle = _circleDefinitionService.GetCircle(circleId);
+        exists = circle != null;
+        return !circle?.Disabled ?? false;
     }
 }
