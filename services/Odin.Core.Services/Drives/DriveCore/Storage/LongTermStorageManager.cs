@@ -152,7 +152,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 try
                 {
-                    var buffer = new byte[chunk.Length];
+                    var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
                     if (chunk.Start > fileStream.Length)
                     {
                         throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
