@@ -10,6 +10,7 @@ public static class HttpHeaderConstants
     public const string RemoteServerIcrIssue = "RemoteServerIcrIssue";
     public const string PayloadKey = "PayloadKey";
     public const string LastModified = "Last-Modified";
-    
+
     public const string IfModifiedSince = "If-Modified-Since";
+    public const string AcceptRanges = "Accept-Ranges";
 }

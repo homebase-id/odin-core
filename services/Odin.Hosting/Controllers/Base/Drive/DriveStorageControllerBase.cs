@@ -81,7 +81,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Append("Accept-Ranges", "bytes");
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.AcceptRanges, "bytes");
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
