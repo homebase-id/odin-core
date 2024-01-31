@@ -254,7 +254,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                         var drive = await DriveManager.GetDrive(file.DriveId);
                         Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
-                                  "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) [alias={driveAlias}, type={driveType}]",
+                                  "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
+                                  "[alias={driveAlias}, type={driveType}]",
                             ContextAccessor.GetCurrent().Caller.OdinId,
                             serverFileHeader.FileMetadata.IsEncrypted,
                             ContextAccessor.GetCurrent().AuthContext,
