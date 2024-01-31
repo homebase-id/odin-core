@@ -231,6 +231,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+            if (header == null)
+            {
+                return false;
+            }
             //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
             foreach (var d in header.FileMetadata.Payloads)
             {
