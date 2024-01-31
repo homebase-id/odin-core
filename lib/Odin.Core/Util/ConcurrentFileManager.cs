@@ -37,11 +37,15 @@ public class ConcurrentFileManager
 {
     private readonly ILogger<ConcurrentFileManager> _logger;
     private readonly ICorrelationContext _correlationContext;
+    public readonly string _file;
+    public readonly int _line;
 
-    public ConcurrentFileManager(ILogger<ConcurrentFileManager> logger, ICorrelationContext correlationContext)
+    public ConcurrentFileManager(ILogger<ConcurrentFileManager> logger, ICorrelationContext correlationContext, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
         _logger = logger;
         _correlationContext = correlationContext;
+        _file = file;
+        _line = line;
     }
 
     internal class ConcurrentFileLock
