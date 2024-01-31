@@ -392,10 +392,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam14.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam15.Value = item.byteCount;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam16.Value = now.uniqueTime;
-                item.modified = null;
-                _insertParam17.Value = DBNull.Value;
+                // HAND HACK FOR CONVERSION
+                _insertParam16.Value = item.created.uniqueTime;
+                _insertParam17.Value = item.modified?.uniqueTime ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
+                item.modified = null;
+                // HAND HACK END
                 if (count > 0)
                  {
                      item.created = now;

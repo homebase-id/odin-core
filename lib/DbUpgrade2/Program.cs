@@ -4,6 +4,7 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using System.Diagnostics;
 
 namespace DbUpgrade2
 {
@@ -13,12 +14,13 @@ namespace DbUpgrade2
         {
             using (var cmd = _database.CreateCommand())
             {
-                cmd.CommandText =
-                    "DROP TABLE IF EXISTS driveReactions; " +
-                    "DROP TABLE IF EXISTS driveTagIndex; " +
-                    "DROP TABLE IF EXISTS driveAclIndex; " +
-                    "DROP TABLE IF EXISTS driveCommandMessageQueue; " +
-                    "DROP TABLE IF EXISTS driveMainIndex; ";
+                cmd.CommandText = """
+                    DROP TABLE IF EXISTS driveReactions;
+                    DROP TABLE IF EXISTS driveTagIndex; 
+                    DROP TABLE IF EXISTS driveAclIndex; 
+                    DROP TABLE IF EXISTS driveCommandMessageQueue; 
+                    DROP TABLE IF EXISTS driveMainIndex; 
+                 """;
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();
             }
@@ -54,7 +56,8 @@ namespace DbUpgrade2
                     item.created = data[i].created;
                     item.modified = data[i].modified;
 
-                    idb.tblDriveMainIndex.Insert(item);
+                    int c = idb.tblDriveMainIndex.Insert(item);
+                    Debug.Assert(c == 1);
                 }
             }
             while (inCursor != null);
@@ -63,6 +66,47 @@ namespace DbUpgrade2
 
             return n;
         }
+
+        static public bool ValidateMain(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblMainIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var mainRecord = idb.tblDriveMainIndex.Get(driveId, data[i].fileId);
+
+                    bool areEqual =
+                               mainRecord.driveId == driveId &&
+                               data[i].fileId == mainRecord.fileId &&
+                               data[i].globalTransitId == mainRecord.globalTransitId &&
+                               data[i].fileState == mainRecord.fileState &&
+                               data[i].requiredSecurityGroup == mainRecord.requiredSecurityGroup &&
+                               data[i].fileSystemType == mainRecord.fileSystemType &&
+                               data[i].userDate.Equals(mainRecord.userDate) &&
+                               data[i].fileType == mainRecord.fileType &&
+                               data[i].dataType == mainRecord.dataType &&
+                               data[i].archivalStatus == mainRecord.archivalStatus &&
+                               data[i].historyStatus == mainRecord.historyStatus &&
+                               data[i].senderId == mainRecord.senderId &&
+                               data[i].groupId == mainRecord.groupId &&
+                               data[i].uniqueId == mainRecord.uniqueId &&
+                               data[i].byteCount == mainRecord.byteCount &&
+                               data[i].created.Equals(mainRecord.created) &&
+                               (data[i].modified?.Equals(mainRecord.modified) ?? mainRecord.modified == null);
+
+                    if (areEqual == false)
+                        return false;
+                }
+            }
+            while (inCursor != null);
+
+            return true;
+        }
+
 
         static public int TransferAclIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
         {
@@ -80,7 +124,8 @@ namespace DbUpgrade2
                     item.fileId = data[i].fileId;
                     item.aclMemberId = data[i].aclMemberId;
 
-                    idb.tblDriveAclIndex.Insert(item);
+                    int c = idb.tblDriveAclIndex.Insert(item);
+                    Debug.Assert(c == 1);
                 }
             }
             while (inCursor != null);
@@ -88,6 +133,32 @@ namespace DbUpgrade2
             idb.Commit();
 
             return n;
+        }
+
+        static public bool ValidateAclIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblAclIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var mainRecord = idb.tblDriveAclIndex.Get(driveId, data[i].fileId, data[i].aclMemberId);
+
+                    bool areEqual =
+                               mainRecord.driveId == driveId &&
+                               mainRecord.fileId == data[i].fileId &&
+                               mainRecord.aclMemberId == data[i].aclMemberId;
+
+                    if (areEqual == false)
+                        return false;
+                }
+            }
+            while (inCursor != null);
+
+            return true;
         }
 
         static public int TransferTagIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
@@ -106,7 +177,8 @@ namespace DbUpgrade2
                     item.fileId = data[i].fileId;
                     item.tagId = data[i].tagId;
 
-                    idb.tblDriveTagIndex.Insert(item);
+                    int c = idb.tblDriveTagIndex.Insert(item);
+                    Debug.Assert(c == 1);
                 }
             }
             while (inCursor != null);
@@ -114,6 +186,32 @@ namespace DbUpgrade2
             idb.Commit();
 
             return n;
+        }
+
+        static public bool ValidateTagIndex(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblTagIndex.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var mainRecord = idb.tblDriveTagIndex.Get(driveId, data[i].fileId, data[i].tagId);
+
+                    bool areEqual =
+                               mainRecord.driveId == driveId &&
+                               mainRecord.fileId == data[i].fileId &&
+                               mainRecord.tagId == data[i].tagId;
+
+                    if (areEqual == false)
+                        return false;
+                }
+            }
+            while (inCursor != null);
+
+            return true;
         }
 
         static public int TransferReactions(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
@@ -133,7 +231,8 @@ namespace DbUpgrade2
                     item.postId = data[i].postId;
                     item.singleReaction = data[i].singleReaction;
 
-                    idb.tblDriveReactions.Insert(item);
+                    int c = idb.tblDriveReactions.Insert(item);
+                    Debug.Assert(c == 1);
                 }
             }
             while (inCursor != null);
@@ -143,6 +242,33 @@ namespace DbUpgrade2
             return n;
         }
 
+        static public bool ValidateReactions(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            do
+            {
+                var data = ddb.TblReactions.PagingByRowid(1000, inCursor, out inCursor);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var mainRecord = idb.tblDriveReactions.Get(driveId, data[i].identity, data[i].postId, data[i].singleReaction);
+
+                    bool areEqual =
+                                mainRecord.driveId == driveId &&
+                                mainRecord.identity.Equals(data[i].identity) &&
+                                mainRecord.postId == data[i].postId &&
+                                mainRecord.singleReaction == data[i].singleReaction;
+                    ;
+
+                    if (areEqual == false)
+                        return false;
+                }
+            }
+            while (inCursor != null);
+
+            return true;
+        }
 
         static public int TransferCommands(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
         {
@@ -160,7 +286,8 @@ namespace DbUpgrade2
                     item.fileId = data[i].fileId;
                     item.timeStamp = data[i].timeStamp;
 
-                    idb.tblDriveCommandMessageQueue.Insert(item);
+                    int c = idb.tblDriveCommandMessageQueue.Insert(item);
+                    Debug.Assert(c == 1);
                 }
             }
             while (inCursor != null);
@@ -172,8 +299,38 @@ namespace DbUpgrade2
 
 
 
+        static public bool ValidateCommands(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
 
-        static void Main(string[] args)
+            do
+            {
+                var data = ddb.TblCmdMsgQueue.PagingByRowid(10000, inCursor, out inCursor);
+                if (data.Count > 9999)
+                    Debug.Assert(false);
+                for (int i = 0; i < data.Count; i++, n++)
+                {
+                    var mainRecord = idb.tblDriveCommandMessageQueue.Get(driveId, 10000);
+                    if (mainRecord.Count > 9999)
+                        Debug.Assert(false);
+
+                    bool areEqual =
+                                mainRecord[i].driveId == driveId &&
+                                mainRecord[i].fileId == data[i].fileId &&
+                                mainRecord[i].timeStamp == data[i].timeStamp;
+
+                    if (areEqual == false)
+                        return false;
+                }
+            }
+            while (inCursor != null);
+
+            return true;
+        }
+
+
+        static int Main(string[] args)
         {
             /*
 
@@ -232,7 +389,43 @@ namespace DbUpgrade2
                 }
             }
 
+            // Todd  Now loop through each drive
+            foreach (var drive in drives)
+            {
+                Guid driveGuid = drive.Id;
+                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
+                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
+                {
+                    Console.Write("Validating main index... ");
+                    bool ok = ValidateMain(db, driveDb, driveGuid);
+                    Console.WriteLine($"validation {ok}.");
+                    Debug.Assert( ok );
+
+                    Console.Write("Validating ACL index... ");
+                    ok = ValidateAclIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("Validating tag index... ");
+                    ok = ValidateTagIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("Validating reactions... ");
+                    ok = ValidateReactions(db, driveDb, driveGuid);
+                    Console.WriteLine($"validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("Validating commands... ");
+                    ok = ValidateCommands(db, driveDb, driveGuid);
+                    Console.WriteLine($"validation {ok}.");
+                    Debug.Assert(ok);
+                }
+            }
+
             // Rename sys.db -> identity.db
+
+            return 0;
         }
 
         static List<StorageDrive> GetDrives(IdentityDatabase db, string headerDataStoragePath)
