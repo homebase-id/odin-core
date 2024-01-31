@@ -312,7 +312,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT  FROM tagIndex " +
+                    _get0Command.CommandText = "SELECT fileId,tagId FROM tagIndex " +
                                                  "WHERE fileId = $fileId AND tagId = $tagId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

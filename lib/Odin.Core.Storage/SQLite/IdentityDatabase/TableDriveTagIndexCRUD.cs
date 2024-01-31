@@ -338,7 +338,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT * FROM driveTagIndex " +
+                    _get0Command.CommandText = "SELECT driveId,fileId,tagId FROM driveTagIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND tagId = $tagId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

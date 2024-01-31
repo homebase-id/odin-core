@@ -56,7 +56,7 @@ namespace DbUpgrade2
                     item.created = data[i].created;
                     item.modified = data[i].modified;
 
-                    int c = idb.tblDriveMainIndex.Insert(item);
+                    int c = idb.tblDriveMainIndex.InsertRawTransfer(item);
                     Debug.Assert(c == 1);
                 }
             }

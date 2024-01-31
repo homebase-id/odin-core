@@ -360,7 +360,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT  FROM reactions " +
+                    _get0Command.CommandText = "SELECT identity,postId,singleReaction FROM reactions " +
                                                  "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

@@ -385,7 +385,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT * FROM driveReactions " +
+                    _get0Command.CommandText = "SELECT driveId,identity,postId,singleReaction FROM driveReactions " +
                                                  "WHERE driveId = $driveId AND identity = $identity AND postId = $postId AND singleReaction = $singleReaction LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
