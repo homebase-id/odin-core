@@ -13,7 +13,6 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Serilog;
 
 namespace Odin.Core.Services.Membership.CircleMembership;
 

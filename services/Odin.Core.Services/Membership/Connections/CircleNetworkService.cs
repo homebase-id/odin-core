@@ -627,12 +627,11 @@ namespace Odin.Core.Services.Membership.Connections
             bool applyAppCircleGrants)
         {
             Log.Information("Creating permission context for caller [{caller}] in auth context [{authContext}]; applyAppCircleGrants:[{applyAppGrants}]",
-                _contextAccessor.GetCurrent().Caller.OdinId,
+                _contextAccessor.GetCurrent().Caller?.OdinId ?? "no caller",
                 _contextAccessor.GetCurrent().AuthContext,
                 applyAppCircleGrants);
 
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
-
             
             if (applyAppCircleGrants)
             {

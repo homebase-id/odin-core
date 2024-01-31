@@ -132,8 +132,11 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             if (includeAnonymousDrives)
             {
                 //MergeAnonymousDrives
+                var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
+
                 //TODO: remove any anonymous drives which are explicitly granted above
-                permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission));
+                var anonPg = await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission);
+                permissionGroupMap.Add("anonymous_drives", anonPg);
             }
 
             if (additionalPermissionKeys != null)
