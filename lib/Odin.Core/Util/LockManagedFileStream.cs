@@ -24,9 +24,9 @@ public class LockManagedFileStream : FileStream
         if (!_isDisposed)
         {
 #if DEBUG
-            throw new Exception($"ManagedFileStream was not disposed properly {_path}.");
+            throw new Exception($"ManagedFileStream created by ConcurrentFileManager (instantiated {_concurrentFileManagerGlobal._file} line {_concurrentFileManagerGlobal._line}) was not disposed properly {_path}.");
 #else
-           Serilog.Log.Error($"ManagedFileStream was not disposed properly {_path}.");
+           Serilog.Log.Error($"ManagedFileStream created by ConcurrentFileManager (instantiated {_concurrentFileManagerGlobal._file} line {_concurrentFileManagerGlobal._line}) was not disposed properly {_path}.");
 #endif
         }
     }
