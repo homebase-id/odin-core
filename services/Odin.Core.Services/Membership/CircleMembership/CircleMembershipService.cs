@@ -60,14 +60,13 @@ public class CircleMembershipService
         // _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles([OdinId.ToHashId(domainName)]);
     }
 
-    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName)
+    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType)
     {
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
-        foreach (var circleMemberRecord in circleMemberRecords)
-        {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
-            yield return sd.CircleGrant;
-        }
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
+            OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
+        );
+
+        return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
     public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, bool overrideHack = false)
