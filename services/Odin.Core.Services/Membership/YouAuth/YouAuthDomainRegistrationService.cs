@@ -463,7 +463,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 
                 //TODO: this is causing an issue where in the circles are also deleted for the ICR 
                 // 
-                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
+                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth);
                 
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {

@@ -39,9 +39,25 @@ public class CircleMembershipService
         _logger = logger;
     }
 
-    public void DeleteMemberFromAllCircles(AsciiDomainName domainName)
+    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType)
     {
-        _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
+        //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
+        var memberId = OdinId.ToHashId(domainName);
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
+        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        {
+            foreach (var circleMemberRecord in circleMemberRecords)
+            {
+                var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
+                if (sd.DomainType == domainType)
+                {
+                    _tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
+                }
+            }
+        }
+
+        //
+        // _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles([OdinId.ToHashId(domainName)]);
     }
 
     public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName)
