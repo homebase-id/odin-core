@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
@@ -86,6 +88,16 @@ public abstract class OdinControllerBase : ControllerBase
         return null;
     }
 
+    protected void AssertIsValidOdinId(string odinId, out OdinId id)
+    {
+        if (OdinId.IsValid(odinId))
+        {
+            id = (OdinId)odinId;
+        }
+
+        throw new OdinClientException("Missing target OdinId", OdinClientErrorCode.ArgumentError);
+    }
+    
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>

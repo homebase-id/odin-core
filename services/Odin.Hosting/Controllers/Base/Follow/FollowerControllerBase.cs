@@ -3,15 +3,13 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Refit;
 
 namespace Odin.Hosting.Controllers.Base.Follow
 {
     /// <summary />
-    public class FollowerControllerBase : ControllerBase
+    public class FollowerControllerBase : OdinControllerBase
     {
         private readonly FollowerService _followerService;
 
@@ -57,7 +55,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <param name="odinId"></param>
         protected async Task<FollowerDefinition> GetFollower(string odinId)
         {
-            return await _followerService.GetFollower(new OdinId(odinId));
+            AssertIsValidOdinId(odinId, out var id);
+            return await _followerService.GetFollower(id);
         }
 
         /// <summary>

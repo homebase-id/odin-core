@@ -29,8 +29,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
             var result = await base.GetWhoIFollow(max, cursor);
             return result;
         }
-
-
+        
         /// <summary>
         /// Gets a list of identities following me
         /// </summary>
