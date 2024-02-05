@@ -23,7 +23,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        protected async Task<CursoredResult<string>> GetWhoIFollow(int max, string cursor)
+        [HttpGet("IdentitiesIFollow")]
+        public async Task<CursoredResult<string>> GetWhoIFollow(int max, string cursor)
         {
             var result = await _followerService.GetIdentitiesIFollow(max, cursor);
             return result;
@@ -39,11 +40,15 @@ namespace Odin.Hosting.Controllers.Base.Follow
             return result;
         }
 
-
         /// <summary>
         /// Gets a list of identities following me
         /// </summary>
-        protected async Task<CursoredResult<string>> GetFollowers(int max, string cursor)
+        /// <summary>
+        /// Gets a list of identities following me
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("followingme")]
+        public async Task<CursoredResult<string>> GetFollowers(int max, string cursor)
         {
             var result = await _followerService.GetAllFollowers(max, cursor);
             return result;
@@ -53,7 +58,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// Returns the details of an identity that follows you
         /// </summary>
         /// <param name="odinId"></param>
-        protected async Task<FollowerDefinition> GetFollower(string odinId)
+        [HttpGet("follower")]
+        public async Task<FollowerDefinition> GetFollower(string odinId)
         {
             AssertIsValidOdinId(odinId, out var id);
             return await _followerService.GetFollower(id);
@@ -62,17 +68,21 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <summary>
         /// Returns the details of an identity you're following
         /// </summary>
-        protected async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
+        [HttpGet("IdentityIFollow")]
+        public async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
         {
-            var result = await _followerService.GetIdentityIFollow(new OdinId(odinId));
+            AssertIsValidOdinId(odinId, out var id);
+            var result = await _followerService.GetIdentityIFollow(id);
             return result;
         }
 
         /// <summary>
         /// Follows an identity.  Can also be used to update the follower subscription.
         /// </summary>
-        protected async Task<IActionResult> Follow([Body] FollowRequest request)
+        [HttpPost("follow")]
+        public async Task<IActionResult> Follow([Body] FollowRequest request)
         {
+            AssertIsValidOdinId(request.OdinId, out var _);
             await _followerService.Follow(request);
             return NoContent();
         }
@@ -80,15 +90,19 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <summary>
         /// Unfollows an identity
         /// </summary>
-        protected async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
+        [HttpPost("unfollow")]
+        public async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
+            AssertIsValidOdinId(request.OdinId, out var _);
             await _followerService.Unfollow(new OdinId(request.OdinId));
             return NoContent();
         }
 
-        protected async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
+        [HttpPost("sync-feed-history")]
+        public async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
         {
-            await _followerService.SynchronizeChannelFiles((OdinId)request.OdinId);
+            AssertIsValidOdinId(request.OdinId, out var id);
+            await _followerService.SynchronizeChannelFiles(id);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
@@ -121,10 +122,10 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         if (null == header)
         {
-            _logger.LogWarning($"UpdateCurrentIndex called on null server file header");
+            _logger.LogWarning("UpdateCurrentIndex called on null server file header");
             return Task.CompletedTask;
         }
-        
+
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
@@ -173,23 +174,33 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         }
         else
         {
-            _db.AddEntry(
-                fileId: metadata.File.FileId,
-                globalTransitId: metadata.GlobalTransitId,
-                fileType: metadata.AppData.FileType,
-                dataType: metadata.AppData.DataType,
-                senderId: sender,
-                groupId: metadata.AppData.GroupId,
-                uniqueId: metadata.AppData.UniqueId,
-                archivalStatus: metadata.AppData.ArchivalStatus,
-                userDate: metadata.AppData.UserDate.GetValueOrDefault(),
-                requiredSecurityGroup: securityGroup,
-                accessControlList: acl,
-                tagIdList: tags,
-                fileState: (int)metadata.FileState,
-                fileSystemType: (int)header.ServerMetadata.FileSystemType,
-                byteCount: header.ServerMetadata.FileByteCount
-            );
+            try
+            {
+                _db.AddEntry(
+                    fileId: metadata.File.FileId,
+                    globalTransitId: metadata.GlobalTransitId,
+                    fileType: metadata.AppData.FileType,
+                    dataType: metadata.AppData.DataType,
+                    senderId: sender,
+                    groupId: metadata.AppData.GroupId,
+                    uniqueId: metadata.AppData.UniqueId,
+                    archivalStatus: metadata.AppData.ArchivalStatus,
+                    userDate: metadata.AppData.UserDate.GetValueOrDefault(),
+                    requiredSecurityGroup: securityGroup,
+                    accessControlList: acl,
+                    tagIdList: tags,
+                    fileState: (int)metadata.FileState,
+                    fileSystemType: (int)header.ServerMetadata.FileSystemType,
+                    byteCount: header.ServerMetadata.FileByteCount
+                );
+            }
+            catch (SqliteException e)
+            {
+                if (e.SqliteErrorCode == 19 || e.SqliteErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+                {
+                    _logger.LogError($"UniqueId constraint Error in Sqlite.  UniqueId was [{metadata.AppData.UniqueId}] and fileId was [{metadata.File.FileId}]");
+                }
+            }
         }
 
         return Task.CompletedTask;

@@ -204,7 +204,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (Package.IsUpdateOperation)
         {
-            // Validate the file exists by the Id
+            // Validate the file exists by the File Id
             if (!FileSystem.Storage.FileExists(Package.InternalFile))
             {
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",

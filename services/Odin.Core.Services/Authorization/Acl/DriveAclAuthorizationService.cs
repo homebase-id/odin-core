@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.Connections;
+using Serilog;
 
 namespace Odin.Core.Services.Authorization.Acl
 {
@@ -13,12 +15,15 @@ namespace Odin.Core.Services.Authorization.Acl
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _circleNetwork;
+        private readonly ILogger<DriveAclAuthorizationService> _logger;
 
 
-        public DriveAclAuthorizationService(OdinContextAccessor contextAccessor, CircleNetworkService circleNetwork)
+        public DriveAclAuthorizationService(OdinContextAccessor contextAccessor, CircleNetworkService circleNetwork,
+            ILogger<DriveAclAuthorizationService> logger)
         {
             _contextAccessor = contextAccessor;
             _circleNetwork = circleNetwork;
+            _logger = logger;
         }
 
         public Task AssertCallerHasPermission(AccessControlList acl)
@@ -35,13 +40,23 @@ namespace Odin.Core.Services.Authorization.Acl
             {
                 return false;
             }
-            
+
             //if file has required circles, see if caller has at least one
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
                 var icr = await _circleNetwork.GetIdentityConnectionRegistration(odinId, true);
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>()).Any();
+                var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
+                if (hasBadData.GetValueOrDefault())
+                {
+                    var cg = icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
+                    _logger.LogWarning("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
+                    
+                    //let it continue on
+                }
+
+                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
+                    .Any();
                 return hasAtLeastOneCircle;
             }
 

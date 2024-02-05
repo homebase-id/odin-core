@@ -93,6 +93,7 @@ public abstract class OdinControllerBase : ControllerBase
         if (OdinId.IsValid(odinId))
         {
             id = (OdinId)odinId;
+            return;
         }
 
         throw new OdinClientException("Missing target OdinId", OdinClientErrorCode.ArgumentError);
