@@ -1,46 +1,49 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
 
 namespace Odin.Core.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : IJobScheduler
+public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public bool IsExclusive => true;
-
-    public async Task<JobKey> Schedule<TJob>(IScheduler scheduler) where TJob : IJob
+    public override bool IsExclusive => true;
+    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
         logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
+        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
 
-        var jobKey = scheduler.CreateUniqueJobKey<TJob>();
-        var job = JobBuilder.Create<TJob>()
+        jobBuilder
             .WithIdentity(jobKey)
             .WithRetry(2, TimeSpan.FromSeconds(1))
-            .WithRetention(TimeSpan.FromMinutes(1))
-            // .UsingJobData("domain", "whatever")
-            .Build();
-        var trigger = TriggerBuilder.Create()
-            .StartNow()
-            // .StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(5))
-            .WithPriority(500)
-            .Build();
-        await scheduler.ScheduleJob(job, trigger);
-        return jobKey;
+            .WithRetention(TimeSpan.FromMinutes(1));
+
+        var triggerBuilders = new List<TriggerBuilder>
+        {
+            TriggerBuilder.Create()
+                .StartNow()
+                .WithPriority(500)
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
     }
 }
 
 //
 
-public class ExclusiveTestJob(ILogger<ExclusiveTestJob> logger) : IJob
+public class ExclusiveTestJob(
+    ICorrelationContext correlationContext,
+    ILogger<ExclusiveTestJob> logger)
+    : AbstractJob(correlationContext)
 {
-    public async Task Execute(IJobExecutionContext context)
+    protected sealed override async Task Run(IJobExecutionContext context)
     {
         var jobKey = context.JobDetail.Key;
-
         logger.LogDebug("Starting {JobKey}", jobKey);
 
         var sw = Stopwatch.StartNew();

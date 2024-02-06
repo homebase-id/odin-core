@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
+using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
@@ -8,7 +9,7 @@ namespace Odin.Core.Services.Quartz;
 
 public interface IJobSchedulerFactory
 {
-    Task<JobKey> Schedule<TJob>(IJobScheduler jobScheduler) where TJob : IJob;
+    Task<JobKey> Schedule<TJob>(AbstractJobScheduler jobScheduler) where TJob : IJob;
 }
 
 //
@@ -17,28 +18,44 @@ public interface IJobSchedulerFactory
 
 public sealed class JobSchedulerFactory(
     ILogger<JobSchedulerFactory> logger,
-    ISchedulerFactory schedulerFactory) : IJobSchedulerFactory
+    ISchedulerFactory schedulerFactory,
+    ICorrelationContext correlationContext) : IJobSchedulerFactory
 {
     private readonly AsyncLock _mutex = new();
 
-    public async Task<JobKey> Schedule<TJob>(IJobScheduler jobScheduler) where TJob : IJob
+    public async Task<JobKey> Schedule<TJob>(AbstractJobScheduler jobScheduler) where TJob : IJob
     {
         using (await _mutex.LockAsync())
         {
-            JobKey? jobKey;
             var scheduler = await schedulerFactory.GetScheduler();
             if (jobScheduler.IsExclusive)
             {
-                jobKey = await scheduler.GetScheduledJobKey<TJob>();
+                var jobKey = await scheduler.GetScheduledJobKey<TJob>();
                 if (jobKey != null)
                 {
                     logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
                     return jobKey;
                 }
             }
-            jobKey = await jobScheduler.Schedule<TJob>(scheduler);
-            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
-            return jobKey;
+
+            var (jobBuilder, triggerBuilders) = await jobScheduler.Schedule<TJob>(JobBuilder.Create<TJob>());
+            if (triggerBuilders.Count == 0)
+            {
+                // We don't want to schedule a job without triggers (e.g. a deletion-deletion job)
+                return new JobKey("non-scheduled-job");
+            }
+
+            jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
+
+            var job = jobBuilder.Build();
+            foreach (var triggerBuilder in triggerBuilders)
+            {
+                var trigger = triggerBuilder.Build();
+                await scheduler.ScheduleJob(job, trigger);
+            }
+
+            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, job.Key);
+            return job.Key;
         }
     }
 }

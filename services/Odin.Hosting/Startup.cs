@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Dawn;
@@ -20,8 +21,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Admin.Tenants.Jobs;
-using Odin.Core.Services.Background.Certificate;
-using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
@@ -46,10 +45,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Hosting.Quartz;
-using Quartz;
-using Quartz.AspNetCore;
-using Quartz.Impl.Matchers;
 
 namespace Odin.Hosting
 {
@@ -438,13 +433,13 @@ namespace Odin.Hosting
                         var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
                         var jobScheduleFactory = app.ApplicationServices.GetRequiredService<IJobSchedulerFactory>();
 
-                        var jobSchedule = new NonExclusiveTestScheduler(loggerFactory.CreateLogger<NonExclusiveTestScheduler>());
-                        var jobKey = await jobScheduleFactory.Schedule<NonExclusiveTestJob>(jobSchedule);
+                        // var jobSchedule = new NonExclusiveTestScheduler(loggerFactory.CreateLogger<NonExclusiveTestScheduler>());
+                        // var jobKey = await jobScheduleFactory.Schedule<NonExclusiveTestJob>(jobSchedule);
 
-                        // var jobSchedule = new ExclusiveTestScheduler(loggerFactory.CreateLogger<ExclusiveTestScheduler>());
-                        // var jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
-                        // jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
-                        // jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+                        var jobSchedule = new ExclusiveTestScheduler(loggerFactory.CreateLogger<ExclusiveTestScheduler>());
+                        var jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+                        jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+                        jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
 
                     }
                     catch (Exception e)

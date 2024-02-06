@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
 
@@ -9,39 +11,42 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 #nullable enable
 
 
-public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger) : IJobScheduler
+public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public bool IsExclusive => false;
-
-    public async Task<JobKey> Schedule<TJob>(IScheduler scheduler) where TJob : IJob
+    public override bool IsExclusive => false;
+    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
         logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
+        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
 
-        var jobKey = scheduler.CreateUniqueJobKey<TJob>();
-        var job = JobBuilder.Create<TJob>()
+        jobBuilder
             .WithIdentity(jobKey)
             .WithRetry(2, TimeSpan.FromSeconds(1))
             .WithRetention(TimeSpan.FromMinutes(1))
-            // .UsingJobData("domain", "whatever")
-            .Build();
-        var trigger = TriggerBuilder.Create()
-            //.StartNow()
-            .StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(1))
-            .WithPriority(1)
-            .Build();
-        await scheduler.ScheduleJob(job, trigger);
-        return jobKey;
+            .UsingJobData("foo", "bar");
+
+        var triggerBuilders = new List<TriggerBuilder>
+        {
+            TriggerBuilder.Create()
+                //.StartNow()
+                .StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(1))
+                .WithPriority(1)
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
     }
 }
 
 //
 
-public class NonExclusiveTestJob(ILogger<NonExclusiveTestJob> logger) : IJob
+public class NonExclusiveTestJob(
+    ICorrelationContext correlationContext,
+    ILogger<NonExclusiveTestJob> logger)
+    : AbstractJob(correlationContext)
 {
-    public async Task Execute(IJobExecutionContext context)
+    protected sealed override async Task Run(IJobExecutionContext context)
     {
         var jobKey = context.JobDetail.Key;
-
         logger.LogDebug("Starting {JobKey}", jobKey);
 
         var sw = Stopwatch.StartNew();

@@ -2,6 +2,8 @@ namespace Odin.Core.Services.Quartz;
 
 public static class JobConstants
 {
+    public const string CorrelationIdKey = "odin_correlation_id";
+
     public const string RetryCountKey = "odin_job_retry_count";
     public const string RetryMaxKey = "odin_job_retry_max";
     public const string RetryDelaySecondsKey = "odin_job_retry_delay_seconds";

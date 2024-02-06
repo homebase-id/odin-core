@@ -28,6 +28,7 @@ public class JobListener : IJobListener
     public async Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken)
     {
         var job = context.JobDetail;
+        _logger.LogDebug("Job {JobKey} starting", job.Key);
         if (job.Durable)
         {
             var jobData = job.JobDataMap;
@@ -129,6 +130,4 @@ public class JobListener : IJobListener
     //
 
     public string Name => nameof(JobListener);
-
-
 }

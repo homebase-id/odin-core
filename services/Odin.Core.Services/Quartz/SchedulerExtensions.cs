@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Odin.Core.Util;
 using Quartz;
 using Quartz.Impl.Matchers;
 
@@ -29,39 +25,28 @@ public static class SchedulerExtensions
 
     public static string GetGroupName<TJobType>(this IScheduler _)
     {
-        return TypeName.Sha1<TJobType>().ToHexString();
+        return Helpers.GetGroupName<TJobType>();
     }
 
     //
 
-    public static JobKey CreateTypedJobKey<TJobType>(this IScheduler scheduler, string jobName)
+    public static JobKey CreateTypedJobKey<TJobType>(this IScheduler _, string jobName)
     {
-        if (string.IsNullOrWhiteSpace(jobName))
-        {
-            throw new ArgumentException("Job name cannot be null or empty", nameof(jobName));
-        }
-        var groupName = scheduler.GetGroupName<TJobType>();
-        return new JobKey(jobName, groupName);
+        return Helpers.CreateTypedJobKey<TJobType>(jobName);
     }
 
     //
 
-    public static JobKey CreateUniqueJobKey<TJobType>(this IScheduler scheduler)
+    public static JobKey CreateUniqueJobKey<TJobType>(this IScheduler _)
     {
-        var jobName = SHA1.HashData(Guid.NewGuid().ToByteArray()).ToHexString();
-        return scheduler.CreateTypedJobKey<TJobType>(jobName);
+        return Helpers.CreateUniqueJobKey<TJobType>();
     }
 
     //
 
-    public static JobKey ParseJobKey(this IScheduler scheduler, string jobKey)
+    public static JobKey ParseJobKey(this IScheduler _, string jobKey)
     {
-        var jobKeyParts = jobKey.Split('.');
-        if (jobKeyParts.Length != 2)
-        {
-            throw new ArgumentException("Invalid job key", nameof(jobKey));
-        }
-        return new JobKey(jobKeyParts[1], jobKeyParts[0]);
+        return Helpers.ParseJobKey(jobKey);
     }
 
     //

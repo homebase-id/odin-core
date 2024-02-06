@@ -8,6 +8,34 @@ namespace Odin.Core.Services.Quartz;
 
      //
 
+     public static string GetGroupName<TJobType>(this JobBuilder _)
+     {
+         return Helpers.GetGroupName<TJobType>();
+     }
+
+     //
+
+     public static JobKey CreateTypedJobKey<TJobType>(this JobBuilder _, string jobName)
+     {
+         return Helpers.CreateTypedJobKey<TJobType>(jobName);
+     }
+
+     //
+
+     public static JobKey CreateUniqueJobKey<TJobType>(this JobBuilder _)
+     {
+         return Helpers.CreateUniqueJobKey<TJobType>();
+     }
+
+     //
+
+     public static JobKey ParseJobKey(this JobBuilder _, string jobKey)
+     {
+         return Helpers.ParseJobKey(jobKey);
+     }
+
+     //
+
      public static JobBuilder WithRetry(
          this JobBuilder builder,
          int retryMax,

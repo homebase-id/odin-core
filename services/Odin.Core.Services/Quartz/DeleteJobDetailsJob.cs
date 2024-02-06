@@ -1,13 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
 
-public class DeleteJobDetailsScheduler : IJobScheduler
+public class DeleteJobDetailsScheduler : AbstractJobScheduler
 {
-    public bool IsExclusive => false;
+    public override bool IsExclusive => false;
     private readonly ILogger<DeleteJobDetailsScheduler> _logger;
     private readonly JobKey _jobToDelete;
     private readonly DateTimeOffset _deleteAt;
@@ -28,35 +30,40 @@ public class DeleteJobDetailsScheduler : IJobScheduler
 
     //
 
-    public async Task<JobKey> Schedule<TJob>(IScheduler scheduler) where TJob : IJob
+    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        if (_jobToDelete.Group == scheduler.GetGroupName<DeleteJobDetailsJob>())
+        if (_jobToDelete.Group == jobBuilder.GetGroupName<DeleteJobDetailsJob>())
         {
             // Don't schedule a job to delete a deletion job => infinite loop
-            return _jobToDelete;
+            return Task.FromResult((jobBuilder, new List<TriggerBuilder>()));
         }
 
         _logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
 
-        var jobKey = scheduler.CreateUniqueJobKey<TJob>();
-        var job = JobBuilder.Create<TJob>()
+        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
+        jobBuilder
             .WithIdentity(jobKey)
-            .UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString())
-            .Build();
-        var trigger = TriggerBuilder.Create()
-            .StartAt(_deleteAt)
-            .WithPriority(1)
-            .Build();
-        await scheduler.ScheduleJob(job, trigger);
-        return jobKey;
+            .UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString());
+
+        var triggerBuilders = new List<TriggerBuilder>
+        {
+            TriggerBuilder.Create()
+                .StartAt(_deleteAt)
+                .WithPriority(1)
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
     }
 }
 
 //
 
-public class DeleteJobDetailsJob(ILogger<DeleteJobDetailsJob> logger) : IJob
+public class DeleteJobDetailsJob(
+    ICorrelationContext correlationContext,
+    ILogger<DeleteJobDetailsJob> logger)
+    : AbstractJob(correlationContext)
 {
-    public async Task Execute(IJobExecutionContext context)
+    protected sealed override async Task Run(IJobExecutionContext context)
     {
         var jobData = context.JobDetail.JobDataMap;
         if (jobData.TryGetString(JobConstants.JobToDeleteKey, out var jobToDelete) && jobToDelete != null)
