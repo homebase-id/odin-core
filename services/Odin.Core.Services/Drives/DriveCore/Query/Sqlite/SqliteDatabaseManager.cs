@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -196,9 +197,9 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             }
             catch (SqliteException e)
             {
-                if (e.SqliteErrorCode == 19 || e.SqliteErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+                if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
                 {
-                    _logger.LogError($"UniqueId constraint Error in Sqlite.  UniqueId was [{metadata.AppData.UniqueId}] and fileId was [{metadata.File.FileId}]");
+                    throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
         }
