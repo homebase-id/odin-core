@@ -8,7 +8,7 @@ namespace Odin.Core.Services.Quartz;
 /// ExclusiveJobManager will not allow a duplicate key being added
 /// before the first one is manually removed.
 /// </summary>
-public interface IExclusiveJob : IJob
+public interface IExclusiveJob : IJobWithId
 {
     IJobState State { get; }
     bool IsDone { get; }

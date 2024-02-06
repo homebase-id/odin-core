@@ -15,6 +15,7 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 public class ExportTenantJob : IExclusiveJob
 {
     public const string JobGroup = "export-tenant";
+    public string JobId { get; } = Guid.NewGuid().ToString();
 
     private readonly ILogger<DeleteTenantJob> _logger;
     private readonly IIdentityRegistry _identityRegistry;

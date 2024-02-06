@@ -39,6 +39,7 @@
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
         <PackageReference Include="NReco.Logging.File" Version="1.1.7" />
         <PackageReference Include="Quartz.AspNetCore" Version="3.8.0" />
+        <PackageReference Include="Quartz.Serialization.Json" Version="3.8.0" />
         <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />
         <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
         <PackageReference Include="Serilog.Sinks.RollingFile" Version="3.3.0" />

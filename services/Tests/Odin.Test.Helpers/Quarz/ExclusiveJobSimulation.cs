@@ -5,6 +5,10 @@ namespace Odin.Test.Helpers.Quarz;
 
 public class ExclusiveJobSimulation : IExclusiveJob
 {
+    public string JobId { get; } = Guid.NewGuid().ToString();
+    public IJobState State => _state;
+    public bool IsDone => _isDone;
+
     private readonly JobState _state = new();
     private volatile bool _isDone;
 
@@ -14,6 +18,4 @@ public class ExclusiveJobSimulation : IExclusiveJob
         _isDone = true;
     }
 
-    public IJobState State => _state;
-    public bool IsDone => _isDone;
 }

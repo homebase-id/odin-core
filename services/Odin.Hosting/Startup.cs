@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
+using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using DnsClient;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
+using Odin.Core.Services.Admin.Tenants.Jobs;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -44,8 +46,10 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Hosting.Quartz;
 using Quartz;
 using Quartz.AspNetCore;
+using Quartz.Impl.Matchers;
 
 namespace Odin.Hosting
 {
@@ -89,20 +93,7 @@ namespace Odin.Hosting
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
 
-            services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
-            services.AddQuartz(q =>
-            {
-                q.AddTriggerListener(sp => sp.GetRequiredService<IExclusiveJobManager>());
-                if (config.Quartz.EnableQuartzBackgroundService)
-                {
-                    q.UseDefaultCronSchedule(config);
-                    q.UseDefaultCertificateRenewalSchedule(config);
-                }
-            });
-            services.AddQuartzServer(options =>
-            {
-                options.WaitForJobsToComplete = true;
-            });
+            services.AddQuartzServices(config);
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -436,7 +427,105 @@ namespace Odin.Hosting
                     });
             }
 
-            lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
+
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
+                        var jobScheduleFactory = app.ApplicationServices.GetRequiredService<IJobSchedulerFactory>();
+
+                        var jobSchedule = new NonExclusiveTestScheduler(loggerFactory.CreateLogger<NonExclusiveTestScheduler>());
+                        var jobKey = await jobScheduleFactory.Schedule<NonExclusiveTestJob>(jobSchedule);
+
+                        // var jobSchedule = new ExclusiveTestScheduler(loggerFactory.CreateLogger<ExclusiveTestScheduler>());
+                        // var jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+                        // jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+                        // jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
+
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, e.Message);
+                        throw;
+                    }
+
+                    //     logger = app.ApplicationServices.GetRequiredService<ILogger<Startup>>();
+                    //     logger.LogInformation("ExclusiveJobManager initialized");
+                    //
+                    //     var factory = app.ApplicationServices.GetRequiredService<ISchedulerFactory>();
+                    //     var scheduler = factory.GetScheduler().GetAwaiter().GetResult();
+                    //     logger.LogInformation("Scheduler {id} {name} starting...", scheduler.SchedulerName, scheduler.SchedulerInstanceId);
+                    //
+                    //     var jk = scheduler.CreateUniqueJobKey<NonExclusiveTestJob>();
+                    //     ;
+                    //
+                    //     // scheduler.DeleteJob(new JobKey("6f6f3af7-982e-4e15-826a-7265cfb43e66", "bar")).GetAwaiter().GetResult();
+                    //
+                    //     for (var idx = 0; idx < 1; idx++)
+                    //     {
+                    //         // var jobKey = new JobKey("foo", "bar");
+                    //         var jobKey = new JobKey(Guid.NewGuid().ToString(), "bar");
+                    //
+                    //         var job = JobBuilder.Create<NonExclusiveTestJob>()
+                    //             .StoreDurably()
+                    //             .WithIdentity(jobKey)
+                    //             .UsingJobData("domain", "whatever")
+                    //             .UsingJobData("status", "scheduled")
+                    //             .Build();
+                    //         var trigger = TriggerBuilder.Create()
+                    //             .StartNow()
+                    //             //.StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(5))
+                    //             .Build();
+                    //         await scheduler.ScheduleJob(job, trigger);
+                    //     }
+                    //
+                    //     //scheduler.DeleteJob(new JobKey("6f6f3af7-982e-4e15-826a-7265cfb43e66", "bar")).GetAwaiter().GetResult();
+                    //
+                    //     //
+                    //     // Get all jobs
+                    //     //
+                    //     //while (true)
+                    //     {
+                    //         await Task.Delay(1000);
+                    //         Console.WriteLine("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+                    //         var groupNames = await scheduler.GetJobGroupNames();
+                    //         // Iterate over each group
+                    //         //foreach (var groupName in groupNames)
+                    //         {
+                    //             // Get the keys for all jobs in this group
+                    //             //var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName));
+                    //             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+                    //
+                    //             // Iterate over each job in the group
+                    //             foreach (var jobKey in jobKeys)
+                    //             {
+                    //                 // Retrieve the details of the job
+                    //                 var detail = await scheduler.GetJobDetail(jobKey);
+                    //
+                    //                 Console.WriteLine($"Job: {detail?.Key}, Durable: {detail?.Durable}");
+                    //
+                    //                 var jobData = detail?.JobDataMap ?? new JobDataMap();
+                    //                 foreach (var key in jobData.Keys)
+                    //                 {
+                    //                     Console.WriteLine($"  {key}: {jobData[key]}");
+                    //                 }
+                    //
+                    //                 // Retrieve triggers of the job
+                    //                 var triggers = await scheduler.GetTriggersOfJob(jobKey);
+                    //                 foreach (var trigger in triggers)
+                    //                 {
+                    //                     Console.WriteLine($"Trigger: {trigger.Key}, Type: {trigger.GetType().Name}");
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    //
+                });
+            });
         }
 
         private void PrepareEnvironment(OdinConfiguration cfg)
