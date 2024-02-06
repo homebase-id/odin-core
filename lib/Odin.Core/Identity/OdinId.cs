@@ -20,7 +20,7 @@ namespace Odin.Core.Identity
         /// <exception cref="ArgumentNullException"></exception>
         public OdinId(string identifier)
         {
-            if (identifier == null) 
+            if (identifier == null)
                 throw new ArgumentNullException(nameof(identifier));
 
 
@@ -46,6 +46,7 @@ namespace Odin.Core.Identity
         {
             return this._hash != Guid.Empty;
         }
+
         public static bool operator ==(OdinId d1, OdinId d2)
         {
             return d1.ToHashId() == d2.ToHashId();
@@ -62,7 +63,7 @@ namespace Odin.Core.Identity
         {
             return new OdinId(id);
         }
-        
+
         public static implicit operator AsciiDomainName(OdinId dy)
         {
             return dy._domainName;
@@ -107,7 +108,7 @@ namespace Odin.Core.Identity
         {
             return new Guid(ByteArrayUtil.ReduceSHA256Hash(domainName.DomainName.ToUtf8ByteArray()));
         }
-        
+
         public byte[] ToByteArray()
         {
             var key = _domainName.DomainName.ToUtf8ByteArray();
@@ -119,9 +120,13 @@ namespace Odin.Core.Identity
             return new OdinId(id.ToStringFromUtf8Bytes());
         }
 
+        public static bool IsValid(string odinId)
+        {
+            return AsciiDomainNameValidator.TryValidateDomain(odinId);
+        }
+
         public static void Validate(string odinId)
         {
-            // Will always return true
             AsciiDomainNameValidator.AssertValidDomain(odinId);
         }
     }

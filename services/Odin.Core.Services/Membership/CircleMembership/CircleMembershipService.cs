@@ -39,19 +39,34 @@ public class CircleMembershipService
         _logger = logger;
     }
 
-    public void DeleteMemberFromAllCircles(AsciiDomainName domainName)
+    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType)
     {
-        _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
+        //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
+        var memberId = OdinId.ToHashId(domainName);
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
+        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        {
+            foreach (var circleMemberRecord in circleMemberRecords)
+            {
+                var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
+                if (sd.DomainType == domainType)
+                {
+                    _tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
+                }
+            }
+        }
+
+        //
+        // _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles([OdinId.ToHashId(domainName)]);
     }
 
-    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName)
+    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType)
     {
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
-        foreach (var circleMemberRecord in circleMemberRecords)
-        {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
-            yield return sd.CircleGrant;
-        }
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
+            OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
+        );
+
+        return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
     public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, bool overrideHack = false)

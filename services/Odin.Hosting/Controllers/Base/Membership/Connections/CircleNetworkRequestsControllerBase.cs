@@ -9,7 +9,7 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
 {
-    public class CircleNetworkRequestsControllerBase : ControllerBase
+    public class CircleNetworkRequestsControllerBase : OdinControllerBase
     {
         readonly CircleNetworkRequestService _requestService;
 
@@ -42,7 +42,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("pending/single")]
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
-            var result = await _requestService.GetPendingRequest((OdinId)sender.OdinId);
+            AssertIsValidOdinId(sender.OdinId, out var id);
+            var result = await _requestService.GetPendingRequest(id);
 
             if (result == null)
             {
@@ -75,7 +76,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("pending/delete")]
         public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
-            await _requestService.DeletePendingRequest((OdinId)sender.OdinId);
+            AssertIsValidOdinId(sender.OdinId, out var id);
+            await _requestService.DeletePendingRequest(id);
             return true;
         }
 
@@ -103,7 +105,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("sent/single")]
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
-            var result = await _requestService.GetSentRequest((OdinId)recipient.OdinId);
+            AssertIsValidOdinId(recipient.OdinId, out var id);
+            var result = await _requestService.GetSentRequest(id);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -122,7 +125,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("sent/delete")]
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
-            await _requestService.DeleteSentRequest((OdinId)recipient.OdinId);
+            AssertIsValidOdinId(recipient.OdinId, out var id);
+            await _requestService.DeleteSentRequest(id);
             return true;
         }
 

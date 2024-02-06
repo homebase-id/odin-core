@@ -50,10 +50,10 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             const string domainStorageContextKey = "e11ff091-0edf-4532-8b0f-b9d9ebe0880f";
             _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
-            
+
             const string domainClientStorageContextKey = "8994c20a-179c-469c-a3b9-c4d6a8d2eb3c";
             _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
-            
+
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -82,7 +82,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
             request.ConsentRequirements?.Validate();
-            
+
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
@@ -433,7 +433,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             if (null != reg)
             {
                 //get the circle grants for this domain
-                var circles = _circleMembershipService.GetCirclesGrantsByDomain(reg.Domain);
+                var circles = _circleMembershipService.GetCirclesGrantsByDomain(reg.Domain, DomainType.YouAuth);
                 reg.CircleGrants = circles.ToDictionary(cg => cg.CircleId.Value, cg => cg);
             }
 
@@ -460,11 +460,11 @@ namespace Odin.Core.Services.Membership.YouAuth
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
                 //Store the circles for this registration
-                
+
                 //TODO: this is causing an issue where in the circles are also deleted for the ICR 
                 // 
-                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
-                
+                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth);
+
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
                     var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.YouAuth);

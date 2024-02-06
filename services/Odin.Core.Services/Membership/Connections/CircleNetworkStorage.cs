@@ -59,7 +59,7 @@ public class CircleNetworkStorage
             var odinHashId = icr.OdinId.ToHashId();
 
             //Reconcile circle grants in the table
-            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId);
+            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
                 var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, overrideHack: true);
@@ -114,7 +114,7 @@ public class CircleNetworkStorage
         {
             _tenantSystemStorage.Connections.Delete(odinId);
             _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
-            _circleMembershipService.DeleteMemberFromAllCircles(odinId);
+            _circleMembershipService.DeleteMemberFromAllCircles(odinId, DomainType.Identity);
         }
     }
 
@@ -164,7 +164,7 @@ public class CircleNetworkStorage
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity);
+        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity, DomainType.Identity);
         foreach (var circleGrant in circleGrants)
         {
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
