@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Files
 {
     public interface IRefitAppTransitSender
     {
-        private const string RootEndpoint = AppApiPathConstants.TransitSenderV1;
+        private const string RootEndpoint = AppApiPathConstants.PeerSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]

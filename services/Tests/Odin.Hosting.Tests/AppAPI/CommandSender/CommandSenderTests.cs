@@ -158,7 +158,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, recipientAppContext.SharedSecret);
-                var getUnprocessedCommandsResponse = await cmdService.GetUnprocessedCommands(new GetUnproccessedCommandsRequest()
+                var getUnprocessedCommandsResponse = await cmdService.GetUnprocessedCommands(new GetUnprocessedCommandsRequest()
                 {
                     TargetDrive = drive,
                     Cursor = "" // ??

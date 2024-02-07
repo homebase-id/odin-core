@@ -4,6 +4,7 @@ using System.Linq;
 using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Util;
 using Serilog;
 
 namespace Odin.Core.Services.Base
@@ -162,10 +163,7 @@ namespace Odin.Core.Services.Base
 
         public Guid GetDriveId(TargetDrive drive)
         {
-            if (null == drive)
-            {
-                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
-            }
+            OdinValidationUtils.AssertIsValidTargetDriveValue(drive);
 
             var driveId = GetDriveIdInternal(drive);
 

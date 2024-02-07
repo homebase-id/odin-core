@@ -21,6 +21,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Refit;
@@ -72,8 +73,9 @@ namespace Odin.Core.Services.Peer.SendingHost
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
             Guard.Argument(options, nameof(options)).NotNull()
-                .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostOdinId));
+
+            OdinValidationUtils.AssertValidRecipientList(options.Recipients);
 
             var sfo = new SendFileOptions()
             {

@@ -6,12 +6,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.TransitSenderV1)]
+    [Route(AppApiPathConstants.PeerSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppTransitSenderController : TransitSenderControllerBase
-    {
-        public AppTransitSenderController(ITransitService transitService) : base(transitService)
-        {
-        }
-    }
+    public class AppTransitSenderController(ITransitService transitService) : TransitSenderControllerBase(transitService);
 }

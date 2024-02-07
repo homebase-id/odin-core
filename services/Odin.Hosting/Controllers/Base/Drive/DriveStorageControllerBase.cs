@@ -22,22 +22,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// <summary>
     /// Base class for any endpoint reading drive storage
     /// </summary>
-    public abstract class DriveStorageControllerBase : OdinControllerBase
+    public abstract class DriveStorageControllerBase(
+        ILogger logger,
+        FileSystemResolver fileSystemResolver,
+        ITransitService transitService) : OdinControllerBase
     {
-        private readonly ILogger _logger;
-        private readonly ITransitService _transitService;
-        private readonly FileSystemResolver _fileSystemResolver;
-
-        protected DriveStorageControllerBase(
-            ILogger logger,
-            FileSystemResolver fileSystemResolver,
-            ITransitService transitService
-        )
-        {
-            _fileSystemResolver = fileSystemResolver;
-            _transitService = transitService;
-            _logger = logger;
-        }
+        private readonly ILogger _logger = logger;
 
         /// <summary>
         /// Returns the file header
@@ -284,6 +274,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
+            AssertValidRecipientList(request.Recipients, allowEmpty: true);
+
             var file = new InternalDriveFileId()
             {
                 DriveId = driveId,
@@ -297,7 +289,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var fs = fileSystemResolver.ResolveFileSystem(file);
 
             var header = await fs.Storage.GetServerFileHeader(file);
             if (header == null)
@@ -316,7 +308,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 };
 
                 //send the deleted file
-                var responses = await _transitService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                var responses = await transitService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
                     new SendFileOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,

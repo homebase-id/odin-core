@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     /// Routes requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.TransitQueryV1)]
+    [Route(AppApiPathConstants.PeerQueryV1)]
     [AuthorizeValidAppToken]
     public class AppTransitSecurityContextController : TransitSecurityContextControllerBase
     {

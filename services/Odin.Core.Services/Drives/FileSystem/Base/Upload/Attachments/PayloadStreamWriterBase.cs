@@ -113,8 +113,8 @@ public abstract class PayloadStreamWriterBase
         {
             return new
             {
-                PayloadKey = pd.PayloadKey,
-                PayloadUid = pd.PayloadUid,
+                pd.PayloadKey,
+                pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -160,7 +160,7 @@ public abstract class PayloadStreamWriterBase
 
         if (_package.InstructionSet.Recipients?.Any() ?? false)
         {
-            throw new NotImplementedException("TODO: Sending a payload not yet supported");
+            throw new NotImplementedException("TODO: Sending a payload from an existing file not yet supported");
         }
 
         //TODO: need to send the new payload to the recipient?

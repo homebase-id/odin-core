@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     /// Routes reaction requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.TransitReactionContentV1)]
+    [Route(AppApiPathConstants.PeerReactionContentV1)]
     [AuthorizeValidAppToken]
     public class AppTransitReactionContentSenderController : TransitReactionContentSenderControllerBase
     {

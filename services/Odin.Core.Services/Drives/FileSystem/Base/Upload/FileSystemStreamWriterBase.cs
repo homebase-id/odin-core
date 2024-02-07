@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -68,7 +69,7 @@ public abstract class FileSystemStreamWriterBase
 
         InternalDriveFileId file;
         var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
-        var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
+        var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
@@ -158,8 +159,8 @@ public abstract class FileSystemStreamWriterBase
         {
             return new
             {
-                PayloadKey = pd.PayloadKey,
-                PayloadUid = pd.PayloadUid,
+                pd.PayloadKey,
+                pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -304,10 +305,9 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        byte[] metadataBytes = null;
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
 
-        metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -328,6 +328,9 @@ public abstract class FileSystemStreamWriterBase
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
+
+        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
+
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _transitService.SendFile(package.InternalFile,

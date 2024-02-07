@@ -16,15 +16,8 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.Base.Transit
 {
     /// <summary />
-    public class TransitSenderControllerBase : DriveUploadControllerBase
+    public class TransitSenderControllerBase(ITransitService transitService) : DriveUploadControllerBase
     {
-        private readonly ITransitService _transitService;
-
-        public TransitSenderControllerBase(ITransitService transitService)
-        {
-            _transitService = transitService;
-        }
-
         /// <summary>
         /// Uploads a file using multi-part form data
         /// </summary>
@@ -106,15 +99,15 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.Recipients, nameof(request.Recipients)).NotEmpty();
-            Guard.Argument(request.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier))
+            
+            AssertValidRecipientList(request?.Recipients ?? [], false);
+            
+            Guard.Argument(request!.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier))
                 .Require(g => g.TargetDrive.IsValid())
                 .Require(g => g.GlobalTransitId != Guid.Empty);
 
-            //TODO: send the delete request for request.File
-
             //send the deleted file
-            var map = await _transitService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
+            var map = await transitService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
                 new SendFileOptions()
                 {
                     FileSystemType = request.FileSystemType,
@@ -156,7 +149,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     Recipients = transitInstructionSet.Recipients,
                     Schedule = transitInstructionSet.Schedule
                 },
-                Manifest =  transitInstructionSet.Manifest
+                Manifest = transitInstructionSet.Manifest
             };
 
             return uploadInstructionSet;

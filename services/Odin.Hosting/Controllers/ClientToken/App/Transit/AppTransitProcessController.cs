@@ -5,7 +5,7 @@ using Odin.Hosting.Controllers.Base.Transit;
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
     [ApiController]
-    [Route(AppApiPathConstants.TransitV1 + "/inbox/processor")]
+    [Route(AppApiPathConstants.PeerV1 + "/inbox/processor")]
     [AuthorizeValidAppToken]
     public class AppTransitProcessController : TransitProcessControllerBase
     {

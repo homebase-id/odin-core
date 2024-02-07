@@ -47,6 +47,10 @@ namespace Odin.Hosting.Middleware
             {
                 await _next(context);
             }
+            catch (ArgumentException e)
+            {
+                await HandleExceptionAsync(context, new BadRequestException(e.Message, OdinClientErrorCode.ArgumentError, e));
+            }
             catch (OdinClientException e) // => HTTP 400
             {
                 // SEB:TODO

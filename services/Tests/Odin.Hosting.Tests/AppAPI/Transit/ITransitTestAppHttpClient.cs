@@ -11,7 +11,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
     /// </summary>
     public interface ITransitTestAppHttpClient
     {
-        private const string RootEndpoint = AppApiPathConstants.TransitV1 + "/app";
+        private const string RootEndpoint = AppApiPathConstants.PeerV1 + "/app";
 
 
         [Post(RootEndpoint + "/process")]
