@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
 using Refit;

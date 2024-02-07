@@ -6,7 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Services.AppNotifications.Push;

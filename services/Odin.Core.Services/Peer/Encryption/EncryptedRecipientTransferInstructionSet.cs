@@ -1,5 +1,5 @@
 using Odin.Core.Services.Drives;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer.Encryption

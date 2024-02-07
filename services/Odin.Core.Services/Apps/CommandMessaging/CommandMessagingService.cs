@@ -10,7 +10,7 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 

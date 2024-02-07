@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
@@ -12,10 +10,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerQueryV1)]
     [AuthorizeValidAppToken]
-    public class AppTransitSecurityContextController : TransitSecurityContextControllerBase
-    {
-        public AppTransitSecurityContextController(PeerQueryService peerQueryService):base(peerQueryService)
-        {
-        }
-    }
+    public class AppTransitSecurityContextController(PeerQueryService peerQueryService) : TransitSecurityContextControllerBase(peerQueryService);
 }

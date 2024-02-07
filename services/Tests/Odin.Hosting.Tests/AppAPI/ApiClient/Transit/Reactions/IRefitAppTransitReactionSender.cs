@@ -2,8 +2,8 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Incoming.Reactions;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 

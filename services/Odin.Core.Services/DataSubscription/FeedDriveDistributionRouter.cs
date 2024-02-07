@@ -20,7 +20,7 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Serilog;

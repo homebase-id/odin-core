@@ -4,7 +4,7 @@ using System.Linq;
 using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {

@@ -14,7 +14,7 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -323,13 +323,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                     switch (code)
                     {
-                        case TransitResponseCode.AcceptedIntoInbox:
+                        case PeerResponseCode.AcceptedIntoInbox:
                             result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
                             break;
 
-                        case TransitResponseCode.Rejected:
-                        case TransitResponseCode.QuarantinedPayload:
-                        case TransitResponseCode.QuarantinedSenderNotConnected:
+                        case PeerResponseCode.Rejected:
+                        case PeerResponseCode.QuarantinedPayload:
+                        case PeerResponseCode.QuarantinedSenderNotConnected:
                             result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestRejected);
                             break;
 

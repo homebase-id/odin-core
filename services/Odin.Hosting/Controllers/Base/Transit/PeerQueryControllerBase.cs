@@ -11,7 +11,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Swashbuckle.AspNetCore.Annotations;

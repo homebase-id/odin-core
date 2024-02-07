@@ -36,11 +36,11 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.ReceivingHost.Incoming;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
-using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Reactions;
+using Odin.Core.Services.Peer.Incoming.Storage;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -205,7 +205,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitReactionContentSenderService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitReactionPerimeterService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerReactionService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PublicPrivateKeyService>()
                 .As<INotificationHandler<OwnerIsOnlineNotification>>()

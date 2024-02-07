@@ -29,7 +29,7 @@ public static class OdinValidationUtils
 
     public static void AssertValidRecipientList(IEnumerable<string> recipients, bool allowEmpty = true)
     {
-        var list = recipients as string[] ?? recipients.ToArray();
+        var list = recipients?.ToArray() ?? [];
         if (list.Length == 0 && !allowEmpty)
         {
             throw new OdinClientException("One or more recipients are required", OdinClientErrorCode.InvalidRecipient);

@@ -12,7 +12,7 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Refit;

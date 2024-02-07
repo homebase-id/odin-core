@@ -1,6 +1,6 @@
 namespace Odin.Core.Services.Peer
 {
-    public enum TransitResponseCode
+    public enum PeerResponseCode
     {
         AcceptedIntoInbox = 2,
         QuarantinedPayload = 4,

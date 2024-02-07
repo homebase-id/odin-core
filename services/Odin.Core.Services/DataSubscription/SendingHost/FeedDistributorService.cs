@@ -4,7 +4,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.Incoming;
 using Odin.Core.Storage;
 using Refit;
 
@@ -95,12 +95,12 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        bool IsSuccess(ApiResponse<HostTransitResponse> httpResponse)
+        bool IsSuccess(ApiResponse<PeerResponse> httpResponse)
         {
             if (httpResponse.IsSuccessStatusCode)
             {
                 var transitResponse = httpResponse.Content;
-                return transitResponse!.Code == TransitResponseCode.AcceptedDirectWrite || transitResponse!.Code == TransitResponseCode.AcceptedIntoInbox;
+                return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
             }
 
             return false;

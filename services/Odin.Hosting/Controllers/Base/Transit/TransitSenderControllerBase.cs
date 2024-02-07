@@ -9,7 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.Controllers.Base.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 

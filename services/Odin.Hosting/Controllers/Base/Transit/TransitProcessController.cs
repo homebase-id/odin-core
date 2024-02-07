@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.Incoming;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {

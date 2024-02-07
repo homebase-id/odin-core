@@ -8,7 +8,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;

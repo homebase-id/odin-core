@@ -12,7 +12,7 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
