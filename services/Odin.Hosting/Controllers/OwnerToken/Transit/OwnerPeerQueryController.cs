@@ -11,10 +11,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.TransitQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerTransitQueryController : TransitQueryControllerBase
-    {
-        public OwnerTransitQueryController(TransitQueryService transitQueryService) : base(transitQueryService)
-        {
-        }
-    }
+    public class OwnerPeerQueryController(PeerQueryService peerQueryService) : PeerQueryControllerBase(peerQueryService);
 }

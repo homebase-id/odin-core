@@ -14,7 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [AuthorizeValidAppToken]
     public class AppTransitSecurityContextController : TransitSecurityContextControllerBase
     {
-        public AppTransitSecurityContextController(TransitQueryService transitQueryService):base(transitQueryService)
+        public AppTransitSecurityContextController(PeerQueryService peerQueryService):base(peerQueryService)
         {
         }
     }

@@ -14,18 +14,18 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// </summary>
     public class TransitSecurityContextControllerBase : OdinControllerBase
     {
-        private readonly TransitQueryService _transitQueryService;
+        private readonly PeerQueryService _peerQueryService;
 
-        public TransitSecurityContextControllerBase(TransitQueryService transitQueryService)
+        public TransitSecurityContextControllerBase(PeerQueryService peerQueryService)
         {
-            _transitQueryService = transitQueryService;
+            _peerQueryService = peerQueryService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("security/context")]
         public async Task<RedactedOdinContext> GetRemoteDotYouContext([FromBody] TransitGetSecurityContextRequest request)
         {
-            var ctx = await _transitQueryService.GetRemoteDotYouContext((OdinId)request.OdinId);
+            var ctx = await _peerQueryService.GetRemoteDotYouContext((OdinId)request.OdinId);
             return ctx;
         }
     }

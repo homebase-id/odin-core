@@ -273,7 +273,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Merry uses transit query to get all files of that file type
             //
-            var request = new TransitQueryBatchRequest()
+            var request = new PeerQueryBatchRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 QueryParams = new()

@@ -289,7 +289,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-                var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
+                var queryBatchResponse = await svc.GetBatch(new PeerQueryBatchRequest()
                 {
                     OdinId = recipient.OdinId,
                     QueryParams = fileTagQueryParams,
@@ -1047,7 +1047,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-                var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
+                var queryBatchResponse = await svc.GetBatch(new PeerQueryBatchRequest()
                 {
                     OdinId = recipient.OdinId,
                     QueryParams = fileTagQueryParams,

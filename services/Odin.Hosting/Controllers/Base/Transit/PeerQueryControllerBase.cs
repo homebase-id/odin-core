@@ -21,30 +21,23 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public class TransitQueryControllerBase : OdinControllerBase
+    public class PeerQueryControllerBase(PeerQueryService peerQueryService) : OdinControllerBase
     {
-        private readonly TransitQueryService _transitQueryService;
-
-        public TransitQueryControllerBase(TransitQueryService transitQueryService)
-        {
-            _transitQueryService = transitQueryService;
-        }
-
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("batchcollection")]
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection([FromBody] TransitQueryBatchCollectionRequest request)
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection([FromBody] PeerQueryBatchCollectionRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var result = await _transitQueryService.GetBatchCollection(id, request, GetHttpFileSystemResolver().GetFileSystemType());
+            var result = await peerQueryService.GetBatchCollection(id, request, GetHttpFileSystemResolver().GetFileSystemType());
             return result;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("modified")]
-        public async Task<QueryModifiedResponse> GetModified([FromBody] TransitQueryModifiedRequest request)
+        public async Task<QueryModifiedResponse> GetModified([FromBody] PeerQueryModifiedRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var result = await _transitQueryService.GetModified(id, request, GetHttpFileSystemResolver().GetFileSystemType());
+            var result = await peerQueryService.GetModified(id, request, GetHttpFileSystemResolver().GetFileSystemType());
             return QueryModifiedResponse.FromResult(result);
         }
 
@@ -53,25 +46,25 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("batch")]
-        public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
+        public async Task<QueryBatchResponse> QueryBatch([FromBody] PeerQueryBatchRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var batch = await _transitQueryService.GetBatch(id, request, GetHttpFileSystemResolver().GetFileSystemType());
+            var batch = await peerQueryService.GetBatch(id, request, GetHttpFileSystemResolver().GetFileSystemType());
             return QueryBatchResponse.FromResult(batch);
         }
 
         /// <summary>
         /// Retrieves a file's header and metadata from a remote identity server
         /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             SharedSecretEncryptedFileHeader result =
-                await _transitQueryService.GetFileHeader(id, request.File, GetHttpFileSystemResolver().GetFileSystemType());
+                await peerQueryService.GetFileHeader(id, request.File, GetHttpFileSystemResolver().GetFileSystemType());
 
             if (null == result)
             {
@@ -81,7 +74,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return new JsonResult(result);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
@@ -112,18 +105,18 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// The flag indicating if the payload is encrypted is found in the header 'PayloadEncrypted'
         /// This is a byte array where the first 16 bytes are the IV, second 48 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitGetPayloadRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            var (encryptedKeyHeader, isEncrypted, payloadStream) = await _transitQueryService.GetPayloadStream(id,
+            var (encryptedKeyHeader, isEncrypted, payloadStream) = await peerQueryService.GetPayloadStream(id,
                 request.File, request.Key, request.Chunk, GetHttpFileSystemResolver().GetFileSystemType());
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] string key)
@@ -157,20 +150,20 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// The flag indicating if the payload is encrypted is found in the header 'PayloadEncrypted'
         /// This is a byte array where the first 16 bytes are the IV, second 48 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
-                await _transitQueryService.GetThumbnail(id, request.File, request.Width, request.Height,
+                await peerQueryService.GetThumbnail(id, request.File, request.Width, request.Height,
                     request.PayloadKey,
                     GetHttpFileSystemResolver().GetFileSystemType());
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("thumb")]
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] string payloadKey,
             [FromQuery] Guid alias,
@@ -195,11 +188,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
             });
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType());
+            var drives = await peerQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType());
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {
@@ -211,7 +204,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         }
 
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("header_byglobaltransitid")]
         public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] string odinId,
             [FromQuery] Guid globalTransitId,
@@ -231,7 +224,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 }
             };
 
-            var result = await _transitQueryService.GetFileHeaderByGlobalTransitId(id, file, fst);
+            var result = await peerQueryService.GetFileHeaderByGlobalTransitId(id, file, fst);
 
             if (result == null)
             {
@@ -241,7 +234,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             return new JsonResult(result);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("payload_byglobaltransitid")]
         public async Task<IActionResult> GetPayloadStreamByGlobalTransitId([FromQuery] string odinId,
             [FromQuery] Guid globalTransitId, [FromQuery] Guid alias, [FromQuery] Guid type,
@@ -263,12 +256,12 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var chunk = GetChunk(chunkStart, chunkLength);
 
             var (encryptedKeyHeader, isEncrypted, payloadStream) =
-                await _transitQueryService.GetPayloadByGlobalTransitId(id, file, key, chunk, fst);
+                await peerQueryService.GetPayloadByGlobalTransitId(id, file, key, chunk, fst);
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("thumb_byglobaltransitid")]
         public async Task<IActionResult> GetThumbnailStreamByGlobalTransitId([FromQuery] string odinId,
             [FromQuery] Guid globalTransitId,
@@ -294,7 +287,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
 
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
-                await _transitQueryService.GetThumbnailByGlobalTransitId(id, file, payloadKey, width, height, directMatchOnly, fst);
+                await peerQueryService.GetThumbnailByGlobalTransitId(id, file, payloadKey, width, height, directMatchOnly, fst);
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }

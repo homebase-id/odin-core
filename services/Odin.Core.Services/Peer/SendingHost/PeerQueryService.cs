@@ -26,23 +26,14 @@ namespace Odin.Core.Services.Peer.SendingHost;
 /// <summary>
 /// Executes query functionality on connected identity hosts
 /// </summary>
-public class TransitQueryService
+public class PeerQueryService(
+    IOdinHttpClientFactory odinHttpClientFactory,
+    CircleNetworkService circleNetworkService,
+    OdinContextAccessor contextAccessor)
 {
-    private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-    private readonly CircleNetworkService _circleNetworkService;
-    private readonly OdinContextAccessor _contextAccessor;
-
-    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, CircleNetworkService circleNetworkService,
-        OdinContextAccessor contextAccessor)
-    {
-        _odinHttpClientFactory = odinHttpClientFactory;
-        _circleNetworkService = circleNetworkService;
-        _contextAccessor = contextAccessor;
-    }
-
     public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryModified(request);
@@ -61,7 +52,7 @@ public class TransitQueryService
 
     public async Task<QueryBatchCollectionResponse> GetBatchCollection(OdinId odinId, QueryBatchCollectionRequest request, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatchCollection(request);
@@ -74,7 +65,7 @@ public class TransitQueryService
 
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
@@ -93,7 +84,7 @@ public class TransitQueryService
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetFileHeader(file);
@@ -112,7 +103,7 @@ public class TransitQueryService
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> GetPayloadStream(OdinId odinId,
         ExternalFileIdentifier file, string key, FileChunk chunk, FileSystemType fileSystemType)
     {
-        var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
+        var permissionContext = contextAccessor.GetCurrent().PermissionsContext;
         permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
@@ -128,7 +119,7 @@ public class TransitQueryService
         UnixTimeUtc? lastModified,
         Stream thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
 
@@ -146,7 +137,7 @@ public class TransitQueryService
 
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (_, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
@@ -166,7 +157,7 @@ public class TransitQueryService
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file,
         FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetFileHeaderByGlobalTransitId(file);
@@ -186,7 +177,7 @@ public class TransitQueryService
         GlobalTransitIdFileIdentifier file, string key,
         FileChunk chunk, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetPayloadStreamByGlobalTransitId(new GetPayloadByGlobalTransitIdRequest()
@@ -208,7 +199,7 @@ public class TransitQueryService
         GetThumbnailByGlobalTransitId(OdinId odinId, GlobalTransitIdFileIdentifier file, string payloadKey,
             int width, int height, bool directMatchOnly, FileSystemType fileSystemType)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetThumbnailStreamByGlobalTransitId(new GetThumbnailByGlobalTransitIdRequest()
@@ -225,7 +216,7 @@ public class TransitQueryService
 
     public async Task<RedactedOdinContext> GetRemoteDotYouContext(OdinId odinId)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (_, httpClient) = await CreateClient(odinId, null);
         var response = await httpClient.GetRemoteDotYouContext();
@@ -235,21 +226,21 @@ public class TransitQueryService
     private async Task<(IdentityConnectionRegistration, IPeerHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         //TODO: this check is duplicated in the ResolveClientAccessToken method; need to centralize
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-        var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, overrideHack: true);
-        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()) : null;
+        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, overrideHack: true);
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
-            var httpClient = _odinHttpClientFactory.CreateClient<IPeerHostHttpClient>(odinId, fileSystemType);
+            var httpClient = odinHttpClientFactory.CreateClient<IPeerHostHttpClient>(odinId, fileSystemType);
             return (icr, httpClient);
         }
         else
         {
-            var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(odinId, authToken, fileSystemType);
+            var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHostHttpClient>(odinId, authToken, fileSystemType);
             return (icr, httpClient);
         }
     }
@@ -277,7 +268,7 @@ public class TransitQueryService
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
         {
-            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+            var currentKey = icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }
@@ -293,7 +284,7 @@ public class TransitQueryService
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader)
     {
-        var newKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+        var newKey = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
 
         var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
@@ -311,7 +302,7 @@ public class TransitQueryService
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    _circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
+                    circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
                 }
             }
 
@@ -358,7 +349,7 @@ public class TransitQueryService
             var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
             sharedSecretEncryptedKeyHeader = ReEncrypt(
-                icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret,
+                icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret,
                 icrEncryptedKeyHeader);
         }
         else
@@ -375,7 +366,7 @@ public class TransitQueryService
     private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> HandlePayloadResponse(
         OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response)
     {
-        var permissionContext = _contextAccessor.GetCurrent().PermissionsContext;
+        var permissionContext = contextAccessor.GetCurrent().PermissionsContext;
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {

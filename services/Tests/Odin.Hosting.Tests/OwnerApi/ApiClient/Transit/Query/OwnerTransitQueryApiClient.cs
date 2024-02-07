@@ -50,7 +50,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(TransitQueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(PeerQueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {
@@ -60,7 +60,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryModifiedResponse>> GetModified(PeerQueryModifiedRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {
@@ -70,7 +70,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryBatchResponse>> GetBatch(TransitQueryBatchRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryBatchResponse>> GetBatch(PeerQueryBatchRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {

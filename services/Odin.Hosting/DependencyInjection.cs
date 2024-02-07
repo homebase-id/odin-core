@@ -201,7 +201,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerQueryService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitReactionContentSenderService>().AsSelf().SingleInstance();
 
