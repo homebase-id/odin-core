@@ -18,27 +18,18 @@ public class TenantAdmin : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly OdinConfiguration _config;
-    private readonly IJobSchedulerFactory _jobSchedulerFactory;
-    private readonly ISchedulerFactory _schedulerFactory; // TODO:SEB Remove
-    private readonly IExclusiveJobManager _exclusiveJobManager; // TODO:SEB Remove
+    private readonly IJobManager _jobManager;
     private readonly IIdentityRegistry _identityRegistry;
 
     public TenantAdmin(
         ILogger<TenantAdmin> logger,
         ILoggerFactory loggerFactory,
-        OdinConfiguration config,
-        IJobSchedulerFactory jobSchedulerFactory,
-        ISchedulerFactory schedulerFactory,
-        IExclusiveJobManager exclusiveJobManager,
+        IJobManager jobManager,
         IIdentityRegistry identityRegistry)
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
-        _config = config;
-        _jobSchedulerFactory = jobSchedulerFactory;
-        _schedulerFactory = schedulerFactory;
-        _exclusiveJobManager = exclusiveJobManager;
+        _jobManager = jobManager;
         _identityRegistry = identityRegistry;
     }
 
@@ -73,7 +64,7 @@ public class TenantAdmin : ITenantAdmin
         }
 
         var jobSchedule = new DeleteTenantScheduler(_loggerFactory.CreateLogger<DeleteTenantScheduler>(), domain);
-        var jobKey = await _jobSchedulerFactory.Schedule<DeleteTenantJob>(jobSchedule);
+        var jobKey = await _jobManager.Schedule<DeleteTenantJob>(jobSchedule);
 
         return jobKey.ToString();
     }
@@ -87,21 +78,8 @@ public class TenantAdmin : ITenantAdmin
             throw new OdinClientException($"{domain} not found");
         }
 
-        var jobKey = new JobKey(domain, ExportTenantJob.JobGroup);
-        if (_exclusiveJobManager.Exists(jobKey))
-        {
-            return jobKey.ToString();
-        }
-
-        var scheduler = await _schedulerFactory.GetScheduler();
-        var job = JobBuilder.Create<ExportTenantJob>()
-            .WithIdentity(jobKey)
-            .UsingJobData("domain", domain)
-            .Build();
-        var trigger = TriggerBuilder.Create()
-            .StartNow()
-            .Build();
-        await scheduler.ScheduleJob(job, trigger);
+        var jobSchedule = new ExportTenantScheduler(_loggerFactory.CreateLogger<ExportTenantScheduler>(), domain);
+        var jobKey = await _jobManager.Schedule<ExportTenantJob>(jobSchedule);
 
         return jobKey.ToString();
     }

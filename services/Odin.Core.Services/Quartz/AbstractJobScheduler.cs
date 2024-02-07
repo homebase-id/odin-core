@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Quartz;
@@ -7,10 +8,11 @@ namespace Odin.Core.Services.Quartz;
 
 public abstract class AbstractJobScheduler : IJobScheduler
 {
-    // Return true if the job must not be allowed to have multiple triggers/schedules.
-    // Exclusivity are determined by the job's group name.
-    // Completed/failed jobs are not considered when determining if a job is exclusive.
-    public abstract bool IsExclusive { get; }
+    // The JobId should be unique per job.
+    // If you want to make sure the job cannot be scheduled more than once, override this with a static value.
+    // Once the job is completed (or failed), the JobId can be scheduled again.
+    // DO NOT put any sensitive data in the JobId.
+    public abstract string JobId { get; }
 
     // Create a job and return the job and trigger builders.
     public abstract Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;

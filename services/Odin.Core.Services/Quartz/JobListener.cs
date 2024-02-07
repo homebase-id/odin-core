@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
@@ -11,15 +12,15 @@ public class JobListener : IJobListener
 {
     private readonly ILogger<JobListener> _logger;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IJobSchedulerFactory _jobSchedulerFactory;
+    private readonly IJobManager _jobManager;
 
     public JobListener(
         ILogger<JobListener> logger,
-        IJobSchedulerFactory jobSchedulerFactory,
+        IJobManager jobManager,
         ILoggerFactory loggerFactory)
     {
         _logger = logger;
-        _jobSchedulerFactory = jobSchedulerFactory;
+        _jobManager = jobManager;
         _loggerFactory = loggerFactory;
     }
 
@@ -93,9 +94,14 @@ public class JobListener : IJobListener
                 }
                 _logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
 
+                var errorMessage = exception is OdinClientException
+                    ? exception.Message
+                    : $"Interal server error. Check logs around job {job.Key}";
+
                 if (job.Durable)
                 {
                     jobData[JobConstants.StatusKey] = JobConstants.StatusValueFailed;
+                    jobData[JobConstants.ErrorMessageKey] = errorMessage;
                     await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
                 }
 
@@ -117,7 +123,7 @@ public class JobListener : IJobListener
     {
         var deleteAt = DateTimeOffset.Now + TimeSpan.FromSeconds(retentionSeconds);
         var jobSchedule = new DeleteJobDetailsScheduler(_loggerFactory, jobKey, deleteAt);
-        await _jobSchedulerFactory.Schedule<DeleteJobDetailsJob>(jobSchedule);
+        await _jobManager.Schedule<DeleteJobDetailsJob>(jobSchedule);
     }
 
     //

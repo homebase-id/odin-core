@@ -45,6 +45,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Quartz;
 
 namespace Odin.Hosting
 {
@@ -431,16 +432,17 @@ namespace Odin.Hosting
                     try
                     {
                         var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
-                        var jobScheduleFactory = app.ApplicationServices.GetRequiredService<IJobSchedulerFactory>();
+                        var jobManager = app.ApplicationServices.GetRequiredService<IJobManager>();
 
-                        // var jobSchedule = new NonExclusiveTestScheduler(loggerFactory.CreateLogger<NonExclusiveTestScheduler>());
-                        // var jobKey = await jobScheduleFactory.Schedule<NonExclusiveTestJob>(jobSchedule);
+                        var jobSchedule = new NonExclusiveTestScheduler(loggerFactory.CreateLogger<NonExclusiveTestScheduler>());
+                        var jobKey = await jobManager.Schedule<NonExclusiveTestJob>(jobSchedule);
 
-                        var jobSchedule = new ExclusiveTestScheduler(loggerFactory.CreateLogger<ExclusiveTestScheduler>());
-                        var jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
-                        jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
-                        jobKey = await jobScheduleFactory.Schedule<ExclusiveTestJob>(jobSchedule);
 
+
+                        // var jobSchedule = new ExclusiveTestScheduler(loggerFactory.CreateLogger<ExclusiveTestScheduler>());
+                        // var jobKey = await jobManager.Schedule<ExclusiveTestJob>(jobSchedule);
+                        // jobKey = await jobManager.Schedule<ExclusiveTestJob>(jobSchedule);
+                        // jobKey = await jobManager.Schedule<ExclusiveTestJob>(jobSchedule);
                     }
                     catch (Exception e)
                     {

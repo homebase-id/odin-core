@@ -15,23 +15,16 @@ namespace Odin.Core.Services.Quartz;
 
      //
 
-     public static JobKey CreateTypedJobKey<TJobType>(this JobBuilder _, string jobName)
-     {
-         return Helpers.CreateTypedJobKey<TJobType>(jobName);
-     }
-
-     //
-
-     public static JobKey CreateUniqueJobKey<TJobType>(this JobBuilder _)
-     {
-         return Helpers.CreateUniqueJobKey<TJobType>();
-     }
-
-     //
-
      public static JobKey ParseJobKey(this JobBuilder _, string jobKey)
      {
          return Helpers.ParseJobKey(jobKey);
+     }
+
+     //
+
+     public static JobKey CreateUniqueJobKey(this JobBuilder _)
+     {
+         return Helpers.CreateUniqueJobKey();
      }
 
      //

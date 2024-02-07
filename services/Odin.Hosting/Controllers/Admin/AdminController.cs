@@ -6,6 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Quartz;
+using Odin.Hosting.Controllers.Job;
 
 namespace Odin.Hosting.Controllers.Admin;
 #nullable enable
@@ -85,18 +86,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        try
-        {
-            var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
-            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
-        }
-        catch (OdinException e)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = e.Message
-            });
-        }
+        var jobKey = await _tenantAdmin.EnqueueDeleteTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
     }
 
     //
@@ -109,18 +100,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        try
-        {
-            var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
-            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
-        }
-        catch (OdinException e)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = e.Message
-            });
-        }
+        var jobKey = await _tenantAdmin.EnqueueExportTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
     }
 
     //

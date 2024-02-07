@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
@@ -13,14 +14,13 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 
 public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public override bool IsExclusive => false;
-    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
+    public sealed override string JobId => Helpers.UniqueId();
+
+    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
         logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
-        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
 
         jobBuilder
-            .WithIdentity(jobKey)
             .WithRetry(2, TimeSpan.FromSeconds(1))
             .WithRetention(TimeSpan.FromMinutes(1))
             .UsingJobData("foo", "bar");
@@ -28,7 +28,6 @@ public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger
         var triggerBuilders = new List<TriggerBuilder>
         {
             TriggerBuilder.Create()
-                //.StartNow()
                 .StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(1))
                 .WithPriority(1)
         };
@@ -53,14 +52,16 @@ public class NonExclusiveTestJob(
         logger.LogDebug("Working...");
         await Task.Delay(TimeSpan.FromSeconds(1));
 
-        // throw new OdinSystemException("Oh no...!");
+        // throw new OdinClientException("Oh no...!");
 
         //
         // Store job specific data:
         //
-        var jobData = context.JobDetail.JobDataMap;
-        jobData["my-job-was"] = "a-success-hurrah!";
-        await context.Scheduler.AddJob(context.JobDetail, true); // update JobDataMap
+        var responseData = new
+        {
+            foo = "bar"
+        };
+        await SetUserDefinedJobData(context, responseData);
 
         logger.LogDebug("Finished {JobKey} on thread {tid} in {elapsed}s", jobKey, Environment.CurrentManagedThreadId, sw.ElapsedMilliseconds / 1000.0);
     }

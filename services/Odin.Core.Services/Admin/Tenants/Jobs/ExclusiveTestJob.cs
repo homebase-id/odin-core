@@ -12,14 +12,13 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 
 public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public override bool IsExclusive => true;
-    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
+    public sealed override string JobId => "exclusive-test";
+
+    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
-        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
+        logger.LogDebug("Scheduling {Job}", JobId);
 
         jobBuilder
-            .WithIdentity(jobKey)
             .WithRetry(2, TimeSpan.FromSeconds(1))
             .WithRetention(TimeSpan.FromMinutes(1));
 
@@ -49,13 +48,6 @@ public class ExclusiveTestJob(
         var sw = Stopwatch.StartNew();
         logger.LogDebug("Working...");
         await Task.Delay(TimeSpan.FromSeconds(1));
-
-        //
-        // Store job specific data:
-        //
-        var jobData = context.JobDetail.JobDataMap;
-        jobData["my-job-was"] = "a-success-hurrah!";
-        await context.Scheduler.AddJob(context.JobDetail, true); // update JobDataMap
 
         logger.LogDebug("Finished {JobKey} on thread {tid} in {elapsed}s", jobKey, Environment.CurrentManagedThreadId, sw.ElapsedMilliseconds / 1000.0);
     }

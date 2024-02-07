@@ -21,7 +21,7 @@ public static class QuartzExtensions
         });
         services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>(); // SEB:TODO Remove
         services.AddSingleton<JobListener>();
-        services.AddSingleton<IJobSchedulerFactory, JobSchedulerFactory>();
+        services.AddSingleton<IJobManager, JobManager>();
         services.AddQuartz(q =>
         {
             q.UseDefaultThreadPool(tp =>

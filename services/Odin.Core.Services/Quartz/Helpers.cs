@@ -4,6 +4,7 @@ using Odin.Core.Util;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
+#nullable enable
 
 public static class Helpers
 {
@@ -14,37 +15,48 @@ public static class Helpers
 
     //
 
-    public static JobKey CreateTypedJobKey<TJobType>(string jobName)
+    // The string version of a jobkey is "group-name"."job-name".
+    // We allow group-name to include '.', but not job-name.
+    public static JobKey ParseJobKey(string jobKey)
     {
-        if (string.IsNullOrWhiteSpace(jobName))
+        var lastDotIndex = jobKey.LastIndexOf('.');
+        if (lastDotIndex < 1 || lastDotIndex == jobKey.Length - 1)
         {
-            throw new ArgumentException("Job name cannot be null or empty", nameof(jobName));
+            throw new ArgumentException($"Invalid job key: '{jobKey}'");
         }
-        var groupName = GetGroupName<TJobType>();
+        var groupName = jobKey[..lastDotIndex];
+        var jobName = jobKey[(lastDotIndex + 1)..];
+
         return new JobKey(jobName, groupName);
     }
 
     //
 
-    public static JobKey CreateUniqueJobKey<TJobType>()
+    public static JobKey CreateUniqueJobKey()
     {
-        var jobName = SHA1.HashData(Guid.NewGuid().ToByteArray()).ToHexString();
-        return CreateTypedJobKey<TJobType>(jobName);
+        return new JobKey(UniqueId(), UniqueId());
     }
 
     //
 
-    public static JobKey ParseJobKey(string jobKey)
+    public static string UniqueId()
     {
-        var jobKeyParts = jobKey.Split('.');
-        if (jobKeyParts.Length != 2)
+        return SHA256.HashData(Guid.NewGuid().ToByteArray()).ToHexString();
+    }
+
+    //
+
+    public static JobStatusEnum JobStatusFromStatusValue(string statusValue)
+    {
+        return statusValue switch
         {
-            throw new ArgumentException("Invalid job key", nameof(jobKey));
-        }
-        return new JobKey(jobKeyParts[1], jobKeyParts[0]);
+            JobConstants.StatusValueAdded => JobStatusEnum.Scheduled,
+            JobConstants.StatusValueStarted => JobStatusEnum.Started,
+            JobConstants.StatusValueCompleted => JobStatusEnum.Completed,
+            JobConstants.StatusValueFailed => JobStatusEnum.Failed,
+            _ => JobStatusEnum.Unknown
+        };
     }
-
-    //
 
 
 }

@@ -6,6 +6,6 @@ namespace Odin.Core.Services.Quartz;
 
 public interface IJobScheduler
 {
-    bool IsExclusive { get; }
+    string JobId { get; }
     Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;
 }

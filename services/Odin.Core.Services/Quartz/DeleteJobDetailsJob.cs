@@ -9,7 +9,6 @@ namespace Odin.Core.Services.Quartz;
 
 public class DeleteJobDetailsScheduler : AbstractJobScheduler
 {
-    public override bool IsExclusive => false;
     private readonly ILogger<DeleteJobDetailsScheduler> _logger;
     private readonly JobKey _jobToDelete;
     private readonly DateTimeOffset _deleteAt;
@@ -30,7 +29,9 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
     //
 
-    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
+    public sealed override string JobId => Helpers.UniqueId();
+
+    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
         if (_jobToDelete.Group == jobBuilder.GetGroupName<DeleteJobDetailsJob>())
         {
@@ -40,7 +41,7 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
         _logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
 
-        var jobKey = jobBuilder.CreateUniqueJobKey<TJob>();
+        var jobKey = jobBuilder.CreateUniqueJobKey();
         jobBuilder
             .WithIdentity(jobKey)
             .UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString());

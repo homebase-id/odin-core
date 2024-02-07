@@ -9,6 +9,8 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
     // Consumer must implement this method
     protected abstract Task Run(IJobExecutionContext context);
 
+    //
+
     // Called by Quartz
     public async Task Execute(IJobExecutionContext context)
     {
@@ -21,5 +23,12 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
         }
 
         await Run(context);
+    }
+
+    //
+
+    protected static Task SetUserDefinedJobData(IJobExecutionContext context, object serializableObject)
+    {
+        return context.Scheduler.SetUserDefinedJobData(context.JobDetail, serializableObject);
     }
 }

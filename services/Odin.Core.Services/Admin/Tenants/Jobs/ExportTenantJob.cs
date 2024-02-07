@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
@@ -11,59 +13,48 @@ using Quartz;
 namespace Odin.Core.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-[DisallowConcurrentExecution]
-public class ExportTenantJob : IExclusiveJob
+public class ExportTenantScheduler(ILogger<ExportTenantScheduler> logger, string domain) : AbstractJobScheduler
 {
-    public const string JobGroup = "export-tenant";
-    public string JobId { get; } = Guid.NewGuid().ToString();
+    public sealed override string JobId => $"export-tenant:{domain}";
 
-    private readonly ILogger<DeleteTenantJob> _logger;
-    private readonly IIdentityRegistry _identityRegistry;
-    private readonly OdinConfiguration _config;
-
-    private readonly ExportTenantJobState _jobState = new ();
-    private volatile bool _isDone;
-
-    public ExportTenantJob(ILogger<DeleteTenantJob> logger, IIdentityRegistry identityRegistry, OdinConfiguration config)
+    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        _logger = logger;
-        _identityRegistry = identityRegistry;
-        _config = config;
+        logger.LogDebug("Scheduling {Job}", JobId);
+
+        jobBuilder
+            .WithRetry(2, TimeSpan.FromSeconds(5))
+            .WithRetention(TimeSpan.FromDays(2))
+            .UsingJobData("domain", domain);
+
+        var triggerBuilders = new List<TriggerBuilder>
+        {
+            TriggerBuilder.Create()
+                .StartNow()
+                .WithPriority(1)
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
     }
+}
 
-    //
-
-    public async Task Execute(IJobExecutionContext context)
+public class ExportTenantJob(
+    ICorrelationContext correlationContext,
+    ILogger<ExportTenantJob> logger,
+    IIdentityRegistry identityRegistry,
+    OdinConfiguration config) : AbstractJob(correlationContext)
+{
+    protected sealed override async Task Run(IJobExecutionContext context)
     {
         var domain = (string)context.JobDetail.JobDataMap["domain"];
-        try
-        {
-            _logger.LogDebug("Starting export tenant {domain}", domain);
 
-            var sw = Stopwatch.StartNew();
-            _jobState.TargetPath = await _identityRegistry.CopyRegistration(domain, _config.Admin.ExportTargetPath);
-            _jobState.Status = JobStatusEnum.Completed;
+        logger.LogDebug("Starting export tenant {domain}", domain);
+        var sw = Stopwatch.StartNew();
+        var targetPath = await identityRegistry.CopyRegistration(domain, config.Admin.ExportTargetPath);
 
-            _logger.LogDebug("Finished export tenant {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
-        }
-        catch (Exception e)
-        {
-            _jobState.Status = JobStatusEnum.Failed;
-            _jobState.Error = e is OdinClientException ? e.Message : $"Internal error exporting tenant {domain}";
-            _logger.LogError(e, "Error exporting tenant: {error}", e.Message);
-        }
-        _isDone = true;
+        await SetUserDefinedJobData(context, new { targetPath });
+
+        logger.LogDebug("Finished export tenant {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
     }
-
-    //
-
-    public IJobState State => _jobState;
-    public bool IsDone => _isDone;
 }
 
-public class ExportTenantJobState : IJobState
-{
-    public JobStatusEnum Status { get; set; }
-    public string? Error { get; set; }
-    public string TargetPath { get; set; } = "";
-}
+

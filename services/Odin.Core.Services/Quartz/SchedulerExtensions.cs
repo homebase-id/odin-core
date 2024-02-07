@@ -1,5 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Quartz;
 using Quartz.Impl.Matchers;
 
@@ -8,38 +10,11 @@ namespace Odin.Core.Services.Quartz;
 
 public static class SchedulerExtensions
 {
-    public static async Task<bool> JobExists(this ISchedulerFactory schedulerFactory, JobKey jobKey)
-    {
-        var schedulers = await schedulerFactory.GetAllSchedulers();
-        foreach (var scheduler in schedulers)
-        {
-            if (await scheduler.CheckExists(jobKey))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     //
 
     public static string GetGroupName<TJobType>(this IScheduler _)
     {
         return Helpers.GetGroupName<TJobType>();
-    }
-
-    //
-
-    public static JobKey CreateTypedJobKey<TJobType>(this IScheduler _, string jobName)
-    {
-        return Helpers.CreateTypedJobKey<TJobType>(jobName);
-    }
-
-    //
-
-    public static JobKey CreateUniqueJobKey<TJobType>(this IScheduler _)
-    {
-        return Helpers.CreateUniqueJobKey<TJobType>();
     }
 
     //
@@ -59,11 +34,18 @@ public static class SchedulerExtensions
 
     //
 
-    // Get JobKey of type TJobType that has has least one trigger scheduled.
-    // Use this for creating "exclusive" jobs.
+    // Get JobKey of type TJobType that has least one trigger scheduled.
     public static async Task<JobKey?> GetScheduledJobKey<TJobType>(this IScheduler scheduler)
     {
         var groupName = scheduler.GetGroupName<TJobType>();
+        return await scheduler.GetScheduledJobKey(groupName);
+    }
+
+    //
+
+    // Get JobKey from group name that has least one trigger scheduled.
+    public static async Task<JobKey?> GetScheduledJobKey(this IScheduler scheduler, string groupName)
+    {
         var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName));
         foreach (var jobKey in jobKeys)
         {
@@ -85,5 +67,20 @@ public static class SchedulerExtensions
     }
 
     //
+
+    public static async Task SetUserDefinedJobData(
+        this IScheduler scheduler,
+        IJobDetail jobDetail,
+        object serializableObject)
+    {
+        if (!jobDetail.Durable)
+        {
+            throw new OdinSystemException("JobDetail must be durable. Did you forget WithRetention() ?");
+        }
+
+        var json = OdinSystemSerializer.Serialize(serializableObject);
+        jobDetail.JobDataMap[JobConstants.UserDefinedDataKey] = json;
+        await scheduler.AddJob(jobDetail, true); // update JobDataMap
+    }
 }
 
