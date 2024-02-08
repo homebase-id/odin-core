@@ -7,6 +7,7 @@ using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Outgoing;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 {

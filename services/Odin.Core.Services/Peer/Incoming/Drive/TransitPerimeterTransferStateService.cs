@@ -7,7 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.Incoming.Storage;
+using Odin.Core.Services.Peer.Incoming.Drive.InboxStorage;
 
 namespace Odin.Core.Services.Peer.Incoming.Drive
 {

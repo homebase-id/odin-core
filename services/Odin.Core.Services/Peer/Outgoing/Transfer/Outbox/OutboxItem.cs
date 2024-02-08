@@ -6,7 +6,7 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Peer.Outgoing.Outbox
+namespace Odin.Core.Services.Peer.Outgoing.Transfer.Outbox
 {
     public class TransitOutboxItem
     {

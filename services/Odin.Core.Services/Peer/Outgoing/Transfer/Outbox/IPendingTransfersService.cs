@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 
-namespace Odin.Core.Services.Peer.Outgoing.Outbox
+namespace Odin.Core.Services.Peer.Outgoing.Transfer.Outbox
 {
     /// <summary>
     /// A global queue (singleton) list of senders who need

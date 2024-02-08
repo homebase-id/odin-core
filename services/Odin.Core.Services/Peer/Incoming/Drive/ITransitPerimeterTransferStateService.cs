@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.Incoming.Storage;
+using Odin.Core.Services.Peer.Incoming.Drive.InboxStorage;
 
 namespace Odin.Core.Services.Peer.Incoming.Drive
 {

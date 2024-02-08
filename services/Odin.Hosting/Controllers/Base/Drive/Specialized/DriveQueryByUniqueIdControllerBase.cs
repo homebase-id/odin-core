@@ -6,23 +6,18 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
-    public abstract class DriveQueryByUniqueIdControllerBase : DriveStorageControllerBase
+    public abstract class DriveQueryByUniqueIdControllerBase(ILogger logger, FileSystemResolver fileSystemResolver, IPeerTransferService peerTransferService)
+        : DriveStorageControllerBase(logger, fileSystemResolver, peerTransferService)
     {
-        protected DriveQueryByUniqueIdControllerBase(
-            ILogger logger,
-            FileSystemResolver fileSystemResolver,
-            ITransitService transitService
-        ) : base(logger, fileSystemResolver, transitService)
-        {
-        }
-
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {

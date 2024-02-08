@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;

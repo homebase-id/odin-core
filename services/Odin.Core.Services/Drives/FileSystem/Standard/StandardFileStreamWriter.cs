@@ -10,6 +10,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Drives.FileSystem.Standard;
@@ -19,9 +20,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        ITransitService transitService,
+        IPeerTransferService peerTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, transitService)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerTransferService)
     {
     }
 

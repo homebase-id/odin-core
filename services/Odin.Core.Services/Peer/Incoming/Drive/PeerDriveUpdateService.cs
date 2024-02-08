@@ -15,7 +15,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Incoming.Drive.Filter;
-using Odin.Core.Services.Peer.Incoming.Storage;
+using Odin.Core.Services.Peer.Incoming.Drive.InboxStorage;
 using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -109,7 +109,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
             return item.IsCompleteAndValid();
         }
 
-        public async Task<PeerResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata)
+        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -117,13 +117,13 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
             {
                 //TODO: how do i know which filter quarantined it??
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new PeerResponse() { Code = PeerResponseCode.QuarantinedPayload };
+                return new PeerTransferResponse() { Code = PeerResponseCode.QuarantinedPayload };
             }
 
             if (item.HasAcquiredRejectedPart())
             {
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new PeerResponse() { Code = PeerResponseCode.Rejected };
+                return new PeerTransferResponse() { Code = PeerResponseCode.Rejected };
             }
 
             if (item.IsCompleteAndValid())
@@ -157,7 +157,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
                 }
 
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new PeerResponse() { Code = responseCode };
+                return new PeerTransferResponse() { Code = responseCode };
             }
 
             throw new HostToHostTransferException("Unhandled error");
@@ -179,7 +179,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
             return await RouteToInbox(stateItem);
         }
 
-        public async Task<PeerResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
+        public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
@@ -206,7 +206,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
                         DriveId = driveId
                     });
 
-                    return new PeerResponse()
+                    return new PeerTransferResponse()
                     {
                         Code = PeerResponseCode.AcceptedDirectWrite,
                         Message = ""
@@ -230,7 +230,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
 
                 await _transitInboxBoxStorage.Add(item);
 
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.AcceptedIntoInbox,
                     Message = ""
@@ -239,7 +239,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive
             catch
             {
                 //TODO: add logging here?
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.Rejected,
                     Message = "Server Error"

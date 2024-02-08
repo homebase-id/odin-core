@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Query;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit

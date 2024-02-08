@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer.Outgoing
@@ -19,16 +20,16 @@ namespace Odin.Core.Services.Peer.Outgoing
             _queueStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(queueContextKey));
         }
 
-        public Task Enqueue(TransitKeyEncryptionQueueItem item)
+        public Task Enqueue(PeerKeyEncryptionQueueItem item)
         {
             _queueStorage.Upsert(item.Id, _queueDataType, item);
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext()
+        public Task<IEnumerable<PeerKeyEncryptionQueueItem>> GetNext()
         {
-            var items = _queueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueStorageId);
-            return Task.FromResult<IEnumerable<TransitKeyEncryptionQueueItem>>(items);
+            var items = _queueStorage.Get<List<PeerKeyEncryptionQueueItem>>(_queueStorageId);
+            return Task.FromResult<IEnumerable<PeerKeyEncryptionQueueItem>>(items);
         }
     }
 }

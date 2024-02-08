@@ -1,6 +1,6 @@
 using Odin.Core.Services.Drives;
 
-namespace Odin.Core.Services.Peer.Incoming.Drive;
+namespace Odin.Core.Services.Peer.Incoming.Drive.Query;
 
 /// <summary>
 /// Minimal set of drive information to be returned to callers who have Circle access

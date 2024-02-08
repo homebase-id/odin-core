@@ -10,9 +10,9 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
         private const string RootPath = PeerApiPathConstants.FeedV1;
 
         [Post(RootPath + "/filemetadata")]
-        Task<ApiResponse<PeerResponse>> SendFeedFileMetadata([Body] UpdateFeedFileMetadataRequest request);
+        Task<ApiResponse<PeerTransferResponse>> SendFeedFileMetadata([Body] UpdateFeedFileMetadataRequest request);
         
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<PeerResponse>> DeleteFeedMetadata([Body] DeleteFeedFileMetadataRequest request);
+        Task<ApiResponse<PeerTransferResponse>> DeleteFeedMetadata([Body] DeleteFeedFileMetadataRequest request);
     }
 }

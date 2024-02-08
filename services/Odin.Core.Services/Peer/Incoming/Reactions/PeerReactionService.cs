@@ -7,6 +7,7 @@ using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Reactions;
 
 namespace Odin.Core.Services.Peer.Incoming.Reactions;
 
@@ -20,7 +21,7 @@ public class PeerReactionService(
     FollowerService followerService,
     OdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver)
-    : TransitServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
 {
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {

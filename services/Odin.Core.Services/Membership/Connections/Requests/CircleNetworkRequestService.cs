@@ -148,8 +148,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
-            Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
-            header.ContactData.Validate();
+            // Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
+            header.ContactData?.Validate();
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {

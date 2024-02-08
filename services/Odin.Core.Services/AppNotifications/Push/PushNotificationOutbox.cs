@@ -59,7 +59,7 @@ public class PushNotificationOutbox
     /// <summary>
     /// Add and item back the queue due to a failure
     /// </summary>
-    public async Task MarkFailure(Guid marker, TransferFailureReason reason)
+    public async Task MarkFailure(Guid marker)
     {
         _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
 

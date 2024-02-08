@@ -14,6 +14,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -30,18 +31,18 @@ public abstract class FileSystemStreamWriterBase
     private readonly OdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
-    private readonly ITransitService _transitService;
+    private readonly IPeerTransferService _peerTransferService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        DriveManager driveManager, ITransitService transitService)
+        DriveManager driveManager, IPeerTransferService peerTransferService)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
-        _transitService = transitService;
+        _peerTransferService = peerTransferService;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -333,7 +334,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile,
+            recipientStatus = await _peerTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType);

@@ -22,14 +22,14 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator)
     {
-        public async Task<PeerResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
             await followerService.AssertTenantFollowsTheCaller();
 
             //S0510
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.Rejected
                 };
@@ -41,7 +41,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
                 if (null == fileId)
                 {
-                    return new PeerResponse()
+                    return new PeerTransferResponse()
                     {
                         Code = PeerResponseCode.Rejected
                     };
@@ -53,25 +53,25 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 }
                 catch (OdinSecurityException)
                 {
-                    return new PeerResponse()
+                    return new PeerTransferResponse()
                     {
                         Code = PeerResponseCode.Rejected
                     };
                 }
             }
 
-            return new PeerResponse()
+            return new PeerTransferResponse()
             {
                 Code = PeerResponseCode.AcceptedDirectWrite
             };
         }
 
-        public async Task<PeerResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
         {
             await followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.Rejected
                 };
@@ -115,7 +115,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                     }
                     catch (OdinSecurityException)
                     {
-                        return new PeerResponse()
+                        return new PeerTransferResponse()
                         {
                             Code = PeerResponseCode.Rejected
                         };
@@ -123,13 +123,13 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 }
             }
 
-            return new PeerResponse()
+            return new PeerTransferResponse()
             {
                 Code = PeerResponseCode.AcceptedDirectWrite
             };
         }
 
-        public async Task<PeerResponse> Delete(DeleteFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request)
         {
             await followerService.AssertTenantFollowsTheCaller();
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
@@ -138,7 +138,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
-                    return new PeerResponse()
+                    return new PeerTransferResponse()
                     {
                         Code = PeerResponseCode.AcceptedDirectWrite
                     };
@@ -146,7 +146,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
                 await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value);
 
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.AcceptedDirectWrite
                 };

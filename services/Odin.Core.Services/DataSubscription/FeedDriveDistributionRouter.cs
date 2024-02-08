@@ -21,6 +21,7 @@ using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Serilog;
@@ -34,7 +35,7 @@ namespace Odin.Core.Services.DataSubscription
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
-        private readonly ITransitService _transitService;
+        private readonly IPeerTransferService _peerTransferService;
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -52,7 +53,7 @@ namespace Odin.Core.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext,
+            IPeerTransferService peerTransferService, DriveManager driveManager, TenantContext tenantContext,
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
             TenantSystemStorage tenantSystemStorage,
@@ -64,7 +65,7 @@ namespace Odin.Core.Services.DataSubscription
             ILogger<FeedDriveDistributionRouter> logger)
         {
             _followerService = followerService;
-            _transitService = transitService;
+            _peerTransferService = peerTransferService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
             _serverSystemStorage = serverSystemStorage;
@@ -325,7 +326,7 @@ namespace Odin.Core.Services.DataSubscription
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive,
             };
 
-            var transferStatusMap = await _transitService.SendFile(
+            var transferStatusMap = await _peerTransferService.SendFile(
                 file,
                 transitOptions,
                 TransferFileType.Normal,
@@ -379,13 +380,13 @@ namespace Odin.Core.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _transitService.SendDeleteFileRequest(
+                var map = await _peerTransferService.SendDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         TargetDrive = SystemDriveConstants.FeedDrive,
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     },
-                    sendFileOptions: new SendFileOptions()
+                    fileTransferOptions: new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,

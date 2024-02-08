@@ -62,7 +62,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         [HttpPost("upload")]
-        public async Task<PeerResponse> AcceptHostToHostTransfer()
+        public async Task<PeerTransferResponse> AcceptHostToHostTransfer()
         {
             try
             {
@@ -138,7 +138,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 //TODO: break down the actual errors so we can send to the
                 //caller information about why it was rejected w/o giving away
                 //sensitive stuff
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.AccessDenied,
                     Message = "Access Denied"
@@ -149,7 +149,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 //TODO: break down the actual errors so we can send to the
                 //caller information about why it was rejected w/o giving away
                 //sensitive stuff
-                return new PeerResponse()
+                return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.Rejected,
                     Message = "Error"
@@ -158,13 +158,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         }
 
         [HttpPost("deletelinkedfile")]
-        public async Task<PeerResponse> DeleteLinkedFile(DeleteRemoteFileTransitRequest transitRequest)
+        public async Task<PeerTransferResponse> DeleteLinkedFile(DeleteRemoteFileRequest request)
         {
             var perimeterService = GetPerimeterService();
             return await perimeterService.AcceptDeleteLinkedFileRequest(
-                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
-                transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
-                transitRequest.FileSystemType);
+                request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                request.FileSystemType);
         }
 
 

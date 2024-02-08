@@ -2,6 +2,7 @@
 using Microsoft.OpenApi.Models;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Reactions;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken;
 
@@ -15,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [AuthorizeValidAppToken]
     public class AppTransitReactionContentSenderController : TransitReactionContentSenderControllerBase
     {
-        public AppTransitReactionContentSenderController(TransitReactionContentSenderService transitReactionContentSenderService): base(transitReactionContentSenderService)
+        public AppTransitReactionContentSenderController(PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
         {
         }
     }

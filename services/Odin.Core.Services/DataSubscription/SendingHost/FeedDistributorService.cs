@@ -95,7 +95,7 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        bool IsSuccess(ApiResponse<PeerResponse> httpResponse)
+        bool IsSuccess(ApiResponse<PeerTransferResponse> httpResponse)
         {
             if (httpResponse.IsSuccessStatusCode)
             {

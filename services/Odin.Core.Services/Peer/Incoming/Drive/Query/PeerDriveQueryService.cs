@@ -14,7 +14,7 @@ using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Time;
 
-namespace Odin.Core.Services.Peer.Incoming.Drive
+namespace Odin.Core.Services.Peer.Incoming.Drive.Query
 {
     public class PeerDriveQueryService(OdinContextAccessor contextAccessor, DriveManager driveManager, IDriveFileSystem fileSystem)
     {

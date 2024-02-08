@@ -11,6 +11,7 @@ using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -24,12 +25,12 @@ namespace Odin.Core.Services.Apps.CommandMessaging;
 /// </remarks>
 public class CommandMessagingService
 {
-    private readonly ITransitService _transitService;
+    private readonly IPeerTransferService _peerTransferService;
     private readonly StandardFileSystem _standardFileSystem;
 
-    public CommandMessagingService(ITransitService transitService, StandardFileSystem standardFileSystem)
+    public CommandMessagingService(IPeerTransferService peerTransferService, StandardFileSystem standardFileSystem)
     {
-        _transitService = transitService;
+        _peerTransferService = peerTransferService;
         _standardFileSystem = standardFileSystem;
     }
 
@@ -70,7 +71,7 @@ public class CommandMessagingService
         await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
         //TODO: with the introduction of file system type, we can probably make commands a file system type
-        var transferResult = await _transitService.SendFile(
+        var transferResult = await _peerTransferService.SendFile(
             internalFile: internalFile,
             options: new TransitOptions()
             {

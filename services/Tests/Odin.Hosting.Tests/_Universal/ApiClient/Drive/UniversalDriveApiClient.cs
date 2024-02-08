@@ -8,6 +8,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base;

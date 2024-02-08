@@ -5,6 +5,7 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer.Incoming.Reactions;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Reactions;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Transit

@@ -28,7 +28,7 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
-using Odin.Core.Services.Peer.Outgoing.Outbox;
+using Odin.Core.Services.Peer.Outgoing.Transfer.Outbox;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;

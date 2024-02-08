@@ -13,20 +13,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [ApiController]
     [Route(PeerApiPathConstants.EncryptionV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
-    public class EncryptionPublicKeyController : ControllerBase
+    public class EncryptionPublicKeyController(PublicPrivateKeyService publicPrivateKeyService) : ControllerBase
     {
-        private readonly PublicPrivateKeyService _publicPrivateKeyService;
         // private Guid _stateItemId;
-
-        public EncryptionPublicKeyController(PublicPrivateKeyService publicPrivateKeyService)
-        {
-            _publicPrivateKeyService = publicPrivateKeyService;
-        }
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
         {
-            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
+            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,

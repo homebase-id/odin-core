@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -25,7 +27,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
     public abstract class DriveStorageControllerBase(
         ILogger logger,
         FileSystemResolver fileSystemResolver,
-        ITransitService transitService) : OdinControllerBase
+        IPeerTransferService peerTransferService) : OdinControllerBase
     {
         private readonly ILogger _logger = logger;
 
@@ -308,8 +310,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 };
 
                 //send the deleted file
-                var responses = await transitService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
-                    new SendFileOptions()
+                var responses = await peerTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                    new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal

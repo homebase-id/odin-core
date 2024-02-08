@@ -10,18 +10,19 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Query;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
 using Refit;
 using Serilog;
 
-namespace Odin.Core.Services.Peer.Outgoing;
+namespace Odin.Core.Services.Peer.Outgoing.Query;
 
 /// <summary>
 /// Executes query functionality on connected identity hosts
@@ -38,7 +39,7 @@ public class PeerQueryService(
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryModified(request);
 
-        HandleInvalidTransitResponse(odinId, queryBatchResponse);
+        HandleInvalidResponse(odinId, queryBatchResponse);
 
         var response = queryBatchResponse.Content;
 
@@ -57,7 +58,7 @@ public class PeerQueryService(
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatchCollection(request);
 
-        HandleInvalidTransitResponse(odinId, queryBatchResponse);
+        HandleInvalidResponse(odinId, queryBatchResponse);
 
         var batch = queryBatchResponse.Content;
         return batch;
@@ -70,7 +71,7 @@ public class PeerQueryService(
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
-        HandleInvalidTransitResponse(odinId, queryBatchResponse);
+        HandleInvalidResponse(odinId, queryBatchResponse);
 
         var batch = queryBatchResponse.Content;
         return new QueryBatchResult()
@@ -94,7 +95,7 @@ public class PeerQueryService(
             return null;
         }
 
-        HandleInvalidTransitResponse(odinId, response);
+        HandleInvalidResponse(odinId, response);
 
         var header = TransformSharedSecret(response.Content, icr);
         return header;
@@ -150,7 +151,7 @@ public class PeerQueryService(
             return null;
         }
 
-        HandleInvalidTransitResponse(odinId, response);
+        HandleInvalidResponse(odinId, response);
         return response.Content;
     }
 
@@ -167,7 +168,7 @@ public class PeerQueryService(
             return null;
         }
 
-        HandleInvalidTransitResponse(odinId, response);
+        HandleInvalidResponse(odinId, response);
 
         var header = TransformSharedSecret(response.Content, icr);
         return header;
@@ -223,7 +224,7 @@ public class PeerQueryService(
         return response.Content;
     }
 
-    private async Task<(IdentityConnectionRegistration, IPeerHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
+    private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         //TODO: this check is duplicated in the ResolveClientAccessToken method; need to centralize
         contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
@@ -235,12 +236,12 @@ public class PeerQueryService(
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
-            var httpClient = odinHttpClientFactory.CreateClient<IPeerHttpClient>(odinId, fileSystemType);
+            var httpClient = odinHttpClientFactory.CreateClient<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
             return (icr, httpClient);
         }
         else
         {
-            var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerHttpClient>(odinId, authToken, fileSystemType);
+            var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
             return (icr, httpClient);
         }
     }
@@ -293,7 +294,7 @@ public class PeerQueryService(
         return newEncryptedKeyHeader;
     }
 
-    private void HandleInvalidTransitResponse<T>(OdinId odinId, ApiResponse<T> response)
+    private void HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
@@ -333,7 +334,7 @@ public class PeerQueryService(
             return (null, default, null, null, Stream.Null);
         }
 
-        HandleInvalidTransitResponse(odinId, response);
+        HandleInvalidResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -373,7 +374,7 @@ public class PeerQueryService(
             return (null, default, null);
         }
 
-        HandleInvalidTransitResponse(odinId, response);
+        HandleInvalidResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());

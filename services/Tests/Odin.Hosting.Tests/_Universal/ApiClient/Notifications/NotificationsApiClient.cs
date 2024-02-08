@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Services.AppNotifications.Data;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Refit;

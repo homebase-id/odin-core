@@ -8,10 +8,12 @@ using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Transfer;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -30,8 +32,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public OwnerDriveStorageController(
             ILogger<OwnerDriveStorageController> logger,
             FileSystemResolver fileSystemResolver,
-            ITransitService transitService) :
-            base(logger, fileSystemResolver, transitService)
+            IPeerTransferService peerTransferService) :
+            base(logger, fileSystemResolver, peerTransferService)
         {
             _logger = logger;
         }
