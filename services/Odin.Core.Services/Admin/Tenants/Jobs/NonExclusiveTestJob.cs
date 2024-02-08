@@ -40,11 +40,14 @@ public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger
 
 public class NonExclusiveTestJob(
     ICorrelationContext correlationContext,
-    ILogger<NonExclusiveTestJob> logger)
+    ILoggerFactory loggerFactory,
+    IJobManager jobManager)
     : AbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
+        var logger = loggerFactory.CreateLogger<NonExclusiveTestJob>();
+
         var jobKey = context.JobDetail.Key;
         logger.LogDebug("Starting {JobKey}", jobKey);
 
@@ -62,6 +65,9 @@ public class NonExclusiveTestJob(
             foo = "bar"
         };
         await SetUserDefinedJobData(context, responseData);
+
+        var jobSchedule = new LogScheduler("NonExclusiveTestJob finished");
+        await jobManager.Schedule<LogJob>(jobSchedule);
 
         logger.LogDebug("Finished {JobKey} on thread {tid} in {elapsed}s", jobKey, Environment.CurrentManagedThreadId, sw.ElapsedMilliseconds / 1000.0);
     }

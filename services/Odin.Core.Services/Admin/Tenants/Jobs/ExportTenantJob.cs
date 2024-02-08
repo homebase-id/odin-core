@@ -37,6 +37,8 @@ public class ExportTenantScheduler(ILogger<ExportTenantScheduler> logger, string
     }
 }
 
+//
+
 public class ExportTenantJob(
     ICorrelationContext correlationContext,
     ILogger<ExportTenantJob> logger,
@@ -51,10 +53,19 @@ public class ExportTenantJob(
         var sw = Stopwatch.StartNew();
         var targetPath = await identityRegistry.CopyRegistration(domain, config.Admin.ExportTargetPath);
 
-        await SetUserDefinedJobData(context, new { targetPath });
+        await SetUserDefinedJobData(context, new ExportTenantData { TargetPath = targetPath });
 
         logger.LogDebug("Finished export tenant {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
     }
 }
+
+//
+
+public class ExportTenantData
+{
+    public string? TargetPath { get; set; }
+}
+
+
 
 

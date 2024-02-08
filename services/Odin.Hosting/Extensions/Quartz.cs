@@ -36,14 +36,16 @@ public static class QuartzExtensions
             }
             q.UsePersistentStore(storeOptions =>
             {
-                var quartzSystemDatabasePath = Path.Combine(config.Host.SystemDataRootPath, "quartz.sqlite");
-                var quartzSqlite = new QuartzSqlite(quartzSystemDatabasePath);
-                quartzSqlite.CreateSchema();
-                storeOptions.UseProperties = true;
+                var connectionString =
+                    $"Data Source={Path.Combine(config.Host.SystemDataRootPath, config.Quartz.SqliteDatabaseFileName)}";
+
+                QuartzSqlite.CreateSchema(connectionString);
                 storeOptions.UseMicrosoftSQLite(sqliteOptions =>
                 {
-                    sqliteOptions.ConnectionString = quartzSqlite.ConnectionString;
+                    sqliteOptions.ConnectionString = connectionString;
                 });
+
+                storeOptions.UseProperties = true;
                 storeOptions.UseNewtonsoftJsonSerializer(); // SEB:NOTE no support for System.Text.Json yet
             });
         });

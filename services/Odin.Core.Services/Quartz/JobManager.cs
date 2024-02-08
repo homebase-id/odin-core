@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core.Logging.CorrelationId;
@@ -13,12 +12,15 @@ namespace Odin.Core.Services.Quartz;
 // - testing, see ExceptionHandlingMiddlewareTest.cs
 // - deadletter
 // - clean up ExclusiveJobManager and family
+// - move NonExclusiveTestJob and ExclusiveTestJob to test project
 // - IHostApplicationLifetime hostApplicationLifetime
 
 public interface IJobManager
 {
     Task<JobKey> Schedule<TJob>(AbstractJobScheduler jobScheduler) where TJob : IJob;
-    Task<JobResponse> GetJobResponse(JobKey jobKey);
+    Task<JobResponse> GetResponse(JobKey jobKey);
+    Task<bool> Exists(JobKey jobKey);
+    Task<bool> Delete(JobKey jobKey);
 }
 
 //
@@ -76,7 +78,7 @@ public sealed class JobManager(
 
     //
 
-    public async Task<JobResponse> GetJobResponse(JobKey jobKey)
+    public async Task<JobResponse> GetResponse(JobKey jobKey)
     {
         var scheduler = await schedulerFactory.GetScheduler();
         var job = await scheduler.GetJobDetail(jobKey);
@@ -85,7 +87,8 @@ public sealed class JobManager(
         {
             return new JobResponse
             {
-                Status = JobStatusEnum.NotFound
+                Status = JobStatusEnum.NotFound,
+                JobKey = jobKey.ToString(),
             };
         }
 
@@ -97,11 +100,41 @@ public sealed class JobManager(
         var jobResponse = new JobResponse
         {
             Status = Helpers.JobStatusFromStatusValue(status ?? ""),
+            JobKey = jobKey.ToString(),
             Error = errorMessage,
             Data = data,
         };
 
         return jobResponse;
     }
+
+    //
+
+    public async Task<bool> Exists(JobKey jobKey)
+    {
+        using (await _mutex.LockAsync())
+        {
+            var scheduler = await schedulerFactory.GetScheduler();
+            return await scheduler.CheckExists(jobKey);
+        }
+    }
+
+    //
+
+    public async Task<bool> Delete(JobKey jobKey)
+    {
+        using (await _mutex.LockAsync())
+        {
+            var scheduler = await schedulerFactory.GetScheduler();
+            var deleted = await scheduler.DeleteJob(jobKey);
+            if (deleted)
+            {
+                logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
+            }
+            return deleted;
+        }
+    }
+
+    //
 
 }

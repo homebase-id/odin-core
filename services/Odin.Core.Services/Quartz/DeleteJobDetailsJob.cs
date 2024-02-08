@@ -41,10 +41,7 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
         _logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
 
-        var jobKey = jobBuilder.CreateUniqueJobKey();
-        jobBuilder
-            .WithIdentity(jobKey)
-            .UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString());
+        jobBuilder.UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString());
 
         var triggerBuilders = new List<TriggerBuilder>
         {
@@ -72,13 +69,14 @@ public class DeleteJobDetailsJob(
             var scheduler = context.Scheduler;
             var jobKey = scheduler.ParseJobKey(jobToDelete);
 
+
             if (await scheduler.DeleteJob(jobKey))
             {
                 logger.LogDebug("Deleted {JobKey}", jobToDelete);
             }
             else
             {
-                logger.LogWarning("Failed to delete {JobKey}", jobToDelete);
+                logger.LogDebug("Could not delete {JobKey}", jobToDelete);
             }
         }
     }

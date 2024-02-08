@@ -25,7 +25,7 @@ public class JobController : ControllerBase
     public async Task<ActionResult<JobResponse>> GetJobResponse(string jobKey)
     {
         var jk = Helpers.ParseJobKey(jobKey);
-        var job = await _jobManager.GetJobResponse(jk);
+        var job = await _jobManager.GetResponse(jk);
 
         if (job.Status == JobStatusEnum.NotFound)
         {

@@ -4,43 +4,13 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Hosting.Quartz;
 
-public class QuartzSqlite
+public static class QuartzSqlite
 {
-    private string _connectionString = null!;
-    public string ConnectionString
-    {
-       get
-        {
-            if (_connectionString == null)
-            {
-                throw new OdinSystemException("Missing call to QuartzSqlite.Initialize()");
-            }
-            return _connectionString;
-        }
-        private set
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                throw new OdinSystemException("Invalid connection string");
-            }
-            _connectionString = value;
-        }
-    }
-
-    //
-
-    public QuartzSqlite(string databaseFilePath)
-    {
-        ConnectionString = $"Data Source={databaseFilePath};";
-    }
-
-    //
-
     // Create schema
     // https://github.com/quartznet/quartznet/blob/main/database/tables/tables_sqlite.sql
-    public void CreateSchema()
+    public static void CreateSchema(string connectionString)
     {
-        using var connection = new SqliteConnection(ConnectionString);
+        using var connection = new SqliteConnection(connectionString);
         connection.Open();
 
         using var transaction = connection.BeginTransaction();
@@ -219,5 +189,4 @@ public class QuartzSqlite
 
         transaction.Commit();
     }
-
 }
