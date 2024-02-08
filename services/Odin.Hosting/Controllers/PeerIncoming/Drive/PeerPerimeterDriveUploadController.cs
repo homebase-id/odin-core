@@ -23,7 +23,10 @@ using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Incoming;
 using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
@@ -43,7 +46,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly PushNotificationService _pushNotificationService;
-        private PeerDriveUpdateService _perimeterService;
+        private PeerDriveTransferService _perimeterService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
         private Guid _stateItemId;
@@ -76,6 +79,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
                 var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
 
+                OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
+                OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+                
                 //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
                 //S0100
@@ -87,7 +93,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
                 //End Optimizations
 
-                _perimeterService = new PeerDriveUpdateService(_contextAccessor,
+                _perimeterService = new PeerDriveTransferService(_contextAccessor,
                     _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver, _pushNotificationService);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
@@ -202,8 +208,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
-            return transferKeyHeader;
+            var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
+
+            OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
+            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+            
+            return transferInstructionSet;
         }
 
         private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section)
@@ -385,10 +395,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
         }
 
-        private PeerDriveUpdateService GetPerimeterService()
+        private PeerDriveTransferService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            return new PeerDriveUpdateService(_contextAccessor,
+            return new PeerDriveTransferService(_contextAccessor,
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

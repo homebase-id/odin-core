@@ -18,6 +18,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Peer.Incoming;
 using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Core.Services.AppNotifications.WebSocket
 {

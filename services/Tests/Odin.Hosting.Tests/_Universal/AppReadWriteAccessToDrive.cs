@@ -56,7 +56,6 @@ public class AppSpecifyDriveAccess : IApiClientContext
 
     public IApiClientFactory GetFactory()
     {
-        Guard.Argument(_factory, nameof(_factory)).NotNull("did you call initialize?");
         return _factory;
     }
 

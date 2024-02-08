@@ -23,6 +23,7 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -142,7 +143,7 @@ namespace Odin.Core.Services.Authentication.Owner
             var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist.
-            Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
+            OdinValidationUtils.AssertNotNull(noncePackage, nameof(noncePackage));
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
             _nonceDataStorage.Delete(new GuidId(key));

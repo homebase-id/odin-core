@@ -19,8 +19,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-
             drive.EnsureDirectories();
 
             _logger = logger;

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
@@ -9,8 +8,9 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -57,8 +57,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
             //
             var uploadInstructionSet = await RemapTransitInstructionSet(section!.Body);
 
-            AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
-            
+            OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
+
             await fileSystemWriter.StartUpload(uploadInstructionSet);
 
             section = await reader.ReadNextSectionAsync();
@@ -99,6 +99,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
         }
 
+
         /// <summary>
         /// Sends a Delete Linked File Request to recipients
         /// </summary>
@@ -106,13 +107,12 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("files/senddeleterequest")]
         public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
         {
-            Guard.Argument(request, nameof(request)).NotNull();
-
-            AssertValidRecipientList(request?.Recipients ?? [], false);
-
-            Guard.Argument(request!.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier))
-                .Require(g => g.TargetDrive.IsValid())
-                .Require(g => g.GlobalTransitId != Guid.Empty);
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertValidRecipientList(request?.Recipients ?? [], false);
+            OdinValidationUtils.AssertNotNull(request!.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier));
+            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.TargetDrive.IsValid(), "Target Drive is invalid");
+            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
+                "GlobalTransitId is empty (cannot be Guid.Empty)");
 
             //send the deleted file
             var map = await peerTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,

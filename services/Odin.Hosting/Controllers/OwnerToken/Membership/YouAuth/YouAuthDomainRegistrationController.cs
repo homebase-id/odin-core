@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Membership.YouAuth;
+using Odin.Core.Services.Util;
 using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
@@ -101,7 +102,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             var result = await _registrationService.GetRegisteredClients(new AsciiDomainName(domain));
             return result;
         }
-        
+
         /// <summary>
         /// Deletes the client by it's access registration Id
         /// </summary>
@@ -130,10 +131,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         public async Task<YouAuthDomainClientRegistrationResponse> RegisterClient([FromBody] YouAuthDomainClientRegistrationRequest request)
         {
             //TODO: how are we going to encrypt this?
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsValidOdinId(request.Domain, out _);
+            OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
 
-            YouAuthDomainRegistrationRequest domainRequest = null;
-            var (token, corsHostName) =
-                await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientFriendlyName, domainRequest);
+            var (token, _) = await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientFriendlyName, null);
 
             return new YouAuthDomainClientRegistrationResponse()
             {

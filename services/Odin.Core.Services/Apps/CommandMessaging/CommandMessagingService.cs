@@ -11,7 +11,8 @@ using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -36,8 +37,6 @@ public class CommandMessagingService
 
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
-        Guard.Argument(command, nameof(command)).NotNull().Require(m => m.IsValid());
-
         var internalFile = _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
         var msg = new CommandTransferMessage()
@@ -104,8 +103,6 @@ public class CommandMessagingService
 
     public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList)
     {
-        Guard.Argument(commandIdList, nameof(commandIdList)).NotNull();
-        
         var list = new List<InternalDriveFileId>();
         
         foreach (var commandId in commandIdList)

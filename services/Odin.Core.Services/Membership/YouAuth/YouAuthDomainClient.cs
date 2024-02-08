@@ -18,9 +18,6 @@ public sealed class YouAuthDomainClient
 {
     public YouAuthDomainClient(AsciiDomainName domain, string friendlyName, AccessRegistration accessRegistration)
     {
-        Guard.Argument(domain, nameof(domain)).Require(x => !string.IsNullOrEmpty(x.DomainName));
-        Guard.Argument(accessRegistration, nameof(accessRegistration)).NotNull();
-
         Domain = domain;
         FriendlyName = friendlyName;
         AccessRegistration = accessRegistration;

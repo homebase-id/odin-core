@@ -6,7 +6,9 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Authentication.Peer;
+using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
@@ -14,7 +16,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     [ApiController]
     [Route(PeerApiPathConstants.FollowersV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
-    public class FollowPerimeterController : ControllerBase
+    public class FollowPerimeterController : OdinControllerBase
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
@@ -30,6 +32,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("follow")]
         public async Task<IActionResult> ReceiveFollowRequest([FromBody] RsaEncryptedPayload payload)
         {
+            OdinValidationUtils.AssertNotNull(payload, nameof(payload));
+            OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
+            
             var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload);
             if (isValidPublicKey == false)
             {
@@ -38,6 +43,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             }
 
             var request = OdinSystemSerializer.Deserialize<PerimeterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
+            
             await _followerPerimeterService.AcceptFollower(request);
 
             return Ok();

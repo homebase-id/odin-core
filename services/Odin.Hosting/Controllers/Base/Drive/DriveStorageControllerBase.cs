@@ -16,7 +16,8 @@ using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Core.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -276,7 +277,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
-            AssertValidRecipientList(request.Recipients, allowEmpty: true);
+            OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: true);
 
             var file = new InternalDriveFileId()
             {

@@ -10,7 +10,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Connections;
-using Odin.Core.Services.Peer.Outgoing.Reactions;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer
@@ -18,31 +18,19 @@ namespace Odin.Core.Services.Peer
     /// <summary>
     /// Base class for the transit subsystem providing various functions specific to Transit
     /// </summary>
-    public abstract class PeerServiceBase
+    public abstract class PeerServiceBase(
+        IOdinHttpClientFactory odinHttpClientFactory,
+        CircleNetworkService circleNetworkService,
+        OdinContextAccessor contextAccessor,
+        FileSystemResolver fileSystemResolver)
     {
-        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly CircleNetworkService _circleNetworkService;
-        private readonly OdinContextAccessor _contextAccessor;
-        private readonly FollowerService _followerService;
-        private readonly FileSystemResolver _fileSystemResolver;
 
-
-        protected OdinContext OdinContext => _contextAccessor.GetCurrent();
-
-        protected PeerServiceBase(IOdinHttpClientFactory odinHttpClientFactory, CircleNetworkService circleNetworkService,
-            OdinContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver)
-        {
-            _odinHttpClientFactory = odinHttpClientFactory;
-            _circleNetworkService = circleNetworkService;
-            _contextAccessor = contextAccessor;
-            _followerService = followerService;
-            _fileSystemResolver = fileSystemResolver;
-        }
+        protected OdinContext OdinContext => contextAccessor.GetCurrent();
 
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var key = token?.SharedSecret ?? new SensitiveByteArray(Guid.Empty.ToByteArray());
+            // var key = token?.SharedSecret ?? new SensitiveByteArray(Guid.Empty.ToByteArray());
             var jsonBytes = OdinSystemSerializer.Serialize(o).ToUtf8ByteArray();
             // var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
             var encryptedBytes = jsonBytes;
@@ -59,12 +47,12 @@ namespace Odin.Core.Services.Peer
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead);
             
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient, overrideHack: true);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -75,7 +63,7 @@ namespace Odin.Core.Services.Peer
                 return null;
             }
 
-            return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());
+            return icr!.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());
 
         }
 
@@ -85,12 +73,12 @@ namespace Odin.Core.Services.Peer
 
             if (token == null)
             {
-                var httpClient = _odinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
+                var httpClient = odinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
                 return (null, httpClient);
             }
             else
             {
-                var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
                 return (token, httpClient);
             }
         }
@@ -116,7 +104,7 @@ namespace Odin.Core.Services.Peer
         /// </summary>
         protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
         {
-            var (_, fileId) = await _fileSystemResolver.ResolveFileSystem(file);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file);
             return fileId;
         }
     }

@@ -14,7 +14,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -60,9 +60,9 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task StartUpload(UploadInstructionSet instructionSet)
     {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
-
+        
         if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
         {
             throw new OdinClientException("Cannot transfer to yourself; what's the point?", OdinClientErrorCode.InvalidRecipient);

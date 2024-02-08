@@ -18,6 +18,7 @@ using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -110,8 +111,8 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        Guard.Argument(request, nameof(request)).NotNull();
-        Guard.Argument(request.Version, nameof(request.Version)).NotNull().NotEmpty();
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Version, nameof(request.Version));
 
         if (request.Version != EulaSystemInfo.RequiredVersion)
         {
@@ -269,9 +270,6 @@ public class TenantConfigService
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-        Guard.Argument(newSettings, nameof(newSettings)).NotNull();
-        Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 

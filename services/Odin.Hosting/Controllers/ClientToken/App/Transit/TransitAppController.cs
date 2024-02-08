@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Peer.Incoming;
 using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
@@ -14,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
         [HttpPost("process")]
         public async Task<InboxStatus> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
-            AssertIsValidTargetDriveValue(request.TargetDrive);
+            OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             var result = await transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
             return result;
         }

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer.Incoming.Reactions;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Reactions;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;

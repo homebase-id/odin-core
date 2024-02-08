@@ -8,7 +8,6 @@ public sealed class AppClient
     public AppClient(GuidId appId, string friendlyName, AccessRegistration accessRegistration)
     {
         GuidId.AssertIsValid(appId);
-        Guard.Argument(accessRegistration, nameof(accessRegistration)).NotNull();
 
         AppId = appId;
         FriendlyName = friendlyName;

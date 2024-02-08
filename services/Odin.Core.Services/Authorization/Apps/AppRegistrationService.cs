@@ -59,9 +59,6 @@ namespace Odin.Core.Services.Authorization.Apps
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.AppId, nameof(request.AppId)).Require(request.AppId != Guid.Empty);
-
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
@@ -199,9 +196,6 @@ namespace Odin.Core.Services.Authorization.Apps
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName)
         {
-            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
-            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
-
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(appId);

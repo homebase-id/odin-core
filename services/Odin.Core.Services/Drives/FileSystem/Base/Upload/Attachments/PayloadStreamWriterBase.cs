@@ -7,6 +7,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Util;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -39,7 +40,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet)
     {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
 
         InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile);

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Commands
@@ -23,8 +24,10 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         {
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
 
-            AssertValidRecipientList(request.Command.Recipients);
-
+            OdinValidationUtils.AssertValidRecipientList(request.Command.Recipients);
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNull(request.Command, nameof(request.Command));
+            OdinValidationUtils.AssertIsTrue(request.Command.IsValid(), "Command is invalid");
             var results = await commandMessagingService.SendCommandMessage(driveId, request.Command);
             return results;
         }
@@ -47,6 +50,10 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         {
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
 
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));
+            OdinValidationUtils.AssertIsTrue(request.CommandIdList.Count() > 0, "The command list is empty");
+            
             await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList());
             return true;
         }

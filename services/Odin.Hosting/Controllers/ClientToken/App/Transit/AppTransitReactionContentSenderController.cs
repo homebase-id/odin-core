@@ -2,7 +2,7 @@
 using Microsoft.OpenApi.Models;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Reactions;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken;
 

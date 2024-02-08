@@ -21,10 +21,9 @@ namespace Odin.Core.Services.Base
             SensitiveByteArray sharedSecretKey,
             bool isSystem = false)
         {
-            Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
-
             this.SharedSecretKey = sharedSecretKey;
             // IcrKey = icrKey;
+            
             _permissionGroups = permissionGroups;
 
             // _instanceId = new Guid();

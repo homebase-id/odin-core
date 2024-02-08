@@ -10,7 +10,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Drives.FileSystem.Standard;

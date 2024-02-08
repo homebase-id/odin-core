@@ -15,6 +15,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Tenant;
+using Odin.Core.Services.Util;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.Home;
 
@@ -66,6 +67,7 @@ namespace Odin.Hosting.Controllers.Anonymous
 
         private async Task<IActionResult> SendStream(string filename)
         {
+            OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
             var (config, fileExists, stream) = await _staticFileContentService.GetStaticFileStream(filename, GetIfModifiedSince());
 
             if (fileExists && stream == Stream.Null)

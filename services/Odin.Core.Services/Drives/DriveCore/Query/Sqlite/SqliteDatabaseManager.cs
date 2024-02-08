@@ -36,7 +36,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
         var callerContext = odinContext.Caller;
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
