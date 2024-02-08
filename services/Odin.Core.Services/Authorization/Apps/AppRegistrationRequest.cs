@@ -41,7 +41,8 @@ namespace Odin.Core.Services.Authorization.Apps
         {
             var driveGrantsValid = this.Drives.Count == 0 || this.Drives.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
             var authorizedCirclesValid = this.AuthorizedCircles.Count == 0 || this.AuthorizedCircles.TrueForAll(c => c != Guid.Empty);
-            var circleGrantRequestValid = this.CircleMemberPermissionGrant?.IsValid() ?? true;
+            // var circleGrantRequestValid = this.CircleMemberPermissionGrant?.IsValid() ?? true;
+            var circleGrantRequestValid = true;
             var corsHeaderValid = string.IsNullOrEmpty(this.CorsHostName) || AppUtil.IsValidCorsHeader(this.CorsHostName);
 
             var isValid = this.AppId != Guid.Empty &&

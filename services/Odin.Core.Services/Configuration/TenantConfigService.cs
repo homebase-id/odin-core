@@ -289,7 +289,7 @@ public class TenantConfigService
             AppId = SystemAppConstants.FeedAppId,
             Name = "Homebase - Feed",
             AuthorizedCircles = new List<Guid>(),
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest(),
+            CircleMemberPermissionGrant = null,
             Drives =
             [
                 new()

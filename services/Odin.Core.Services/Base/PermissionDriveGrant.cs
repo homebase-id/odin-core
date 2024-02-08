@@ -20,15 +20,16 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public PermissionSet PermissionSet { get; set; }
 
-        public bool IsValid()
-        {
-            // you must request at least 1 drive or 1 permission
-            var driveList = this.Drives.ToList();
-            
-            var driveGrantsValid = driveList.Count == 0 || driveList.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
-            
-            var hasAtLeastOneRequest = this.PermissionSet.Keys.Count > 0 || driveList.Count > 1;
-            return driveGrantsValid && hasAtLeastOneRequest;
-        }
+        //removed as it makes the API interface wonky
+        // public bool IsValid()
+        // {
+        //     // you must request at least 1 drive or 1 permission
+        //     var driveList = this.Drives?.ToList() ?? [];
+        //     
+        //     var driveGrantsValid = driveList.Count == 0 || driveList.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
+        //     
+        //     var hasAtLeastOneRequest = this.PermissionSet?.Keys?.Count > 0  || driveList.Count > 1;
+        //     return driveGrantsValid && hasAtLeastOneRequest;
+        // }
     }
 }
