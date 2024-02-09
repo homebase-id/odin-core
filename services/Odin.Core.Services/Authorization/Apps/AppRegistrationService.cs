@@ -250,7 +250,8 @@ namespace Odin.Core.Services.Authorization.Apps
                         {
                             ClientIdOrDomain = appReg.Name,
                             CorsHostName = appReg.CorsHostName,
-                            AccessRegistrationId = accessReg.Id
+                            AccessRegistrationId = accessReg.Id,
+                            DevicePushNotificationKey = null
                         })
                 };
 

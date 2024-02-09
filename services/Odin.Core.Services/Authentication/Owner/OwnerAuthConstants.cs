@@ -10,7 +10,7 @@
         /// <summary>
         /// The name of the key used to store the token in cookies, dictionaries, etc.
         /// </summary>
-        public static string CookieName = "DY0810";
-
+        public const string CookieName = "DY0810";
+        
     }
 }

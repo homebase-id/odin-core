@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Fluff;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.EncryptionKeyService;
@@ -46,12 +48,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             // try
             // {
-            
-                var (result, sharedSecret) = await _authService.Authenticate(package);
-                AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
 
-                //TODO: need to encrypt shared secret using client public key
-                return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
+            var (result, sharedSecret) = await _authService.Authenticate(package);
+            AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
+            PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
+            
+            //TODO: need to encrypt shared secret using client public key
+            return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
+
             // }
             // catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
             // {
@@ -67,7 +71,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             {
                 _authService.ExpireToken(result.Id);
             }
-            
+
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
             return Task.FromResult(new JsonResult(true));
         }
@@ -106,14 +110,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             await _ss.SetNewPassword(reply);
             return new NoResultResponse(true);
         }
-        
+
         [HttpPost("resetpasswdrk")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordUsingRecoveryKeyRequest reply)
         {
             await _ss.ResetPasswordUsingRecoveryKey(reply);
             return new OkResult();
         }
-        
+
         [HttpPost("ispasswordset")]
         public async Task<bool> IsMasterPasswordSet()
         {
@@ -126,7 +130,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var salts = await _ss.GenerateNewSalts();
             return salts;
         }
-        
+
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
         {

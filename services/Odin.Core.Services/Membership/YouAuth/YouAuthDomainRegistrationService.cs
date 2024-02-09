@@ -519,7 +519,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                     {
                         ClientIdOrDomain = domainRegistration.Domain.DomainName,
                         CorsHostName = domainRegistration.CorsHostName,
-                        AccessRegistrationId = accessReg.Id
+                        AccessRegistrationId = accessReg.Id,
+                        DevicePushNotificationKey = null
                     })
             };
 

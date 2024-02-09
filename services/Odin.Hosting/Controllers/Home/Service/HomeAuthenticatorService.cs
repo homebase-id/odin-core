@@ -248,7 +248,8 @@ namespace Odin.Hosting.Controllers.Home.Service
                 {
                     ClientIdOrDomain = client.OdinId,
                     CorsHostName = "",
-                    AccessRegistrationId = client.AccessRegistration!.Id
+                    AccessRegistrationId = client.AccessRegistration!.Id,
+                    DevicePushNotificationKey = null
                 }
             );
 
@@ -362,7 +363,8 @@ namespace Odin.Hosting.Controllers.Home.Service
                     {
                         ClientIdOrDomain = client.OdinId,
                         CorsHostName = "",
-                        AccessRegistrationId = client.AccessRegistration.Id
+                        AccessRegistrationId = client.AccessRegistration.Id,
+                        DevicePushNotificationKey = null
                     });
 
                 return (cc, permissionContext);
