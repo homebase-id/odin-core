@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Text.Json.Serialization;
-using Dawn;
+
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Util;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Membership.Connections.Requests
@@ -39,11 +40,10 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         /// </summary>
         public virtual void Validate()
         {
-            Guard.Argument(SenderOdinId, nameof(SenderOdinId)).NotEmpty().NotNull();
-            Guard.Argument(Recipient, nameof(Recipient)).NotEmpty().NotNull();
-            Guard.Argument(Id, nameof(Id)).NotEqual(Guid.Empty);
-            Guard.Argument(ContactData, nameof(ContactData)).NotNull();
-
+            OdinValidationUtils.AssertNotNullOrEmpty(SenderOdinId, nameof(SenderOdinId));
+            OdinValidationUtils.AssertNotNull(Recipient, nameof(Recipient));
+            OdinValidationUtils.AssertNotEmptyGuid(Id, nameof(Id));
+            OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
             ContactData.Validate();
         }
     }

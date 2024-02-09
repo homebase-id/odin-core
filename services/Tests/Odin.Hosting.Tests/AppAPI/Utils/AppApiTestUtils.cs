@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dawn;
+
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;

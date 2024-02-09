@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
@@ -54,8 +54,6 @@ namespace Odin.Core.Services.Membership.Circles
 
         public Task Update(CircleDefinition newCircleDefinition)
         {
-            Guard.Argument(newCircleDefinition, nameof(newCircleDefinition)).NotNull();
-
             AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
 
             var existingCircle = this.GetCircle(newCircleDefinition.Id);
@@ -84,7 +82,6 @@ namespace Odin.Core.Services.Membership.Circles
 
         public CircleDefinition GetCircle(GuidId circleId)
         {
-            Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => GuidId.IsValid(id));
             var def = _circleValueStorage.Get<CircleDefinition>(circleId);
             return def;
         }
@@ -175,10 +172,6 @@ namespace Odin.Core.Services.Membership.Circles
 
         private Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
         {
-            Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.Id, nameof(request.Id)).Require(id => id != Guid.Empty);
-
             if (!skipValidation)
             {
                 AssertValid(request.Permissions, request.DriveGrants?.ToList());

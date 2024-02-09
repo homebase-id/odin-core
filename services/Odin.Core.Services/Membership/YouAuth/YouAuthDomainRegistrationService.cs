@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -65,8 +65,8 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
+            OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
+            OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {

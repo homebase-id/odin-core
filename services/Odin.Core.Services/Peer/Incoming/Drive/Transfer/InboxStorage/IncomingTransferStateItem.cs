@@ -1,4 +1,4 @@
-using Dawn;
+
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer.Encryption;
 
@@ -8,9 +8,6 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     {
         public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, EncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
-            Guard.Argument(id, nameof(id)).NotNull().Require(x => GuidId.IsValid(x));
-            Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
-
             this.Id = id;
             this.TempFile = tempFile;
             this.TransferInstructionSet = transferInstructionSet;

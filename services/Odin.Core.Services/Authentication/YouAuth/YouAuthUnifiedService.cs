@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -82,8 +82,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
     {
-        Guard.Argument(consentRequirements, nameof(consentRequirements)).NotNull();
-
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary

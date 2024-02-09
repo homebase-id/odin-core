@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -57,6 +58,14 @@ public static class OdinValidationUtils
         if (!value)
         {
             throw new OdinClientException(message, OdinClientErrorCode.ArgumentError);
+        }
+    }
+
+    public static void AssertNotEmptyGuid(Guid g, string name)
+    {
+        if (g == Guid.Empty)
+        {
+            throw new OdinClientException($"{name} is empty", OdinClientErrorCode.ArgumentError);
         }
     }
 

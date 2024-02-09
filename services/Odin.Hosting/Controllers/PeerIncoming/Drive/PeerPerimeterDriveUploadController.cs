@@ -97,7 +97,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                     _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver, _pushNotificationService);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
-
+                
                 //
 
                 var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync());

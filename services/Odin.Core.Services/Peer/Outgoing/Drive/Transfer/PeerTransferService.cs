@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -52,9 +51,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
-            Guard.Argument(options, nameof(options)).NotNull()
-                .Require(o => o.Recipients.TrueForAll(r => r != tenantContext.HostOdinId));
-
+            OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
             OdinValidationUtils.AssertValidRecipientList(options.Recipients);
 
             var sfo = new FileTransferOptions()
@@ -69,10 +66,8 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 //send now
                 return await SendFileNow(internalFile, options, sfo);
             }
-            else
-            {
-                return await SendFileLater(internalFile, options, sfo);
-            }
+
+            return await SendFileLater(internalFile, options, sfo);
         }
 
         public async Task ProcessOutbox()
@@ -461,10 +456,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
             TransitOptions options, FileTransferOptions fileTransferOptions)
         {
-            Guard.Argument(options, nameof(options)).NotNull()
-                .Require(o => o.Recipients?.Any() ?? false)
-                .Require(o => o.Recipients.TrueForAll(r => r != tenantContext.HostOdinId));
-
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
 
@@ -476,10 +467,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
             TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
         {
-            Guard.Argument(transitOptions, nameof(transitOptions)).NotNull()
-                .Require(o => o.Recipients?.Any() ?? false)
-                .Require(o => o.Recipients.TrueForAll(r => r != tenantContext.HostOdinId));
-
             var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
             var sendResults = await this.SendBatchNow(outboxItems);
 

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -492,8 +491,6 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId)
         {
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
             var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
@@ -533,8 +530,6 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
         {
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
             var dbRecords = _tenantStorage.Followers.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {

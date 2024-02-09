@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -11,6 +11,7 @@ using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Peer
@@ -86,7 +87,7 @@ namespace Odin.Core.Services.Peer
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
         {
             var caller = OdinContext.Caller.OdinId;
-            Guard.Argument(caller, nameof(OdinContext.Caller.OdinId)).NotNull().Require(v => v.HasValue());
+            OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
 
             //TODO: put decryption back in place
             // var t = await ResolveClientAccessToken(caller!.Value, tokenSource);

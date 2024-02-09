@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -67,8 +67,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
@@ -226,7 +224,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
-        Guard.Argument(count, nameof(count)).Require(c => c > 0);
         var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
@@ -322,8 +319,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
 
         var aclList = GetAcl(odinContext);

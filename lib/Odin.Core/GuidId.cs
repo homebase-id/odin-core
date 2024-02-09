@@ -1,6 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core;
 
@@ -161,7 +161,6 @@ public class GuidId
 
     public static GuidId FromString(string input, bool toLower = true)
     {
-        Guard.Argument(input, nameof(input)).NotEmpty().NotNull("Invalid input");
         var guid = ByteArrayUtil.ReduceSHA256Hash(toLower ? input.ToLower() : input);
         return new GuidId(guid);
     }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -29,10 +29,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration,
             DriveFileReaderWriter driveFileReaderWriter)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
-            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath), sd => $"No directory for drive storage at {sd.TempDataRootPath}");
-
             drive.EnsureDirectories();
 
             _logger = logger;
@@ -407,8 +403,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task DeleteMissingThumbnailFiles(Guid fileId, IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
         {
-            var list = thumbnailsToKeep?.ToList();
-            Guard.Argument(list, nameof(list)).NotNull();
+            var list = thumbnailsToKeep?.ToList() ?? [];
 
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
