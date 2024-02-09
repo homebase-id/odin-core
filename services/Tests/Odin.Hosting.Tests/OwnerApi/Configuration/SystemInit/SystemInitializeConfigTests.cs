@@ -3,12 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Castle.Components.DictionaryAdapter.Xml;
 using NUnit.Framework;
-using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Membership.Circles;
@@ -195,7 +192,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
-            var contactDrive = SystemDriveConstants.ContactDrive;
             var standardProfileDrive = SystemDriveConstants.ProfileDrive;
 
             var newDrive = new CreateDriveRequest()
