@@ -46,15 +46,15 @@ public static class Helpers
 
     //
 
-    public static JobStatusEnum JobStatusFromStatusValue(string statusValue)
+    public static JobStatus JobStatusFromStatusValue(string statusValue)
     {
         return statusValue switch
         {
-            JobConstants.StatusValueAdded => JobStatusEnum.Scheduled,
-            JobConstants.StatusValueStarted => JobStatusEnum.Started,
-            JobConstants.StatusValueCompleted => JobStatusEnum.Completed,
-            JobConstants.StatusValueFailed => JobStatusEnum.Failed,
-            _ => JobStatusEnum.Unknown
+            JobConstants.StatusValueAdded => JobStatus.Scheduled,
+            JobConstants.StatusValueStarted => JobStatus.Started,
+            JobConstants.StatusValueCompleted => JobStatus.Completed,
+            JobConstants.StatusValueFailed => JobStatus.Failed,
+            _ => JobStatus.Unknown
         };
     }
 

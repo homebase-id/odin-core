@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Admin.Tenants.Jobs;
-using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
-using Quartz;
 
 namespace Odin.Core.Services.Admin.Tenants;
 #nullable enable

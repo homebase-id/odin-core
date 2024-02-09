@@ -1,13 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
 
-namespace Odin.Core.Services.Admin.Tenants.Jobs;
+namespace Odin.Test.Helpers.Quarz;
 #nullable enable
 
 public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler

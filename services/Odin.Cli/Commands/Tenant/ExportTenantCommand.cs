@@ -58,12 +58,12 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     }
                     var (jobResponse, jobData) = JobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
 
-                    if (jobResponse.Status == JobStatusEnum.Failed)
+                    if (jobResponse.Status == JobStatus.Failed)
                     {
                         throw new Exception($"Error exporting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (jobResponse.Status == JobStatusEnum.Completed)
+                    if (jobResponse.Status == JobStatus.Completed)
                     {
                         AnsiConsole.MarkupLine($"[green]Done[/]. Copy of tenant on server: {jobData?.TargetPath}");
                         done = true;

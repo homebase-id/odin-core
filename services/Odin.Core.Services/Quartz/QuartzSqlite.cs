@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Data.Sqlite;
-using Odin.Core.Exceptions;
 
-namespace Odin.Hosting.Quartz;
+namespace Odin.Core.Services.Quartz;
 
 public static class QuartzSqlite
 {

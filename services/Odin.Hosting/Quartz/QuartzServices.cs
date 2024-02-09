@@ -1,14 +1,11 @@
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Services.Background.Certificate;
-using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Quartz;
-using Odin.Hosting.Quartz;
 using Quartz;
 using Quartz.AspNetCore;
 
-namespace Odin.Hosting.Extensions;
+namespace Odin.Hosting.Quartz;
 
 public static class QuartzExtensions
 {
@@ -19,7 +16,6 @@ public static class QuartzExtensions
             options.Scheduling.IgnoreDuplicates = true;
             options.Scheduling.OverWriteExistingData = true;
         });
-        services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>(); // SEB:TODO Remove
         services.AddSingleton<JobListener>();
         services.AddSingleton<IJobManager, JobManager>();
         services.AddQuartz(q =>
@@ -29,11 +25,6 @@ public static class QuartzExtensions
                 tp.MaxConcurrency = 256;
             });
             q.AddJobListener<JobListener>();
-            if (config.Quartz.EnableQuartzBackgroundService)
-            {
-                q.UseDefaultCronSchedule(config);
-                q.UseDefaultCertificateRenewalSchedule(config);
-            }
             q.UsePersistentStore(storeOptions =>
             {
                 var connectionString =

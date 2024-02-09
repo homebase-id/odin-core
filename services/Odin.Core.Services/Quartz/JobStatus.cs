@@ -1,6 +1,6 @@
 namespace Odin.Core.Services.Quartz;
 
-public enum JobStatusEnum
+public enum JobStatus
 {
     Unknown,
     NotFound,

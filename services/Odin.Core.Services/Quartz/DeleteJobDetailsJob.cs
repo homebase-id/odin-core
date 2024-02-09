@@ -22,13 +22,6 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
     //
 
-    public DeleteJobDetailsScheduler(ILoggerFactory loggerFactory, JobKey jobToDelete, TimeSpan deleteAfter)
-        : this(loggerFactory, jobToDelete, DateTimeOffset.Now + deleteAfter)
-    {
-    }
-
-    //
-
     public sealed override string JobId => Helpers.UniqueId();
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)

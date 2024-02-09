@@ -33,8 +33,7 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
     {
         var jobData = context.JobDetail.JobDataMap;
 
-        var correlationId = jobData.GetString(JobConstants.CorrelationIdKey);
-        if (!string.IsNullOrWhiteSpace(correlationId))
+        if (jobData.TryGetString(JobConstants.CorrelationIdKey, out var correlationId) && correlationId != null)
         {
             correlationContext.Id = correlationId;
         }

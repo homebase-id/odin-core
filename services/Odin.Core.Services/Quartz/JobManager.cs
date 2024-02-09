@@ -11,9 +11,7 @@ namespace Odin.Core.Services.Quartz;
 // SEB:TODO
 // - testing, see ExceptionHandlingMiddlewareTest.cs
 // - deadletter
-// - clean up ExclusiveJobManager and family
-// - move NonExclusiveTestJob and ExclusiveTestJob to test project
-// - IHostApplicationLifetime hostApplicationLifetime
+// - handle IHostApplicationLifetime hostApplicationLifetime ???
 
 public interface IJobManager
 {
@@ -21,6 +19,7 @@ public interface IJobManager
     Task<JobResponse> GetResponse(JobKey jobKey);
     Task<bool> Exists(JobKey jobKey);
     Task<bool> Delete(JobKey jobKey);
+    Task<bool> Delete(AbstractJobScheduler scheduler);
 }
 
 //
@@ -87,7 +86,7 @@ public sealed class JobManager(
         {
             return new JobResponse
             {
-                Status = JobStatusEnum.NotFound,
+                Status = JobStatus.NotFound,
                 JobKey = jobKey.ToString(),
             };
         }
@@ -129,10 +128,31 @@ public sealed class JobManager(
             var deleted = await scheduler.DeleteJob(jobKey);
             if (deleted)
             {
-                logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
+                // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
             }
             return deleted;
         }
+    }
+
+    //
+
+    public async Task<bool> Delete(AbstractJobScheduler jobScheduler)
+    {
+        using (await _mutex.LockAsync())
+        {
+            var scheduler = await schedulerFactory.GetScheduler();
+            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.JobId);
+            if (jobKey != null)
+            {
+                var deleted = await scheduler.DeleteJob(jobKey);
+                if (deleted)
+                {
+                    // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
+                }
+                return deleted;
+            }
+        }
+        return false;
     }
 
     //

@@ -3,57 +3,66 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Services.Base;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Quartz;
 
-namespace Odin.Core.Services.Background.Certificate
+namespace Odin.Core.Services.Background.Certificate;
+
+public class EnsureIdentityHasValidCertificateScheduler(OdinConfiguration odinConfig) : AbstractJobScheduler
 {
+    public override string JobId => "CertificateRenewal";
+
     /// <summary>
-    /// Looks for certificates that require renewal and queues their renewal
+    /// Watches for certificates that need renewal; starts the process when required
     /// </summary>
-    [DisallowConcurrentExecution]
-    // ReSharper disable once ClassNeverInstantiated.Global
-    public class EnsureIdentityHasValidCertificateJob : IJob
+    public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger<EnsureIdentityHasValidCertificateJob> _logger;
-        private readonly IIdentityRegistry _registry;
-        private readonly OdinConfiguration _config;
-
-        public EnsureIdentityHasValidCertificateJob(
-            IServiceProvider serviceProvider,
-            ILogger<EnsureIdentityHasValidCertificateJob> logger,
-            IIdentityRegistry registry,
-            OdinConfiguration config)
+        var triggerBuilders = new List<TriggerBuilder>
         {
-            _serviceProvider = serviceProvider;
-            _logger = logger;
-            _registry = registry;
-            _config = config;
+            TriggerBuilder.Create()
+                .WithSimpleSchedule(schedule => schedule
+                    .RepeatForever()
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.EnsureCertificateProcessorIntervalSeconds))
+                    .WithMisfireHandlingInstructionNextWithRemainingCount())
+                .StartAt(DateTimeOffset.UtcNow.Add(
+                    TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)))
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
+    }
+}
+
+/// <summary>
+/// Looks for certificates that require renewal and queues their renewal
+/// </summary>
+[DisallowConcurrentExecution]
+public class EnsureIdentityHasValidCertificateJob(
+    ICorrelationContext correlationContext,
+    ILogger<EnsureIdentityHasValidCertificateJob> logger,
+    IServiceProvider serviceProvider,
+    IIdentityRegistry registry,
+    OdinConfiguration config) : AbstractJob(correlationContext)
+{
+    protected sealed override async Task Run(IJobExecutionContext context)
+    {
+        // logger.LogDebug("EnsureIdentityHasValidCertificateJob running...");
+
+        var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
+
+        var tasks = new List<Task>();
+        var identities = await registry.GetList();
+        foreach (var identity in identities.Results)
+        {
+            var tenantContext = registry.CreateTenantContext(identity);
+            var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
+            var task = tc.RenewIfAboutToExpire(identity);
+            tasks.Add(task);
         }
 
-        public async Task Execute(IJobExecutionContext context)
-        {
-            _logger.LogDebug("Executing job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
-
-            var certificateServiceFactory = _serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-
-            var tasks = new List<Task>();
-            var identities = await _registry.GetList();
-            foreach (var identity in identities.Results)
-            {
-                var tenantContext = _registry.CreateTenantContext(identity);
-                var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
-                var task = tc.RenewIfAboutToExpire(identity);
-                tasks.Add(task);
-            }
-
-            await Task.WhenAll(tasks);
-
-            _logger.LogDebug("Completed job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
-        }
+        await Task.WhenAll(tasks);
     }
 }

@@ -184,7 +184,7 @@ public class AdminControllerTest
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             jobResponse = JobResponse.Deserialize(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == JobStatusEnum.Completed)
+            if (jobResponse.Status == JobStatus.Completed)
             {
                 break;
             }
@@ -240,7 +240,7 @@ public class AdminControllerTest
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             (jobResponse, exportData) = JobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
-            if (jobResponse.Status == JobStatusEnum.Completed)
+            if (jobResponse.Status == JobStatus.Completed)
             {
                 break;
             }

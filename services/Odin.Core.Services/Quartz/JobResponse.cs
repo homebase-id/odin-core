@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 
@@ -8,7 +7,7 @@ namespace Odin.Core.Services.Quartz;
 
 public class JobResponse
 {
-    public JobStatusEnum Status { get; set; }
+    public JobStatus Status { get; set; }
     public string JobKey { get; set; } = "";
     public string? Error { get; set; }
     public string? Data { get; set; }

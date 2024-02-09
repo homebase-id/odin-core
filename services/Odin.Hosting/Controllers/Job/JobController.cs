@@ -27,7 +27,7 @@ public class JobController : ControllerBase
         var jk = Helpers.ParseJobKey(jobKey);
         var job = await _jobManager.GetResponse(jk);
 
-        if (job.Status == JobStatusEnum.NotFound)
+        if (job.Status == JobStatus.NotFound)
         {
             return NotFound(job);
         }
