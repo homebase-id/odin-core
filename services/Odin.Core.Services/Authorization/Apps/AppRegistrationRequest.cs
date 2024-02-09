@@ -39,10 +39,10 @@ namespace Odin.Core.Services.Authorization.Apps
 
         public bool IsValid()
         {
-            var driveGrantsValid = this.Drives.Count == 0 || this.Drives.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
-            var authorizedCirclesValid = this.AuthorizedCircles.Count == 0 || this.AuthorizedCircles.TrueForAll(c => c != Guid.Empty);
+            var driveGrantsValid = this.Drives == null || this.Drives.Count == 0 || this.Drives.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
+            var authorizedCirclesValid = this.AuthorizedCircles == null || this.AuthorizedCircles.Count == 0 ||
+                                         this.AuthorizedCircles!.TrueForAll(c => c != Guid.Empty);
             // var circleGrantRequestValid = this.CircleMemberPermissionGrant?.IsValid() ?? true;
-            var circleGrantRequestValid = true;
             var corsHeaderValid = string.IsNullOrEmpty(this.CorsHostName) || AppUtil.IsValidCorsHeader(this.CorsHostName);
 
             var isValid = this.AppId != Guid.Empty &&
@@ -50,7 +50,7 @@ namespace Odin.Core.Services.Authorization.Apps
                           !string.IsNullOrWhiteSpace(this.Name) &&
                           driveGrantsValid &&
                           authorizedCirclesValid &&
-                          circleGrantRequestValid &&
+                          // circleGrantRequestValid &&
                           corsHeaderValid;
 
             return isValid;
