@@ -12,6 +12,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
@@ -129,7 +130,7 @@ namespace Odin.Core.Services.Authentication.Owner
             };
 
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
-            var odinContext = _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            var odinContext = _httpContextAccessor!.HttpContext!.RequestServices.GetRequiredService<OdinContext>();
             await this.UpdateOdinContext(token, odinContext);
             await EnsureFirstRunOperations(token);
 
@@ -226,7 +227,6 @@ namespace Odin.Core.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        /// <param name="token"></param>
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
@@ -249,7 +249,8 @@ namespace Odin.Core.Services.Authentication.Owner
                     {
                         ClientIdOrDomain = string.Empty,
                         CorsHostName = string.Empty,
-                        AccessRegistrationId = token.Id
+                        AccessRegistrationId = token.Id,
+                        DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                     });
 
                 return dotYouContext;
@@ -332,14 +333,15 @@ namespace Odin.Core.Services.Authentication.Owner
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             odinContext.Caller = new CallerContext(
-                odinId: (OdinId)context.Request.Host.Host,
+                odinId: (OdinId)context!.Request.Host.Host,
                 masterKey: null, //will be set later
                 securityLevel: SecurityGroupType.Owner,
                 odinClientContext: new OdinClientContext()
                 {
                     ClientIdOrDomain = string.Empty,
                     CorsHostName = string.Empty,
-                    AccessRegistrationId = token.Id
+                    AccessRegistrationId = token.Id,
+                    DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                 });
 
             OdinContext ctx = await this.GetDotYouContext(token);

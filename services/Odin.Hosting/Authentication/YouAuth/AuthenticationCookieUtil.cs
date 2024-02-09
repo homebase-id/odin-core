@@ -20,4 +20,5 @@ internal static class AuthenticationCookieUtil
             
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }
+    
 }
