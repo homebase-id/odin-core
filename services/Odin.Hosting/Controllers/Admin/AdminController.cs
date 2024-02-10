@@ -25,6 +25,14 @@ public class AdminController : ControllerBase
 
     //
 
+    [HttpGet("ping")]
+    public ActionResult<string> Ping()
+    {
+        return "pong";
+    }
+
+    //
+
     [HttpGet("tenants")]
     public async Task<ActionResult<List<TenantModel>>> GetTenants(
         [FromQuery(Name = "include-payload")] bool includePayload = false)
