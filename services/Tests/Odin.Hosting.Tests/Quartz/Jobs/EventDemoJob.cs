@@ -1,0 +1,63 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Services.Quartz;
+using Quartz;
+
+namespace Odin.Hosting.Tests.Quartz.Jobs;
+
+public class EventDemoScheduler : AbstractJobScheduler
+{
+    public sealed override string JobType { get; } = Core.Services.Quartz.Helpers.UniqueId();
+
+    public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
+    {
+        jobBuilder
+            .WithRetention(TimeSpan.FromMinutes(1))
+            .WithJobEvent<EventDemoEvent>()
+            .UsingJobData("shouldFail", ShouldFail.ToString());
+
+        var triggerBuilders = new List<TriggerBuilder>
+        {
+            TriggerBuilder.Create()
+                .StartNow()
+        };
+
+        return Task.FromResult((jobBuilder, triggerBuilders));
+    }
+
+    public bool ShouldFail { get; set; }
+}
+
+
+public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(correlationContext)
+{
+    protected override Task Run(IJobExecutionContext context)
+    {
+        var jobData = context.JobDetail.JobDataMap;
+
+        if (jobData.TryGetBooleanValue("shouldFail", out var shouldFail) && shouldFail)
+        {
+            throw new Exception("Job failed");
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+public class EventDemoEvent : IJobEvent
+{
+    public Task Execute(IServiceProvider serviceProvider, IJobExecutionContext context, JobStatus status)
+    {
+        var testContainer = serviceProvider.GetRequiredService<EventDemoTestContainer>();
+        testContainer.Status.Add(status);
+        return Task.CompletedTask;
+    }
+}
+
+public class EventDemoTestContainer
+{
+    public List<JobStatus> Status { get; set; } = [];
+}

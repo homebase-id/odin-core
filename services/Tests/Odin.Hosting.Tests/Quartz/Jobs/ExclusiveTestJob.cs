@@ -1,10 +1,12 @@
-using System.Diagnostics;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
 
-namespace Odin.Test.Helpers.Quarz;
+namespace Odin.Hosting.Tests.Quartz.Jobs;
 #nullable enable
 
 public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
@@ -42,7 +44,6 @@ public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : Ab
     public int FailCount { get; set; } = 0;
     public int RetryCount { get; set; } = 0;
     public TimeSpan Retention { get; set; } = TimeSpan.FromMinutes(1);
-
 }
 
 //
@@ -71,6 +72,16 @@ public class ExclusiveTestJob(
         await SetUserDefinedJobData(context, new NonExclusiveTestData { Echo = echo });
 
         logger.LogDebug("Finished {JobKey}", jobKey);
+    }
+}
+
+//
+
+public class NonExclusiveTestEvent : IJobEvent
+{
+    public Task Execute(IServiceProvider serviceProvider, IJobExecutionContext context, JobStatus status)
+    {
+        throw new NotImplementedException();
     }
 }
 

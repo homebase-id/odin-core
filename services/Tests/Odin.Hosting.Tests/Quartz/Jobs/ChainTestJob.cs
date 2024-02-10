@@ -1,10 +1,11 @@
-using System.Diagnostics;
-using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
 
-namespace Odin.Test.Helpers.Quarz;
+namespace Odin.Hosting.Tests.Quartz.Jobs;
 #nullable enable
 
 public class ChainTestScheduler : AbstractJobScheduler

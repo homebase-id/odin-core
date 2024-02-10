@@ -22,4 +22,6 @@ public static class JobConstants
     public const string JobToDeleteKey = "odin_job_to_delete";
 
     public const string UserDefinedDataKey = "odin_job_user_defined_data";
+
+    public const string JobEventTypeKey = "odin_job_event_type";
 }

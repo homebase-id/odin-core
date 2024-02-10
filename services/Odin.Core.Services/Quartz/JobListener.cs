@@ -10,15 +10,18 @@ namespace Odin.Core.Services.Quartz;
 
 public class JobListener : IJobListener
 {
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<JobListener> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IJobManager _jobManager;
 
     public JobListener(
+        IServiceProvider serviceProvider,
         ILogger<JobListener> logger,
         IJobManager jobManager,
         ILoggerFactory loggerFactory)
     {
+        _serviceProvider = serviceProvider;
         _logger = logger;
         _jobManager = jobManager;
         _loggerFactory = loggerFactory;
@@ -29,13 +32,16 @@ public class JobListener : IJobListener
     public async Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken)
     {
         var job = context.JobDetail;
+        var jobData = job.JobDataMap;
+
         _logger.LogDebug("Job {JobKey} starting", job.Key);
         if (job.Durable)
         {
-            var jobData = job.JobDataMap;
             jobData[JobConstants.StatusKey] = JobConstants.StatusValueStarted;
             await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
         }
+
+        await context.ExecuteJobEvent(_serviceProvider, JobStatus.Started);
     }
 
     //
@@ -62,6 +68,8 @@ public class JobListener : IJobListener
             {
                 await ScheduleJobDeletion(job.Key, long.Parse(retention));
             }
+
+            await context.ExecuteJobEvent(_serviceProvider, JobStatus.Completed);
         }
         else
         {
@@ -110,6 +118,8 @@ public class JobListener : IJobListener
                     await ScheduleJobDeletion(job.Key, long.Parse(retention));
                 }
 
+                await context.ExecuteJobEvent(_serviceProvider, JobStatus.Failed);
+
                 // SEB:TODO dead letter queue???
             }
 
@@ -125,6 +135,9 @@ public class JobListener : IJobListener
         var jobSchedule = new DeleteJobDetailsScheduler(_loggerFactory, jobKey, deleteAt);
         await _jobManager.Schedule<DeleteJobDetailsJob>(jobSchedule);
     }
+
+    //
+
 
     //
 

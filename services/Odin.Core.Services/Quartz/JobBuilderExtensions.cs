@@ -94,4 +94,12 @@ namespace Odin.Core.Services.Quartz;
 
      //
 
-}
+     public static JobBuilder WithJobEvent<T>(this JobBuilder builder) where T : IJobEvent
+     {
+         builder.UsingJobData(JobConstants.JobEventTypeKey, typeof(T).AssemblyQualifiedName);
+         return builder;
+     }
+
+     //
+
+ }

@@ -11,7 +11,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Quartz;
 using Odin.Hosting.Quartz;
-using Odin.Test.Helpers.Quarz;
+using Odin.Hosting.Tests.Quartz.Jobs;
 using Quartz;
 
 namespace Odin.Hosting.Tests.Quartz;
@@ -29,13 +29,12 @@ public class JobManagerTest
     public void Setup()
     {
         var loggerMock = new Mock<ILogger>();
-
-        // Mock ILoggerFactory
         var loggerFactoryMock = new Mock<ILoggerFactory>();
         loggerFactoryMock.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(loggerMock.Object);
 
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
+
         _config = new OdinConfiguration
         {
             Host = new OdinConfiguration.HostSection()
@@ -59,6 +58,9 @@ public class JobManagerTest
                 services.AddTransient<NonExclusiveTestScheduler>();
                 services.AddTransient<ExclusiveTestScheduler>();
                 services.AddTransient<ChainTestScheduler>();
+                services.AddTransient<EventDemoScheduler>();
+
+                services.AddSingleton<EventDemoTestContainer>();
             })
             .Build();
 
@@ -382,5 +384,49 @@ public class JobManagerTest
             Assert.That(data?.IterationCount, Is.EqualTo(1));
             Assert.That(data.NextJobKey, Is.EqualTo(""));
         }
+    }
+
+    [Test]
+    public async Task ItShouldExecuteEventOnJobStartingAndOnJobCompleting()
+    {
+        var eventDemoTestContainer = _host.Services.GetRequiredService<EventDemoTestContainer>();
+        Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(0));
+
+        var scheduler = _host.Services.GetRequiredService<EventDemoScheduler>();
+        scheduler.ShouldFail = false;
+
+        var jobKey = await _jobManager.Schedule<EventDemoJob>(scheduler);
+
+        // Wait for job to complete
+        await WaitForJobStatus(jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+
+        // Give the event some time to sync and execute
+        await Task.Delay(1000);
+
+        Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(2));
+        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(JobStatus.Started));
+        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(JobStatus.Completed));
+    }
+
+    [Test]
+    public async Task ItShouldExecuteEventOnJobStartingAndOnJobFailed()
+    {
+        var eventDemoTestContainer = _host.Services.GetRequiredService<EventDemoTestContainer>();
+        Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(0));
+
+        var scheduler = _host.Services.GetRequiredService<EventDemoScheduler>();
+        scheduler.ShouldFail = true;
+
+        var jobKey = await _jobManager.Schedule<EventDemoJob>(scheduler);
+
+        // Wait for job to complete
+        await WaitForJobStatus(jobKey, JobStatus.Failed, _maxWaitForJobStatus);
+
+        // Give the event some time to sync and execute
+        await Task.Delay(1000);
+
+        Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(2));
+        Assert.That(eventDemoTestContainer.Status[0], Is.EqualTo(JobStatus.Started));
+        Assert.That(eventDemoTestContainer.Status[1], Is.EqualTo(JobStatus.Failed));
     }
 }
