@@ -13,7 +13,6 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Serilog;
 
 namespace Odin.Core.Services.Membership.CircleMembership;
 
@@ -40,19 +39,34 @@ public class CircleMembershipService
         _logger = logger;
     }
 
-    public void DeleteMemberFromAllCircles(AsciiDomainName domainName)
+    public void DeleteMemberFromAllCircles(AsciiDomainName domainName, DomainType domainType)
     {
-        _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
+        //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
+        var memberId = OdinId.ToHashId(domainName);
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
+        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        {
+            foreach (var circleMemberRecord in circleMemberRecords)
+            {
+                var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
+                if (sd.DomainType == domainType)
+                {
+                    _tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
+                }
+            }
+        }
+
+        //
+        // _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles([OdinId.ToHashId(domainName)]);
     }
 
-    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName)
+    public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType)
     {
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
-        foreach (var circleMemberRecord in circleMemberRecords)
-        {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
-            yield return sd.CircleGrant;
-        }
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
+            OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
+        );
+
+        return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
     public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, bool overrideHack = false)
@@ -166,7 +180,7 @@ public class CircleMembershipService
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
-            if (this.IsEnabled(cg.CircleId))
+            if (this.CircleIsEnabled(cg.CircleId, out var circleExists))
             {
                 enabledCircles.Add(cg.CircleId);
                 grants.Add(cg.CircleId, new ExchangeGrant()
@@ -180,6 +194,14 @@ public class CircleMembershipService
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet
                 });
+            }
+            else
+            {
+                if (!circleExists)
+                {
+                    _logger.LogInformation("Caller [{callingIdentity}] has been granted circleId:[{circleId}], which no longer exists",
+                        _contextAccessor.GetCurrent().Caller.OdinId, cg.CircleId);
+                }
             }
         }
 
@@ -281,8 +303,10 @@ public class CircleMembershipService
         return Task.CompletedTask;
     }
 
-    private bool IsEnabled(GuidId circleId)
+    private bool CircleIsEnabled(GuidId circleId, out bool exists)
     {
-        return _circleDefinitionService.IsEnabled(circleId);
+        var circle = _circleDefinitionService.GetCircle(circleId);
+        exists = circle != null;
+        return !circle?.Disabled ?? false;
     }
 }

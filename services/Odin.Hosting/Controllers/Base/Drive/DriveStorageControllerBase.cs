@@ -67,7 +67,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
-            var (header, payloadDescriptor, encryptedKeyHeader, fileExists) = 
+            var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
 
             if (!fileExists)
@@ -81,6 +81,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.AcceptRanges, "bytes");
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.IsEncrypted.ToString());
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
@@ -92,7 +93,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 var payloadSize = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key)?.BytesWritten ??
                                   throw new OdinSystemException("Invalid payload key");
 
-                var to = request.Chunk.Start + request.Chunk.Length - 1;
+                var to = request.Chunk.Length == int.MaxValue ? payloadSize - 1 : request.Chunk.Start + request.Chunk.Length - 1;
 
                 // Sanity
                 if (to >= payloadSize)
@@ -124,8 +125,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey);
-            
-            if(!fileExists)
+
+            if (!fileExists)
             {
                 return NotFound();
             }

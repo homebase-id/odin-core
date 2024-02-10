@@ -152,7 +152,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 try
                 {
-                    var buffer = new byte[chunk.Length];
+                    var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
                     if (chunk.Start > fileStream.Length)
                     {
                         throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
@@ -231,6 +231,10 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+            if (header == null)
+            {
+                return false;
+            }
             //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
             foreach (var d in header.FileMetadata.Payloads)
             {
