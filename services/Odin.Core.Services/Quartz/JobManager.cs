@@ -2,24 +2,26 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
+using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Serialization;
 using Quartz;
+using Quartz.Impl.Matchers;
 
 namespace Odin.Core.Services.Quartz;
 #nullable enable
 
 // SEB:TODO
-// - testing, see ExceptionHandlingMiddlewareTest.cs
-// - deadletter
-// - handle IHostApplicationLifetime hostApplicationLifetime ???
+// - deadletter (in JobListener.cs)
 
 public interface IJobManager
 {
     Task<JobKey> Schedule<TJob>(AbstractJobScheduler jobScheduler) where TJob : IJob;
     Task<JobResponse> GetResponse(JobKey jobKey);
+    Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class;
     Task<bool> Exists(JobKey jobKey);
     Task<bool> Delete(JobKey jobKey);
-    Task<bool> Delete(AbstractJobScheduler scheduler);
+    Task<bool> Delete(string jobType);
 }
 
 //
@@ -39,7 +41,7 @@ public sealed class JobManager(
         {
             var scheduler = await schedulerFactory.GetScheduler();
 
-            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.JobId);
+            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.JobType);
             if (jobKey != null)
             {
                 logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
@@ -59,8 +61,9 @@ public sealed class JobManager(
                 throw new ArgumentException("Job name must not contain '.'");
             }
 
-            jobKey = new JobKey(jobName, jobScheduler.JobId);
+            jobKey = new JobKey(jobName, jobScheduler.JobType);
             jobBuilder.WithIdentity(jobKey);
+            jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
             jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
 
             var job = jobBuilder.Build();
@@ -71,6 +74,7 @@ public sealed class JobManager(
             }
 
             logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
+
             return jobKey;
         }
     }
@@ -109,6 +113,25 @@ public sealed class JobManager(
 
     //
 
+    public async Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class
+    {
+        var response = await GetResponse(jobKey);
+        if (response.Data == null)
+        {
+            return (response, null);
+        }
+
+        var data = OdinSystemSerializer.Deserialize<T>(response.Data);
+        if (data == null)
+        {
+            throw new OdinSystemException("Error deserializing JobResponse.Data");
+        }
+
+        return (response, data);
+    }
+
+    //
+
     public async Task<bool> Exists(JobKey jobKey)
     {
         using (await _mutex.LockAsync())
@@ -136,25 +159,18 @@ public sealed class JobManager(
 
     //
 
-    public async Task<bool> Delete(AbstractJobScheduler jobScheduler)
+    public async Task<bool> Delete(string jobType)
     {
         using (await _mutex.LockAsync())
         {
             var scheduler = await schedulerFactory.GetScheduler();
-            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.JobId);
-            if (jobKey != null)
+            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobType));
+            var deleted = await scheduler.DeleteJobs(jobKeys);
+            if (deleted)
             {
-                var deleted = await scheduler.DeleteJob(jobKey);
-                if (deleted)
-                {
-                    // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
-                }
-                return deleted;
+                // logger.LogDebug("Explicitly deleted {JobId}", jobScheduler.JobId);
             }
+            return deleted;
         }
-        return false;
     }
-
-    //
-
 }

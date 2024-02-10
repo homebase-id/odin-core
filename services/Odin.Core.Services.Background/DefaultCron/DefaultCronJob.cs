@@ -19,7 +19,7 @@ public class DefaultCronScheduler(
     ILogger<DefaultCronScheduler> logger,
     OdinConfiguration odinConfig) : AbstractJobScheduler
 {
-    public sealed override string JobId => "DefaultCron";
+    public sealed override string JobType { get; } = "DefaultCron";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -54,7 +54,7 @@ public class DefaultCronJob(
 {
     protected sealed override Task Run(IJobExecutionContext context)
     {
-        // logger.LogDebug("DefaultCronJob running...");
+        logger.LogTrace("DefaultCronJob running...");
 
         var batchSize = config.Quartz.CronBatchSize;
         if (batchSize <= 0)

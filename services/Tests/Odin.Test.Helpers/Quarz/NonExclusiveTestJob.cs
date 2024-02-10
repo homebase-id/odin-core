@@ -9,7 +9,7 @@ namespace Odin.Test.Helpers.Quarz;
 
 public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public sealed override string JobId => Core.Services.Quartz.Helpers.UniqueId();
+    public sealed override string JobType { get; } = Core.Services.Quartz.Helpers.UniqueId();
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -18,25 +18,25 @@ public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger
         jobBuilder
             .WithRetry(2, TimeSpan.FromSeconds(1))
             .WithRetention(TimeSpan.FromMinutes(1))
-            .UsingJobData("foo", "bar");
+            .UsingJobData("echo", TestEcho);
 
         var triggerBuilders = new List<TriggerBuilder>
         {
             TriggerBuilder.Create()
-                .StartAt(DateTimeOffset.Now + TimeSpan.FromSeconds(1))
-                .WithPriority(1)
+                .StartNow()
         };
 
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
+
+    public string TestEcho { get; set; } = "";
 }
 
 //
 
 public class NonExclusiveTestJob(
     ICorrelationContext correlationContext,
-    ILoggerFactory loggerFactory,
-    IJobManager jobManager)
+    ILoggerFactory loggerFactory)
     : AbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
@@ -45,28 +45,20 @@ public class NonExclusiveTestJob(
 
         var jobKey = context.JobDetail.Key;
         logger.LogDebug("Starting {JobKey}", jobKey);
-
-        var sw = Stopwatch.StartNew();
         logger.LogDebug("Working...");
-        await Task.Delay(TimeSpan.FromSeconds(1));
 
-        // throw new OdinClientException("Oh no...!");
+        var jobData = context.JobDetail.JobDataMap;
+        jobData.TryGetString("echo", out var echo);
 
-        //
-        // Store job specific data:
-        //
-        var responseData = new
-        {
-            foo = "bar"
-        };
-        await SetUserDefinedJobData(context, responseData);
+        await SetUserDefinedJobData(context, new NonExclusiveTestData { Echo = echo });
 
-        var jobSchedule = new LogScheduler("NonExclusiveTestJob finished");
-        await jobManager.Schedule<LogJob>(jobSchedule);
-
-        logger.LogDebug("Finished {JobKey} on thread {tid} in {elapsed}s", jobKey, Environment.CurrentManagedThreadId, sw.ElapsedMilliseconds / 1000.0);
+        logger.LogDebug("Finished {JobKey}", jobKey);
     }
 }
 
 //
 
+public class NonExclusiveTestData
+{
+    public string? Echo { get; set; }
+}

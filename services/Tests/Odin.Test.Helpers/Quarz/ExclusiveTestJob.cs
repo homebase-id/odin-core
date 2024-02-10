@@ -9,25 +9,40 @@ namespace Odin.Test.Helpers.Quarz;
 
 public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public sealed override string JobId => "exclusive-test";
+    public sealed override string JobType { get; } = "exclusive-test";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        logger.LogDebug("Scheduling {Job}", JobId);
+        logger.LogDebug("Scheduling {Job}", JobType);
+
+        if (RetryCount > 0)
+        {
+            jobBuilder.WithRetry(RetryCount, TimeSpan.FromSeconds(0));
+        }
+
+        if (Retention.TotalSeconds > 0)
+        {
+            jobBuilder.WithRetention(Retention);
+        }
 
         jobBuilder
-            .WithRetry(2, TimeSpan.FromSeconds(1))
-            .WithRetention(TimeSpan.FromMinutes(1));
+            .UsingJobData("echo", TestEcho)
+            .UsingJobData("failCount", FailCount.ToString());
 
         var triggerBuilders = new List<TriggerBuilder>
         {
             TriggerBuilder.Create()
                 .StartNow()
-                .WithPriority(500)
         };
 
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
+
+    public string TestEcho { get; set; } = "";
+    public int FailCount { get; set; } = 0;
+    public int RetryCount { get; set; } = 0;
+    public TimeSpan Retention { get; set; } = TimeSpan.FromMinutes(1);
+
 }
 
 //
@@ -42,12 +57,26 @@ public class ExclusiveTestJob(
         var jobKey = context.JobDetail.Key;
         logger.LogDebug("Starting {JobKey}", jobKey);
 
-        var sw = Stopwatch.StartNew();
-        logger.LogDebug("Working...");
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        var jobData = context.JobDetail.JobDataMap;
+        jobData.TryGetString("echo", out var echo);
+        jobData.TryGetInt("failCount", out var failCount);
 
-        logger.LogDebug("Finished {JobKey} on thread {tid} in {elapsed}s", jobKey, Environment.CurrentManagedThreadId, sw.ElapsedMilliseconds / 1000.0);
+        await context.UpdateJobMap("failCount", (failCount - 1).ToString());
+
+        if (failCount > 0)
+        {
+            throw new Exception("Failing");
+        }
+
+        await SetUserDefinedJobData(context, new NonExclusiveTestData { Echo = echo });
+
+        logger.LogDebug("Finished {JobKey}", jobKey);
     }
 }
 
 //
+
+public class ExclusiveTestData
+{
+    public string? Echo { get; set; }
+}

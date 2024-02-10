@@ -22,7 +22,7 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
     //
 
-    public sealed override string JobId => Helpers.UniqueId();
+    public sealed override string JobType { get; } = Helpers.UniqueId();
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

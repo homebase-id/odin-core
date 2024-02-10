@@ -46,11 +46,17 @@ namespace Odin.Core.Services.Quartz;
          }
 
          // NOTE: values must be strings if "storeOptions.UseProperties = true;"
-         builder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
          builder.UsingJobData(JobConstants.RetryCountKey, 0.ToString());
          builder.UsingJobData(JobConstants.RetryMaxKey, retryMax.ToString());
          builder.UsingJobData(JobConstants.RetryDelaySecondsKey, retrySeconds.ToString());
          return builder;
+     }
+
+     public static JobBuilder WithRetry(
+         this JobBuilder builder,
+         int retryMax)
+     {
+         return builder.WithRetry(retryMax, TimeSpan.FromSeconds(0));
      }
 
      //
@@ -81,7 +87,6 @@ namespace Odin.Core.Services.Quartz;
 
          // NOTE: values must be strings if "storeOptions.UseProperties = true;"
          builder.StoreDurably();
-         builder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
          builder.UsingJobData(JobConstants.CompletedRetentionSecondsKey, completedRetentionSeconds.ToString());
          builder.UsingJobData(JobConstants.FailedRetentionSecondsKey, failedRetentionSeconds.ToString());
          return builder;

@@ -7,14 +7,17 @@ namespace Odin.Core.Services.Quartz;
 
 public abstract class AbstractJobScheduler : IJobScheduler
 {
-    // The JobId should be unique per job.
-    // If you want to make sure the job cannot be scheduled more than once, override this with a static value.
-    // Once the job is completed (or failed), the JobId can be scheduled again.
-    // DO NOT put any sensitive data in the JobId.
-    public abstract string JobId { get; }
+    // JobType:
+    // - The value of the JobType determines if the job can be scheduled in multiple instances.
+    //   Schedules with static JobType values will behave as "singletons" and will not be scheduled more than once,
+    //   until the job is completed (or failed).
+    // - DO NOT put any sensitive data in the JobType.
+    // - BEWARE of using computed ( => ) properties instead of { get; } as the former are not static.
+    public abstract string JobType { get; }
 
     // Create a job and return the job and trigger builders.
     public abstract Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;
+
 }
 
 

@@ -14,7 +14,7 @@ namespace Odin.Core.Services.Background.Certificate;
 
 public class EnsureIdentityHasValidCertificateScheduler(OdinConfiguration odinConfig) : AbstractJobScheduler
 {
-    public override string JobId => "CertificateRenewal";
+    public override string JobType => "CertificateRenewal";
 
     /// <summary>
     /// Watches for certificates that need renewal; starts the process when required
@@ -44,12 +44,11 @@ public class EnsureIdentityHasValidCertificateJob(
     ICorrelationContext correlationContext,
     ILogger<EnsureIdentityHasValidCertificateJob> logger,
     IServiceProvider serviceProvider,
-    IIdentityRegistry registry,
-    OdinConfiguration config) : AbstractJob(correlationContext)
+    IIdentityRegistry registry) : AbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {
-        // logger.LogDebug("EnsureIdentityHasValidCertificateJob running...");
+        logger.LogTrace("EnsureIdentityHasValidCertificateJob running...");
 
         var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
 

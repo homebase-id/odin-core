@@ -13,11 +13,11 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 
 public class DeleteTenantScheduler(ILogger<DeleteTenantScheduler> logger, string domain) : AbstractJobScheduler
 {
-    public sealed override string JobId => $"delete-tenant:{domain}";
+    public sealed override string JobType { get; } = $"delete-tenant:{domain}";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        logger.LogDebug("Scheduling {Job}", JobId);
+        logger.LogDebug("Scheduling {Job}", JobType);
 
         jobBuilder
             .WithRetry(2, TimeSpan.FromSeconds(5))

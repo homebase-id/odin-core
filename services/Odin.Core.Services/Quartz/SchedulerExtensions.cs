@@ -68,19 +68,30 @@ public static class SchedulerExtensions
 
     //
 
-    public static async Task SetUserDefinedJobData(
+    public static async Task UpdateJobMap(
         this IScheduler scheduler,
         IJobDetail jobDetail,
-        object serializableObject)
+        string key,
+        string value)
     {
         if (!jobDetail.Durable)
         {
             throw new OdinSystemException("JobDetail must be durable. Did you forget WithRetention() ?");
         }
 
-        var json = OdinSystemSerializer.Serialize(serializableObject);
-        jobDetail.JobDataMap[JobConstants.UserDefinedDataKey] = json;
+        jobDetail.JobDataMap[key] = value;
         await scheduler.AddJob(jobDetail, true); // update JobDataMap
+    }
+
+    //
+
+    public static async Task SetUserDefinedJobData(
+        this IScheduler scheduler,
+        IJobDetail jobDetail,
+        object serializableObject)
+    {
+        var json = OdinSystemSerializer.Serialize(serializableObject);
+        await scheduler.UpdateJobMap(jobDetail, JobConstants.UserDefinedDataKey, json);
     }
 }
 
