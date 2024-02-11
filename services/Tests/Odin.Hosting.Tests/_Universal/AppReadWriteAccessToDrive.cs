@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -56,7 +56,6 @@ public class AppSpecifyDriveAccess : IApiClientContext
 
     public IApiClientFactory GetFactory()
     {
-        Guard.Argument(_factory, nameof(_factory)).NotNull("did you call initialize?");
         return _factory;
     }
 

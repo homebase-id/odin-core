@@ -7,7 +7,7 @@ public static class ControllerConstants
     public const string OwnerDrive = "Owner -> Drive";
     public const string Circles = "Circles";
 
-    public const string TransitQuery = "Transit Query";
+    public const string PeerQuery = "Transit Query";
     
     public const string ClientTokenCdn = "ClientToken -> Cdn";
 

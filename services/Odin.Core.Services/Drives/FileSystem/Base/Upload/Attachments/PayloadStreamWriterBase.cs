@@ -2,11 +2,12 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Util;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -39,7 +40,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet)
     {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
 
         InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile);
@@ -113,8 +114,8 @@ public abstract class PayloadStreamWriterBase
         {
             return new
             {
-                PayloadKey = pd.PayloadKey,
-                PayloadUid = pd.PayloadUid,
+                pd.PayloadKey,
+                pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -160,7 +161,7 @@ public abstract class PayloadStreamWriterBase
 
         if (_package.InstructionSet.Recipients?.Any() ?? false)
         {
-            throw new NotImplementedException("TODO: Sending a payload not yet supported");
+            throw new NotImplementedException("TODO: Sending a payload from an existing file not yet supported");
         }
 
         //TODO: need to send the new payload to the recipient?

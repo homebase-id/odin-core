@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -35,7 +36,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
         var callerContext = odinContext.Caller;
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
@@ -67,8 +67,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
@@ -196,9 +194,9 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             }
             catch (SqliteException e)
             {
-                if (e.SqliteErrorCode == 19 || e.SqliteErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+                if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
                 {
-                    _logger.LogError($"UniqueId constraint Error in Sqlite.  UniqueId was [{metadata.AppData.UniqueId}] and fileId was [{metadata.File.FileId}]");
+                    throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
         }
@@ -226,7 +224,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
-        Guard.Argument(count, nameof(count)).Require(c => c > 0);
         var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
@@ -322,8 +319,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
 
         var aclList = GetAcl(odinContext);

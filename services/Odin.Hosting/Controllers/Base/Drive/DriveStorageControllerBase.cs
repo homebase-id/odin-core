@@ -9,12 +9,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Core.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -22,22 +25,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// <summary>
     /// Base class for any endpoint reading drive storage
     /// </summary>
-    public abstract class DriveStorageControllerBase : OdinControllerBase
+    public abstract class DriveStorageControllerBase(
+        ILogger logger,
+        FileSystemResolver fileSystemResolver,
+        IPeerTransferService peerTransferService) : OdinControllerBase
     {
-        private readonly ILogger _logger;
-        private readonly ITransitService _transitService;
-        private readonly FileSystemResolver _fileSystemResolver;
-
-        protected DriveStorageControllerBase(
-            ILogger logger,
-            FileSystemResolver fileSystemResolver,
-            ITransitService transitService
-        )
-        {
-            _fileSystemResolver = fileSystemResolver;
-            _transitService = transitService;
-            _logger = logger;
-        }
+        private readonly ILogger _logger = logger;
 
         /// <summary>
         /// Returns the file header
@@ -284,6 +277,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
+            OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: true);
+
             var file = new InternalDriveFileId()
             {
                 DriveId = driveId,
@@ -297,7 +292,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var fs = fileSystemResolver.ResolveFileSystem(file);
 
             var header = await fs.Storage.GetServerFileHeader(file);
             if (header == null)
@@ -316,8 +311,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 };
 
                 //send the deleted file
-                var responses = await _transitService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
-                    new SendFileOptions()
+                var responses = await peerTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                    new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal
@@ -331,13 +326,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                     switch (code)
                     {
-                        case TransitResponseCode.AcceptedIntoInbox:
+                        case PeerResponseCode.AcceptedIntoInbox:
                             result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
                             break;
 
-                        case TransitResponseCode.Rejected:
-                        case TransitResponseCode.QuarantinedPayload:
-                        case TransitResponseCode.QuarantinedSenderNotConnected:
+                        case PeerResponseCode.Rejected:
+                        case PeerResponseCode.QuarantinedPayload:
+                        case PeerResponseCode.QuarantinedSenderNotConnected:
                             result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestRejected);
                             break;
 

@@ -6,7 +6,8 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Services.AppNotifications.Push;
@@ -59,7 +60,7 @@ public class PushNotificationOutbox
     /// <summary>
     /// Add and item back the queue due to a failure
     /// </summary>
-    public async Task MarkFailure(Guid marker, TransferFailureReason reason)
+    public async Task MarkFailure(Guid marker)
     {
         _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
 

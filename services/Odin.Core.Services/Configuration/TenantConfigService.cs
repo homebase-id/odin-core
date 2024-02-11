@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
@@ -18,6 +17,7 @@ using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -110,8 +110,8 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        Guard.Argument(request, nameof(request)).NotNull();
-        Guard.Argument(request.Version, nameof(request.Version)).NotNull().NotEmpty();
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.Version, nameof(request.Version));
 
         if (request.Version != EulaSystemInfo.RequiredVersion)
         {
@@ -152,8 +152,7 @@ public class TenantConfigService
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
-
-
+        
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCircle();
@@ -269,9 +268,6 @@ public class TenantConfigService
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-        Guard.Argument(newSettings, nameof(newSettings)).NotNull();
-        Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
@@ -291,7 +287,7 @@ public class TenantConfigService
             AppId = SystemAppConstants.FeedAppId,
             Name = "Homebase - Feed",
             AuthorizedCircles = new List<Guid>(),
-            CircleMemberPermissionGrant = new PermissionSetGrantRequest(),
+            CircleMemberPermissionGrant = null,
             Drives =
             [
                 new()
@@ -448,8 +444,7 @@ public class TenantConfigService
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
         var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-
-
+        
         if (shouldGrantKey)
         {
             if (!systemCircle.Permissions.Keys.Contains(key))

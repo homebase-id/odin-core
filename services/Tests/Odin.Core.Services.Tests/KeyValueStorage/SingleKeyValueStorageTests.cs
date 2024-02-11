@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -14,7 +15,7 @@ public class SingleKeyValueStorageTests
         var db = new IdentityDatabase($"Data Source={finalPath}");
         db.CreateDatabase(false);
 
-        Assert.Throws<ArgumentException>(() => { new SingleKeyValueStorage(db.tblKeyValue, Guid.Empty); });
+        Assert.Throws<OdinSystemException>(() => { new SingleKeyValueStorage(db.tblKeyValue, Guid.Empty); });
         db.Dispose();
     }
 

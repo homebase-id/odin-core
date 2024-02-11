@@ -1,5 +1,7 @@
 using System.Collections.Generic;
-using Dawn;
+
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Util;
 
 namespace Odin.Core.Services.Membership.Connections.Requests;
 
@@ -16,8 +18,8 @@ public class AcceptRequestHeader
 
     public void Validate()
     {
-        Guard.Argument(Sender, nameof(Sender)).NotEmpty().NotNull();
-        Guard.Argument(ContactData, nameof(ContactData)).NotNull();
+        OdinValidationUtils.AssertNotNullOrEmpty(Sender, nameof(Sender));
+        OdinValidationUtils.AssertNotNull(ContactData, nameof(ContactData));
         ContactData.Validate();
     }
 }

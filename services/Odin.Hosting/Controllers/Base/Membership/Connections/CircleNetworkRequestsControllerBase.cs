@@ -1,10 +1,12 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Core.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Connections
@@ -63,6 +65,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("pending/accept")]
         public async Task<bool> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
         {
+            OdinValidationUtils.AssertNotNull(header, nameof(header));
+            header.Validate();
             await _requestService.AcceptConnectionRequest(header);
             return true;
         }
@@ -139,6 +143,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("sendrequest")]
         public async Task<bool> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
+            OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
+            OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
+            OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
+            
             await _requestService.SendConnectionRequest(requestHeader);
             return true;
         }

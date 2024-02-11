@@ -72,7 +72,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError,
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest,
                     $"Should have failed sending the request to self.  Response code was [{response.StatusCode}]");
             }
         }

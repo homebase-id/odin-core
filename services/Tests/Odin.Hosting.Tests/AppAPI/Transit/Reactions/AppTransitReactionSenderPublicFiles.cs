@@ -16,7 +16,8 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -273,7 +274,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Merry uses transit query to get all files of that file type
             //
-            var request = new TransitQueryBatchRequest()
+            var request = new PeerQueryBatchRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 QueryParams = new()

@@ -71,7 +71,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
-            var getBatchResponse = await merryAppClient.TransitQuery.GetBatch(new TransitQueryBatchRequest()
+            var getBatchResponse = await merryAppClient.TransitQuery.GetBatch(new PeerQueryBatchRequest()
             {
                 OdinId = TestIdentities.Pippin.OdinId
             });
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
-            var getBatchResponse = await merryAppClient.TransitQuery.GetModified(new TransitQueryModifiedRequest()
+            var getBatchResponse = await merryAppClient.TransitQuery.GetModified(new PeerQueryModifiedRequest()
             {
                 OdinId = TestIdentities.Merry.OdinId,
             });
@@ -153,7 +153,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
         {
             //Note: I do not prepare any remote data because the permission is enforced on the origin identity
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.ReadConnections);
-            var getBatchResponse = await merryAppClient.TransitQuery.GetBatchCollection(new TransitQueryBatchCollectionRequest()
+            var getBatchResponse = await merryAppClient.TransitQuery.GetBatchCollection(new PeerQueryBatchCollectionRequest()
             {
                 OdinId = TestIdentities.Merry.OdinId,
                 Queries = new List<CollectionQueryParamSection>()

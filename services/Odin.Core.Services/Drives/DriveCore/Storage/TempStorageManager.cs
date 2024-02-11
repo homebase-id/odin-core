@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Drives.FileSystem.Base;
 
@@ -19,8 +19,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-
             drive.EnsureDirectories();
 
             _logger = logger;

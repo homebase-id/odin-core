@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
+
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -470,8 +470,6 @@ namespace Odin.Core.Services.Membership.Connections
         /// <param name="circleDef"></param>
         public async Task UpdateCircleDefinition(CircleDefinition circleDef)
         {
-            Guard.Argument(circleDef, nameof(circleDef)).NotNull();
-
             _circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
 
             var members = await GetCircleMembers(circleDef.Id);

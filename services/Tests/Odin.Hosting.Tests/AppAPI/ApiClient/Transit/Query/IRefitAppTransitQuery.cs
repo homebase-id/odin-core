@@ -14,17 +14,17 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Query
 {
     public interface IRefitAppTransitQuery
     {
-        private const string RootEndpoint = AppApiPathConstants.TransitQueryV1;
+        private const string RootEndpoint = AppApiPathConstants.PeerQueryV1;
 
             
         [Post(RootEndpoint + "/modified")]
-        Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request);
+        Task<ApiResponse<QueryModifiedResponse>> GetModified(PeerQueryModifiedRequest request);
 
         [Post(RootEndpoint + "/batchcollection")]
-        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] TransitQueryBatchCollectionRequest request);
+        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] PeerQueryBatchCollectionRequest request);
         
         [Post(RootEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] TransitQueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] PeerQueryBatchRequest request);
 
         [Post(RootEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);

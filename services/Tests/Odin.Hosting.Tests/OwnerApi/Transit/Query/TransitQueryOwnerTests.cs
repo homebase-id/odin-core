@@ -12,14 +12,18 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -289,7 +293,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-                var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
+                var queryBatchResponse = await svc.GetBatch(new PeerQueryBatchRequest()
                 {
                     OdinId = recipient.OdinId,
                     QueryParams = fileTagQueryParams,
@@ -1047,7 +1051,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerTransitQuery>(client, sharedSecret);
 
-                var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
+                var queryBatchResponse = await svc.GetBatch(new PeerQueryBatchRequest()
                 {
                     OdinId = recipient.OdinId,
                     QueryParams = fileTagQueryParams,

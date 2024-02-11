@@ -36,11 +36,17 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.ReceivingHost.Incoming;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
-using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Reactions;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Core.Services.Peer.Incoming.Reactions;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Query;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -173,7 +179,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
 
             cb.RegisterType<TransitInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
@@ -195,17 +201,17 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
+            cb.RegisterType<PeerTransferService>().As<IPeerTransferService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerQueryService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitReactionContentSenderService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitReactionPerimeterService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerReactionService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PublicPrivateKeyService>()
                 .As<INotificationHandler<OwnerIsOnlineNotification>>()

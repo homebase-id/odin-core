@@ -1,6 +1,6 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
-using Dawn;
+
 using Odin.Core.Identity;
 
 namespace Odin.Core.Util
@@ -15,8 +15,6 @@ namespace Odin.Core.Util
         /// <param name="publicKeyCertificate"></param>
         public DomainCertificateUtil(string publicKeyCertificate)
         {
-            Guard.Argument(publicKeyCertificate, nameof(publicKeyCertificate)).NotEmpty();
-
             _certData = publicKeyCertificate;
             ParseCertificate();
         }

@@ -57,16 +57,9 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
-        // public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
-
-        // public void SetIsConnected()
-        // {
-        //     //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
-        //     this.SecurityLevel = SecurityGroupType.Connected;
-        // }
 
         public void AssertHasMasterKey()
         {

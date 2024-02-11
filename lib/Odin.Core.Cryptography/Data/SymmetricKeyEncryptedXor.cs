@@ -1,5 +1,5 @@
 ﻿using System;
-using Dawn;
+
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
@@ -51,8 +51,6 @@ namespace Odin.Core.Cryptography.Data
 
         private void EncryptKey(SensitiveByteArray remoteHalfKey, SensitiveByteArray keyToProtect)
         {
-            Guard.Argument(KeyHash == null).True();
-
             KeyEncrypted = XorManagement.XorEncrypt(remoteHalfKey.GetKey(), keyToProtect.GetKey());
             KeyHash = CalcKeyHash(remoteHalfKey);
         }

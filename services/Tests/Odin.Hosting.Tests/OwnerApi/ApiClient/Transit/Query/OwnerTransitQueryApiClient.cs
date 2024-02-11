@@ -15,9 +15,6 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -50,7 +47,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(TransitQueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(PeerQueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {
@@ -60,7 +57,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryModifiedResponse>> GetModified(PeerQueryModifiedRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {
@@ -70,7 +67,7 @@ public class OwnerTransitQueryApiClient
         }
     }
 
-    public async Task<ApiResponse<QueryBatchResponse>> GetBatch(TransitQueryBatchRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryBatchResponse>> GetBatch(PeerQueryBatchRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fst);
         {

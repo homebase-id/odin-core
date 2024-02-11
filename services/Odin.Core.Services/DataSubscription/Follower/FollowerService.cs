@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dawn;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -19,7 +18,7 @@ using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing.Drive.Query;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Refit;
@@ -36,7 +35,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         private readonly TenantContext _tenantContext;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly StandardFileSystem _standardFileSystem;
-        private readonly TransitQueryService _transitQueryService;
+        private readonly PeerQueryService _peerQueryService;
         private readonly CircleNetworkService _circleNetworkService;
 
         private const int MaxRecordsPerChannel = 100; //TODO:config
@@ -47,7 +46,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, TransitQueryService transitQueryService, CircleNetworkService circleNetworkService)
+            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerQueryService peerQueryService, CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -56,7 +55,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
             _standardFileSystem = standardFileSystem;
-            _transitQueryService = transitQueryService;
+            _peerQueryService = peerQueryService;
             _circleNetworkService = circleNetworkService;
         }
 
@@ -370,7 +369,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            var channelDrives = await _transitQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
+            var channelDrives = await _peerQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
 
             //filter the drives to those I want to see
             if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -405,7 +404,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _transitQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
+            var collection = await _peerQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
 
             foreach (var results in collection.Results)
             {
@@ -492,8 +491,6 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId)
         {
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
             var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
@@ -533,8 +530,6 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
         {
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
             var dbRecords = _tenantStorage.Followers.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
@@ -144,12 +144,8 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
-            Guard.Argument(header.Id, nameof(header.Id)).HasValue();
-            Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
-            header.ContactData.Validate();
+            
+            header.ContactData?.Validate();
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {
@@ -331,9 +327,6 @@ namespace Odin.Core.Services.Membership.Connections.Requests
         public async Task AcceptConnectionRequest(AcceptRequestHeader header)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            // _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Guard.Argument(header, nameof(header)).NotNull();
             header.Validate();
 
             var pendingRequest = await GetPendingRequest((OdinId)header.Sender);
