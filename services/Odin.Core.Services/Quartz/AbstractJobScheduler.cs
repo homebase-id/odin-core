@@ -7,13 +7,13 @@ namespace Odin.Core.Services.Quartz;
 
 public abstract class AbstractJobScheduler : IJobScheduler
 {
-    // JobType:
-    // - The value of the JobType determines if the job can be scheduled in multiple instances.
-    //   Schedules with static JobType values will behave as "singletons" and will not be scheduled more than once,
+    // SchedulingKey:
+    // - The value of the SchedulingKey determines if the job can be scheduled in multiple instances.
+    //   Schedules with static SchedulingKey values will behave as "singletons" and will not be scheduled more than once,
     //   until the job is completed (or failed).
-    // - DO NOT put any sensitive data in the JobType.
+    // - DO NOT put any sensitive data in the SchedulingKey.
     // - BEWARE of using computed ( => ) properties instead of { get; } as the former are not static.
-    public abstract string JobType { get; }
+    public abstract string SchedulingKey { get; }
 
     // Create a job and return the job and trigger builders.
     public abstract Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;

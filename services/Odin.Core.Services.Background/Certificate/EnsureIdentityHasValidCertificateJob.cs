@@ -14,7 +14,7 @@ namespace Odin.Core.Services.Background.Certificate;
 
 public class EnsureIdentityHasValidCertificateScheduler(OdinConfiguration odinConfig) : AbstractJobScheduler
 {
-    public override string JobType => "CertificateRenewal";
+    public override string SchedulingKey => "CertificateRenewal";
 
     /// <summary>
     /// Watches for certificates that need renewal; starts the process when required

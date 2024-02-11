@@ -43,7 +43,8 @@ public class JobManagerTest
             },
             Quartz = new OdinConfiguration.QuartzSection()
             {
-                SqliteDatabaseFileName = "quartz.sqlite"
+                SqliteDatabaseFileName = "quartz.sqlite",
+                MaxConcurrency = 256
             },
         };
 
@@ -183,7 +184,7 @@ public class JobManagerTest
         scheduler2.TestEcho = "Hello World 2";
 
         // Verify that the jobtype is the same for both schedulers
-        Assert.That(scheduler1.JobType, Is.EqualTo(scheduler2.JobType));
+        Assert.That(scheduler1.SchedulingKey, Is.EqualTo(scheduler2.SchedulingKey));
 
         var jobKey1 = await _jobManager.Schedule<ExclusiveTestJob>(scheduler1);
         var jobKey2 = await _jobManager.Schedule<ExclusiveTestJob>(scheduler2);

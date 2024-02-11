@@ -14,11 +14,11 @@ namespace Odin.Core.Services.Admin.Tenants.Jobs;
 
 public class ExportTenantScheduler(ILogger<ExportTenantScheduler> logger, string domain) : AbstractJobScheduler
 {
-    public sealed override string JobType { get; } = $"export-tenant:{domain}";
+    public sealed override string SchedulingKey { get; } = $"export-tenant:{domain}";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        logger.LogDebug("Scheduling {Job}", JobType);
+        logger.LogDebug("Scheduling {Job}", SchedulingKey);
 
         jobBuilder
             .WithRetry(2, TimeSpan.FromSeconds(5))

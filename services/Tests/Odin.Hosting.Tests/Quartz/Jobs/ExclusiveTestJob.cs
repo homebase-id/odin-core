@@ -11,11 +11,11 @@ namespace Odin.Hosting.Tests.Quartz.Jobs;
 
 public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
 {
-    public sealed override string JobType { get; } = "exclusive-test";
+    public sealed override string SchedulingKey { get; } = "exclusive-test";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        logger.LogDebug("Scheduling {Job}", JobType);
+        logger.LogDebug("Scheduling {Job}", SchedulingKey);
 
         if (RetryCount > 0)
         {

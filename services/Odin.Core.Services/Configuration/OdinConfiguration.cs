@@ -293,6 +293,8 @@ namespace Odin.Core.Services.Configuration
 
             public string SqliteDatabaseFileName { get; init; }
 
+            public int MaxConcurrency { get; init; }
+
             public QuartzSection()
             {
                 // Mockable support
@@ -307,6 +309,7 @@ namespace Odin.Core.Services.Configuration
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
                 SqliteDatabaseFileName = config.Required<string>("Quartz:SqliteDatabaseFileName");
+                MaxConcurrency = config.Required<int>("Quartz:MaxConcurrency");
             }
         }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Quartz;
 using Quartz;
@@ -10,7 +9,7 @@ namespace Odin.Hosting.Tests.Quartz.Jobs;
 
 public class EventDemoScheduler : AbstractJobScheduler
 {
-    public sealed override string JobType { get; } = Core.Services.Quartz.Helpers.UniqueId();
+    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

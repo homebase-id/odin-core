@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.Quartz.Jobs;
 
 public class ChainTestScheduler : AbstractJobScheduler
 {
-    public sealed override string JobType { get; } = Core.Services.Quartz.Helpers.UniqueId();
+    public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

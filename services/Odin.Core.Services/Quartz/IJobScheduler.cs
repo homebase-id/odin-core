@@ -6,6 +6,6 @@ namespace Odin.Core.Services.Quartz;
 
 public interface IJobScheduler
 {
-    string JobType { get; }
+    string SchedulingKey { get; }
     Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;
 }

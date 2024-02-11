@@ -22,7 +22,7 @@ public static class QuartzExtensions
         {
             q.UseDefaultThreadPool(tp =>
             {
-                tp.MaxConcurrency = 256;
+                tp.MaxConcurrency = config.Quartz.MaxConcurrency;
             });
             q.AddJobListener<JobListener>();
             q.UsePersistentStore(storeOptions =>

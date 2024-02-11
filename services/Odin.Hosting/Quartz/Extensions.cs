@@ -23,14 +23,14 @@ public static class Extensions
         // DefaultCron
         {
             var scheduler = services.GetRequiredService<DefaultCronScheduler>();
-            await jobManager.Delete(scheduler.JobType);
+            await jobManager.Delete(scheduler.SchedulingKey);
             await jobManager.Schedule<DefaultCronJob>(scheduler);
         }
 
         // EnsureIdentityHasValidCertificate
         {
             var scheduler = services.GetRequiredService<EnsureIdentityHasValidCertificateScheduler>();
-            await jobManager.Delete(scheduler.JobType);
+            await jobManager.Delete(scheduler.SchedulingKey);
             await jobManager.Schedule<EnsureIdentityHasValidCertificateJob>(scheduler);
         }
     }

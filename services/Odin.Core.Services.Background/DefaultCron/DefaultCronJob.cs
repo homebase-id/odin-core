@@ -19,7 +19,7 @@ public class DefaultCronScheduler(
     ILogger<DefaultCronScheduler> logger,
     OdinConfiguration odinConfig) : AbstractJobScheduler
 {
-    public sealed override string JobType { get; } = "DefaultCron";
+    public sealed override string SchedulingKey { get; } = "DefaultCron";
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -35,7 +35,7 @@ public class DefaultCronScheduler(
         };
 
         logger.LogInformation(
-            "Started Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batchsize of {CronBatchSize}",
+            "Scheduling Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batchsize of {CronBatchSize}",
             odinConfig.Quartz.CronProcessingInterval, odinConfig.Quartz.CronBatchSize);
 
         return Task.FromResult((jobBuilder, triggerBuilders));

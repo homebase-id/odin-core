@@ -41,7 +41,7 @@ public sealed class JobManager(
         {
             var scheduler = await schedulerFactory.GetScheduler();
 
-            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.JobType);
+            var jobKey = await scheduler.GetScheduledJobKey(jobScheduler.SchedulingKey);
             if (jobKey != null)
             {
                 logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
@@ -61,7 +61,7 @@ public sealed class JobManager(
                 throw new ArgumentException("Job name must not contain '.'");
             }
 
-            jobKey = new JobKey(jobName, jobScheduler.JobType);
+            jobKey = new JobKey(jobName, jobScheduler.SchedulingKey);
             jobBuilder.WithIdentity(jobKey);
             jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
             jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
