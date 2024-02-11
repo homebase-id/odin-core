@@ -6,5 +6,5 @@ namespace Odin.Core.Services.Quartz;
 
 public interface IJobEvent
 {
-    Task Execute(IServiceProvider serviceProvider, IJobExecutionContext context, JobStatus status);
+    Task Execute(IJobExecutionContext context, JobStatus status);
 }

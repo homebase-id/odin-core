@@ -77,16 +77,6 @@ public class ExclusiveTestJob(
 
 //
 
-public class NonExclusiveTestEvent : IJobEvent
-{
-    public Task Execute(IServiceProvider serviceProvider, IJobExecutionContext context, JobStatus status)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-//
-
 public class ExclusiveTestData
 {
     public string? Echo { get; set; }

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
@@ -37,10 +38,10 @@ public static class JobExecutionContextExtensions
             var type = Type.GetType(eventType);
             if (type != null)
             {
-                var instance = Activator.CreateInstance(type);
+                var instance = ActivatorUtilities.CreateInstance(serviceProvider, type);
                 if (instance is IJobEvent jobEvent)
                 {
-                    await jobEvent.Execute(serviceProvider, context, status);
+                    await jobEvent.Execute(context, status);
                 }
             }
         }

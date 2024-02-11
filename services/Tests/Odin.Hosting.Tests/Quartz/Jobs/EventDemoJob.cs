@@ -47,11 +47,10 @@ public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(
     }
 }
 
-public class EventDemoEvent : IJobEvent
+public class EventDemoEvent(EventDemoTestContainer testContainer) : IJobEvent
 {
-    public Task Execute(IServiceProvider serviceProvider, IJobExecutionContext context, JobStatus status)
+    public Task Execute(IJobExecutionContext context, JobStatus status)
     {
-        var testContainer = serviceProvider.GetRequiredService<EventDemoTestContainer>();
         testContainer.Status.Add(status);
         return Task.CompletedTask;
     }
