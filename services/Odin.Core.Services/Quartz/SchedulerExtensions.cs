@@ -86,13 +86,13 @@ public static class SchedulerExtensions
 
     //
 
-    public static async Task SetUserDefinedJobData(
+    public static async Task SetJobResponseData(
         this IScheduler scheduler,
         IJobDetail jobDetail,
         object serializableObject)
     {
         var json = OdinSystemSerializer.Serialize(serializableObject);
-        await scheduler.UpdateJobMap(jobDetail, JobConstants.UserDefinedDataKey, json);
+        await scheduler.UpdateJobMap(jobDetail, JobConstants.JobResponseDataKey, json);
     }
 
     //

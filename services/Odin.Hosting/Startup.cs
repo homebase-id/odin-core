@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
-
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
@@ -28,7 +27,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
-using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;

@@ -52,7 +52,7 @@ public class ExportTenantJob(
         var sw = Stopwatch.StartNew();
         var targetPath = await identityRegistry.CopyRegistration(domain, config.Admin.ExportTargetPath);
 
-        await SetUserDefinedJobData(context, new ExportTenantData { TargetPath = targetPath });
+        await SetJobResponseData(context, new ExportTenantData { TargetPath = targetPath });
 
         logger.LogDebug("Finished export tenant {domain} in {elapsed}s", domain, sw.ElapsedMilliseconds / 1000.0);
     }

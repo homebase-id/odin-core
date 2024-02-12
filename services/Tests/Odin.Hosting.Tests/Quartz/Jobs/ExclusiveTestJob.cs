@@ -69,7 +69,7 @@ public class ExclusiveTestJob(
             throw new Exception("Failing");
         }
 
-        await SetUserDefinedJobData(context, new NonExclusiveTestData { Echo = echo });
+        await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
 
         logger.LogDebug("Finished {JobKey}", jobKey);
     }

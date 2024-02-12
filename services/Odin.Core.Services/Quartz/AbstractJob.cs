@@ -21,9 +21,9 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
 
     //
 
-    protected static Task SetUserDefinedJobData(IJobExecutionContext context, object serializableObject)
+    protected static Task SetJobResponseData(IJobExecutionContext context, object serializableObject)
     {
-        return context.Scheduler.SetUserDefinedJobData(context.JobDetail, serializableObject);
+        return context.Scheduler.SetJobResponseData(context.JobDetail, serializableObject);
     }
 
     //
@@ -33,10 +33,7 @@ public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
     {
         var jobData = context.JobDetail.JobDataMap;
 
-        if (jobData.TryGetString(JobConstants.CorrelationIdKey, out var correlationId) && correlationId != null)
-        {
-            correlationContext.Id = correlationId;
-        }
+        context.ApplyCorrelationId(correlationContext);
 
         if (jobData.TryGetString(JobConstants.CompletedRetentionSecondsKey, out var cr) && cr != null)
         {

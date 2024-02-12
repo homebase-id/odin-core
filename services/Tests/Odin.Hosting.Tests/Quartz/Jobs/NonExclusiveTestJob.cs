@@ -52,7 +52,7 @@ public class NonExclusiveTestJob(
         var jobData = context.JobDetail.JobDataMap;
         jobData.TryGetString("echo", out var echo);
 
-        await SetUserDefinedJobData(context, new NonExclusiveTestData { Echo = echo });
+        await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
 
         logger.LogDebug("Finished {JobKey}", jobKey);
     }

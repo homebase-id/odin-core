@@ -17,11 +17,9 @@ public static class JobConstants
     public const string StatusValueCompleted = "completed";
     public const string StatusValueFailed = "failed";
 
-    public const string ErrorMessageKey = "odin_job_error_message";
+    public const string JobErrorMessageKey = "odin_job_error_message";
+    public const string JobResponseDataKey = "odin_job_response_data";
+    public const string JobEventTypeKey = "odin_job_event_type";
 
     public const string JobToDeleteKey = "odin_job_to_delete";
-
-    public const string UserDefinedDataKey = "odin_job_user_defined_data";
-
-    public const string JobEventTypeKey = "odin_job_event_type";
 }

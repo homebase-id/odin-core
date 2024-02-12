@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
@@ -17,11 +18,25 @@ public static class JobExecutionContextExtensions
 
     //
 
-    public static Task SetUserDefinedJobData(
+    public static void ApplyCorrelationId(this IJobExecutionContext context, ICorrelationContext correlationContext)
+    {
+        if (context.JobDetail.Durable)
+        {
+            var jobData = context.JobDetail.JobDataMap;
+            if (jobData.TryGetString(JobConstants.CorrelationIdKey, out var correlationId) && correlationId != null)
+            {
+                correlationContext.Id = correlationId;
+            }
+        }
+    }
+
+    //
+
+    public static Task SetJobResponseData(
         this IJobExecutionContext context,
         object serializableObject)
     {
-        return context.Scheduler.SetUserDefinedJobData(context.JobDetail, serializableObject);
+        return context.Scheduler.SetJobResponseData(context.JobDetail, serializableObject);
     }
 
     //

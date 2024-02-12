@@ -51,7 +51,7 @@ public class ChainTestJob(ICorrelationContext correlationContext, IJobManager jo
             nextJobKey = jobKey.ToString();
         }
 
-        await SetUserDefinedJobData(context, new ChainTestData
+        await SetJobResponseData(context, new ChainTestData
         {
             IterationCount = currentIteration,
             NextJobKey = nextJobKey

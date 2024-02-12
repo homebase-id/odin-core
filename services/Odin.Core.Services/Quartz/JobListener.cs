@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
 namespace Odin.Core.Services.Quartz;
@@ -14,23 +15,28 @@ public class JobListener : IJobListener
     private readonly ILogger<JobListener> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IJobManager _jobManager;
+    private readonly ICorrelationContext _correlationContext;
 
     public JobListener(
         IServiceProvider serviceProvider,
         ILogger<JobListener> logger,
         IJobManager jobManager,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        ICorrelationContext correlationContext)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _jobManager = jobManager;
         _loggerFactory = loggerFactory;
+        _correlationContext = correlationContext;
     }
 
     //
 
     public async Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken)
     {
+        context.ApplyCorrelationId(_correlationContext);
+
         var job = context.JobDetail;
         var jobData = job.JobDataMap;
 
@@ -51,6 +57,8 @@ public class JobListener : IJobListener
         JobExecutionException? jobException,
         CancellationToken cancellationToken)
     {
+        context.ApplyCorrelationId(_correlationContext);
+
         var job = context.JobDetail;
         var jobData = job.JobDataMap;
 
@@ -109,7 +117,7 @@ public class JobListener : IJobListener
                 if (job.Durable)
                 {
                     jobData[JobConstants.StatusKey] = JobConstants.StatusValueFailed;
-                    jobData[JobConstants.ErrorMessageKey] = errorMessage;
+                    jobData[JobConstants.JobErrorMessageKey] = errorMessage;
                     await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
                 }
 

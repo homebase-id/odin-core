@@ -97,8 +97,8 @@ public sealed class JobManager(
 
         var jobData = job.JobDataMap;
         jobData.TryGetString(JobConstants.StatusKey, out var status);
-        jobData.TryGetString(JobConstants.ErrorMessageKey, out var errorMessage);
-        jobData.TryGetString(JobConstants.UserDefinedDataKey, out var data);
+        jobData.TryGetString(JobConstants.JobErrorMessageKey, out var errorMessage);
+        jobData.TryGetString(JobConstants.JobResponseDataKey, out var data);
 
         var jobResponse = new JobResponse
         {

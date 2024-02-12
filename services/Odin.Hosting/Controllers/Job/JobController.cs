@@ -37,4 +37,15 @@ public class JobController : ControllerBase
 
     //
 
+#if DEBUG
+    [AllowAnonymous]
+    [HttpGet("/api/job/v1/dummy")]
+    public async Task<ActionResult> JobTest()
+    {
+        var scheduler = new DummyScheduler("Hello, World!");
+        var jobKey = await _jobManager.Schedule<DummyJob>(scheduler);
+        return AcceptedAtRoute(GetJobResponseRouteName, new { jobKey });
+    }
+#endif
+
 }
