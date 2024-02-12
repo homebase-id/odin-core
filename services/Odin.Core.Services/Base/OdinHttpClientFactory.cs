@@ -1,5 +1,4 @@
 using System;
-using Dawn;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -40,11 +39,6 @@ namespace Odin.Core.Services.Base
         
         public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
         {
-            Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
-            // Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
-            // Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
-            Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
-
             return this.CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
         }
         
@@ -59,8 +53,6 @@ namespace Odin.Core.Services.Base
         
         private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType)
         {
-            Guard.Argument(odinId.DomainName, nameof(odinId)).NotNull();
-
             var httpClientKey = HttpFactoryKey(_tenantContext.HostOdinId.DomainName);
             var httpClient = _httpClientFactory.CreateClient(httpClientKey);
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;

@@ -36,12 +36,12 @@ public class FileSystemHttpRequestResolver
 
         if (fst == FileSystemType.Standard)
         {
-            return ctx.RequestServices.GetRequiredService<StandardFilePayloadStreamWriter>();
+            return ctx!.RequestServices.GetRequiredService<StandardFilePayloadStreamWriter>();
         }
 
         if (fst == FileSystemType.Comment)
         {
-            return ctx.RequestServices.GetRequiredService<CommentPayloadStreamWriter>();
+            return ctx!.RequestServices.GetRequiredService<CommentPayloadStreamWriter>();
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
@@ -56,12 +56,12 @@ public class FileSystemHttpRequestResolver
 
         if (fst == FileSystemType.Standard)
         {
-            return ctx.RequestServices.GetRequiredService<StandardFileStreamWriter>();
+            return ctx!.RequestServices.GetRequiredService<StandardFileStreamWriter>();
         }
 
         if (fst == FileSystemType.Comment)
         {
-            return ctx.RequestServices.GetRequiredService<CommentStreamWriter>();
+            return ctx!.RequestServices.GetRequiredService<CommentStreamWriter>();
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);

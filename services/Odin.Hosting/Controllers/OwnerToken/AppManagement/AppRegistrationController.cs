@@ -7,6 +7,7 @@ using Odin.Core.Fluff;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
 {
@@ -51,6 +52,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/app")]
         public async Task<RedactedAppRegistration> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
+            OdinValidationUtils.AssertNotNull(appRegistration,  nameof(appRegistration));
+            OdinValidationUtils.AssertIsTrue(appRegistration.IsValid(), "The app registration is invalid");
+            
             var reg = await _appRegistrationService.RegisterApp(appRegistration);
             return reg;
         }
@@ -169,7 +173,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         {
             // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
             var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
-            var (reg, corsHostName) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName);
+            
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertIsTrue(request.AppId != Guid.Empty, "missing app id");
+            OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
+            
+            var (reg, _) = await _appRegistrationService.RegisterClientPk(request.AppId, clientPublicKey, request.ClientFriendlyName);
             return reg;
         }
         

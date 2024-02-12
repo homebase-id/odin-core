@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Configuration.Eula;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Util;
+using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
-
-
 
 /// <summary>
 /// Configuration for the owner's system
@@ -18,7 +17,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 [ApiController]
 [AuthorizeValidOwnerToken]
 [Route(OwnerApiPathConstants.ConfigurationV1)]
-public class ConfigurationController : Controller
+public class ConfigurationController : OdinControllerBase
 {
     private readonly TenantConfigService _tenantConfigService;
 
@@ -64,6 +63,7 @@ public class ConfigurationController : Controller
     [HttpPost("system/MarkEulaSigned")]
     public IActionResult MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
     {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
         _tenantConfigService.MarkEulaSigned(request);
         return Ok();
     }
@@ -74,6 +74,7 @@ public class ConfigurationController : Controller
     [HttpPost("system/initialize")]
     public async Task<bool> InitializeIdentity([FromBody] InitialSetupRequest request)
     {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
         await _tenantConfigService.EnsureInitialOwnerSetup(request);
         return true;
     }
@@ -85,8 +86,8 @@ public class ConfigurationController : Controller
     [HttpPost("system/updateflag")]
     public async Task<bool> UpdateSystemConfigFlag([FromBody] UpdateFlagRequest request)
     {
-        Guard.Argument(request, nameof(request)).NotNull();
-        Guard.Argument(request.FlagName, nameof(request.FlagName)).NotNull().NotEmpty();
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
         _tenantConfigService.UpdateSystemFlag(request);
 
@@ -128,6 +129,7 @@ public class ConfigurationController : Controller
     [HttpPost("ownerapp/settings/update")]
     public async Task<bool> UpdateOwnerAppSetting([FromBody] OwnerAppSettings settings)
     {
+        OdinValidationUtils.AssertNotNull(settings?.Settings, nameof(settings.Settings));
         _tenantConfigService.UpdateOwnerAppSettings(settings);
         return await Task.FromResult(true);
     }

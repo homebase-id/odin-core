@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Util;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
@@ -65,9 +67,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
         public static UploadInstructionSet WithRecipients(TargetDrive drive, params string[] recipients)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-            Guard.Argument(recipients, nameof(recipients)).NotNull().NotEmpty();
-
             return new UploadInstructionSet()
             {
                 TransferIv = ByteArrayUtil.GetRndByteArray(16),
@@ -86,8 +85,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 
         public static UploadInstructionSet WithTargetDrive(TargetDrive drive)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-
             return new UploadInstructionSet()
             {
                 TransferIv = ByteArrayUtil.GetRndByteArray(16),

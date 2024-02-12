@@ -1,5 +1,5 @@
 using System;
-using Dawn;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -12,8 +12,10 @@ public class SingleKeyValueStorage
 
     public SingleKeyValueStorage(TableKeyValue table, Guid contextKey)
     {
-        Guard.Argument(contextKey, nameof(contextKey)).Require(k => k != Guid.Empty);
-        Guard.Argument(table, nameof(table)).NotNull();
+        if (contextKey == Guid.Empty)
+        {
+            throw new OdinSystemException("Invalid context key for storage");
+        }
 
         _contextKey = contextKey;
         _table = table;

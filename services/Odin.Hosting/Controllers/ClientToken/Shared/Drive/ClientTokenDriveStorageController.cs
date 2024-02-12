@@ -6,10 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
@@ -33,8 +35,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public ClientTokenDriveStorageController(
             ILogger<ClientTokenDriveStorageController> logger,
             FileSystemResolver fileSystemResolver,
-            ITransitService transitService) :
-            base(logger, fileSystemResolver, transitService)
+            IPeerTransferService peerTransferService) :
+            base(logger, fileSystemResolver, peerTransferService)
         {
             _logger = logger;
         }

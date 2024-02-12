@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
+
 using MediatR;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -228,11 +228,6 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload)
         {
-            Guard.Argument(payload, nameof(payload)).NotNull();
-            Guard.Argument(payload.KeyHeaderEncryptedData, nameof(payload.KeyHeaderEncryptedData)).NotNull();
-            Guard.Argument(payload.RsaEncryptedKeyHeader, nameof(payload.RsaEncryptedKeyHeader)).NotNull();
-            Guard.Argument(payload.Crc32, nameof(payload.Crc32)).Require(c => c > 0);
-
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32);
 
             if (!isValidPublicKey)

@@ -1,5 +1,6 @@
 using System;
-using Dawn;
+
+using Odin.Core.Services.Util;
 
 namespace Odin.Core.Services.Membership.Connections.Requests;
 
@@ -20,6 +21,6 @@ public class ContactRequestData
 
     public void Validate()
     {
-        Guard.Argument(Name, nameof(Name)).NotNull().NotEmpty();
+        OdinValidationUtils.AssertNotNullOrEmpty(Name, nameof(Name));
     }
 }

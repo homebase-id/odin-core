@@ -9,7 +9,8 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
 
 namespace Odin.Core.Services.Drives.FileSystem.Comment;
@@ -18,19 +19,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Comment;
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
     private readonly OdinContextAccessor _contextAccessor;
-    private readonly ITransitService _transitService;
+    private readonly IPeerTransferService _peerTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
         OdinContextAccessor contextAccessor,
-        ITransitService transitService,
+        IPeerTransferService peerTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, transitService)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerTransferService)
     {
         _contextAccessor = contextAccessor;
-        _transitService = transitService;
+        _peerTransferService = peerTransferService;
     }
 
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)

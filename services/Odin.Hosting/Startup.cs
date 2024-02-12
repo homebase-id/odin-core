@@ -3,9 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
-using System.Threading.Tasks;
 using Autofac;
-using Dawn;
+
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
 using Odin.Core.Services.Base;
@@ -28,7 +27,7 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
-using Odin.Core.Services.Peer.SendingHost.Outbox;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
@@ -139,10 +138,7 @@ namespace Odin.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-            services.AddResponseCompression(options =>
-            {
-                options.EnableForHttps = true;
-            });
+            services.AddResponseCompression(options => { options.EnableForHttps = true; });
 
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
@@ -446,9 +442,11 @@ namespace Odin.Hosting
 
         private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
         {
-            Guard.Argument(section, nameof(section)).NotNull();
-            Guard.Argument(section.CertificateAuthorityAssociatedEmail,
-                nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
+            var email = section?.CertificateAuthorityAssociatedEmail;
+            if (string.IsNullOrEmpty(email) || string.IsNullOrWhiteSpace(email))
+            {
+                throw new OdinSystemException($"{nameof(section.CertificateAuthorityAssociatedEmail)} is not configured");
+            }
         }
     }
 }

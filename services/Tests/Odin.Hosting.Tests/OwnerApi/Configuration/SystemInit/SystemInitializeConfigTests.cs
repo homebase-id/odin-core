@@ -191,8 +191,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task CanCreateSystemDrives_With_AdditionalDrivesAndCircles()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-            
-            var contactDrive = SystemDriveConstants.ContactDrive;
+
             var standardProfileDrive = SystemDriveConstants.ProfileDrive;
 
             var newDrive = new CreateDriveRequest()
@@ -297,5 +296,26 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) == 1,
                 "The contact drive should be in the additional circle");
         }
+
+        // [Test]
+        // public async Task WillAutoFollow_IdHomebaseId()
+        // {
+        //     var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        //
+        //     var setupConfig = new InitialSetupRequest()
+        //     {
+        //         Drives = [],
+        //         Circles = []
+        //     };
+        //
+        //     var initIdentityResponse = await ownerClient.Configuration.InitializeIdentity(setupConfig);
+        //     Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+        //     
+        //     var followerDefinition = await ownerClient.OwnerFollower.GetIdentityIFollow(TestIdentities.HomebaseId);
+        //
+        //     Assert.IsNotNull(followerDefinition);
+        //     Assert.IsTrue(followerDefinition.OdinId == TestIdentities.HomebaseId.OdinId);
+        //     Assert.IsTrue(followerDefinition.NotificationType == FollowerNotificationType.AllNotifications);
+        // }
     }
 }

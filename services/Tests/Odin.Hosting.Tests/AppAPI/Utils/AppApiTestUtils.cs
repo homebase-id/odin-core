@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dawn;
+
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -13,14 +13,18 @@ using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.YouAuth;
@@ -119,8 +123,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
-            Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
-            instructionSet?.AssertIsValid();
+            instructionSet.AssertIsValid();
 
             if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
@@ -283,8 +286,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             UploadFileMetadata fileMetadata, bool includeThumbnail,
             string payloadData)
         {
-            Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
-            instructionSet?.AssertIsValid();
+            instructionSet.AssertIsValid();
 
             var client = this.CreateAppApiHttpClient(identityAppContext);
             {

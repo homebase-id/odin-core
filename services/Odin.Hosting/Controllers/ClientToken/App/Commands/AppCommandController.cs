@@ -4,26 +4,17 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Apps.CommandMessaging;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Tenant;
+using Odin.Core.Services.Util;
+using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Commands
 {
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppCommandController : Controller
+    public class AppCommandController(CommandMessagingService commandMessagingService, OdinContextAccessor contextAccessor)
+        : OdinControllerBase
     {
-        private readonly string _currentTenant;
-        private readonly CommandMessagingService _commandMessagingService;
-        private readonly OdinContextAccessor _contextAccessor;
-
-        public AppCommandController(ITenantProvider tenantProvider, CommandMessagingService commandMessagingService, OdinContextAccessor contextAccessor)
-        {
-            _commandMessagingService = commandMessagingService;
-            _contextAccessor = contextAccessor;
-            _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
-        }
-
         /// <summary>
         /// Sends a command message to a set of recipients
         /// </summary>
@@ -31,8 +22,13 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
-            var results = await _commandMessagingService.SendCommandMessage(driveId, request.Command);
+            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+
+            OdinValidationUtils.AssertValidRecipientList(request.Command.Recipients);
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNull(request.Command, nameof(request.Command));
+            OdinValidationUtils.AssertIsTrue(request.Command.IsValid(), "Command is invalid");
+            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command);
             return results;
         }
 
@@ -42,19 +38,23 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         /// <param name="request"></param>
         /// <returns></returns>
         [HttpPost("unprocessed")]
-        public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnproccessedCommandsRequest request)
+        public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnprocessedCommandsRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
-            var result = await _commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor);
+            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor);
             return result;
         }
 
         [HttpPost("markcompleted")]
         public async Task<bool> MarkCommandsCompleted([FromBody] MarkCommandsCompleteRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
 
-            await _commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList());
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));
+            OdinValidationUtils.AssertIsTrue(request.CommandIdList.Count() > 0, "The command list is empty");
+            
+            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList());
             return true;
         }
     }

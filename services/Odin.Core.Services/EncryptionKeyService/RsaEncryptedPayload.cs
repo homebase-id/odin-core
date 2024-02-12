@@ -1,3 +1,5 @@
+using Odin.Core.Exceptions;
+
 namespace Odin.Core.Services.EncryptionKeyService
 {
     /// <summary>
@@ -19,5 +21,11 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// The CRC of the public key used to encrypt this paylaod
         /// </summary>
         public uint Crc32 { get; set; }
+
+        public bool IsValid()
+        {
+            var isBad = this.KeyHeaderEncryptedData == null || this.RsaEncryptedKeyHeader == null || this.Crc32 == 0;
+            return !isBad;
+        }
     }
 }

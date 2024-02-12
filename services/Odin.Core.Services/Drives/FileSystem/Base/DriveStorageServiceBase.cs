@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -116,8 +115,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, bool raiseEvent = false)
         {
-            Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
+            if (!header.IsValid())
+            {
+                throw new OdinSystemException("An invalid header was passed to the update header method.  You need more checks in place before getting here");
+            }
 
             AssertCanWriteToDrive(targetFile.DriveId);
 

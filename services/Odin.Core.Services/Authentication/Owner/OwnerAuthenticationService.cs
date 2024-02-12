@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
+
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +12,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
@@ -23,6 +24,7 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Registry;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -128,7 +130,7 @@ namespace Odin.Core.Services.Authentication.Owner
             };
 
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
-            var odinContext = _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            var odinContext = _httpContextAccessor!.HttpContext!.RequestServices.GetRequiredService<OdinContext>();
             await this.UpdateOdinContext(token, odinContext);
             await EnsureFirstRunOperations(token);
 
@@ -142,7 +144,7 @@ namespace Odin.Core.Services.Authentication.Owner
             var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist.
-            Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
+            OdinValidationUtils.AssertNotNull(noncePackage, nameof(noncePackage));
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
             _nonceDataStorage.Delete(new GuidId(key));
@@ -225,7 +227,6 @@ namespace Odin.Core.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        /// <param name="token"></param>
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
@@ -248,7 +249,8 @@ namespace Odin.Core.Services.Authentication.Owner
                     {
                         ClientIdOrDomain = string.Empty,
                         CorsHostName = string.Empty,
-                        AccessRegistrationId = token.Id
+                        AccessRegistrationId = token.Id,
+                        DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                     });
 
                 return dotYouContext;
@@ -331,14 +333,15 @@ namespace Odin.Core.Services.Authentication.Owner
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             odinContext.Caller = new CallerContext(
-                odinId: (OdinId)context.Request.Host.Host,
+                odinId: (OdinId)context!.Request.Host.Host,
                 masterKey: null, //will be set later
                 securityLevel: SecurityGroupType.Owner,
                 odinClientContext: new OdinClientContext()
                 {
                     ClientIdOrDomain = string.Empty,
                     CorsHostName = string.Empty,
-                    AccessRegistrationId = token.Id
+                    AccessRegistrationId = token.Id,
+                    DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                 });
 
             OdinContext ctx = await this.GetDotYouContext(token);

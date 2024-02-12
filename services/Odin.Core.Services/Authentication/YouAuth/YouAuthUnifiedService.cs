@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -13,6 +13,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.YouAuth;
+using Odin.Core.Services.Util;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
@@ -81,9 +82,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements)
     {
-        Guard.Argument(clientIdOrDomain, nameof(clientIdOrDomain)).NotEmpty().NotWhiteSpace();
-        Guard.Argument(consentRequirements, nameof(consentRequirements)).NotNull();
-
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary
@@ -133,10 +131,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
-            var deviceFriendlyName = clientInfo;
-
+            
+            OdinValidationUtils.AssertIsTrue(appId != Guid.Empty, "AppId is invalid");
+            OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
+            
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await _appRegistrationService.RegisterClient(appId, deviceFriendlyName);
+            (token, _) = await _appRegistrationService.RegisterClient(appId, clientInfo);
         }
         else if (clientType == ClientType.domain)
         {

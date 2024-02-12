@@ -18,7 +18,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
         Task<ApiResponse<CommandMessageResult>> SendCommand([Body] SendCommandRequest request);
 
         [Post(RootEndpoint + "/unprocessed")]
-        Task<ApiResponse<ReceivedCommandResultSet>> GetUnprocessedCommands([Body]GetUnproccessedCommandsRequest request);
+        Task<ApiResponse<ReceivedCommandResultSet>> GetUnprocessedCommands([Body]GetUnprocessedCommandsRequest request);
 
         [Post(RootEndpoint + "/markcompleted")]
         Task<ApiResponse<bool>> MarkCommandsComplete([Body] MarkCommandsCompleteRequest request);

@@ -2,7 +2,7 @@ using System;
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
-using Dawn;
+
 
 namespace Odin.Core.Services.Authorization.Permissions
 {
@@ -22,7 +22,6 @@ namespace Odin.Core.Services.Authorization.Permissions
         public PermissionSet(IEnumerable<int> permissionKeys)
         {
             var pk = permissionKeys as int[] ?? permissionKeys.ToArray();
-            Guard.Argument(pk, nameof(permissionKeys)).NotNull();
             Keys = new List<int>(pk);
         }
 

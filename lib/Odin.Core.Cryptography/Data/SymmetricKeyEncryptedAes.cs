@@ -1,4 +1,4 @@
-﻿using Dawn;
+﻿
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 
@@ -54,8 +54,6 @@ namespace Odin.Core.Cryptography.Data
 
         private void EncryptKey(SensitiveByteArray secret, SensitiveByteArray keyToProtect)
         {
-            Guard.Argument(KeyHash == null).True();
-
             (KeyIV, KeyEncrypted) = AesCbc.Encrypt(keyToProtect.GetKey(), secret);
             KeyHash = CalcKeyHash(secret);
         }

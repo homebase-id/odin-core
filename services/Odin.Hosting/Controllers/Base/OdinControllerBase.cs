@@ -9,6 +9,7 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
 
@@ -90,15 +91,9 @@ public abstract class OdinControllerBase : ControllerBase
 
     protected void AssertIsValidOdinId(string odinId, out OdinId id)
     {
-        if (OdinId.IsValid(odinId))
-        {
-            id = (OdinId)odinId;
-            return;
-        }
-
-        throw new OdinClientException("Missing target OdinId", OdinClientErrorCode.ArgumentError);
+        OdinValidationUtils.AssertIsValidOdinId(odinId, out id);
     }
-    
+
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>

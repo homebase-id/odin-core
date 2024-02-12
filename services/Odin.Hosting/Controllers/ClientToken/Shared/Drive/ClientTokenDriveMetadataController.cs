@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Hosting.ApiExceptions.Client;

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Drives;
@@ -10,7 +10,9 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Standard;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -24,19 +26,17 @@ namespace Odin.Core.Services.Apps.CommandMessaging;
 /// </remarks>
 public class CommandMessagingService
 {
-    private readonly ITransitService _transitService;
+    private readonly IPeerTransferService _peerTransferService;
     private readonly StandardFileSystem _standardFileSystem;
 
-    public CommandMessagingService(ITransitService transitService, StandardFileSystem standardFileSystem)
+    public CommandMessagingService(IPeerTransferService peerTransferService, StandardFileSystem standardFileSystem)
     {
-        _transitService = transitService;
+        _peerTransferService = peerTransferService;
         _standardFileSystem = standardFileSystem;
     }
 
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
-        Guard.Argument(command, nameof(command)).NotNull().Require(m => m.IsValid());
-
         var internalFile = _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
         var msg = new CommandTransferMessage()
@@ -70,7 +70,7 @@ public class CommandMessagingService
         await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
         //TODO: with the introduction of file system type, we can probably make commands a file system type
-        var transferResult = await _transitService.SendFile(
+        var transferResult = await _peerTransferService.SendFile(
             internalFile: internalFile,
             options: new TransitOptions()
             {
@@ -103,8 +103,6 @@ public class CommandMessagingService
 
     public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList)
     {
-        Guard.Argument(commandIdList, nameof(commandIdList)).NotNull();
-        
         var list = new List<InternalDriveFileId>();
         
         foreach (var commandId in commandIdList)
