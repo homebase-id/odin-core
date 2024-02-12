@@ -58,7 +58,7 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     throw new Exception("HTTP response is missing Location header");
                 }
 
-                JobState? state;
+                var done = false;
                 do
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(200));
@@ -68,22 +68,20 @@ public sealed class DeleteTenantCommand : AsyncCommand<DeleteTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    state = OdinSystemSerializer.Deserialize<JobState>(await response.Content.ReadAsStringAsync());
-                    if (state == null)
+                    var jobResponse = JobResponse.Deserialize(await response.Content.ReadAsStringAsync());
+
+                    if (jobResponse.Status == JobStatus.Failed)
                     {
-                        throw new Exception("Error deserializing response");
+                        throw new Exception($"Error deleting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (state.Status == JobStatusEnum.Failed)
-                    {
-                        throw new Exception($"Error deleting tenant {settings.TenantDomain}: {state.Error}");
-                    }
-                    if (state.Status == JobStatusEnum.Completed)
+                    if (jobResponse.Status == JobStatus.Completed)
                     {
                         AnsiConsole.MarkupLine("[green]Done[/]");
+                        done = true;
                     }
 
-                } while (state.Status == JobStatusEnum.Unknown);
+                } while (!done);
             });
 
         return 0;

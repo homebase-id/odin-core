@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\..\lib\Odin.Core\Odin.Core.csproj" />
     <ProjectReference Include="..\..\Odin.Core.Services\Odin.Core.Services.csproj" />
     <ProjectReference Include="..\..\Odin.Hosting\Odin.Hosting.csproj" />
+    <ProjectReference Include="..\Odin.Test.Helpers\Odin.Test.Helpers.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Admin;
 using Odin.Core.Services.Admin.Tenants;
-using Odin.Core.Services.Quartz;
+using Odin.Hosting.Controllers.Job;
 
 namespace Odin.Hosting.Controllers.Admin;
 #nullable enable
@@ -17,12 +17,10 @@ public class AdminController : ControllerBase
 {
     private const string AdminJobStateRouteName = "AdminJobStateRoute";
     private readonly ITenantAdmin _tenantAdmin;
-    private readonly IExclusiveJobManager _exclusiveJobManager;
 
-    public AdminController(ITenantAdmin tenantAdmin, IExclusiveJobManager exclusiveJobManager)
+    public AdminController(ITenantAdmin tenantAdmin)
     {
         _tenantAdmin = tenantAdmin;
-        _exclusiveJobManager = exclusiveJobManager;
     }
 
     //
@@ -31,25 +29,6 @@ public class AdminController : ControllerBase
     public ActionResult<string> Ping()
     {
         return "pong";
-    }
-
-    //
-
-    [HttpGet("job-status/{jobId}", Name = AdminJobStateRouteName)]
-    public ActionResult<IJobState> JobState(string jobId)
-    {
-        var job = _exclusiveJobManager.GetJob(jobId);
-        if (job == null)
-        {
-            return NotFound();
-        }
-
-        if (job.IsDone)
-        {
-            _exclusiveJobManager.RemoveJob(jobId);
-        }
-
-        return Ok(job.State);
     }
 
     //
@@ -85,18 +64,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        try
-        {
-            var jobId = await _tenantAdmin.EnqueueDeleteTenant(domain);
-            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
-        }
-        catch (OdinException e)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = e.Message
-            });
-        }
+        var jobKey = await _tenantAdmin.EnqueueDeleteTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
     }
 
     //
@@ -109,18 +78,8 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        try
-        {
-            var jobId = await _tenantAdmin.EnqueueExportTenant(domain);
-            return AcceptedAtRoute(AdminJobStateRouteName, new { jobId = HttpUtility.UrlEncode(jobId) });
-        }
-        catch (OdinException e)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = e.Message
-            });
-        }
+        var jobKey = await _tenantAdmin.EnqueueExportTenant(domain);
+        return AcceptedAtRoute(JobController.GetJobResponseRouteName, new { jobKey });
     }
 
     //

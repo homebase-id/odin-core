@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace Odin.Core
 {
@@ -37,6 +38,16 @@ namespace Odin.Core
         public static MemoryStream ToMemoryStream(this byte[] array, bool writable = false)
         {
             return new MemoryStream(array, writable);
+        }
+
+        public static string ToHexString(this byte[] array)
+        {
+            var sb = new StringBuilder();
+            foreach (var b in array)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+            return sb.ToString();
         }
     }
 }

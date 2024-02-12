@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
-
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
@@ -19,8 +18,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
-using Odin.Core.Services.Background.Certificate;
-using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
@@ -30,7 +27,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
-using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;
@@ -45,8 +41,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Quartz;
-using Quartz.AspNetCore;
+using Odin.Hosting.Quartz;
 
 namespace Odin.Hosting
 {
@@ -90,17 +85,11 @@ namespace Odin.Hosting
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
 
-            services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
-            services.AddQuartz(q =>
-            {
-                q.AddTriggerListener(sp => sp.GetRequiredService<IExclusiveJobManager>());
-                if (config.Quartz.EnableQuartzBackgroundService)
-                {
-                    q.UseDefaultCronSchedule(config);
-                    q.UseDefaultCertificateRenewalSchedule(config);
-                }
-            });
-            services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
+            //
+            // Quartz
+            //
+            services.AddQuartzServices(config);
+            services.AddCronJobs();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -431,7 +420,15 @@ namespace Odin.Hosting
                     });
             }
 
-            lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
+
+                if (config.Quartz.EnableQuartzBackgroundService)
+                {
+                    app.ApplicationServices.ScheduleCronJobs().Wait();
+                }
+            });
         }
 
         private void PrepareEnvironment(OdinConfiguration cfg)
