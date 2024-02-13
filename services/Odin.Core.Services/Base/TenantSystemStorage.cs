@@ -22,13 +22,22 @@ namespace Odin.Core.Services.Base
             _logger = logger;
 
             string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
-            string dbName = "sys.db";
+            string dbName = "identity.db";
             if (!Directory.Exists(dbPath))
             {
                 Directory.CreateDirectory(dbPath!);
             }
 
             string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+
+            // TODO: this is fallback is temporary as we rename the database; remove
+            // this after the odinDB branch is moved to production
+            if (!File.Exists(finalPath))
+            {
+                string oldName = "sys.db";
+                finalPath = PathUtil.Combine(dbPath, $"{oldName}");
+            }
+
             _db = new IdentityDatabase($"Data Source={finalPath}");
             _db.CreateDatabase(false);
 
