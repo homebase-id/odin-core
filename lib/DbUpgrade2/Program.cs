@@ -329,105 +329,6 @@ namespace DbUpgrade2
             return true;
         }
 
-
-        static int Main(string[] args)
-        {
-            /*
-
-             from production; redacted
-             running tree -L 4
-             where identity = 777bc322-5551-4be5-a9fd-bfa7294002e2
-
-             /identity-host/data/tenants/registrations/777bc322-5551-4be5-a9fd-bfa7294002e2/headers
-               ├── drives
-               │   ├── 111e655546834487895aecab98d55780 <driveId>
-               │   │   ├── files
-               │   │   │   └── ...
-               │   │   └── idx
-               │   │       └── index.db
-               └── sys.db
-             */
-
-            string root = "/temp/Git/dotyoucore/michael";
-
-            Console.WriteLine("We're in the root directory of an identity here");
-
-            //  
-            using var db = new IdentityDatabase($"Data Source={root}/headers/sys.db"); // Todd - name of identity db here
-            PurgeNewTables(db);
-            db.CreateDatabase(false); // This will create the missing 5 tables
-
-            var drives = GetDrives(db, Path.Combine(root, "headers"));
-
-            // Todd  Now loop through each drive
-            foreach (var drive in drives)
-            {
-                Guid driveGuid = drive.Id;
-                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
-                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
-                {
-                    Console.Write("Transferring main index... ");
-                    int n = TransferMain(db, driveDb, driveGuid);
-                    Console.WriteLine($"transferred {n} records.");
-
-                    Console.Write("Transferring ACL index... ");
-                    n = TransferAclIndex(db, driveDb, driveGuid);
-                    Console.WriteLine($"transferred {n} records.");
-
-                    Console.Write("Transferring tag index... ");
-                    n = TransferTagIndex(db, driveDb, driveGuid);
-                    Console.WriteLine($"transferred {n} records.");
-
-                    Console.Write("Transferring reactions ... ");
-                    n = TransferReactions(db, driveDb, driveGuid);
-                    Console.WriteLine($"transferred {n} records.");
-
-                    Console.Write("Transferring commands ... ");
-                    n = TransferCommands(db, driveDb, driveGuid);
-                    Console.WriteLine($"transferred {n} records.");
-
-                }
-            }
-
-            // Todd  Now loop through each drive
-            foreach (var drive in drives)
-            {
-                Guid driveGuid = drive.Id;
-                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
-                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
-                {
-                    Console.Write("Validating main index... ");
-                    bool ok = ValidateMain(db, driveDb, driveGuid);
-                    Console.WriteLine($"validation {ok}.");
-                    Debug.Assert( ok );
-
-                    Console.Write("Validating ACL index... ");
-                    ok = ValidateAclIndex(db, driveDb, driveGuid);
-                    Console.WriteLine($"validation {ok}.");
-                    Debug.Assert(ok);
-
-                    Console.Write("Validating tag index... ");
-                    ok = ValidateTagIndex(db, driveDb, driveGuid);
-                    Console.WriteLine($"validation {ok}.");
-                    Debug.Assert(ok);
-
-                    Console.Write("Validating reactions... ");
-                    ok = ValidateReactions(db, driveDb, driveGuid);
-                    Console.WriteLine($"validation {ok}.");
-                    Debug.Assert(ok);
-
-                    Console.Write("Validating commands... ");
-                    ok = ValidateCommands(db, driveDb, driveGuid);
-                    Console.WriteLine($"validation {ok}.");
-                    Debug.Assert(ok);
-                }
-            }
-
-            // Rename sys.db -> identity.db
-
-            return 0;
-        }
-
         static List<StorageDrive> GetDrives(IdentityDatabase db, string headerDataStoragePath)
         {
             const string tempStoragePath = "";
@@ -450,5 +351,142 @@ namespace DbUpgrade2
             var allDrives = storage.GetByCategory<StorageDriveBase>(driveDataType);
             return allDrives.Select(ToStorageDrive).ToList();
         }
+
+        static void MigrateTenantRegistration(string registrationPath, bool cleanUp)
+        {
+            /*
+             from production; redacted
+             running tree -L 4
+             where identity = 777bc322-5551-4be5-a9fd-bfa7294002e2
+
+             /identity-host/data/tenants/registrations/777bc322-5551-4be5-a9fd-bfa7294002e2/headers
+               ├── drives
+               │   ├── 111e655546834487895aecab98d55780 <driveId>
+               │   │   ├── files
+               │   │   │   └── ...
+               │   │   └── idx
+               │   │       └── index.db
+               └── sys.db
+           */
+
+            // string root = "/temp/Git/dotyoucore/michael";
+
+            Console.WriteLine($"Migrating {registrationPath}");
+
+            var dbPath = Path.Combine(registrationPath, "headers/sys.db");
+            using var db = new IdentityDatabase($"Data Source={dbPath}");
+            PurgeNewTables(db);
+            db.CreateDatabase(false); // This will create the missing 5 tables
+
+            var drives = GetDrives(db, Path.Combine(registrationPath, "headers"));
+
+            // Todd  Now loop through each drive
+            foreach (var drive in drives)
+            {
+                Console.WriteLine($" Migrating drive {drive.Id}");
+                Guid driveGuid = drive.Id;
+                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
+                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
+                {
+                    Console.Write("  Transferring main index... ");
+                    int n = TransferMain(db, driveDb, driveGuid);
+                    Console.WriteLine($"  transferred {n} records.");
+
+                    Console.Write("  Transferring ACL index... ");
+                    n = TransferAclIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"  transferred {n} records.");
+
+                    Console.Write("  Transferring tag index... ");
+                    n = TransferTagIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"  transferred {n} records.");
+
+                    Console.Write("  Transferring reactions ... ");
+                    n = TransferReactions(db, driveDb, driveGuid);
+                    Console.WriteLine($"  transferred {n} records.");
+
+                    Console.Write("  Transferring commands ... ");
+                    n = TransferCommands(db, driveDb, driveGuid);
+                    Console.WriteLine($"  transferred {n} records.");
+
+                }
+            }
+
+            // Todd  Now loop through each drive
+            foreach (var drive in drives)
+            {
+                Console.WriteLine($" Validating drive {drive.Id}");
+                Guid driveGuid = drive.Id;
+                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
+                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
+                {
+                    Console.Write("  Validating main index... ");
+                    bool ok = ValidateMain(db, driveDb, driveGuid);
+                    Console.WriteLine($"  validation {ok}.");
+                    Debug.Assert( ok );
+
+                    Console.Write("  Validating ACL index... ");
+                    ok = ValidateAclIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"  validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("  Validating tag index... ");
+                    ok = ValidateTagIndex(db, driveDb, driveGuid);
+                    Console.WriteLine($"  validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("  Validating reactions... ");
+                    ok = ValidateReactions(db, driveDb, driveGuid);
+                    Console.WriteLine($"  validation {ok}.");
+                    Debug.Assert(ok);
+
+                    Console.Write("  Validating commands... ");
+                    ok = ValidateCommands(db, driveDb, driveGuid);
+                    Console.WriteLine($"  validation {ok}.");
+                    Debug.Assert(ok);
+                }
+            }
+
+            // Todd  Now loop through each drive
+            if (cleanUp)
+            {
+                foreach (var drive in drives)
+                {
+                    var indexDb = Path.Combine(drive.GetIndexPath(), "index.db");
+                    if (!File.Exists(indexDb))
+                    {
+                        throw new Exception($"Not found: {indexDb}");
+                    }
+
+                    var newName = Path.Combine(drive.GetIndexPath(), "old-index.db");
+                    File.Move(indexDb, newName);
+                }
+            }
+        }
+
+        // dotnet run -- /Users/seb/tmp/dotyou/tenants
+        static int Main(string[] args)
+        {
+            if (args.Length != 1)
+            {
+                Console.WriteLine("Usage: dotnet run -- <tenants-path>");
+                return 1;
+            }
+
+            var tenantsPath = args[0];
+            if (!Directory.Exists(tenantsPath))
+            {
+                Console.WriteLine($"Not found: {tenantsPath}");
+                return 1;
+            }
+
+            var registrations = Directory.GetDirectories(Path.Combine(tenantsPath, "registrations"));
+            foreach (var registration in registrations)
+            {
+                MigrateTenantRegistration(registration, false);
+            }
+
+            return 0;
+        }
+
     }
 }
