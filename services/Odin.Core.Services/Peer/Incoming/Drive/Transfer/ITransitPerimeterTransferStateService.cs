@@ -27,10 +27,6 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
 
         Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
 
-        Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
-
-        Task Reject(Guid transferStateItemId, MultipartHostTransferParts part);
-
         Task RemoveStateItem(Guid transferStateItemId);
     }
 }

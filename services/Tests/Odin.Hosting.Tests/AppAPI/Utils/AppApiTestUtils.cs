@@ -25,6 +25,7 @@ using Odin.Core.Services.Peer.Incoming.Drive;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.YouAuth;

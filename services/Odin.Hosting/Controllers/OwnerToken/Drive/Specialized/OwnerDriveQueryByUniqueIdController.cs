@@ -12,18 +12,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Specialized
     [ApiController]
     [Route(OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveQueryByUniqueIdController : DriveQueryByUniqueIdControllerBase
+    public class OwnerDriveQueryByUniqueIdController(
+        ILogger<OwnerDriveQueryByUniqueIdController> logger,
+        FileSystemResolver fileSystemResolver,
+        IPeerTransferService peerTransferService)
+        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerTransferService)
     {
-        private readonly ILogger<OwnerDriveQueryByUniqueIdController> _logger;
-
-        public OwnerDriveQueryByUniqueIdController(
-            ILogger<OwnerDriveQueryByUniqueIdController> logger,
-            FileSystemResolver fileSystemResolver,
-            IPeerTransferService peerTransferService) :
-            base(logger, fileSystemResolver, peerTransferService)
-        {
-            _logger = logger;
-        }
-        
+        private readonly ILogger<OwnerDriveQueryByUniqueIdController> _logger = logger;
     }
 }

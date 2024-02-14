@@ -13,7 +13,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// This is the original response code from the host server.
         /// </summary>
-        public PeerResponseCode RecipientPeerResponseCode { get; set; }
+        public PeerResponseCode? RecipientPeerResponseCode { get; set; }
         
         /// <summary>
         /// Specifies if the file should be put back in the queue

@@ -25,18 +25,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveStorageController : DriveStorageControllerBase
+    public class OwnerDriveStorageController(
+        ILogger<OwnerDriveStorageController> logger,
+        FileSystemResolver fileSystemResolver,
+        IPeerTransferService peerTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerTransferService)
     {
-        private readonly ILogger<OwnerDriveStorageController> _logger;
-
-        public OwnerDriveStorageController(
-            ILogger<OwnerDriveStorageController> logger,
-            FileSystemResolver fileSystemResolver,
-            IPeerTransferService peerTransferService) :
-            base(logger, fileSystemResolver, peerTransferService)
-        {
-            _logger = logger;
-        }
+        private readonly ILogger<OwnerDriveStorageController> _logger = logger;
 
         /// <summary>
         /// Retrieves a file's header and metadata
@@ -151,21 +146,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletefileidbatch")]
         public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
             return await base.DeleteFileIdBatch(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletegroupidbatch")]
         public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
             return await base.DeleteFilesByGroupIdBatch(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)

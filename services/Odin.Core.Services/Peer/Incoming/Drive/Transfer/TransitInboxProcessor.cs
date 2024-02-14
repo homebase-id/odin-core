@@ -8,7 +8,6 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
@@ -30,7 +29,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
-            TransitFileWriter writer = new TransitFileWriter(contextAccessor, fileSystemResolver);
+            TransitFileWriter writer = new TransitFileWriter(fileSystemResolver);
 
             foreach (var inboxItem in items)
             {
@@ -53,7 +52,6 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
-                            // await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType,);
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
