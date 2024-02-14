@@ -428,6 +428,10 @@ namespace Odin.Hosting
                 {
                     app.ApplicationServices.ScheduleCronJobs().Wait();
                 }
+                else
+                {
+                    app.ApplicationServices.RemoveCronJobs().Wait();
+                }
             });
         }
 

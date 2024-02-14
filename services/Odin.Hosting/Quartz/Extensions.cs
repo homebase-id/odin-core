@@ -35,4 +35,22 @@ public static class Extensions
         }
     }
 
+    public static async Task RemoveCronJobs(this IServiceProvider services)
+    {
+        var jobManager = services.GetRequiredService<IJobManager>();
+
+        // DefaultCron
+        {
+            var scheduler = services.GetRequiredService<DefaultCronScheduler>();
+            await jobManager.Delete(scheduler.SchedulingKey);
+        }
+
+        // EnsureIdentityHasValidCertificate
+        {
+            var scheduler = services.GetRequiredService<EnsureIdentityHasValidCertificateScheduler>();
+            await jobManager.Delete(scheduler.SchedulingKey);
+        }
+    }
+
+
 }
