@@ -326,7 +326,7 @@ namespace Odin.Core.Services.Configuration
 
             public LoggingSection(IConfiguration config)
             {
-                LogFilePath = config.Required<string>("Logging:LogFilePath");
+                LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
             }
         }
 
