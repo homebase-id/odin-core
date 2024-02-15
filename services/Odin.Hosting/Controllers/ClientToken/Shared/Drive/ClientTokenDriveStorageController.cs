@@ -31,8 +31,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     public class ClientTokenDriveStorageController(
         ILogger<ClientTokenDriveStorageController> logger,
         FileSystemResolver fileSystemResolver,
-        IPeerTransferService peerTransferService)
-        : DriveStorageControllerBase(fileSystemResolver, peerTransferService)
+        IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         private readonly ILogger<ClientTokenDriveStorageController> _logger = logger;
 

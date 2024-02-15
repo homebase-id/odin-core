@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -29,7 +28,7 @@ using Serilog;
 
 namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
 {
-    public class PeerOutgoingTransferService(
+    public class PeerOutgoingOutgoingTransferService(
         OdinContextAccessor contextAccessor,
         IPeerOutbox peerOutbox,
         TenantSystemStorage tenantSystemStorage,
@@ -41,7 +40,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
-            contextAccessor, fileSystemResolver), IPeerTransferService
+            contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
         private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService = new(tenantSystemStorage);
@@ -59,7 +58,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             var sfo = new FileTransferOptions()
             {
                 TransferFileType = transferFileType,
-                // ClientAccessTokenSource = tokenSource,
                 FileSystemType = fileSystemType
             };
 
@@ -221,7 +219,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             var options = outboxItem.OriginalTransitOptions;
 
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
-            
+
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
             if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
             {
@@ -231,7 +229,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     Success = false,
-                    ShouldRetry = false,
                     FailureReason = TransferFailureReason.RecipientDoesNotHavePermissionToFileAcl,
                     OutboxItem = outboxItem
                 };
@@ -248,7 +245,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     Success = false,
-                    ShouldRetry = true,
                     FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
                     OutboxItem = outboxItem
                 };
@@ -279,7 +275,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     Success = false,
-                    ShouldRetry = false,
                     FailureReason = TransferFailureReason.FileDoesNotAllowDistribution,
                     OutboxItem = outboxItem
                 };
@@ -358,7 +353,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 Recipient = recipient,
                 Success = success,
                 RecipientPeerResponseCode = peerCode,
-                ShouldRetry = true,
                 FailureReason = tfr,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
                 OutboxItem = outboxItem
@@ -433,7 +427,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                         Recipient = recipient,
                         OriginalTransitOptions = options,
                         EncryptedClientAuthToken = encryptedClientAccessToken,
-                        TransferInstructionSet = this.CreateTransferInstructionSet(
+                        TransferInstructionSet = CreateTransferInstructionSet(
                             keyHeader,
                             clientAuthToken,
                             targetDrive,
@@ -468,7 +462,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
         {
             var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
-            var sendResults = await this.SendBatchNow(outboxItems);
+            var sendResults = await SendBatchNow(outboxItems);
 
             foreach (var result in sendResults)
             {
@@ -483,7 +477,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                             transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToTargetDrive;
                             break;
                         default:
-                            throw new OdinSystemException("Unhandled success scenario in transit");
+                            throw new OdinSystemException("Unhandled success scenario in peer transfer");
                     }
                 }
                 else
@@ -492,7 +486,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     {
                         case TransferFailureReason.TransitPublicKeyInvalid:
                         case TransferFailureReason.RecipientPublicKeyInvalid:
-                        case TransferFailureReason.CouldNotEncrypt:
                         case TransferFailureReason.EncryptedTransferInstructionSetNotAvailable:
                             //enqueue the failures into the outbox
                             await peerOutbox.Add(result.OutboxItem);
@@ -501,7 +494,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
 
                         case TransferFailureReason.RecipientServerError:
                         case TransferFailureReason.UnknownError:
-                        case TransferFailureReason.RecipientServerRejected:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
 

@@ -28,8 +28,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveStorageController(
         ILogger<OwnerDriveStorageController> logger,
         FileSystemResolver fileSystemResolver,
-        IPeerTransferService peerTransferService)
-        : DriveStorageControllerBase(fileSystemResolver, peerTransferService)
+        IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         private readonly ILogger<OwnerDriveStorageController> _logger = logger;
 

@@ -15,8 +15,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Specialized
     public class OwnerDriveQueryByUniqueIdController(
         ILogger<OwnerDriveQueryByUniqueIdController> logger,
         FileSystemResolver fileSystemResolver,
-        IPeerTransferService peerTransferService)
-        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerTransferService)
+        IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         private readonly ILogger<OwnerDriveQueryByUniqueIdController> _logger = logger;
     }

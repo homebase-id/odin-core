@@ -13,11 +13,6 @@
         RecipientPublicKeyInvalid = 10,
 
         /// <summary>
-        /// Failed to encrypt data before sending to recipient
-        /// </summary>
-        CouldNotEncrypt = 400,
-
-        /// <summary>
         /// Generic error indicating the recipient's server failed 
         /// </summary>
         RecipientServerError = 500,
@@ -32,7 +27,6 @@
         /// </summary>
         UnknownError = 800,
 
-        RecipientServerRejected = 900,
         
         RecipientServerReturnedAccessDenied = 909,
         

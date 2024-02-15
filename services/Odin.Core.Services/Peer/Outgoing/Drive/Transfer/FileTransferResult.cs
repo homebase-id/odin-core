@@ -15,11 +15,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         public PeerResponseCode? RecipientPeerResponseCode { get; set; }
         
-        /// <summary>
-        /// Specifies if the file should be put back in the queue
-        /// </summary>
-        public bool ShouldRetry { get; set; }
-        
         public TransferFailureReason? FailureReason { get; set; }
 
         public InternalDriveFileId File { get; set; }

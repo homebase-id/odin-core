@@ -25,7 +25,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
     public abstract class DriveStorageControllerBase(
         // ILogger logger,
         FileSystemResolver fileSystemResolver,
-        IPeerTransferService peerTransferService) : OdinControllerBase
+        IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
         // private readonly ILogger _logger = logger;
 
@@ -308,7 +308,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 };
 
                 //send the deleted file
-                var responses = await peerTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
                     new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,

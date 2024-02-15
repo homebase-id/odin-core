@@ -15,8 +15,8 @@ using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
-    public abstract class DriveQueryByUniqueIdControllerBase(FileSystemResolver fileSystemResolver, IPeerTransferService peerTransferService)
-        : DriveStorageControllerBase(fileSystemResolver, peerTransferService)
+    public abstract class DriveQueryByUniqueIdControllerBase(FileSystemResolver fileSystemResolver, IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)

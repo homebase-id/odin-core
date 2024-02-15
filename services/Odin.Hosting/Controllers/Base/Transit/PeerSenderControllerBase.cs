@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public class PeerSenderControllerBase(IPeerTransferService peerTransferService) : DriveUploadControllerBase
+    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService) : DriveUploadControllerBase
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -115,7 +115,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 "GlobalTransitId is empty (cannot be Guid.Empty)");
 
             //send the deleted file
-            var map = await peerTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
+            var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
                 new FileTransferOptions()
                 {
                     FileSystemType = request.FileSystemType,
