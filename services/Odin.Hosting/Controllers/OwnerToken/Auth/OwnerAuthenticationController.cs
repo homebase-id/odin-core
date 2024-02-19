@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+using Bitcoin.BIP39;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Fluff;
@@ -10,7 +10,6 @@ using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
@@ -22,12 +21,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         private readonly OwnerAuthenticationService _authService;
         private readonly OwnerSecretService _ss;
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
+        private readonly ILogger<OwnerAuthenticationController> _logger;
 
-        public OwnerAuthenticationController(OwnerAuthenticationService authService, OwnerSecretService ss, PublicPrivateKeyService publicPrivateKeyService)
+        public OwnerAuthenticationController(
+            OwnerAuthenticationService authService,
+            OwnerSecretService ss,
+            PublicPrivateKeyService publicPrivateKeyService,
+            ILogger<OwnerAuthenticationController> logger)
         {
             _authService = authService;
             _ss = ss;
             _publicPrivateKeyService = publicPrivateKeyService;
+            _logger = logger;
         }
 
         [HttpGet("verifyToken")]
@@ -114,7 +119,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("resetpasswdrk")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordUsingRecoveryKeyRequest reply)
         {
-            await _ss.ResetPasswordUsingRecoveryKey(reply);
+            try
+            {
+                await _ss.ResetPasswordUsingRecoveryKey(reply);
+            }
+            catch (BIP39Exception e)
+            {
+                _logger.LogDebug("BIP39 failed: {message}", e.Message);
+                return new UnauthorizedResult();
+            }
             return new OkResult();
         }
 
