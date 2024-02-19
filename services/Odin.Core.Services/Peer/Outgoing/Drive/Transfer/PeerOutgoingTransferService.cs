@@ -116,7 +116,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     {
                         case PeerResponseCode.AcceptedIntoInbox:
                         case PeerResponseCode.AcceptedDirectWrite:
-                            result.Add(recipient, DeleteLinkedFileStatus.RemoteServerFailed);
+                            result.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
                             break;
 
                         default:
@@ -361,10 +361,10 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
 
         private (bool success, PeerResponseCode? peerCode, TransferFailureReason? tfr) MapResponseCode(ApiResponse<PeerTransferResponse> response)
         {
-            var peerResponseCode = response!.Content!.Code;
 
             if (response.IsSuccessStatusCode)
             {
+                var peerResponseCode = response!.Content!.Code;
                 switch (peerResponseCode)
                 {
                     case PeerResponseCode.AcceptedDirectWrite:
@@ -373,6 +373,12 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 }
 
                 return (true, peerResponseCode, null);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return (false, null, TransferFailureReason.RecipientServerReturnedAccessDenied);
+
             }
 
             if (response.StatusCode == HttpStatusCode.InternalServerError)
