@@ -24,7 +24,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        Task MarkFailure(Guid marker, TransferFailureReason reason);
+        Task MarkFailure(Guid marker, TransferResult reason);
 
         Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize);
 

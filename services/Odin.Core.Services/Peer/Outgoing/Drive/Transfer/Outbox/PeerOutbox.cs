@@ -86,7 +86,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(Guid marker, TransferFailureReason reason)
+        public async Task MarkFailure(Guid marker, TransferResult reason)
         {
             tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
             //TODO: there is no way to keep information on why an item failed

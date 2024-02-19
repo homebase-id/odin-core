@@ -1,16 +1,8 @@
 ﻿namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
 {
-    public enum TransferFailureReason
+    public enum TransferResult
     {
-        /// <summary>
-        /// Could not get the recipient's public key from their DI server. 
-        /// </summary>
-        TransitPublicKeyInvalid = 5,
-
-        /// <summary>
-        /// Indicates the recipients public key was rejected when transfer the data.
-        /// </summary>
-        RecipientPublicKeyInvalid = 10,
+        Success = 8000,
 
         /// <summary>
         /// Generic error indicating the recipient's server failed 
@@ -27,14 +19,14 @@
         /// </summary>
         UnknownError = 800,
 
-        
+
         RecipientServerReturnedAccessDenied = 909,
-        
+
         /// <summary>
         /// Indicates the file's header has AllowDistribution == false.  The file should be removed from the queue
         /// </summary>
         FileDoesNotAllowDistribution = 1001,
-        
+
         /// <summary>
         /// Indicates the target recipient does not match the ACL requirements on the file 
         /// </summary>
