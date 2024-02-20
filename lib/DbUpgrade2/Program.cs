@@ -26,6 +26,24 @@ namespace DbUpgrade2
             }
         }
 
+        static public bool MainHasData(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
+        {
+            int? inCursor = null;
+            int n = 0;
+
+            try
+            {
+                var size = ddb.TblMainIndex.GetDriveSize();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+
+
         static public int TransferMain(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
         {
             int? inCursor = null;
@@ -388,6 +406,12 @@ namespace DbUpgrade2
                 var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
                 using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
                 {
+                    if (MainHasData(db, driveDb, driveGuid) == false)
+                    {
+                        Console.WriteLine("  ERROR: Missing table mainindex");
+                        continue;
+                    }
+
                     Console.Write("  Transferring main index... ");
                     int n = TransferMain(db, driveDb, driveGuid);
                     Console.WriteLine($"  transferred {n} records.");
@@ -419,6 +443,12 @@ namespace DbUpgrade2
                 var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
                 using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
                 {
+                    if (MainHasData(db, driveDb, driveGuid) == false)
+                    {
+                        Console.WriteLine("  SKIPING VALIDATION: Missing table mainindex");
+                        continue;
+                    }
+
                     Console.Write("  Validating main index... ");
                     bool ok = ValidateMain(db, driveDb, driveGuid);
                     Console.WriteLine($"  validation {ok}.");
