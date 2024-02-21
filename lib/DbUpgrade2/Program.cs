@@ -494,13 +494,11 @@ namespace DbUpgrade2
                 foreach (var drive in drives)
                 {
                     var indexDb = Path.Combine(drive.GetIndexPath(), "index.db");
-                    if (!File.Exists(indexDb))
+                    if (File.Exists(indexDb))
                     {
-                        throw new Exception($"Not found: {indexDb}");
+                        var newName = Path.Combine(drive.GetIndexPath(), "old-index.db");
+                        File.Move(indexDb, newName);
                     }
-
-                    var newName = Path.Combine(drive.GetIndexPath(), "old-index.db");
-                    File.Move(indexDb, newName);
                 }
             }
         }
@@ -524,7 +522,7 @@ namespace DbUpgrade2
             var registrations = Directory.GetDirectories(Path.Combine(tenantsPath, "registrations"));
             foreach (var registration in registrations)
             {
-                MigrateTenantRegistration(registration, false);
+                MigrateTenantRegistration(registration, true);
             }
 
             return 0;
