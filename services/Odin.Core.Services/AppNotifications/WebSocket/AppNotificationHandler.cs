@@ -116,7 +116,20 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 {
                     var completeMessage = ms.ToArray();
                     var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-                    var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+
+                    byte[] decryptedBytes;
+                    try
+                    {
+                        decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                    }
+                    catch (Exception)
+                    {
+                        // SEB:TODO remove this when we figure out why it breaks from time to time
+                        // see ItShouldDecryptFromBase64 in SharedSecretEncryptedPayloadTest.cs
+                        _logger.LogError("[{sharedSecret}]", sharedSecret.GetKey().ToBase64());
+                        _logger.LogError("[{completeMessage}]", completeMessage.ToBase64());
+                        throw;
+                    }
 
                     SocketCommand command = null;
                     var errorText = "Error deserializing socket command";
