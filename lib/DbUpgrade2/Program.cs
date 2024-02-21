@@ -403,12 +403,18 @@ namespace DbUpgrade2
             {
                 Console.WriteLine($" Migrating drive {drive.Id}");
                 Guid driveGuid = drive.Id;
-                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
-                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
+                string filePath = $"{drive.GetIndexPath()}/index.db";
+                if (File.Exists(filePath) == false)
+                {
+                    Console.WriteLine("  ERROR: Drive has no index.db file");
+                    continue;
+                }
+
+                using (var driveDb = new xDriveDatabase($"Data Source={filePath}", DatabaseIndexKind.TimeSeries))
                 {
                     if (MainHasData(db, driveDb, driveGuid) == false)
                     {
-                        Console.WriteLine("  ERROR: Missing table mainindex");
+                        Console.WriteLine("  ERROR: Drive index.db has no mainindex table");
                         continue;
                     }
 
@@ -440,12 +446,18 @@ namespace DbUpgrade2
             {
                 Console.WriteLine($" Validating drive {drive.Id}");
                 Guid driveGuid = drive.Id;
-                var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
-                using (var driveDb = new xDriveDatabase(connectionString, DatabaseIndexKind.TimeSeries))
+                string filePath = $"{drive.GetIndexPath()}/index.db";
+                if (File.Exists(filePath) == false)
+                {
+                    Console.WriteLine("  SKIPING VALIDATION: Drive index.db does not exist");
+                    continue;
+                }
+
+                using (var driveDb = new xDriveDatabase($"Data Source={filePath}", DatabaseIndexKind.TimeSeries))
                 {
                     if (MainHasData(db, driveDb, driveGuid) == false)
                     {
-                        Console.WriteLine("  SKIPING VALIDATION: Missing table mainindex");
+                        Console.WriteLine("  SKIPING VALIDATION: Drive index.db has no table mainindex");
                         continue;
                     }
 
