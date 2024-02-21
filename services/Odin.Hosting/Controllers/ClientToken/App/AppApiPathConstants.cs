@@ -8,13 +8,13 @@
 
         public const string AuthV1 = BasePathV1 + "/auth";
 
-        public const string TransitV1 = BasePathV1 + "/transit";
+        public const string PeerV1 = BasePathV1 + "/transit";
 
-        public const string TransitSenderV1 = TransitV1 + "/sender";
+        public const string PeerSenderV1 = PeerV1 + "/sender";
         
-        public const string TransitQueryV1 = TransitV1 + "/query";
+        public const string PeerQueryV1 = PeerV1 + "/query";
         
-        public const string TransitReactionContentV1 = TransitV1 + "/reactions";
+        public const string PeerReactionContentV1 = PeerV1 + "/reactions";
         
         public const string CirclesV1 = BasePathV1 + "/circles";
         
@@ -35,5 +35,9 @@
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
 
         public const string CommandSenderV1 = BasePathV1 + "/commands";
+        
+        public const string OptimizationV1 = BasePathV1 + "/optimization";
+
+        public const string CdnV1 = OptimizationV1 + "/cdn";
     }
 }

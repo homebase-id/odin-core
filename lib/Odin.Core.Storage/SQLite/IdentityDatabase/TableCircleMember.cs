@@ -54,14 +54,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="CircleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void AddCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
+        public void UpsertCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
         {
             if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Insert(CircleMemberRecordList[i]);
+                    Upsert(CircleMemberRecordList[i]);
         }
 
 

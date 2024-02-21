@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Acl;
@@ -19,7 +20,9 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Serilog;
@@ -33,7 +36,7 @@ namespace Odin.Core.Services.DataSubscription
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
-        private readonly ITransitService _transitService;
+        private readonly IPeerTransferService _peerTransferService;
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -42,6 +45,7 @@ namespace Odin.Core.Services.DataSubscription
         private readonly CircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly ILogger<FeedDriveDistributionRouter> _logger;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
 
@@ -50,16 +54,19 @@ namespace Odin.Core.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext,
+            IPeerTransferService peerTransferService, DriveManager driveManager, TenantContext tenantContext,
             ServerSystemStorage serverSystemStorage,
-            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage,
+            FileSystemResolver fileSystemResolver,
+            TenantSystemStorage tenantSystemStorage,
             OdinContextAccessor contextAccessor,
             CircleNetworkService circleNetworkService,
-            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration,
-            IDriveAclAuthorizationService driveAcl)
+            IOdinHttpClientFactory odinHttpClientFactory,
+            OdinConfiguration odinConfiguration,
+            IDriveAclAuthorizationService driveAcl,
+            ILogger<FeedDriveDistributionRouter> logger)
         {
             _followerService = followerService;
-            _transitService = transitService;
+            _peerTransferService = peerTransferService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
             _serverSystemStorage = serverSystemStorage;
@@ -69,6 +76,7 @@ namespace Odin.Core.Services.DataSubscription
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
             _driveAcl = driveAcl;
+            _logger = logger;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl);
         }
@@ -262,7 +270,7 @@ namespace Odin.Core.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,
@@ -305,6 +313,8 @@ namespace Odin.Core.Services.DataSubscription
 
         private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients)
         {
+            var file = header.FileMetadata.File;
+
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
@@ -315,29 +325,55 @@ namespace Odin.Core.Services.DataSubscription
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive,
-                
-                // UseAppNotification = true,
-                // AppNotificationOptions = new AppNotificationOptions
-                // {
-                //     AppId = SystemAppConstants.FeedAppId,
-                //     TypeId = FeedAppConstants.NotificationTypeId,
-                //     TagId = Guid.NewGuid(),
-                //     Silent = false,
-                //     UnEncryptedMessage = $"You have a new "
-                // }
             };
 
-            var transferStatusMap = await _transitService.SendFile(
-                header.FileMetadata.File,
+            var transferStatusMap = await _peerTransferService.SendFile(
+                file,
                 transitOptions,
                 TransferFileType.Normal,
                 header.ServerMetadata.FileSystemType);
+            
+            // there should be a result for each recipient
 
-            // TODO: need to determine how to handle the transferStatusMap
-            // this feed drive router happens in the background so how do
-            // we want to handle any TransferStatus that indicates an
-            // unsuccessful that is not retried by the transit system
-            // i.e. TransferStatus.TotalRejectionClientShouldRetry
+            foreach (var recipient in recipients)
+            {
+                if (!transferStatusMap.TryGetValue(recipient, out var status))
+                {
+                    //no information for recipient in transfer status map; this
+                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient, file.FileId,
+                        file.DriveId);
+                }
+
+                // if (_logger.IsEnabled(LogLevel.Trace))
+                {
+                    _logger.LogInformation("Feed Distribution Router result - {recipient} returned status " +
+                                     "[{status}] for fileId [{fileId}] on drive [{driveId}]", recipient, status, file.FileId, file.DriveId);
+                }
+
+                // switch (status)
+                // {
+                //     // success scenarios
+                //     case TransferStatus.TransferKeyCreated:
+                //     case TransferStatus.DeliveredToInbox:
+                //     case TransferStatus.DeliveredToTargetDrive:
+                //         break;
+                //
+                //     case TransferStatus.AwaitingTransferKey:
+                //         break;
+                //     case TransferStatus.PendingRetry:
+                //         break;
+                //     case TransferStatus.TotalRejectionClientShouldRetry:
+                //         break;
+                //     case TransferStatus.RecipientReturnedAccessDenied:
+                //         break;
+                //
+                //     //these we should have checked earlier
+                //     case TransferStatus.FileDoesNotAllowDistribution:
+                //         break;
+                //     case TransferStatus.RecipientDoesNotHavePermissionToFileAcl:
+                //         break;
+                // }
+            }
         }
 
         private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients)
@@ -345,13 +381,13 @@ namespace Odin.Core.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _transitService.SendDeleteFileRequest(
+                var map = await _peerTransferService.SendDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         TargetDrive = SystemDriveConstants.FeedDrive,
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     },
-                    sendFileOptions: new SendFileOptions()
+                    fileTransferOptions: new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,

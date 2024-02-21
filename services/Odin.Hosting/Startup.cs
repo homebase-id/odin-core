@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
-using Dawn;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
@@ -16,10 +15,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
-using Odin.Core.Services.Background.Certificate;
-using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
@@ -28,8 +26,7 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
-using Odin.Core.Services.Peer.SendingHost.Outbox;
-using Odin.Core.Services.Quartz;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;
@@ -44,8 +41,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Quartz;
-using Quartz.AspNetCore;
+using Odin.Hosting.Quartz;
 
 namespace Odin.Hosting
 {
@@ -86,22 +82,14 @@ namespace Odin.Hosting
             //
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
+            services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-            
-            services.AddSingleton<IExclusiveJobManager, ExclusiveJobManager>();
-            services.AddQuartz(q =>
-            {
-                q.AddTriggerListener(sp => sp.GetRequiredService<IExclusiveJobManager>());
-                if (config.Quartz.EnableQuartzBackgroundService)
-                {
-                    q.UseDefaultCronSchedule(config);
-                    q.UseDefaultCertificateRenewalSchedule(config);
-                }
-            });
-            services.AddQuartzServer(options =>
-            {
-                options.WaitForJobsToComplete = true;
-            });
+
+            //
+            // Quartz
+            //
+            services.AddQuartzServices(config);
+            services.AddCronJobs();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -148,10 +136,7 @@ namespace Odin.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-            services.AddResponseCompression(options =>
-            {
-                options.EnableForHttps = true;
-            });
+            services.AddResponseCompression(options => { options.EnableForHttps = true; });
 
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
@@ -341,11 +326,14 @@ namespace Odin.Hosting
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
 
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
-
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3002/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3003/"); }); });
 
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
@@ -375,21 +363,20 @@ namespace Odin.Hosting
                             return;
                         });
                     });
-                
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
-                    chatApp =>
-                    {
-                        var chatPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat");
-                        chatApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(chatPath),
-                            RequestPath = "/apps/chat"
-                        });
 
-                        chatApp.Run(async context =>
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
+                    feedApp =>
+                    {
+                        var feedPath = Path.Combine(env.ContentRootPath, "client", "apps", "feed");
+                        feedApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(feedPath),
+                            RequestPath = "/apps/feed"
+                        });
+                        feedApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(chatPath, "index.html"));
+                            await context.Response.SendFileAsync(Path.Combine(feedPath, "index.html"));
                             return;
                         });
                     });
@@ -403,6 +390,7 @@ namespace Odin.Hosting
                             FileProvider = new PhysicalFileProvider(chatPath),
                             RequestPath = "/apps/chat"
                         });
+
                         chatApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
@@ -432,7 +420,19 @@ namespace Odin.Hosting
                     });
             }
 
-            lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
+
+                if (config.Quartz.EnableQuartzBackgroundService)
+                {
+                    app.ApplicationServices.ScheduleCronJobs().Wait();
+                }
+                else
+                {
+                    app.ApplicationServices.RemoveCronJobs().Wait();
+                }
+            });
         }
 
         private void PrepareEnvironment(OdinConfiguration cfg)
@@ -444,9 +444,11 @@ namespace Odin.Hosting
 
         private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
         {
-            Guard.Argument(section, nameof(section)).NotNull();
-            Guard.Argument(section.CertificateAuthorityAssociatedEmail,
-                nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
+            var email = section?.CertificateAuthorityAssociatedEmail;
+            if (string.IsNullOrEmpty(email) || string.IsNullOrWhiteSpace(email))
+            {
+                throw new OdinSystemException($"{nameof(section.CertificateAuthorityAssociatedEmail)} is not configured");
+            }
         }
     }
 }

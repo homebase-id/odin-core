@@ -12,7 +12,8 @@ using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Refit;
@@ -292,6 +293,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
+            Assert.IsTrue(receivedFile.FileMetadata.TransitCreated > 0);
+            Assert.IsTrue(receivedFile.FileMetadata.TransitUpdated == 0);
+
 
             //Sender updates their comment
 
@@ -311,6 +315,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
             Assert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
             Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == encryptedUpdatedCommentJsonContent64);
+
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.TransitCreated > 0);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.TransitUpdated == 0);
 
             Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 "should still match original global transit id");

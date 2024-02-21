@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dawn;
+
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
@@ -15,11 +15,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         /// <summary />
         public FileUploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet, bool isUpdateOperation)
         {
-            Guard.Argument(internalFile, nameof(internalFile)).HasValue();
-            Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
-            Guard.Argument(internalFile.DriveId, nameof(internalFile.DriveId)).NotEqual(Guid.Empty);
-
-            // this.TempFile = internalFile with { FileId = Guid.NewGuid() };
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
@@ -28,10 +23,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         }
 
         /// <summary>
-        /// The file to whi This is not the same as the
-        /// target file to which the payloads will be attach
+        /// A temp file name for use while storing the temporary file being uploaded
+        /// This is not the same as the final target file.
         /// </summary>
-        //TODO
         // public InternalDriveFileId TempFile { get; set; }
 
         public UploadInstructionSet InstructionSet { get; init; }
@@ -71,6 +65,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
                 return new PayloadDescriptor()
                 {
                     Iv = p.Iv,
+                    Uid = p.Uid,
                     Key = p.PayloadKey,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,

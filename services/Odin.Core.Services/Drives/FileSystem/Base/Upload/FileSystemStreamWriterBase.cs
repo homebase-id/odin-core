@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
-using Odin.Core.Cryptography;
+
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -14,10 +13,11 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
-using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
@@ -31,18 +31,18 @@ public abstract class FileSystemStreamWriterBase
     private readonly OdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
-    private readonly ITransitService _transitService;
+    private readonly IPeerTransferService _peerTransferService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        DriveManager driveManager, ITransitService transitService)
+        DriveManager driveManager, IPeerTransferService peerTransferService)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
-        _transitService = transitService;
+        _peerTransferService = peerTransferService;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -60,18 +60,17 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task StartUpload(UploadInstructionSet instructionSet)
     {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
-
+        
         if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
         {
             throw new OdinClientException("Cannot transfer to yourself; what's the point?", OdinClientErrorCode.InvalidRecipient);
         }
 
         InternalDriveFileId file;
-        // var driveId = _driveManager.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
         var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
-        var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
+        var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
@@ -91,6 +90,16 @@ public abstract class FileSystemStreamWriterBase
                 DriveId = driveId,
                 FileId = overwriteFileId
             };
+        }
+
+        if (instructionSet.Manifest?.PayloadDescriptors != null)
+        {
+            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
+            }
         }
 
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
@@ -116,13 +125,15 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extenstion = DriveFileUtility.GetPayloadFileExtension(key);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
+        var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data);
+
         if (bytesWritten > 0)
         {
             Package.Payloads.Add(new PackagePayloadDescriptor()
             {
                 Iv = descriptor.Iv,
+                Uid = descriptor.PayloadUid,
                 PayloadKey = key,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
@@ -149,7 +160,8 @@ public abstract class FileSystemStreamWriterBase
         {
             return new
             {
-                PayloadKey = pd.PayloadKey,
+                pd.PayloadKey,
+                pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -164,9 +176,11 @@ public abstract class FileSystemStreamWriterBase
 
         //TODO: should i validate width and height are > 0?
         string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+            result.PayloadKey,
+            result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
-            result.ThumbnailDescriptor.PixelHeight,
-            result.PayloadKey);
+            result.ThumbnailDescriptor.PixelHeight
+        );
 
         await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data);
 
@@ -192,7 +206,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (Package.IsUpdateOperation)
         {
-            // Validate the file exists by the Id
+            // Validate the file exists by the File Id
             if (!FileSystem.Storage.FileExists(Package.InternalFile))
             {
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",
@@ -292,11 +306,10 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        byte[] metdataBytes = null;
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
 
-        metdataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-        var decryptedJsonBytes = AesCbc.Decrypt(metdataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
@@ -316,9 +329,12 @@ public abstract class FileSystemStreamWriterBase
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
+
+        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
+
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile,
+            recipientStatus = await _peerTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType);

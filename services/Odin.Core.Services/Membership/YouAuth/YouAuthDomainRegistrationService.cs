@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -14,6 +14,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -50,10 +51,10 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             const string domainStorageContextKey = "e11ff091-0edf-4532-8b0f-b9d9ebe0880f";
             _domainStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainStorageContextKey));
-            
+
             const string domainClientStorageContextKey = "8994c20a-179c-469c-a3b9-c4d6a8d2eb3c";
             _clientStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(domainClientStorageContextKey));
-            
+
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -64,8 +65,8 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
+            OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
+            OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
@@ -82,7 +83,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
             request.ConsentRequirements?.Validate();
-            
+
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
@@ -105,9 +106,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             string friendlyName,
             YouAuthDomainRegistrationRequest? request)
         {
-            Guard.Argument(domain, nameof(domain)).Require(x => !string.IsNullOrEmpty(x.DomainName));
-            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
-
+            OdinValidationUtils.AssertNotNullOrEmpty(friendlyName, nameof(friendlyName));
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var reg = await this.GetDomainRegistrationInternal(domain);
@@ -433,7 +432,7 @@ namespace Odin.Core.Services.Membership.YouAuth
             if (null != reg)
             {
                 //get the circle grants for this domain
-                var circles = _circleMembershipService.GetCirclesGrantsByDomain(reg.Domain);
+                var circles = _circleMembershipService.GetCirclesGrantsByDomain(reg.Domain, DomainType.YouAuth);
                 reg.CircleGrants = circles.ToDictionary(cg => cg.CircleId.Value, cg => cg);
             }
 
@@ -460,7 +459,11 @@ namespace Odin.Core.Services.Membership.YouAuth
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
                 //Store the circles for this registration
-                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
+
+                //TODO: this is causing an issue where in the circles are also deleted for the ICR 
+                // 
+                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth);
+
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
                     var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.YouAuth);
@@ -472,7 +475,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                     }
                 }
 
-                //clear them here so we don't hve two locations
+                //clear them here so we don't have two locations
                 registration.CircleGrants.Clear();
 
                 _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
@@ -516,7 +519,8 @@ namespace Odin.Core.Services.Membership.YouAuth
                     {
                         ClientIdOrDomain = domainRegistration.Domain.DomainName,
                         CorsHostName = domainRegistration.CorsHostName,
-                        AccessRegistrationId = accessReg.Id
+                        AccessRegistrationId = accessReg.Id,
+                        DevicePushNotificationKey = null
                     })
             };
 

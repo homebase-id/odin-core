@@ -46,6 +46,18 @@ public static class SystemDriveConstants
         Type = GuidId.FromString("feed_drive")
     };
     
+    public static readonly TargetDrive HomePageConfigDrive = new()
+    {
+        Alias = Guid.Parse("ec83345af6a747d4404ef8b0f8844caa"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
+    };
+    
+    public static readonly TargetDrive PublicPostsChannelDrive = new()
+    {
+        Alias = Guid.Parse("e8475dc46cb4b6651c2d0dbd0f3aad5f"),
+        Type = ChannelDriveType
+    };
+    
     
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
     {
@@ -63,6 +75,25 @@ public static class SystemDriveConstants
         Metadata = "",
         TargetDrive = FeedDrive,
         OwnerOnly = true
+    };
+    
+    public static readonly CreateDriveRequest CreateHomePageConfigDriveRequest = new()
+    {
+        Name = "Homepage Config",
+        AllowAnonymousReads = true,
+        Metadata = "",
+        TargetDrive = HomePageConfigDrive,
+        OwnerOnly = false
+    };
+    
+    public static readonly CreateDriveRequest CreatePublicPostsChannelDriveRequest = new()
+    {
+        Name = "Public Posts",
+        AllowAnonymousReads = true,
+        Metadata = "",
+        TargetDrive = PublicPostsChannelDrive,
+        OwnerOnly = false,
+        AllowSubscriptions = true
     };
     
     public static readonly CreateDriveRequest CreateContactDriveRequest = new()

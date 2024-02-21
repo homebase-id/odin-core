@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
@@ -33,7 +34,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
         var callerContext = odinContext.Caller;
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
@@ -66,8 +66,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
@@ -122,7 +120,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         if (null == header)
         {
-            Log.Warning($"UpdateCurrentIndex called on null server file header");
+            _logger.LogWarning("UpdateCurrentIndex called on null server file header");
             return Task.CompletedTask;
         }
 
@@ -175,24 +173,34 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         }
         else
         {
-            _db.AddEntry(
-                Drive.Id,
-                fileId: metadata.File.FileId,
-                globalTransitId: metadata.GlobalTransitId,
-                fileType: metadata.AppData.FileType,
-                dataType: metadata.AppData.DataType,
-                senderId: sender,
-                groupId: metadata.AppData.GroupId,
-                uniqueId: metadata.AppData.UniqueId,
-                archivalStatus: metadata.AppData.ArchivalStatus,
-                userDate: metadata.AppData.UserDate.GetValueOrDefault(),
-                requiredSecurityGroup: securityGroup,
-                accessControlList: acl,
-                tagIdList: tags,
-                fileState: (int)metadata.FileState,
-                fileSystemType: (int)header.ServerMetadata.FileSystemType,
-                byteCount: header.ServerMetadata.FileByteCount
-            );
+            try
+            {
+                _db.AddEntry(
+                    Drive.Id,
+                    fileId: metadata.File.FileId,
+                    globalTransitId: metadata.GlobalTransitId,
+                    fileType: metadata.AppData.FileType,
+                    dataType: metadata.AppData.DataType,
+                    senderId: sender,
+                    groupId: metadata.AppData.GroupId,
+                    uniqueId: metadata.AppData.UniqueId,
+                    archivalStatus: metadata.AppData.ArchivalStatus,
+                    userDate: metadata.AppData.UserDate.GetValueOrDefault(),
+                    requiredSecurityGroup: securityGroup,
+                    accessControlList: acl,
+                    tagIdList: tags,
+                    fileState: (int)metadata.FileState,
+                    fileSystemType: (int)header.ServerMetadata.FileSystemType,
+                    byteCount: header.ServerMetadata.FileByteCount
+                );
+            }
+            catch (SqliteException e)
+            {
+                if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
+                {
+                    throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                }
+            }
         }
 
         return Task.CompletedTask;
@@ -218,7 +226,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
-        Guard.Argument(count, nameof(count)).Require(c => c > 0);
         var list = _db.tblDriveCommandMessageQueue.Get(Drive.Id, count) ?? new List<DriveCommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
@@ -319,8 +326,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
-
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
 
         var aclList = GetAcl(odinContext);

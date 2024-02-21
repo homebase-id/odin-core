@@ -7,8 +7,11 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.AppNotifications.Data;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 
 namespace Odin.Hosting.Tests._Universal.NotificationTests.Lists;
@@ -37,7 +40,8 @@ public class NotificationListTests
     {
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
         yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[]
+            { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive(), new TestPermissionKeyList(PermissionKeys.SendPushNotifications)), HttpStatusCode.OK };
     }
 
     [Test]
@@ -87,6 +91,8 @@ public class NotificationListTests
             Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
             Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
         }
+
+        await ownerApiClient.AppNotifications.Delete([response1.Content.NotificationId, response2.Content.NotificationId]);
     }
 
     [Test]
@@ -138,7 +144,6 @@ public class NotificationListTests
             Assert.IsTrue(notification.Unread == false);
         }
     }
-
 
     [Test]
     [TestCaseSource(nameof(TestCases))]

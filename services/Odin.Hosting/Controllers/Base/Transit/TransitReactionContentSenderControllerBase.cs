@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Incoming.Reactions;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.OwnerToken;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -16,11 +17,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// </summary>
     public class TransitReactionContentSenderControllerBase : OdinControllerBase
     {
-        private readonly TransitReactionContentSenderService _transitReactionContentSenderService;
+        private readonly PeerReactionSenderService _peerReactionSenderService;
 
-        public TransitReactionContentSenderControllerBase(TransitReactionContentSenderService transitReactionContentSenderService)
+        public TransitReactionContentSenderControllerBase(PeerReactionSenderService peerReactionSenderService)
         {
-            _transitReactionContentSenderService = transitReactionContentSenderService;
+            _peerReactionSenderService = peerReactionSenderService;
         }
 
         /// <summary>
@@ -31,7 +32,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent([FromBody] TransitAddReactionRequest request)
         {
-            await _transitReactionContentSenderService.AddReaction((OdinId)request.OdinId, request.Request);
+            await _peerReactionSenderService.AddReaction((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
@@ -40,7 +41,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("list")]
         public Task<GetReactionsPerimeterResponse> GetAllReactions([FromBody] TransitGetReactionsRequest request)
         {
-            return _transitReactionContentSenderService.GetReactions((OdinId)request.OdinId, request.Request);
+            return _peerReactionSenderService.GetReactions((OdinId)request.OdinId, request.Request);
         }
 
         /// <summary>
@@ -51,7 +52,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] TransitDeleteReactionRequest request)
         {
-            await _transitReactionContentSenderService.DeleteReaction((OdinId)request.OdinId, request.Request);
+            await _peerReactionSenderService.DeleteReaction((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
@@ -63,7 +64,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] TransitDeleteReactionRequest request)
         {
-            await _transitReactionContentSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request);
+            await _peerReactionSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
@@ -75,7 +76,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] TransitGetReactionsRequest request)
         {
-            return await _transitReactionContentSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request);
+            return await _peerReactionSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request);
         }
 
         /// <summary>
@@ -85,7 +86,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] TransitGetReactionsByIdentityRequest request)
         {
-            return await _transitReactionContentSenderService.GetReactionsByIdentityAndFile((OdinId)request.OdinId, request);
+            return await _peerReactionSenderService.GetReactionsByIdentityAndFile((OdinId)request.OdinId, request);
         }
     }
 }

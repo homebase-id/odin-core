@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Membership.Circles;
 
 namespace Odin.Core.Services.Base
 {
@@ -55,16 +57,9 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
-        // public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
-
-        // public void SetIsConnected()
-        // {
-        //     //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
-        //     this.SecurityLevel = SecurityGroupType.Connected;
-        // }
 
         public void AssertHasMasterKey()
         {
@@ -90,6 +85,7 @@ namespace Odin.Core.Services.Base
             return new RedactedCallerContext()
             {
                 OdinId = this.OdinId,
+                IsGrantedConnectedIdentitiesSystemCircle = this.Circles.Any(c => c == SystemCircleConstants.ConnectedIdentitiesSystemCircleId),
                 SecurityLevel = this.SecurityLevel,
             };
         }
@@ -99,5 +95,6 @@ namespace Odin.Core.Services.Base
     {
         public OdinId? OdinId { get; init; }
         public SecurityGroupType SecurityLevel { get; init; }
+        public bool IsGrantedConnectedIdentitiesSystemCircle { get; set; }
     }
 }

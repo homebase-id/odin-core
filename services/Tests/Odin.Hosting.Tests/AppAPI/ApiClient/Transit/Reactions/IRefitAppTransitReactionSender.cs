@@ -2,8 +2,9 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Peer.ReceivingHost.Reactions;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Incoming.Reactions;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
@@ -11,7 +12,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions
 {
     public interface IRefitAppTransitReactionSender
     {
-        private const string RootEndpoint = AppApiPathConstants.TransitReactionContentV1;
+        private const string RootEndpoint = AppApiPathConstants.PeerReactionContentV1;
 
         [Post(RootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] TransitAddReactionRequest request);

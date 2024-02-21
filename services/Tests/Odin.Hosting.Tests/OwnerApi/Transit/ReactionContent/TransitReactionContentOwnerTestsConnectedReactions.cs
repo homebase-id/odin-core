@@ -10,7 +10,8 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.DataSubscription.Follower;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer.SendingHost;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -98,6 +99,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+            await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
             await samOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
         }
 
@@ -177,6 +179,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             Assert.IsTrue(shouldBeDeletedResponse.Reactions.Count == 0);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+            await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
             await samOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
         }
 

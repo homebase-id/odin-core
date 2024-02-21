@@ -77,9 +77,10 @@ public class NotificationsTest
         //
         // Send a request indicating the drives (handshake1)
         //
-        var request = new EstablishConnectionRequest()
+        var request = new SocketCommand
         {
-            Drives = new List<TargetDrive>() { testAppContext.TargetDrive }
+            Command = SocketCommandType.EstablishConnectionRequest,
+            Data = OdinSystemSerializer.Serialize(new List<TargetDrive>() { testAppContext.TargetDrive })
         };
 
         var ssp = SharedSecretEncryptedPayload.Encrypt(
@@ -156,10 +157,12 @@ public class NotificationsTest
         //
         // Send a request with no drives; this should fail
         //
-        var request = new EstablishConnectionRequest()
+        var request = new SocketCommand
         {
-            Drives = new List<TargetDrive>() { testAppContext.TargetDrive }
+            Command = SocketCommandType.EstablishConnectionRequest,
+            Data = OdinSystemSerializer.Serialize(new List<TargetDrive>() { testAppContext.TargetDrive })
         };
+
 
         var buffer = new ArraySegment<byte>(OdinSystemSerializer.Serialize(request).ToUtf8ByteArray());
         await socket.SendAsync(buffer, WebSocketMessageType.Text, true, tokenSource.Token);

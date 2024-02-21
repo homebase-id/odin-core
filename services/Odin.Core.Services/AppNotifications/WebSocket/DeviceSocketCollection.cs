@@ -18,30 +18,14 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             return _sockets;
         }
 
-
         public void AddSocket(DeviceSocket socket)
         {
             _sockets.TryAdd(socket.Key, socket);
         }
 
-        public async Task RemoveSocket(Guid key)
+        public void RemoveSocket(Guid key)
         {
-            _sockets.TryRemove(key, out var deviceSocket);
-
-            try
-            {
-                await deviceSocket?.Socket?.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
-                    statusDescription: "Closed by the server",
-                    cancellationToken: CancellationToken.None)!;
-            }
-            catch (Exception e)
-            {
-                //TODO: swallowing: System.Net.WebSockets.WebSocketException The remote party closed the WebSocket connection without completing the close handshake.
-                //---> System.ObjectDisposedException: Cannot write to the response body, the response has completed.
-
-                //I think this occurs because the client has already moved on.
-                Console.WriteLine(e);
-            }
+            _sockets.TryRemove(key, out _);
         }
     }
 }

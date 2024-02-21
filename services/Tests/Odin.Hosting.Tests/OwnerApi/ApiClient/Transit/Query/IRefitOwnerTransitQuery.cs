@@ -19,13 +19,13 @@ public interface IRefitOwnerTransitQuery
 
 
     [Post(RootEndpoint + "/modified")]
-    Task<ApiResponse<QueryModifiedResponse>> GetModified(TransitQueryModifiedRequest request);
+    Task<ApiResponse<QueryModifiedResponse>> GetModified(PeerQueryModifiedRequest request);
 
     [Post(RootEndpoint + "/batchcollection")]
-    Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] TransitQueryBatchCollectionRequest request);
+    Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] PeerQueryBatchCollectionRequest request);
         
     [Post(RootEndpoint + "/batch")]
-    Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] TransitQueryBatchRequest request);
+    Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] PeerQueryBatchRequest request);
 
     [Post(RootEndpoint + "/header")]
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);

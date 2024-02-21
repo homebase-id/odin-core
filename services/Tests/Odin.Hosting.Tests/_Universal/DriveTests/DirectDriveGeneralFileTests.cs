@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -74,7 +73,7 @@ public class DirectDriveGeneralFileTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
-
+        
         // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var testPayloads = new List<TestPayloadDefinition>()

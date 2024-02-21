@@ -111,10 +111,15 @@ namespace Odin.Hosting
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.LogLevelModifier(s => s.Async(
-                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme)))
-                .WriteTo.LogLevelModifier(s => s.Async(
+                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme)));
+
+            if (odinConfig.Logging.LogFilePath != "")
+            {
+                loggerConfig.WriteTo.LogLevelModifier(s => s.Async(
                     sink => sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
                         outputTemplate: logOutputTemplate)));
+            }
+
             if (services != null)
             {
                 loggerConfig.ReadFrom.Services(services);
@@ -129,10 +134,13 @@ namespace Odin.Hosting
         {
             var (odinConfig, appSettingsConfig) = LoadConfig();
 
-            var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
-            if (!loggingDirInfo.Exists)
+            if (odinConfig.Logging.LogFilePath != "")
             {
-                throw new OdinSystemException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
+                var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
+                if (!loggingDirInfo.Exists)
+                {
+                    throw new OdinSystemException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
+                }
             }
 
             var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);

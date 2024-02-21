@@ -4,9 +4,12 @@ using System.Linq;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
 
@@ -38,33 +41,41 @@ public abstract class OdinControllerBase : ControllerBase
         if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme || OdinContext.AuthContext == YouAuthConstants.AppSchemeName)
         {
             var seconds = minutes == null ? TimeSpan.FromDays(365).TotalSeconds : TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
-            
+
             this.Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
         }
     }
 
     protected FileChunk GetChunk(int? chunkStart, int? chunkLength)
     {
-        FileChunk chunk = null;
         if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
             RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
         {
             var firstRange = range.Ranges.First();
-            if (firstRange.From != null && firstRange.To != null)
+            if (firstRange.From != null)
             {
                 HttpContext.Response.StatusCode = 206;
 
                 int start = Convert.ToInt32(firstRange.From ?? 0);
-                int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
+                if (firstRange.To == null)
+                {
+                    return new FileChunk()
+                    {
+                        Start = start,
+                        Length = int.MaxValue
+                    };
+                }
 
-                chunk = new FileChunk()
+                int end = Convert.ToInt32(firstRange.To);
+
+                return new FileChunk()
                 {
                     Start = start,
                     Length = end - start + 1
                 };
             }
 
-            return chunk;
+            return null;
         }
         else if (chunkStart.HasValue)
         {
@@ -76,6 +87,11 @@ public abstract class OdinControllerBase : ControllerBase
         }
 
         return null;
+    }
+
+    protected void AssertIsValidOdinId(string odinId, out OdinId id)
+    {
+        OdinValidationUtils.AssertIsValidOdinId(odinId, out id);
     }
 
     /// <summary>

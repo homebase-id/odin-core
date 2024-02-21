@@ -1,28 +1,19 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Exceptions;
-using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Core.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {
-    public class TransitProcessControllerBase : ControllerBase
+    public class TransitProcessControllerBase(TransitInboxProcessor transitInboxProcessor) : OdinControllerBase
     {
-        private readonly TransitInboxProcessor _transitInboxProcessor;
-
-        public TransitProcessControllerBase(TransitInboxProcessor transitInboxProcessor)
-        {
-            _transitInboxProcessor = transitInboxProcessor;
-        }
-
         [HttpPost("process")]
         public async Task<IActionResult> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
-            if ((request.TargetDrive?.IsValid() ?? false) == false)
-            {
-                throw new OdinClientException("Invalid target drive", OdinClientErrorCode.InvalidTargetDrive);
-            }
-            
-            var result =  await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+            OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
+            var result = await transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
             return new JsonResult(result);
         }
     }

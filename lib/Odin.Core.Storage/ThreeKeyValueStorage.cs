@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dawn;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
@@ -17,8 +17,10 @@ public class ThreeKeyValueStorage
 
     public ThreeKeyValueStorage(TableKeyThreeValue table, Guid contextKey)
     {
-        Guard.Argument(contextKey, nameof(contextKey)).Require(k => k != Guid.Empty);
-        Guard.Argument(table, nameof(table)).NotNull();
+        if (contextKey == Guid.Empty)
+        {
+            throw new OdinSystemException("Invalid context key for storage");
+        }
 
         _table = table;
         _contextKey = contextKey;

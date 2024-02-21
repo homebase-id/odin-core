@@ -56,7 +56,7 @@ namespace Bitcoin.BIP39
 			//check that ENT size is a multiple of 32 and at least minimun entropy size to stop silly people using tiny entropy, oh also making sure entropy size doesn't exceed our checksum bits available
 			if (entropySize % cEntropyMultiple != 0 || entropySize < cMinimumEntropyBits || entropySize > cMaximumEntropyBits)
 			{
-				throw (new Exception("entropy size must be a multiple of " + cEntropyMultiple + " (divisible by " + cEntropyMultiple + " with no remainder) and must be greater than " + (cMinimumEntropyBits - 1) + " and less than " + (cMaximumEntropyBits + 1)));
+				throw (new BIP39Exception("entropy size must be a multiple of " + cEntropyMultiple + " (divisible by " + cEntropyMultiple + " with no remainder) and must be greater than " + (cMinimumEntropyBits - 1) + " and less than " + (cMaximumEntropyBits + 1)));
 			}
 
             // REPLACED _entropyBytes = Utilities.GetRandomBytes(entropySize / cBitsInByte); //crypto random entropy of the specified size
@@ -75,7 +75,7 @@ namespace Bitcoin.BIP39
 			//check to ensure at least 16 bytes no more than 1024 bytes and byte array is in 4 byte groups
 			if ((entropyBytes.Length * cBitsInByte) % cEntropyMultiple != 0 || (entropyBytes.Length * cBitsInByte) < cMinimumEntropyBits)
 			{
-				throw (new Exception("entropy bytes must be a multiple of " + (cEntropyMultiple / cBitsInByte) + " (divisible by " + (cEntropyMultiple / cBitsInByte) + " with no remainder) and must be greater than " + ((cMinimumEntropyBits / cBitsInByte) - 1) + " bytes and less than " + ((cMaximumEntropyBits / cBitsInByte) + 1) + " bytes"));
+				throw (new BIP39Exception("entropy bytes must be a multiple of " + (cEntropyMultiple / cBitsInByte) + " (divisible by " + (cEntropyMultiple / cBitsInByte) + " with no remainder) and must be greater than " + ((cMinimumEntropyBits / cBitsInByte) - 1) + " bytes and less than " + ((cMaximumEntropyBits / cBitsInByte) + 1) + " bytes"));
 			}
 
 			_entropyBytes = entropyBytes;
@@ -109,7 +109,7 @@ namespace Bitcoin.BIP39
 			//if the sentence is not at least 12 characters or cleanly divisible by 3, it is bad!
 			if (words.Length < 12 || words.Length % 3 != 0)
 			{
-				throw new Exception("Mnemonic sentence must be at least 12 words and it will increase by 3 words for each increment in entropy. Please ensure your sentence is at leas 12 words and has no remainder when word count is divided by 3");
+				throw new BIP39Exception("Mnemonic sentence must be at least 12 words and it will increase by 3 words for each increment in entropy. Please ensure your sentence is at leas 12 words and has no remainder when word count is divided by 3");
 			}
 
 			_language = language;
@@ -261,7 +261,7 @@ namespace Bitcoin.BIP39
 			int numberOfChecksumBits = (_entropyBytes.Length * cBitsInByte) / cEntropyMultiple; //number of bits to take from the checksum bits, varies on entropy size as per spec
 			BitArray entropyConcatChecksumBits = new BitArray((_entropyBytes.Length * cBitsInByte) + numberOfChecksumBits);
 
-			allChecksumBytes = Utilities.SwapEndianBytes(allChecksumBytes); //yet another endianess change of some different bytes to match the test vectors.....             
+			allChecksumBytes = Utilities.SwapEndianBytes(allChecksumBytes); //yet another endianess change of some different bytes to match the test vectors.....
 
 			int index = 0;
 
@@ -305,7 +305,7 @@ namespace Bitcoin.BIP39
 			//trap for words that were not in the word list when built. If custom words were used, we will not support the rebuild as we don't have the words
 			if (_wordIndexList.Contains(-1))
 			{
-				throw new Exception("the wordlist index contains -1 which means words were used in the mnemonic sentence that cannot be found in the wordlist and the index to sentence feature cannot be used. Perhaps a different language wordlist is needed?");
+				throw new BIP39Exception("the wordlist index contains -1 which means words were used in the mnemonic sentence that cannot be found in the wordlist and the index to sentence feature cannot be used. Perhaps a different language wordlist is needed?");
 			}
 
 			string mSentence = cEmptyString;
@@ -371,7 +371,7 @@ namespace Bitcoin.BIP39
 					toInt.Set(i2, entropyConcatChecksumBits.Get(i + i2));
 				}
 
-				wordIndexList.Add(pProcessBitsToInt(toInt)); //adding encoded int to word index               
+				wordIndexList.Add(pProcessBitsToInt(toInt)); //adding encoded int to word index
 			}
 
 			return wordIndexList;
@@ -433,7 +433,7 @@ namespace Bitcoin.BIP39
 
 				if (!wordlist.WordExists(s, out idx))
 				{
-					throw new Exception("Word " + s + " is not in the wordlist for language " + langName + " cannot continue to rebuild entropy from wordlist");
+					throw new BIP39Exception("Word " + s + " is not in the wordlist for language " + langName + " cannot continue to rebuild entropy from wordlist");
 				}
 
 				wordIndexList.Add(idx);
@@ -482,7 +482,7 @@ namespace Bitcoin.BIP39
 			//trap for words that were not in the word list when built. If custom words were used, we will not support the rebuild as we don't have the words
 			if (wordIndex.Contains(-1))
 			{
-				throw new Exception("the wordlist index contains -1 which means words were used in the mnemonic sentence that cannot be found in the wordlist and so the -1 will stuff up our entropy bits and we cannot rebuild the entropy from index containing -1. Perhaps a different language wordlist is needed?");
+				throw new BIP39Exception("the wordlist index contains -1 which means words were used in the mnemonic sentence that cannot be found in the wordlist and so the -1 will stuff up our entropy bits and we cannot rebuild the entropy from index containing -1. Perhaps a different language wordlist is needed?");
 			}
 			BitArray bits = new BitArray(wordIndex.Count * cBitGroupSize);
 
@@ -534,7 +534,7 @@ namespace Bitcoin.BIP39
 
 			if (length % 8 != 0)
 			{
-				throw new Exception("Entropy bits less checksum need to be cleanly divisible by " + cBitsInByte);
+				throw new BIP39Exception("Entropy bits less checksum need to be cleanly divisible by " + cBitsInByte);
 			}
 
 			byte[] entropy = new byte[length / cBitsInByte];
@@ -579,7 +579,7 @@ namespace Bitcoin.BIP39
 			{
 				if (b)
 				{
-					throw new Exception("woah! the checksum I derived from the word index DOES NOT match the checksum I computed from the entropy bytes! We have a problem!");
+					throw new BIP39Exception("woah! the checksum I derived from the word index DOES NOT match the checksum I computed from the entropy bytes! We have a problem!");
 				}
 			}
 
@@ -689,5 +689,12 @@ namespace Bitcoin.BIP39
 		}
 
 		#endregion
+	}
+
+	public class BIP39Exception : Exception
+	{
+		public BIP39Exception(string message) : base(message)
+		{
+		}
 	}
 }

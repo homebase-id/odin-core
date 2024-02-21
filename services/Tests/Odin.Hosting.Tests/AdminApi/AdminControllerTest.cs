@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Admin.Tenants;
@@ -16,6 +17,7 @@ using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Quartz;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Quartz;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
@@ -169,16 +171,20 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Is.EqualTo("https://admin.dotyou.cloud:4444/api/admin/v1/job-status/delete-tenant.frodo.dotyou.cloud"));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/delete-tenant%3Afrodo.dotyou.cloud."));
 
         var idx = 0;
         const int max = 20;
+        var jobResponse = new JobResponse();
         for (idx = 0; idx < max; idx++)
         {
             await Task.Delay(100);
-            request = NewRequestMessage(HttpMethod.Delete, url);
+            request = NewRequestMessage(HttpMethod.Get, location);
             response = await apiClient.SendAsync(request);
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            jobResponse = JobResponse.Deserialize(await response.Content.ReadAsStringAsync());
+            if (jobResponse.Status == JobStatus.Completed)
             {
                 break;
             }
@@ -188,16 +194,22 @@ public class AdminControllerTest
             Assert.Fail("Failed to delete tenant");
         }
 
-        url = location;
-        request = NewRequestMessage(HttpMethod.Get, url);
-        response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), "JobStatus not present");
-        var state = OdinSystemSerializer.Deserialize<JobState>(await response.Content.ReadAsStringAsync());
-        Assert.That(state.Status, Is.EqualTo(JobStatusEnum.Completed));
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        var jobKey = Helpers.ParseJobKey(jobResponse.JobKey);
 
-        request = NewRequestMessage(HttpMethod.Get, url);
+        var exists = await jobManager.Exists(jobKey);
+        Assert.That(exists, Is.True);
+        var deleted = await jobManager.Delete(jobKey);
+        Assert.That(deleted, Is.True);
+
+        exists = await jobManager.Exists(jobKey);
+        Assert.That(exists, Is.False);
+        deleted = await jobManager.Delete(jobKey);
+        Assert.That(deleted, Is.False);
+
+        request = NewRequestMessage(HttpMethod.Get, location);
         response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "JobStatus not removed");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     //
@@ -214,25 +226,22 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Is.EqualTo("https://admin.dotyou.cloud:4444/api/admin/v1/job-status/export-tenant.frodo.dotyou.cloud"));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/export-tenant%3Afrodo.dotyou.cloud."));
 
         var idx = 0;
         const int max = 20;
+        var jobResponse = new JobResponse();
+        ExportTenantData exportData = null;
         for (idx = 0; idx < max; idx++)
         {
             await Task.Delay(100);
             request = NewRequestMessage(HttpMethod.Get, location);
             response = await apiClient.SendAsync(request);
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                Assert.Fail("Failed to export tenant - job status not found");
-            }
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            var content = await response.Content.ReadAsStringAsync();
-            var jobState = OdinSystemSerializer.Deserialize<ExportTenantJobState>(content);
-            if (jobState.Status == JobStatusEnum.Completed)
+            (jobResponse, exportData) = JobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
+            if (jobResponse.Status == JobStatus.Completed)
             {
-                Assert.That(jobState.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
                 break;
             }
         }
@@ -241,9 +250,24 @@ public class AdminControllerTest
             Assert.Fail("Failed to export tenant - did not complete");
         }
 
+        Assert.That(exportData?.TargetPath, Is.EqualTo(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud")));
+
+        var jobManager = _scaffold.Services.GetRequiredService<IJobManager>();
+        var jobKey = Helpers.ParseJobKey(jobResponse.JobKey);
+
+        var exists = await jobManager.Exists(jobKey);
+        Assert.That(exists, Is.True);
+        var deleted = await jobManager.Delete(jobKey);
+        Assert.That(deleted, Is.True);
+
+        exists = await jobManager.Exists(jobKey);
+        Assert.That(exists, Is.False);
+        deleted = await jobManager.Delete(jobKey);
+        Assert.That(deleted, Is.False);
+
         request = NewRequestMessage(HttpMethod.Get, location);
         response = await apiClient.SendAsync(request);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "JobStatus not removed");
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
         Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
         Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));

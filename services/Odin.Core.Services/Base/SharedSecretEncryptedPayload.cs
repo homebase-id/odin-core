@@ -52,6 +52,13 @@ public class SharedSecretEncryptedPayload
         return DecryptInternal(ssp, key);
     }
 
+    public static byte[] Decrypt(string base64Data, string base64Key)
+    {
+        var data = Convert.FromBase64String(base64Data);
+        var key = new SensitiveByteArray(base64Key);
+        return Decrypt(data, key);
+    }
+
     private static byte[] DecryptInternal(SharedSecretEncryptedPayload? ssp, SensitiveByteArray key)
     {
         if (null == ssp)

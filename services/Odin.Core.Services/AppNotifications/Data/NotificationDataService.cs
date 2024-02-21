@@ -6,6 +6,8 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Services.AppNotifications.Data;
@@ -28,7 +30,7 @@ public class NotificationListService
 
     public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.SendPushNotifications);
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
@@ -50,6 +52,8 @@ public class NotificationListService
 
     public Task<NotificationsListResult> GetList(GetNotificationListRequest request)
     {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
 
         var nr = new NotificationsListResult()
@@ -70,7 +74,8 @@ public class NotificationListService
 
     public Task Delete(DeleteNotificationsRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         foreach (var id in request.IdList)
         {
             _storage.Delete(id);
@@ -82,7 +87,7 @@ public class NotificationListService
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var update in request.Updates)
         {

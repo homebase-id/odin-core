@@ -68,8 +68,10 @@ jobs:
           path: client/provisioning-app
 
       - name: Authenticate to Github packages
+        working-directory: ./client/apps
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
+          echo "@youfoundation:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
 
       - name: Build libs & setup .env
         working-directory: ./client/apps

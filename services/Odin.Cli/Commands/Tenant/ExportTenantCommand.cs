@@ -46,7 +46,7 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     throw new Exception("HTTP response is missing Location header");
                 }
 
-                ExportTenantJobState? state;
+                var done = false;
                 do
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(200));
@@ -56,22 +56,20 @@ public sealed class ExportTenantCommand : AsyncCommand<ExportTenantCommand.Setti
                     {
                         throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
                     }
-                    state = OdinSystemSerializer.Deserialize<ExportTenantJobState>(await response.Content.ReadAsStringAsync());
-                    if (state == null)
+                    var (jobResponse, jobData) = JobResponse.Deserialize<ExportTenantData>(await response.Content.ReadAsStringAsync());
+
+                    if (jobResponse.Status == JobStatus.Failed)
                     {
-                        throw new Exception("Error deserializing response");
+                        throw new Exception($"Error exporting tenant {settings.TenantDomain}: {jobResponse.Error}");
                     }
 
-                    if (state.Status == JobStatusEnum.Failed)
+                    if (jobResponse.Status == JobStatus.Completed)
                     {
-                        throw new Exception($"Error exporting tenant {settings.TenantDomain}: {state.Error}");
-                    }
-                    if (state.Status == JobStatusEnum.Completed)
-                    {
-                        AnsiConsole.MarkupLine($"[green]Done[/]. Copy of tenant on server: {state.TargetPath}");
+                        AnsiConsole.MarkupLine($"[green]Done[/]. Copy of tenant on server: {jobData?.TargetPath}");
+                        done = true;
                     }
 
-                } while (state.Status == JobStatusEnum.Unknown);
+                } while (!done);
             });
 
         return 0;

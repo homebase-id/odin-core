@@ -23,12 +23,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         }
 
         /// <summary />
-        [HttpGet("IdentitiesIFollow")]
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
-        {
-            var result = await base.GetWhoIFollow(max, cursor);
-            return result;
-        }
+
         
         /// <summary>
         /// Returns information indicating if the authenticated identity follows the current tenant

@@ -11,96 +11,82 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.Incoming;
 
 namespace Odin.Core.Services.DataSubscription.ReceivingHost
 {
-    public class FeedDistributionPerimeterService
+    public class FeedDistributionPerimeterService(
+        OdinContextAccessor contextAccessor,
+        IDriveFileSystem fileSystem,
+        FileSystemResolver fileSystemResolver,
+        FollowerService followerService,
+        IMediator mediator)
     {
-        private readonly OdinContextAccessor _contextAccessor;
-        private readonly IDriveFileSystem _fileSystem;
-        private readonly FileSystemResolver _fileSystemResolver;
-        private readonly FollowerService _followerService;
-        private readonly IMediator _mediator;
-
-        public FeedDistributionPerimeterService(
-            OdinContextAccessor contextAccessor,
-            IDriveFileSystem fileSystem,
-            FileSystemResolver fileSystemResolver,
-            FollowerService followerService, IMediator mediator)
+        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
-            _contextAccessor = contextAccessor;
-            _fileSystem = fileSystem;
-            _fileSystemResolver = fileSystemResolver;
-            _followerService = followerService;
-            _mediator = mediator;
-        }
-        
-        public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
-        {
-            await _followerService.AssertTenantFollowsTheCaller();
+            await followerService.AssertTenantFollowsTheCaller();
 
             //S0510
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new HostTransitResponse()
+                return new PeerTransferResponse()
                 {
-                    Code = TransitResponseCode.Rejected
+                    Code = PeerResponseCode.Rejected
                 };
             }
 
-            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)
                 {
-                    return new HostTransitResponse()
+                    return new PeerTransferResponse()
                     {
-                        Code = TransitResponseCode.Rejected
+                        Code = PeerResponseCode.Rejected
                     };
                 }
 
                 try
                 {
-                    await _fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
+                    await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
                 }
                 catch (OdinSecurityException)
                 {
-                    return new HostTransitResponse()
+                    return new PeerTransferResponse()
                     {
-                        Code = TransitResponseCode.Rejected
+                        Code = PeerResponseCode.Rejected
                     };
                 }
             }
 
-            return new HostTransitResponse()
+            return new PeerTransferResponse()
             {
-                Code = TransitResponseCode.AcceptedDirectWrite
+                Code = PeerResponseCode.AcceptedDirectWrite
             };
         }
 
-        public async Task<HostTransitResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
         {
-            await _followerService.AssertTenantFollowsTheCaller();
+            await followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new HostTransitResponse()
+                return new PeerTransferResponse()
                 {
-                    Code = TransitResponseCode.Rejected
+                    Code = PeerResponseCode.Rejected
                 };
             }
 
-            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
-                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)
                 {
                     //new file
-                    var internalFile = _fileSystem.Storage.CreateInternalFileId(driveId);
+                    var internalFile = fileSystem.Storage.CreateInternalFileId(driveId);
 
                     var keyHeader = KeyHeader.Empty();
                     var serverMetadata = new ServerMetadata()
@@ -109,60 +95,60 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                         AllowDistribution = false,
                     };
 
-                    request.FileMetadata.SenderOdinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                    var serverFileHeader = await _fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
-                    await _fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
-                    
-                    await _mediator.Publish(new NewFeedItemReceived()
+                    request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                    var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
+                    await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
+
+                    await mediator.Publish(new NewFeedItemReceived()
                     {
-                        Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+                        Sender = contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
                     });
                 }
                 else
                 {
-                    
+
                     // update
                     try
                     {
-                        await _fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
+                        request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
                     }
                     catch (OdinSecurityException)
                     {
-                        return new HostTransitResponse()
+                        return new PeerTransferResponse()
                         {
-                            Code = TransitResponseCode.Rejected
+                            Code = PeerResponseCode.Rejected
                         };
                     }
                 }
             }
 
-            return new HostTransitResponse()
+            return new PeerTransferResponse()
             {
-                Code = TransitResponseCode.AcceptedDirectWrite
+                Code = PeerResponseCode.AcceptedDirectWrite
             };
         }
 
-        public async Task<HostTransitResponse> Delete(DeleteFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request)
         {
-            await _followerService.AssertTenantFollowsTheCaller();
-            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
+            await followerService.AssertTenantFollowsTheCaller();
+            using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
-                // var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 var fileId = await this.ResolveInternalFile(request.FileId);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
-                    return new HostTransitResponse()
+                    return new PeerTransferResponse()
                     {
-                        Code = TransitResponseCode.AcceptedDirectWrite
+                        Code = PeerResponseCode.AcceptedDirectWrite
                     };
                 }
 
-                await _fileSystem.Storage.RemoveFeedDriveFile(fileId.Value);
+                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value);
 
-                return new HostTransitResponse()
+                return new PeerTransferResponse()
                 {
-                    Code = TransitResponseCode.AcceptedDirectWrite
+                    Code = PeerResponseCode.AcceptedDirectWrite
                 };
             }
         }
@@ -172,7 +158,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
         /// </summary>
         private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
         {
-            var (_, fileId) = await _fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
             return fileId;
         }
     }

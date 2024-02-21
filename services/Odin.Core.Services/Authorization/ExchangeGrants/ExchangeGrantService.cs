@@ -124,7 +124,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
                     {
                         _logger.LogInformation(
-                            $"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+                            $"Auth Token with Id: [{authToken.Id}] Access granted to drive [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias} | type: {x.PermissionedDrive.Drive.Type})");
                     }
                 }
             }
@@ -132,8 +132,11 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             if (includeAnonymousDrives)
             {
                 //MergeAnonymousDrives
+                var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
+
                 //TODO: remove any anonymous drives which are explicitly granted above
-                permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission));
+                var anonPg = await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission);
+                permissionGroupMap.Add("anonymous_drives", anonPg);
             }
 
             if (additionalPermissionKeys != null)

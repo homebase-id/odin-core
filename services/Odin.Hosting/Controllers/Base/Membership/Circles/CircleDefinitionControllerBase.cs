@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Circles
 {
@@ -39,6 +40,10 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpPost("create")]
         public async Task<bool> CreateCircle([FromBody] CreateCircleRequest request)
         {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
+            OdinValidationUtils.AssertNotEmptyGuid(request.Id, nameof(request.Id));
+            
             await _circleMembershipService.CreateCircleDefinition(request);
             return true;
         }

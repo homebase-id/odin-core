@@ -1,11 +1,9 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
+
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Util;
+using Odin.Core.Services.Drives.FileSystem.Base;
 
 namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
@@ -21,8 +19,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
-            Guard.Argument(drive, nameof(drive)).NotNull();
-
             drive.EnsureDirectories();
 
             _logger = logger;
@@ -123,7 +119,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 
         private string GetFilename(Guid fileId, string extension)
         {
-            string file = fileId.ToString();
+            string file = DriveFileUtility.GetFileIdForStorage(fileId);
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
 
@@ -131,13 +127,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         {
             string dir = GetFileDirectory(fileId, ensureExists);
             return Path.Combine(dir, GetFilename(fileId, extension));
-        }
-
-        private string GetTempFilePath(Guid fileId, string extension, bool ensureExists = false)
-        {
-            string dir = GetFileDirectory(fileId, ensureExists);
-            string filename = $"{Guid.NewGuid()}-{extension}.tmp";
-            return Path.Combine(dir, filename);
         }
     }
 }

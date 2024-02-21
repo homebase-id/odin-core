@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -10,8 +9,6 @@ using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Circles;
-using Odin.Core.Services.Membership.YouAuth;
-using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -326,7 +323,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             CollectionAssert.AreEquivalent(someCircleGrant.PermissionSet.Keys, someCircle.Permissions.Keys);
 
             // ensure the system circle was not granted
-            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.ConnectedIdentitiesSystemCircleId),
+            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(c => c.CircleId == SystemCircleConstants.ConnectedIdentitiesSystemCircleId),
                 "The connected identities circle should not be granted to youauth domains");
         }
 

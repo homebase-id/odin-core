@@ -5,58 +5,47 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
-using Serilog;
 
 [assembly: InternalsVisibleTo("Odin.Core.Tests")]
 
-public enum ConcurrentFileLockEnum
+namespace Odin.Core.Util;
+
+public class LockConflictException : OdinSystemException
 {
-    ReadLock,
-    WriteLock
-}
+    public string FilePath { get; private set; }
+    public ConcurrentFileLockEnum RequestedLockType { get; private set; }
+    public ConcurrentFileLockEnum ExistingLockType { get; private set; }
+    public string LockingInfo { get; private set; }
+    public int ReferenceCount { get; private set; }
 
-public class LockManagedFileStream : FileStream
-{
-    private readonly ConcurrentFileManager _concurrentFileManagerGlobal;
-    private string _path;
-    private bool _isDisposed = false;
-
-
-    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
-        : base(path, mode, access, share)
+    public LockConflictException(string message, string filePath, ConcurrentFileLockEnum requestedLockType, ConcurrentFileLockEnum existingLockType, string debugInfo, int referenceCount)
+        : base(message)
     {
-        _concurrentFileManagerGlobal = lockObj;
-        _path = path;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (!_isDisposed)
-        {
-            if (disposing)
-            {
-                _concurrentFileManagerGlobal.ExitLock(_path);
-            }
-
-            _isDisposed = true;
-        }
-
-        base.Dispose(disposing);
+        FilePath = filePath;
+        RequestedLockType = requestedLockType;
+        ExistingLockType = existingLockType;
+        LockingInfo = debugInfo;
+        ReferenceCount = referenceCount;
     }
 }
+
 
 public class ConcurrentFileManager
 {
+    private readonly ILogger<ConcurrentFileManager> _logger;
     private readonly ICorrelationContext _correlationContext;
+    public readonly string _file;
+    public readonly int _line;
 
-    public ConcurrentFileManager()
+    public ConcurrentFileManager(ILogger<ConcurrentFileManager> logger, ICorrelationContext correlationContext, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1)
     {
-    }
-
-    public ConcurrentFileManager(ICorrelationContext correlationContext)
-    {
+        _logger = logger;
         _correlationContext = correlationContext;
+        _file = file;
+        _line = line;
     }
 
     internal class ConcurrentFileLock
@@ -108,24 +97,23 @@ public class ConcurrentFileManager
         ConcurrentFileLock fileLock;
 
         int referenceCount;
-        // I replaced this with more detailed logs in the calling functions
-        // Log.Information($"Lock Type requested [{lockType}] on file [{filePath}]");
-        //
         lock (_dictionaryLocks)
         {
             if (!_dictionaryLocks.ContainsKey(filePath))
             {
                 _dictionaryLocks[filePath] = new ConcurrentFileLock(lockType);
-                //_dictionaryLocks[filePath].DebugCount = _debugCount++;
                 _dictionaryLocks[filePath].ReferenceCount = 1;
 
-                _dictionaryLocks[filePath].LockingInfo = new LockingInfo()
+                if (_logger.IsEnabled(LogLevel.Trace))
                 {
-                    CorrelationId = _correlationContext?.Id,
-                    ThreadId = Thread.CurrentThread.ManagedThreadId,
-                    LockType = lockType,
-                    CallStack = GetCallStack()
-                };
+                    _dictionaryLocks[filePath].LockingInfo = new LockingInfo()
+                    {
+                        CorrelationId = _correlationContext?.Id,
+                        ThreadId = Thread.CurrentThread.ManagedThreadId,
+                        LockType = lockType,
+                        CallStack = GetCallStack()
+                    };
+                }
 
                 LogLockStackTrace(filePath, lockType, 1);
                 _dictionaryLocks[filePath].Lock.Wait();
@@ -136,12 +124,13 @@ public class ConcurrentFileManager
 
             if (lockType != fileLock.Type)
             {
-                string message = $"No access, file is already being written or read by another thread." +
+                string lockingInfo = fileLock.LockingInfo?.ToString() ?? "Enable verbose logging to see locking info";
+                string message = $"No access, file is already being {(fileLock.Type == ConcurrentFileLockEnum.ReadLock ? "read":"written")} by another thread." +
                                  $"\nRequested Lock Type:[{lockType}]" +
-                                 $"\n{fileLock.LockingInfo}" +
+                                 $"\n{lockingInfo}" +
                                  $"\nReference Count:[{_dictionaryLocks[filePath].ReferenceCount}]" +
                                  $"\nFile:[{filePath}]";
-                throw new Exception(message);
+                throw new LockConflictException(message, filePath, lockType, fileLock.Type, lockingInfo, _dictionaryLocks[filePath].ReferenceCount);
             }
 
             // Optimistically increase the reference count
@@ -164,7 +153,7 @@ public class ConcurrentFileManager
         else
             LogLockStackTrace(filePath, lockType, referenceCount);
     }
-    
+
     /// <summary>
     /// Don't use this except from here and the LockManagedFileStream class' Dispose
     /// </summary>
@@ -197,7 +186,7 @@ public class ConcurrentFileManager
 
     public void ReadFile(string filePath, Action<string> readAction)
     {
-        Log.Information($"ReadFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("ReadFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -212,7 +201,7 @@ public class ConcurrentFileManager
 
     public Stream ReadStream(string filePath)
     {
-        Log.Information($"ReadStream Lock requested on file [{filePath}]");
+        _logger.LogTrace("ReadStream Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
 
         try
@@ -232,7 +221,7 @@ public class ConcurrentFileManager
 
     public void WriteFile(string filePath, Action<string> writeAction)
     {
-        Log.Information($"WriteFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("WriteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -247,7 +236,7 @@ public class ConcurrentFileManager
 
     public void DeleteFile(string filePath)
     {
-        Log.Information($"DeleteFile Lock requested on file [{filePath}]");
+        _logger.LogTrace("DeleteFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.WriteLock);
 
         try
@@ -262,13 +251,13 @@ public class ConcurrentFileManager
 
     public void MoveFile(string sourcePath, string destinationPath, Action<string, string> moveAction)
     {
-        Log.Information($"MoveFile Lock requested on source file [{sourcePath}]");
+        _logger.LogTrace("MoveFile Lock requested on source file {sourcePath}", sourcePath);
         // Lock destination first to avoid deadlocks
         EnterLock(destinationPath, ConcurrentFileLockEnum.WriteLock);
 
         try
         {
-            Log.Information($"MoveFile Lock requested on destination file [{destinationPath}]");
+            _logger.LogTrace("MoveFile Lock requested on destination file {destinationPath}", destinationPath);
             EnterLock(sourcePath, ConcurrentFileLockEnum.WriteLock);
             try
             {
@@ -285,23 +274,36 @@ public class ConcurrentFileManager
         }
     }
 
-    private static void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
+    private void LogLockStackTrace(string filePath, ConcurrentFileLockEnum lockType, int referenceCount)
     {
-        StackTrace stackTrace = new StackTrace(true);
-        var methods = GetCallStack();
-        var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information(
-            $"\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n");
+        if (_logger.IsEnabled(LogLevel.Trace))
+        {
+            var methods = GetCallStack();
+            var threadId = Thread.CurrentThread.ManagedThreadId;
+            _logger.LogTrace(
+                "\n\nLock\n\tThreadId:{threadId} \n\tLockType:{lockType} \n\tFile path [{filePath}]\n\tReference Count: [{referenceCount}]\n\tStack:[{methods}]\n\n",
+                threadId, lockType, filePath, referenceCount, methods);
+        }
     }
 
-    private static void LogUnlockStackTrace(string filePath)
+    private void LogUnlockStackTrace(string filePath)
     {
-        var threadId = Thread.CurrentThread.ManagedThreadId;
-        Log.Information($"\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{GetCallStack()}]\n\n");
+        if (_logger.IsEnabled(LogLevel.Trace))
+        {
+            var methods = GetCallStack();
+            var threadId = Thread.CurrentThread.ManagedThreadId;
+            _logger.LogTrace(
+                "\n\nUnlock\n\tThreadId:{threadId} \n\tFile path [{filePath}]\n\tStack:[{methods}]\n\n",
+                threadId, filePath, methods);
+        }
     }
-    
-    private static string GetCallStack()
+
+    private string GetCallStack()
     {
+        if (!_logger.IsEnabled(LogLevel.Trace))
+        {
+            return string.Empty;
+        }
         var ignoreList = new List<string>()
         {
             "GetCallStack",
@@ -338,5 +340,4 @@ public class ConcurrentFileManager
             })
             .Select(f => f.GetMethod()?.Name ?? "No method name"));
     }
-
 }

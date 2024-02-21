@@ -38,7 +38,7 @@ namespace Odin.Core.Services.Authorization.Apps
                 IsRevoked = this.Grant.IsRevoked,
                 Created = this.Grant.Created,
                 AuthorizedCircles = this.AuthorizedCircles,
-                CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionGrant,
+                CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest(),
                 Modified = this.Grant.Modified,
                 CorsHostName = this.CorsHostName,
                 Grant = this.Grant.Redacted()

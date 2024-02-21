@@ -124,7 +124,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            Assert.IsTrue(createdDrives.Results.Count == 6);
+            Assert.IsTrue(createdDrives.Results.Count == 8);
 
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
                 $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
@@ -136,6 +136,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
                 $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
+
+            Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.HomePageConfigDrive),
+                $"expected drive [{SystemDriveConstants.HomePageConfigDrive}] not found");
+
+            Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.PublicPostsChannelDrive),
+                $"expected drive [{SystemDriveConstants.PublicPostsChannelDrive}] not found");
 
 
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
@@ -151,7 +157,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");
 
             Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(systemCircle.DriveGrants.Count() == 3,
+            Assert.IsTrue(systemCircle.DriveGrants.Count() == 5,
                 "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
@@ -185,8 +191,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task CanCreateSystemDrives_With_AdditionalDrivesAndCircles()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-            
-            var contactDrive = SystemDriveConstants.ContactDrive;
+
             var standardProfileDrive = SystemDriveConstants.ProfileDrive;
 
             var newDrive = new CreateDriveRequest()
@@ -227,11 +232,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //check if system drives exist
             var expectedDrives = new List<TargetDrive>()
             {
-                standardProfileDrive,
-                contactDrive,
-                SystemDriveConstants.WalletDrive,
+                SystemDriveConstants.ContactDrive,
+                SystemDriveConstants.ProfileDrive,
                 SystemDriveConstants.ChatDrive,
                 SystemDriveConstants.FeedDrive,
+                SystemDriveConstants.HomePageConfigDrive,
+                SystemDriveConstants.PublicPostsChannelDrive,
+                SystemDriveConstants.WalletDrive,
                 SystemDriveConstants.TransientTempDrive,
                 newDrive.TargetDrive
             };
@@ -256,7 +263,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // System circle exists and has correct grants
             //
 
-            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.ConnectedIdentitiesSystemCircleId);
+            var systemCircle = circleDefs.SingleOrDefault(c => c.Id == SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             Assert.IsNotNull(systemCircle, "system circle should exist");
             Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");
@@ -289,5 +296,26 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) == 1,
                 "The contact drive should be in the additional circle");
         }
+
+        // [Test]
+        // public async Task WillAutoFollow_IdHomebaseId()
+        // {
+        //     var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        //
+        //     var setupConfig = new InitialSetupRequest()
+        //     {
+        //         Drives = [],
+        //         Circles = []
+        //     };
+        //
+        //     var initIdentityResponse = await ownerClient.Configuration.InitializeIdentity(setupConfig);
+        //     Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+        //     
+        //     var followerDefinition = await ownerClient.OwnerFollower.GetIdentityIFollow(TestIdentities.HomebaseId);
+        //
+        //     Assert.IsNotNull(followerDefinition);
+        //     Assert.IsTrue(followerDefinition.OdinId == TestIdentities.HomebaseId.OdinId);
+        //     Assert.IsTrue(followerDefinition.NotificationType == FollowerNotificationType.AllNotifications);
+        // }
     }
 }

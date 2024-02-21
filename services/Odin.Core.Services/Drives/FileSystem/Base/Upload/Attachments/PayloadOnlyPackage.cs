@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dawn;
+
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
@@ -15,10 +15,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         /// <summary />
         public PayloadOnlyPackage(InternalDriveFileId internalFile, UploadPayloadInstructionSet instructionSet)
         {
-            Guard.Argument(internalFile, nameof(internalFile)).HasValue();
-            Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
-            Guard.Argument(internalFile.DriveId, nameof(internalFile.DriveId)).NotEqual(Guid.Empty);
-
             this.TempFile = internalFile with { FileId = Guid.NewGuid() };
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
@@ -68,10 +64,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
                 {
                     Iv = p.Iv,
                     Key = p.PayloadKey,
+                    Uid = p.Uid,
                     ContentType = p.ContentType,
                     Thumbnails = thumbnails,
                     LastModified = UnixTimeUtc.Now(),
-                    BytesWritten = p.BytesWritten
+                    BytesWritten = p.BytesWritten,                    
+                    DescriptorContent = p.DescriptorContent,
+                    PreviewThumbnail = p.PreviewThumbnail
                 };
             });
 

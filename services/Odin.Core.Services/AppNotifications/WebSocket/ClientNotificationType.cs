@@ -6,6 +6,7 @@ public enum ClientNotificationType
     /// Indicates the device handshake complete and it will receive notifications
     /// </summary>
     DeviceHandshakeSuccess = 1,
+    Pong = 2,
     FileAdded = 101,
     FileDeleted = 202,
     FileModified = 303,
@@ -18,5 +19,7 @@ public enum ClientNotificationType
     StatisticsChanged = 1002,
     ReactionContentAdded = 2003,
     ReactionContentDeleted = 2004,
-    AllReactionsByFileDeleted = 2005
+    AllReactionsByFileDeleted = 2005,
+
+    Error = 0xBADBEEF
 }

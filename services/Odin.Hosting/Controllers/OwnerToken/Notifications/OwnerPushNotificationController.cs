@@ -1,12 +1,16 @@
 ﻿#nullable enable
 
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.AppNotifications.Push;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Peer;
+using Odin.Core.Services.Peer.Outgoing;
+using Odin.Core.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 {
@@ -28,7 +32,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
         [HttpPost("subscribe")]
         public async Task<IActionResult> SubscribeDevice([FromBody] PushNotificationSubscribeDeviceRequest request)
         {
-            var sub = new PushNotificationSubscription()
+            var subscription = new PushNotificationSubscription()
             {
                 FriendlyName = request.FriendlyName,
                 Endpoint = request.Endpoint,
@@ -37,7 +41,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
                 P256DH = request.P256DH
             };
 
-            await _notificationService.AddDevice(sub);
+            if (subscription == null ||
+                string.IsNullOrEmpty(subscription.Endpoint) || string.IsNullOrWhiteSpace(subscription.Endpoint) ||
+                string.IsNullOrEmpty(subscription.Auth) || string.IsNullOrWhiteSpace(subscription.Auth) ||
+                string.IsNullOrEmpty(subscription.P256DH) || string.IsNullOrWhiteSpace(subscription.P256DH))
+            {
+                throw new OdinClientException("Invalid Push notification subscription request");
+            }
+            
+            await _notificationService.AddDevice(subscription);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -71,6 +83,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
         public async Task<IActionResult> RemoveDevice()
         {
             await _notificationService.RemoveDevice();
+            return Ok();
+        }
+        
+        [HttpDelete("subscription")]
+        public async Task<IActionResult> RemoveDevice(Guid key)
+        {
+            await _notificationService.RemoveDevice(key);
             return Ok();
         }
 

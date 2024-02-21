@@ -18,6 +18,7 @@ namespace Odin.Core.Services.Configuration
         public HostSection Host { get; init; }
 
         public RegistrySection Registry { get; init; }
+
         public DevelopmentSection Development { get; init; }
 
         public LoggingSection Logging { get; init; }
@@ -222,11 +223,13 @@ namespace Odin.Core.Services.Configuration
                 PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
                 PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
 
-                FileMoveRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 5);
-                FileMoveRetryDelayMs = config.GetOrDefault("Host:FileWriteRetryDelay", 100);
-                FileMoveWaitTimeoutSeconds = config.GetOrDefault("Host:FileMoveWaitTimeoutSeconds", 6);
+                FileOperationRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 8);
+                FileOperationRetryDelayMs = config.GetOrDefault("Host:FileOperationRetryDelayMs", 100);
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
+                ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
             }
+
+            public string ReportContentUrl { get; set; }
 
             public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
             public int HomePageCachingExpirationSeconds { get; set; }
@@ -235,14 +238,12 @@ namespace Odin.Core.Services.Configuration
             /// <summary>
             /// Number of times to retry a file.move operation
             /// </summary>
-            public int FileMoveRetryAttempts { get; set; }
-
-            public int FileMoveWaitTimeoutSeconds { get; set; }
+            public int FileOperationRetryAttempts { get; init; }
 
             /// <summary>
             /// Number of milliseconds to delay between file.move attempts
             /// </summary>
-            public int FileMoveRetryDelayMs { get; set; }
+            public int FileOperationRetryDelayMs { get; init; }
 
             /// <summary>
             /// Specifies the number of bytes to write when writing a stream to disk in chunks
@@ -290,6 +291,10 @@ namespace Odin.Core.Services.Configuration
 
             public bool EnableQuartzBackgroundService { get; init; }
 
+            public string SqliteDatabaseFileName { get; init; }
+
+            public int MaxConcurrency { get; init; }
+
             public QuartzSection()
             {
                 // Mockable support
@@ -303,6 +308,8 @@ namespace Odin.Core.Services.Configuration
                 CronBatchSize = config.Required<int>("Quartz:CronBatchSize");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
+                SqliteDatabaseFileName = config.Required<string>("Quartz:SqliteDatabaseFileName");
+                MaxConcurrency = config.Required<int>("Quartz:MaxConcurrency");
             }
         }
 
@@ -319,7 +326,7 @@ namespace Odin.Core.Services.Configuration
 
             public LoggingSection(IConfiguration config)
             {
-                LogFilePath = config.Required<string>("Logging:LogFilePath");
+                LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
             }
         }
 

@@ -2,11 +2,12 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
+
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Util;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -39,7 +40,7 @@ public abstract class PayloadStreamWriterBase
 
     public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet)
     {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
 
         InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile);
@@ -50,6 +51,16 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
+        if (instructionSet.Manifest?.PayloadDescriptors != null)
+        {
+            foreach (var pd in instructionSet.Manifest!.PayloadDescriptors)
+            {
+                //These are created in advance to ensure we can
+                //upload thumbnails and payloads in any order
+                pd.PayloadUid = UnixTimeUtcUnique.Now();
+            }
+        }
+        
         this._package = new PayloadOnlyPackage(file, instructionSet!);
         await Task.CompletedTask;
     }
@@ -68,8 +79,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        string extension = DriveFileUtility.GetPayloadFileExtension(key);
-
+        var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data);
         if (bytesWritten > 0)
         {
@@ -77,6 +87,7 @@ public abstract class PayloadStreamWriterBase
             {
                 Iv = descriptor.Iv,
                 PayloadKey = key,
+                Uid = descriptor.PayloadUid,
                 ContentType = contentType,
                 LastModified = UnixTimeUtc.Now(),
                 BytesWritten = bytesWritten,
@@ -103,7 +114,8 @@ public abstract class PayloadStreamWriterBase
         {
             return new
             {
-                PayloadKey = pd.PayloadKey,
+                pd.PayloadKey,
+                pd.PayloadUid,
                 ThumbnailDescriptor = pd.Thumbnails?.SingleOrDefault(th => th.ThumbnailKey == thumbnailUploadKey)
             };
         }).SingleOrDefault(p => p.ThumbnailDescriptor != null);
@@ -118,9 +130,10 @@ public abstract class PayloadStreamWriterBase
 
         //TODO: should i validate width and height are > 0?
         string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+            result.PayloadKey,
+            result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
-            result.ThumbnailDescriptor.PixelHeight,
-            result.PayloadKey);
+            result.ThumbnailDescriptor.PixelHeight);
 
         await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data);
 
@@ -148,7 +161,7 @@ public abstract class PayloadStreamWriterBase
 
         if (_package.InstructionSet.Recipients?.Any() ?? false)
         {
-            throw new NotImplementedException("TODO: Sending a payload not yet supported");
+            throw new NotImplementedException("TODO: Sending a payload from an existing file not yet supported");
         }
 
         //TODO: need to send the new payload to the recipient?

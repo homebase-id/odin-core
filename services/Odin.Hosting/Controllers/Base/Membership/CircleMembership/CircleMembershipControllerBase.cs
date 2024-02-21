@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
-using Odin.Hosting.Controllers.ClientToken.App;
 
 namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
 {

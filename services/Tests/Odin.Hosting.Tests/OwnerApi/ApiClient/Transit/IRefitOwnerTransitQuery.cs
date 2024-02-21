@@ -24,7 +24,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
         // Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 
         [Post(RootEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] TransitQueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] PeerQueryBatchRequest request);
 
         [Post(RootEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);

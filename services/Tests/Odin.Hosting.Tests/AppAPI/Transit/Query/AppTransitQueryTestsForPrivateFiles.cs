@@ -66,7 +66,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //
             // Merry uses transit query to get all files of that file type
             //
-            var request = new TransitQueryBatchRequest()
+            var request = new PeerQueryBatchRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 QueryParams = new()
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             const string testResult1 = "test01";
             const string testResult2 = "test02";
-            var request = new TransitQueryBatchCollectionRequest()
+            var request = new PeerQueryBatchCollectionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 Queries = new List<CollectionQueryParamSection>()
@@ -209,7 +209,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
             //
-            var request = new TransitQueryModifiedRequest()
+            var request = new PeerQueryModifiedRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 QueryParams = new()

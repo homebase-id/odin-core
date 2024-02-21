@@ -67,8 +67,8 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
 
-                $"{AppApiPathConstants.TransitV1}/app/process", //TODO: why is this here??
-                $"{AppApiPathConstants.TransitSenderV1}/files/send",
+                $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
                 $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
@@ -94,11 +94,11 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.DriveV1}/files/payload",
                 $"{AppApiPathConstants.DriveV1}/files/thumb",
 
-                $"{AppApiPathConstants.TransitQueryV1}/payload",
-                $"{AppApiPathConstants.TransitQueryV1}/thumb",
+                $"{AppApiPathConstants.PeerQueryV1}/payload",
+                $"{AppApiPathConstants.PeerQueryV1}/thumb",
 
-                $"{AppApiPathConstants.TransitQueryV1}/payload_byglobaltransitid",
-                $"{AppApiPathConstants.TransitQueryV1}/thumb_byglobaltransitid",
+                $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
+                $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
 
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",

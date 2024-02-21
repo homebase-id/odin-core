@@ -18,7 +18,6 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-
         protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
         {
@@ -135,7 +134,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
-            AssertCanReadOrWriteToDrive(driveId); 
+            AssertCanReadOrWriteToDrive(driveId);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -211,7 +210,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Warning("Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
+                    Log.Warning(
+                        "Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
                         ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
                 }
                 else
@@ -251,13 +251,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     }
                     else
                     {
+                        var drive = await DriveManager.GetDrive(file.DriveId);
                         Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
-                                  "index with (isPayloadEncrypted: {isencrypted}) but does not have the " +
-                                  "storage key to decrypt the file {file} on drive {drive}.",
+                                  "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
+                                  "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
+                                  "[alias={driveAlias}, type={driveType}]",
                             ContextAccessor.GetCurrent().Caller.OdinId,
                             serverFileHeader.FileMetadata.IsEncrypted,
+                            ContextAccessor.GetCurrent().AuthContext,
                             file.FileId,
-                            file.DriveId);
+                            drive.Name, 
+                            drive.AllowAnonymousReads,
+                            drive.TargetDriveInfo.Alias.Value.ToString(),
+                            drive.TargetDriveInfo.Type.Value.ToString());
                     }
                 }
             }
@@ -274,8 +280,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         /// Gets the file Id a file by its <see cref="GlobalTransitIdFileIdentifier"/>
         /// </summary>
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
-        
-        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
+        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+            bool forceIncludeServerMetadata = false)
         {
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
@@ -300,6 +306,5 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             throw new NoValidIndexClientException(driveId);
         }
-
     }
 }

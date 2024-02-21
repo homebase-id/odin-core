@@ -1,5 +1,6 @@
-using Dawn;
+
 using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Util;
 
 namespace Odin.Core.Services.Optimization.Cdn;
 
@@ -10,11 +11,10 @@ public class QueryParamSection
     public FileQueryParams QueryParams { get; set; }
 
     public SectionResultOptions ResultOptions { get; set; }
-    
+
     public void AssertIsValid()
     {
-        Guard.Argument(this.Name, nameof(this.Name)).NotEmpty().NotNull();
+        OdinValidationUtils.AssertNotNull(this.Name, nameof(this.Name));
         QueryParams.AssertIsValid();
-        
     }
 }

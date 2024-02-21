@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Base;
@@ -13,11 +16,15 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Peer.ReceivingHost;
+using Odin.Core.Services.Peer.Incoming;
+using Odin.Core.Services.Peer.Incoming.Drive;
+using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Core.Services.AppNotifications.WebSocket
 {
-    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
+    public class AppNotificationHandler :
+        INotificationHandler<IClientNotification>,
+        INotificationHandler<IDriveNotification>,
         INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
@@ -39,111 +46,132 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
-        public async Task Connect(System.Net.WebSockets.WebSocket socket, EstablishConnectionRequest request)
-        {
-            var dotYouContext = _contextAccessor.GetCurrent();
-
-            List<Guid> drives = new List<Guid>();
-            foreach (var td in request.Drives)
-            {
-                var driveId = dotYouContext.PermissionsContext.GetDriveId(td);
-                dotYouContext.PermissionsContext.AssertCanReadDrive(driveId);
-                drives.Add(driveId);
-            }
-
-            var deviceSocket = new DeviceSocket()
-            {
-                Key = Guid.NewGuid(),
-                SharedSecretKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey,
-                DeviceAuthToken = null, //TODO: where is the best place to get the cookie?
-                Socket = socket,
-                Drives = drives
-            };
-
-            _deviceSocketCollection.AddSocket(deviceSocket);
-
-            var response = new EstablishConnectionResponse() { };
-            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(response));
-            await AwaitCommands(deviceSocket);
-        }
+        //
 
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken)
         {
-            var buffer = new byte[1024 * 4];
-
+            var webSocketKey = Guid.NewGuid();
             try
             {
-                //Wait for the caller to request the connection parameters
-                var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                EstablishConnectionRequest request = null;
-                if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                var deviceSocket = new DeviceSocket
                 {
-                    Array.Resize(ref buffer, receiveResult.Count);
-                    var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                    request = OdinSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
-                }
-
-                if (null == request)
-                {
-                    //send a close method
-                    await webSocket.CloseOutputAsync(
-                        WebSocketCloseStatus.NormalClosure,
-                        "Closing",
-                        CancellationToken.None);
-                }
-                else
-                {
-                    await Connect(webSocket, request);
-                }
+                    Key = webSocketKey,
+                    Socket = webSocket,
+                };
+                _deviceSocketCollection.AddSocket(deviceSocket);
+                await AwaitCommands(deviceSocket, cancellationToken);
             }
-            catch (WebSocketException e)
+            catch (OperationCanceledException)
             {
-                _logger.LogWarning("WebSocketException: {error}", e.Message);
+                // ignore, this exception is expected when the socket is closing behind the scenes
+            }
+            catch (WebSocketException e) when (e.Message == "The remote party closed the WebSocket connection without completing the close handshake.")
+            {
+                // ignore, this exception is expected when the client doesn't play by the rules
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "WebSocket: {error}", e.Message);
+            }
+            finally
+            {
+                _deviceSocketCollection.RemoveSocket(webSocketKey);
+                if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
+                {
+                    try
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
+                    }
+                    catch (Exception)
+                    {
+                        // End of the line - nothing we can do here
+                    }
+                }
+                _logger.LogDebug("WebSocket closed");
             }
         }
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket)
+        //
+
+        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken)
         {
-            var buffer = new byte[1024 * 4];
-
-            while (true)
+            var webSocket = deviceSocket.Socket;
+            while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
             {
-                try
+                var buffer = new ArraySegment<byte>(new byte[4096]);
+                WebSocketReceiveResult receiveResult;
+                using var ms = new MemoryStream();
+                do
                 {
-                    var receiveResult =
-                        await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    receiveResult = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                    ms.Write(buffer.Array!, buffer.Offset, receiveResult.Count);
+                }
+                while (!receiveResult.EndOfMessage);
+                ms.Seek(0, SeekOrigin.Begin);
 
-                    if (receiveResult.MessageType == WebSocketMessageType.Close)
+                if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                {
+                    var completeMessage = ms.ToArray();
+                    var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+
+                    byte[] decryptedBytes;
+                    try
                     {
-                        await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                        //TODO: need to send the right response but not quite sure what that is.
-                        // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
-                        break;
+                        decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                    }
+                    catch (Exception)
+                    {
+                        // SEB:TODO remove this when we figure out why it breaks from time to time
+                        // see ItShouldDecryptFromBase64 in SharedSecretEncryptedPayloadTest.cs
+                        _logger.LogError("[{sharedSecret}]", sharedSecret.GetKey().ToBase64());
+                        _logger.LogError("[{completeMessage}]", completeMessage.ToBase64());
+                        throw;
                     }
 
-                    if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                    SocketCommand command = null;
+                    var errorText = "Error deserializing socket command";
+                    try
                     {
-                        Array.Resize(ref buffer, receiveResult.Count);
-                        var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer,
-                            _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                        var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
-                        if (null != command)
+                        command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
+                    }
+                    catch (JsonException e)
+                    {
+                        command = null;
+                        errorText += ": " + e.Message;
+                    }
+
+                    if (command == null)
+                    {
+                        await SendErrorMessageAsync(deviceSocket, errorText, cancellationToken);
+                    }
+                    else
+                    {
+                        try
                         {
-                            await ProcessCommand(command);
+                            await ProcessCommand(deviceSocket, command, cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            return;
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError(e, "Unhandled exception while processing command: {command}", command.Command);
+                            var error = $"Unhandled exception on the backend while processing command: {command.Command}";
+                            await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
+
+                            // Close the websocket in case of unhandled exceptions
+                            throw new CloseWebSocketException();
                         }
                     }
                 }
-                catch (WebSocketException e)
-                {
-                    _logger.LogWarning("WebSocketException: {error}", e.Message);
-                    break;
-                }
             }
         }
+
+        //
 
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
@@ -155,12 +183,14 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = this._deviceSocketCollection.GetAll().Values;
+            var sockets = _deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
-                await this.SendMessageAsync(deviceSocket, json, shouldEncrypt);
+                await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
             }
         }
+
+        //
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
@@ -173,8 +203,10 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             });
 
             var translated = new TranslatedClientNotification(notification.NotificationType, data);
-            await SerializeSendToAllDevicesForDrive(notification.File.DriveId, translated);
+            await SerializeSendToAllDevicesForDrive(notification.File.DriveId, translated, cancellationToken);
         }
+
+        //
 
         public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
@@ -187,10 +219,16 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                     FileSystemType = notification.FileSystemType
                 }));
 
-            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, false);
+            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
         }
 
-        private async Task SerializeSendToAllDevicesForDrive(Guid targetDriveId, IClientNotification notification, bool encrypt = true)
+        //
+
+        private async Task SerializeSendToAllDevicesForDrive(
+            Guid targetDriveId,
+            IClientNotification notification,
+            CancellationToken cancellationToken,
+            bool encrypt = true)
         {
             var json = OdinSystemSerializer.Serialize(new
             {
@@ -198,21 +236,37 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = this._deviceSocketCollection.GetAll().Values
+            var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
 
             foreach (var deviceSocket in sockets)
             {
-                await this.SendMessageAsync(deviceSocket, json, encrypt);
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt);
+                }
             }
         }
 
+        //
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, bool encrypt = true)
+        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken)
+        {
+            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+            {
+                NotificationType = ClientNotificationType.Error,
+                Data = errorText,
+            }), cancellationToken,
+                deviceSocket.SharedSecretKey != null);
+        }
+
+        //
+
+        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken, bool encrypt = true)
         {
             var socket = deviceSocket.Socket;
 
-            if (socket.State != WebSocketState.Open)
+            if (socket.State != WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -221,6 +275,11 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             {
                 if (encrypt)
                 {
+                    if (deviceSocket.SharedSecretKey == null)
+                    {
+                        throw new OdinSystemException("Cannot encrypt message without shared secret key");
+                    }
+
                     // var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
                     var key = deviceSocket.SharedSecretKey;
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
@@ -239,7 +298,11 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                     buffer: new ArraySegment<byte>(jsonBytes, 0, json.Length),
                     messageType: WebSocketMessageType.Text,
                     messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
-                    cancellationToken: CancellationToken.None);
+                    cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // ignore, this exception is expected when the socket is closing behind the scenes
             }
             catch (WebSocketException e)
             {
@@ -252,11 +315,39 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
             }
         }
 
-        public async Task ProcessCommand(SocketCommand command)
+        //
+
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
         {
             //process the command
             switch (command.Command)
             {
+                case SocketCommandType.EstablishConnectionRequest:
+                    try
+                    {
+                        var drivesRequest = OdinSystemSerializer.Deserialize<List<TargetDrive>>(command.Data);
+                        var dotYouContext = _contextAccessor.GetCurrent();
+                        var drives = new List<Guid>();
+                        foreach (var td in drivesRequest)
+                        {
+                            var driveId = dotYouContext.PermissionsContext.GetDriveId(td);
+                            dotYouContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            drives.Add(driveId);
+                        }
+                        deviceSocket.SharedSecretKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                        deviceSocket.DeviceAuthToken = null; //TODO: where is the best place to get the cookie?
+                        deviceSocket.Drives = drives;
+                    }
+                    catch (OdinSecurityException e)
+                    {
+                        var error = $"[Command:{command.Command}] {e.Message}";
+                        await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
+                        throw new CloseWebSocketException();
+                    }
+                    var response = new EstablishConnectionResponse();
+                    await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(response), cancellationToken);
+                    break;
+
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(d.TargetDrive);
@@ -267,14 +358,24 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                     await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
                     break;
 
+                case SocketCommandType.Ping:
+                    await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+                    {
+                        NotificationType = ClientNotificationType.Pong,
+                    }), cancellationToken);
+                    break;
+
                 default:
-                    throw new Exception("Invalid command");
+                    await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
+                    break;
             }
         }
 
+        //
+
         private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
         {
-            WebSocketMessageFlags flags = WebSocketMessageFlags.None;
+            var flags = WebSocketMessageFlags.None;
 
             if (endOfMessage)
             {
@@ -288,5 +389,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
 
             return flags;
         }
+
+        //
     }
 }
