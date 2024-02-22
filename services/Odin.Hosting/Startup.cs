@@ -77,7 +77,7 @@ namespace Odin.Hosting
             // - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
             //   cookies in a CookieContainer. Therefore avoid using Cookies. If you need cookies, set the headers
             //   manually.
-            // - Use SetHandlerLifetime to control how long a connections are pooled (this also controls when existing
+            // - Use SetHandlerLifetime to control how long connections are pooled (this also controls when existing
             //   HttpClientHandlers are called)
             //
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
@@ -130,8 +130,6 @@ namespace Odin.Hosting
                     options.JsonSerializerOptions.PropertyNameCaseInsensitive =
                         OdinSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
                 });
-
-            //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
 
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
