@@ -184,17 +184,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PayloadShardKey = GetNextShard()
         };
 
-        await this.SaveRegistrationInternal(registration);
+        await SaveRegistrationInternal(registration);
 
         if (request.OptionalCertificatePemContent == null)
         {
-            await this.InitializeCertificate(request.OdinId);
+            await InitializeCertificate(request.OdinId);
         }
         else
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tenantContext = this.CreateTenantContext(request.OdinId, true);
+            var tenantContext = CreateTenantContext(request.OdinId, true);
 
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
             await tc.SaveSslCertificate(
