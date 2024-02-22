@@ -90,7 +90,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                         // End of the line - nothing we can do here
                     }
                 }
-                _logger.LogDebug("WebSocket closed");
+                _logger.LogTrace("WebSocket closed");
             }
         }
 

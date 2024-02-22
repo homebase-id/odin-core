@@ -114,7 +114,6 @@ namespace Odin.Hosting.Controllers.Registration
         [HttpGet("is-managed-domain-available/{apex}/{prefix}")]
         public async Task<IActionResult> IsManagedDomainAvailable(string prefix, string apex)
         {
-            // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             try
             {
                 var result = await _regService.IsManagedDomainAvailable(prefix, apex);
@@ -135,8 +134,6 @@ namespace Odin.Hosting.Controllers.Registration
         [HttpPost("create-managed-domain/{apex}/{prefix}")]
         public async Task<IActionResult> CreateManagedDomain(string prefix, string apex)
         {
-            // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
-            
             var available = await _regService.IsManagedDomainAvailable(prefix, apex);
             if (!available)
             {
@@ -173,7 +170,6 @@ namespace Odin.Hosting.Controllers.Registration
         [HttpGet("is-own-domain-available/{domain}")]
         public async Task<IActionResult> IsOwnDomainAvailable(string domain)
         {
-            // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             try
             {
                 var result = await _regService.IsOwnDomainAvailable(domain);
@@ -192,15 +188,6 @@ namespace Odin.Hosting.Controllers.Registration
         [HttpGet("own-domain-dns-status/{domain}")]
         public async Task<IActionResult> GetOwnDomainDnsStatus(string domain, [FromQuery] bool includeAlias = false)
         {
-            // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
-            // if (string.IsNullOrWhiteSpace(domain))
-            // {
-            //     return Problem(
-            //         statusCode: StatusCodes.Status400BadRequest,
-            //         title: "Missing or invalid domain name"
-            //     );
-            // }
-            
             var (success, dnsConfig) = await _regService.GetAuthorativeDomainDnsStatus(domain);
             if (!includeAlias)
             {

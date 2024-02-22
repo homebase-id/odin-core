@@ -341,20 +341,29 @@ namespace Odin.Core.Trie
 
         public void RemoveDomain(string asciiName)
         {
-            _rwLock.EnterWriteLock();
+            if (!TryRemoveDomain(asciiName))
+            {
+                throw new Exception("Trying to remove a domain which is not found in the Trie");
+            }
+        }
 
+        public bool TryRemoveDomain(string asciiName)
+        {
+            _rwLock.EnterWriteLock();
             try
             {
-                if (InternalIsDomainUniqueInHierarchy(asciiName) == true)
+                if (InternalIsDomainUniqueInHierarchy(asciiName))
                 {
-                    throw new Exception("Trying to remove a domain which is not found in the Trie");
+                    return false;
                 }
                 RemoveName(asciiName);
+                return true;
             }
             finally
             {
-                _rwLock.ExitWriteLock(); 
+                _rwLock.ExitWriteLock();
             }
         }
+
    }
 }

@@ -202,7 +202,6 @@ namespace Odin.Hosting
 
             listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
             {
-                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;

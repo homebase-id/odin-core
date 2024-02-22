@@ -89,10 +89,12 @@ public class JobListener : IJobListener
                 jobData.TryGetLongValue(JobConstants.RetryDelaySecondsKey, out retryDelaySeconds);
             if (retry && retryCount < retryMax)
             {
+                retryCount++;
                 var retryAt = DateTimeOffset.Now + TimeSpan.FromSeconds(retryDelaySeconds);
-                _logger.LogWarning("Job {JobKey} failed. Scheduling retry starting {retryAt}.", job.Key, retryAt);
+                _logger.LogWarning("Job {JobKey} failed. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
+                    job.Key, retryCount, retryMax, retryAt);
 
-                jobData[JobConstants.RetryCountKey] = (++retryCount).ToString();
+                jobData[JobConstants.RetryCountKey] = retryCount.ToString();
                 await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
 
                 var retryTrigger = TriggerBuilder.Create()
@@ -112,7 +114,7 @@ public class JobListener : IJobListener
 
                 var errorMessage = exception is OdinClientException
                     ? exception.Message
-                    : $"Interal server error. Check logs around job {job.Key}";
+                    : $"Internal server error. Check logs around job {job.Key}";
 
                 if (job.Durable)
                 {
