@@ -210,6 +210,7 @@ namespace Odin.Hosting
                 sp.GetRequiredService<IHttpClientFactory>(),
                 config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
+            services.AddSingleton<ICertificateCache, CertificateCache>();
             services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
 
             services.AddSingleton<IEmailSender>(sp => new MailgunSender(

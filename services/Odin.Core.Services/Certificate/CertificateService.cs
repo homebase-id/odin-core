@@ -16,6 +16,7 @@ namespace Odin.Core.Services.Certificate
     public class CertificateService : ICertificateService
     {
         private readonly ILogger<CertificateService> _logger;
+        private readonly ICertificateCache _certificateCache;
         private readonly ICertesAcme _certesAcme;
         private readonly IDnsLookupService _dnsLookupService;
         private readonly AcmeAccountConfig _accountConfig;
@@ -24,13 +25,15 @@ namespace Odin.Core.Services.Certificate
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> DomainSemaphores = new();
         
         public CertificateService(
-            ILogger<CertificateService> logger, 
+            ILogger<CertificateService> logger,
+            ICertificateCache certificateCache,
             ICertesAcme certesAcme,
             IDnsLookupService dnsLookupService,
             AcmeAccountConfig accountConfig,
             string sslRootPath)
         {
             _logger = logger;
+            _certificateCache = certificateCache;
             _certesAcme = certesAcme;
             _dnsLookupService = dnsLookupService;
             _accountConfig = accountConfig;
@@ -42,7 +45,7 @@ namespace Odin.Core.Services.Certificate
         public X509Certificate2 GetSslCertificate(string domain)
         {
             // Load from cache
-            var cert = OdinCertificateCache.LookupCertificate(domain);
+            var cert = _certificateCache.LookupCertificate(domain);
             if (cert != null)
             {
                 return cert;
@@ -50,7 +53,7 @@ namespace Odin.Core.Services.Certificate
                 
             // Not found? Load from disk, put in cache
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
-            cert = OdinCertificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
+            cert = _certificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
 
             return cert;
             
@@ -235,7 +238,7 @@ namespace Odin.Core.Services.Certificate
         {
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
         
-            OdinCertificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
+            _certificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
 
             await Task.CompletedTask;
         }

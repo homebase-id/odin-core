@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Concurrent;
 using System.IO;
@@ -7,18 +6,31 @@ using System.Security.Cryptography.X509Certificates;
 using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Certificate;
+#nullable enable
 
-// SEB:TODO dependency inject this class
 // SEB:NOTE no async here to minimize overhead in happy path
 // SEB:NOTE we accept interleaving threads in here. The end result is always the same.
-public static class OdinCertificateCache
+
+public interface ICertificateCache
 {
-    private static readonly ConcurrentDictionary<string, X509Certificate2?> Cache = new ();
-    private static readonly object FileMutex = new ();
+    X509Certificate2? LookupCertificate(string domain);
+    X509Certificate2? LoadCertificate(string domain, string keyPemPath, string certificatePemPath);
+    void RemoveCertificate(string certificatePemPath);
+    void SaveToFile(string domain, string keyPem, string certificatePem, string keyPemPath, string certificatePemPath);
+}
+
+//
+
+public class CertificateCache : ICertificateCache
+{
+    private readonly ConcurrentDictionary<string, X509Certificate2?> _cache = new ();
+    private readonly object _fileMutex = new ();
+
+    //
     
-    public static X509Certificate2? LookupCertificate(string domain)
+    public X509Certificate2? LookupCertificate(string domain)
     {
-        Cache.TryGetValue(domain, out var x509);
+        _cache.TryGetValue(domain, out var x509);
         
         if (x509 == null)
         {
@@ -32,15 +44,15 @@ public static class OdinCertificateCache
             return x509;
         }
         
-        Cache.TryRemove(domain, out _);
+        _cache.TryRemove(domain, out _);
         return null;
     }
     
     //
     
-    public static X509Certificate2? LoadCertificate(string domain, string keyPemPath, string certificatePemPath)
+    public X509Certificate2? LoadCertificate(string domain, string keyPemPath, string certificatePemPath)
     {
-        Cache.GetOrAdd(domain, _ => LoadFromFile(domain, keyPemPath, certificatePemPath));
+        _cache.GetOrAdd(domain, _ => LoadFromFile(domain, keyPemPath, certificatePemPath));
         
         // Double look-up to take care of expiration 
         return LookupCertificate(domain);
@@ -48,20 +60,20 @@ public static class OdinCertificateCache
     
     //
 
-    public static void RemoveCertificate(string certificatePemPath)
+    public void RemoveCertificate(string certificatePemPath)
     {
         var cacheKey = certificatePemPath.ToLower();
-        Cache.TryRemove(cacheKey, out _);
+        _cache.TryRemove(cacheKey, out _);
     }
     
     //
     
-    public static void SaveToFile(string domain, string keyPem, string certificatePem, string keyPemPath, string certificatePemPath)
+    public void SaveToFile(string domain, string keyPem, string certificatePem, string keyPemPath, string certificatePemPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(keyPemPath) ?? "");
         Directory.CreateDirectory(Path.GetDirectoryName(certificatePemPath) ?? "");
 
-        lock (FileMutex)
+        lock (_fileMutex)
         {
             File.WriteAllText(keyPemPath, keyPem);
             File.WriteAllText(certificatePemPath, certificatePem);
@@ -72,11 +84,11 @@ public static class OdinCertificateCache
     
     //
 
-    private static X509Certificate2? LoadFromFile(string domain, string keyPemPath, string certificatePemPath)
+    private X509Certificate2? LoadFromFile(string domain, string keyPemPath, string certificatePemPath)
     {
         string certPem;
         string keyPem;
-        lock (FileMutex)
+        lock (_fileMutex)
         {
             if (!File.Exists(certificatePemPath) || !File.Exists(keyPemPath))
             {
@@ -100,16 +112,16 @@ public static class OdinCertificateCache
 
     //
     
-    private static void UpdateCertificate(string domain, string keyPemPath, string certificatePemPath)
+    private void UpdateCertificate(string domain, string keyPemPath, string certificatePemPath)
     {
         var x509 = LoadFromFile(domain, keyPemPath, certificatePemPath);
         if (x509 == null)
         {
-            Cache.TryRemove(domain, out _);
+            _cache.TryRemove(domain, out _);
         }
         else
         {
-            Cache[domain] = x509; 
+            _cache[domain] = x509;
         }
     }
     
@@ -150,5 +162,4 @@ public static class OdinCertificateCache
 
     //
 
-    
 }
