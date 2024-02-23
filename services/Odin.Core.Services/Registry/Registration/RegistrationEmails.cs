@@ -204,7 +204,8 @@ public static class RegistrationEmails
                                                             <p style='margin-bottom: 15px'>Hi there,</p>
                                                             <p style='margin-bottom: 15px'>
                                                                 Your new <a href='{link}' style='text-decoration:underlin;'>{domain}</a> identity is ready.<br/><br/>
-                                                                Please click <a href='{link}' style='text-decoration:underlin;'>here</a>  to go to it!
+                                                                Click <a href='{link}' style='text-decoration:underlin;'>here</a>  to go to it!<br/><br/>
+                                                                Please note that due to DNS propagation, your new identity may take up to 48 hours to become accessible across the globe.
                                                             </p>
                                                             <p style='margin-bottom: 15px'>
                                                                 Kind regards<br />Team Homebase

@@ -128,8 +128,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // [060] Validate scopes.
             //
-            // SEB:TODO
-            // Redirect to error page if something is wrong
+            // SEB:TODO Redirect to error page if something is wrong
             //
 
             //
