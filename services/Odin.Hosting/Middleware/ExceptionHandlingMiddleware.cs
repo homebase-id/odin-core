@@ -49,8 +49,7 @@ namespace Odin.Hosting.Middleware
             }
             catch (OdinClientException e) // => HTTP 400
             {
-                // SEB:TODO
-                // OdinClientException is used in a lot of places.
+                // SEB:TODO OdinClientException is used in a lot of places.
                 // We need to go through them all and determine if any should map to something
                 // different than 400, in which case the code should throw a different exception.
                 await HandleExceptionAsync(context, new BadRequestException(e.Message, e.ErrorCode, e));
@@ -62,16 +61,14 @@ namespace Odin.Hosting.Middleware
             }
             catch (DriveSecurityException e) // => HTTP 403
             {
-                // SEB:TODO
-                // Does it make sense to return 403 to client? Is it really an internal server error
-                // because of bad state?
+                // SEB:TODO Does it make sense to return 403 to client?
+                // Is it really an internal server error because of bad state?
                 var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
                 await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
             catch (OdinSecurityException e) // => HTTP 403
             {
-                // SEB:TODO
-                // OdinSecurityException is used in a lot of places.
+                // SEB:TODO OdinSecurityException is used in a lot of places.
                 // We need to go through them all and determine if any should map to something
                 // different than 403, in which case the code should throw a different exception.
                 var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";

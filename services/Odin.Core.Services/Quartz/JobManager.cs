@@ -11,9 +11,6 @@ using Quartz.Impl.Matchers;
 namespace Odin.Core.Services.Quartz;
 #nullable enable
 
-// SEB:TODO
-// - deadletter (in JobListener.cs)
-
 public interface IJobManager
 {
     Task<JobKey> Schedule<TJob>(AbstractJobScheduler jobScheduler) where TJob : IJob;

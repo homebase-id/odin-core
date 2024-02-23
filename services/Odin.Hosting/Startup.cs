@@ -66,12 +66,13 @@ namespace Odin.Hosting
 
             //
             // We are using HttpClientFactoryLite because we have to be able to create HttpClientHandlers on the fly.
+            //   (e.g.: FileSystemIdentityRegistry.RegisterDotYouHttpClient())
             // This is not possible with the baked in HttpClientFactory.
             //
             // IHttpClientFactory rules when creating a HttpClient:
-            // - It is not the HttpClient that is managed by IHttpClientFactory, it is the HttpClientHandler
-            //   that is explictly or implicitly attached to the HttpClient instance that is managed and shared by
-            //   different HttpClients and on different threads.
+            // - It is HttpClientHandler instance that is managed by HttpClientFactory, not the HttpClient instance.
+            // - The HttpClientHandler instance, which is explictly or implicitly attached to a HttpClient instance,
+            //   is shared by different HttpClient instances across all threads.
             // - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
             //   as long as you make sure that the instance is short-lived and not mutated on another thread.
             // - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
