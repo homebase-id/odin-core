@@ -9,7 +9,7 @@ using Odin.Core.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Circles
 {
-    public class CircleDefinitionControllerBase : ControllerBase
+    public abstract class CircleDefinitionControllerBase : ControllerBase
     {
         private readonly CircleNetworkService _cns;
         private readonly CircleMembershipService _circleMembershipService;
