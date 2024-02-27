@@ -28,15 +28,12 @@ namespace DbUpgrade2
 
         static public bool MainHasData(IdentityDatabase idb, xDriveDatabase ddb, Guid driveId)
         {
-            int? inCursor = null;
-            int n = 0;
-
             try
             {
                 var size = ddb.TblMainIndex.GetDriveSize();
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }
