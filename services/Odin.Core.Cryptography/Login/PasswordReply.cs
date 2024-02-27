@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Odin.Core.Cryptography
+namespace Odin.Core.Cryptography.Login
 {
 
     public class PasswordReply

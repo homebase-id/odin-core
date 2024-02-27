@@ -1,5 +1,6 @@
 ﻿using System;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Login;
 
 //
 // After lots of thinking I strongly discourage expiring the login cookie(s).

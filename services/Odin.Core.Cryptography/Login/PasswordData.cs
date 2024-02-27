@@ -1,4 +1,6 @@
-﻿namespace Odin.Core.Cryptography.Data
+﻿using Odin.Core.Cryptography.Data;
+
+namespace Odin.Core.Cryptography.Login
 {
     public class PasswordData
     {

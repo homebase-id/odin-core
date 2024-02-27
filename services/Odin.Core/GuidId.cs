@@ -1,8 +1,8 @@
 using System;
 using System.Text.Json.Serialization;
-
 using Odin.Core.Exceptions;
-using Odin.Core;
+
+namespace Odin.Core;
 
 [JsonConverter(typeof(GuidIdConverter))]
 public class GuidId

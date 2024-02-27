@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Login;
 
 namespace Odin.Core.Cryptography.Tests
 {
