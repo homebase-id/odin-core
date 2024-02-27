@@ -17,7 +17,6 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Incoming.Drive.Query;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Refit;
