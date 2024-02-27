@@ -61,6 +61,7 @@ namespace Odin.Core.Services.Quartz;
 
      //
 
+     // How long to keep job data after job completion.
      public static JobBuilder WithRetention(
          this JobBuilder builder,
          TimeSpan retention)

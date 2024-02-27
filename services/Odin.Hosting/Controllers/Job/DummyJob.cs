@@ -34,7 +34,7 @@ public class DummyScheduler(string echo) : AbstractJobScheduler
 
 //
 
-public class DummyJob(ICorrelationContext correlationContext, ILogger<LogJob> logger) : AbstractJob(correlationContext)
+public class DummyJob(ICorrelationContext correlationContext, ILogger<DummyJob> logger) : AbstractJob(correlationContext)
 {
     protected sealed override async Task Run(IJobExecutionContext context)
     {

@@ -147,7 +147,6 @@ namespace WaitingListApi
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink =>
                         sink.RollingFile(Path.Combine(waitingListConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
