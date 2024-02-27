@@ -500,23 +500,23 @@ namespace DbUpgrade2
             }
         }
 
-        // dotnet run -- /Users/seb/tmp/dotyou/tenants
+        // dotnet run -- /Users/seb/tmp/dotyou/tenants/registrations
         static int Main(string[] args)
         {
             if (args.Length != 1)
             {
-                Console.WriteLine("Usage: dotnet run -- <tenants-path>");
+                Console.WriteLine("Usage: dotnet run -- <registrations-path>");
                 return 1;
             }
 
-            var tenantsPath = args[0];
-            if (!Directory.Exists(tenantsPath))
+            var registrationsPath = args[0];
+            if (!Directory.Exists(registrationsPath))
             {
-                Console.WriteLine($"Not found: {tenantsPath}");
+                Console.WriteLine($"Not found: {registrationsPath}");
                 return 1;
             }
 
-            var registrations = Directory.GetDirectories(Path.Combine(tenantsPath, "registrations"));
+            var registrations = Directory.GetDirectories(registrationsPath);
             foreach (var registration in registrations)
             {
                 MigrateTenantRegistration(registration, true);
