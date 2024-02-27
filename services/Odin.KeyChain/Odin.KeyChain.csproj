@@ -14,8 +14,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\lib\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj" />
-		<ProjectReference Include="..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
-		<ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
+	  <ProjectReference Include="..\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj" />
+	  <ProjectReference Include="..\Odin.Core.Storage\Odin.Core.Storage.csproj" />
+	  <ProjectReference Include="..\Odin.Core\Odin.Core.csproj" />
 	</ItemGroup>
 </Project>

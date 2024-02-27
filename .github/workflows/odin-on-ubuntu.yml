@@ -1,4 +1,4 @@
-name: Services on Ubuntu
+name: Build ODIN backend on Ubuntu
 
 on:
   push:
