@@ -35,6 +35,8 @@ COPY services/Odin.Core.Services.Background/ services/Odin.Core.Services.Backgro
 COPY services/Odin.Hosting/ services/Odin.Hosting/
 COPY services/Odin.Cli/ services/Odin.Cli/
 
+COPY services/CommonProjectConfig.targets services/CommonProjectConfig.targets
+
 # Build release
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false services/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false services/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
