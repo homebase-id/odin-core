@@ -1,3 +1,5 @@
+using Odin.Core;
+
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 
 public class GetYouAuthDomainClientRequest

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Core.Services.Membership.CircleMembership;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;

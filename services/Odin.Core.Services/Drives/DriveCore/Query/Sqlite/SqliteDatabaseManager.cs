@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -10,9 +9,10 @@ using Odin.Core.Identity;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Serilog;
+using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 
@@ -20,15 +20,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 {
     private readonly ILogger<object> _logger;
 
-    private readonly DriveDatabase _db;
+    private readonly IdentityDatabase _db;
 
-    public SqliteDatabaseManager(StorageDrive drive, ILogger<object> logger)
+    public SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, StorageDrive drive, ILogger<object> logger)
     {
         Drive = drive;
         _logger = logger;
-
-        var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
-        _db = new DriveDatabase(connectionString, DatabaseIndexKind.TimeSeries);
+        _db = tenantSystemStorage.IdentityDatabase;
     }
 
     public StorageDrive Drive { get; init; }
@@ -44,6 +42,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
         // TODO TODD - use moreRows
         var (results, moreRows) = _db.QueryModified(
+            Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             fileSystemType: (Int32)fileSystemType,
@@ -74,6 +73,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         if (options.Ordering == Ordering.Default)
         {
             var (results, moreRows) = _db.QueryBatchAuto(
+                Drive.Id,
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
                 fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
@@ -127,13 +127,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-        var exists = _db.TblMainIndex.Get(metadata.File.FileId) != null;
+        var exists = _db.tblDriveMainIndex.Get(Drive.Id, metadata.File.FileId) != null;
 
         if (header.ServerMetadata.DoNotIndex)
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
-                _db.TblMainIndex.Delete(metadata.File.FileId);
+                _db.tblDriveMainIndex.Delete(Drive.Id, metadata.File.FileId);
             }
 
             return Task.CompletedTask;
@@ -155,6 +155,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         if (exists)
         {
             _db.UpdateEntryZapZap(
+                Drive.Id,
                 fileId: metadata.File.FileId,
                 fileType: metadata.AppData.FileType,
                 dataType: metadata.AppData.DataType,
@@ -175,6 +176,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             try
             {
                 _db.AddEntry(
+                    Drive.Id,
                     fileId: metadata.File.FileId,
                     globalTransitId: metadata.GlobalTransitId,
                     fileType: metadata.AppData.FileType,
@@ -206,7 +208,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task RemoveFromCurrentIndex(InternalDriveFileId file)
     {
-        _db.DeleteEntry(file.FileId);
+        _db.DeleteEntry(Drive.Id, file.FileId);
         return Task.CompletedTask;
     }
 
@@ -218,13 +220,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task AddCommandMessage(List<Guid> fileIds)
     {
-        _db.TblCmdMsgQueue.InsertRows(fileIds);
+        _db.tblDriveCommandMessageQueue.InsertRows(Drive.Id, fileIds);
         return Task.CompletedTask;
     }
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
-        var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessageQueueRecord>();
+        var list = _db.tblDriveCommandMessageQueue.Get(Drive.Id, count) ?? new List<DriveCommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
         {
@@ -237,7 +239,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public Task MarkCommandsCompleted(List<Guid> fileIds)
     {
-        _db.TblCmdMsgQueue.DeleteRow(fileIds);
+        _db.tblDriveCommandMessageQueue.DeleteRow(Drive.Id, fileIds);
         return Task.CompletedTask;
     }
 
@@ -249,28 +251,33 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Insert(new ReactionsRecord()
-            { identity = odinId, postId = fileId, singleReaction = reaction });
+        _db.tblDriveReactions.Insert(new DriveReactionsRecord()
+        {
+            driveId = Drive.Id,
+            identity = odinId,
+            postId = fileId,
+            singleReaction = reaction
+        });
     }
 
     public void DeleteReactions(OdinId odinId, Guid fileId)
     {
-        _db.TblReactions.DeleteAllReactions(odinId, fileId);
+        _db.tblDriveReactions.DeleteAllReactions(Drive.Id, odinId, fileId);
     }
 
     public void DeleteReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Delete(odinId, fileId, reaction);
+        _db.tblDriveReactions.Delete(Drive.Id, odinId, fileId, reaction);
     }
 
     public (List<string>, int) GetReactions(Guid fileId)
     {
-        return _db.TblReactions.GetPostReactions(fileId);
+        return _db.tblDriveReactions.GetPostReactions(Drive.Id, fileId);
     }
 
     public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId)
     {
-        var (reactionContentList, countByReactionsList, total) = _db.TblReactions.GetPostReactionsWithDetails(fileId);
+        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(Drive.Id, fileId);
 
         var results = new List<ReactionCount>();
 
@@ -288,17 +295,17 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId)
     {
-        return _db.TblReactions.GetIdentityPostReactionDetails(identity, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactionDetails(identity, Drive.Id, fileId);
     }
 
     public int GetReactionCountByIdentity(OdinId odinId, Guid fileId)
     {
-        return _db.TblReactions.GetIdentityPostReactions(odinId, fileId);
+        return _db.tblDriveReactions.GetIdentityPostReactions(odinId, Drive.Id, fileId);
     }
 
     public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId)
     {
-        var items = _db.TblReactions.PagingByRowid(maxCount, inCursor: cursor, out var nextCursor, fileId);
+        var items = _db.tblDriveReactions.PagingByRowid(maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
@@ -326,6 +333,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var cursor = options.Cursor;
 
         var (results, hasMoreRows) = _db.QueryBatch(
+            Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             fileIdSort: options.Sorting == Sorting.FileId,

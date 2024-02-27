@@ -1,3 +1,5 @@
+using Odin.Core;
+
 namespace Odin.Hosting.Controllers.Base.Membership.Connections;
 
 public class GetCircleMembersRequest
