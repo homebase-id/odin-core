@@ -255,7 +255,7 @@ public class DriveManager
 
     //
 
-    internal async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
     {
         List<StorageDrive> allDrives;
 

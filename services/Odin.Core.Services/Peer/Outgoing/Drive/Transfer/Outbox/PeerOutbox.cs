@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public bool IsTransientFile { get; set; }
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
-        
+
         public TransitOptions OriginalTransitOptions { get; set; }
         public byte[] EncryptedClientAuthToken { get; set; }
     }
@@ -27,7 +27,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(IPendingTransfersService pendingTransfers, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
+    public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
         : IPeerOutbox
     {
         /// <summary>
@@ -48,22 +48,19 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 OriginalTransitOptions = item.OriginalTransitOptions,
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
-            
-            
-            /*_tenantSystemStorage.Outbox.InsertRow(
-                item.File.DriveId.ToByteArray(),
-                item.File.FileId.ToByteArray(),
-                item.Priority,
-                state);*/
 
-            tenantSystemStorage.Outbox.Insert(new OutboxRecord() {
+            tenantSystemStorage.Outbox.Insert(new OutboxRecord()
+            {
                 boxId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
                 priority = item.Priority,
-                value = state });
+                value = state
+            });
 
-            pendingTransfers.EnsureIdentityIsPending(tenantContext.HostOdinId);
+            var sender = tenantContext.HostOdinId;
+            serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
+           
             return Task.CompletedTask;
         }
 
@@ -102,7 +99,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
             //     TransferFailureReason = reason,
             //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             // });
-            
+
             await Task.CompletedTask;
         }
 

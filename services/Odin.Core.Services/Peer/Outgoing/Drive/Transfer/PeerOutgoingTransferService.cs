@@ -83,14 +83,14 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
                 var results = await this.SendOutboxItemsBatchToPeers(batch);
 
-                //results is will be a set of outbox processing results
+                // Results is will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
-                // to report back to the job; 
+                // to report back to the job;
                 
                 // at this point, they are already back in the peer outbox; marked as failure
                 foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
                 {
-                    //todo: decide if we send failsures back or just a code indicating - something went wrong
+                    //todo: decide if we send failures back or just a code indicating - something went wrong
                 }
             }
         }
