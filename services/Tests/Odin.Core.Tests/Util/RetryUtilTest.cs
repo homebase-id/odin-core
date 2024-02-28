@@ -21,7 +21,7 @@ public class RetryUtilTest
         var result = RetryUtil.Retry(
             operation: Operation,
             maxRetryCount: 3,
-            delayBetweenRetries: TimeSpan.FromMilliseconds(300),
+            delayBetweenRetries: TimeSpan.FromMilliseconds(200),
             out var attempts
         );
 
@@ -46,7 +46,7 @@ public class RetryUtilTest
         var result = await RetryUtil.RetryAsync(
             operation: Operation,
             maxRetryCount: 3,
-            delayBetweenRetries: TimeSpan.FromMilliseconds(300)
+            delayBetweenRetries: TimeSpan.FromMilliseconds(200)
         );
 
         // Assert
@@ -72,16 +72,18 @@ public class RetryUtilTest
         }
 
         // Act
+        var ts = Stopwatch.StartNew();
         var result = RetryUtil.Retry(
             operation: Operation,
             maxRetryCount: 3,
-            delayBetweenRetries: TimeSpan.FromMilliseconds(300),
+            delayBetweenRetries: TimeSpan.FromMilliseconds(200),
             out var attempts
         );
 
         // Assert
         Assert.AreEqual(result, "success!");
         Assert.AreEqual(2, attempts);
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
     //
@@ -104,14 +106,16 @@ public class RetryUtilTest
         }
 
         // Act
+        var ts = Stopwatch.StartNew();
         var result = await RetryUtil.RetryAsync(
             operation: Operation,
             maxRetryCount: 3,
-            delayBetweenRetries: TimeSpan.FromMilliseconds(300)
+            delayBetweenRetries: TimeSpan.FromMilliseconds(200)
         );
 
         // Assert
         Assert.AreEqual(result, "success!");
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
     //
@@ -173,5 +177,36 @@ public class RetryUtilTest
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(400));
     }
 
+    //
+
+    [Test]
+    public void NO_DONT_UseSyncRetryWithAsyncOperation()
+    {
+        // !!! DONT use Sync Retry With Async Operation. It cannot catch exceptions and will simply throw them.
+
+        var count = 0;
+
+        // Arrange
+        async Task<string> Operation()
+        {
+            await Task.Delay(1);
+            if (count == 0)
+            {
+                count++;
+                throw new ArgumentException("oh no!");
+            }
+            return "success!";
+        }
+
+        // Act - OH NO this will always throw! Notice it's throwing the original exception, not a RetryUtilException
+        Assert.ThrowsAsync<ArgumentException>(async () =>
+        {
+            await RetryUtil.Retry(
+                operation: Operation,
+                maxRetryCount: 3,
+                delayBetweenRetries: TimeSpan.FromMilliseconds(200),
+                out _);
+        });
+    }
 
 }
