@@ -64,7 +64,7 @@ namespace Odin.Hosting.Middleware.Logging
                 );
 
                 // Log request headers
-                if (_logger.IsEnabled(LogLevel.Debug))
+                if (_logger.IsEnabled(LogLevel.Trace))
                 {
                     LogHeaders("Request headers", context.Request.Headers);
                 }
@@ -91,12 +91,12 @@ namespace Odin.Hosting.Middleware.Logging
                 strings.Add("\"" + key + ":" + value + "\"");
             }
             // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-            _logger.LogDebug(lead + " {RequestHeaders}", string.Join(';', strings));
+            _logger.LogTrace(lead + " {RequestHeaders}", string.Join(';', strings));
         }
         
         //
 
-        private bool IsLoggable(string path)
+        private static bool IsLoggable(string path)
         {
             foreach (var loggablePath in LoggablePaths)
             {

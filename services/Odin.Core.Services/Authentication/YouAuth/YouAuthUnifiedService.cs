@@ -166,7 +166,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             throw new OdinSystemException($"Invalid clientType '{clientType}'");
         }
 
-        // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
         var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
         var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);

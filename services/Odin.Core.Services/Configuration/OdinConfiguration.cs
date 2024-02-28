@@ -183,6 +183,7 @@ namespace Odin.Core.Services.Configuration
             public string SystemDataRootPath { get; init; }
             public string SystemSslRootPath { get; init; }
 
+            public bool Http1Only { get; init; }
 
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
@@ -210,6 +211,8 @@ namespace Odin.Core.Services.Configuration
                 SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
+
+                Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
 
@@ -326,7 +329,7 @@ namespace Odin.Core.Services.Configuration
 
             public LoggingSection(IConfiguration config)
             {
-                LogFilePath = config.Required<string>("Logging:LogFilePath");
+                LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
             }
         }
 

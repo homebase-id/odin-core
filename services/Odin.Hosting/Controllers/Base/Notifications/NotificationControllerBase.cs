@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
     /// <summary>
     /// Handles reading/writing of app notifications
     /// </summary>
-    public class NotificationControllerBase : OdinControllerBase
+    public abstract class NotificationControllerBase : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly NotificationListService _notificationService;

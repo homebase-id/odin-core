@@ -11,7 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Dns;
-using Odin.Core.Services.Email;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -29,8 +29,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly OdinConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IEmailSender _emailSender;
     private readonly IDnsLookupService _dnsLookupService;
+    private readonly IJobManager _jobManager;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger,
@@ -38,16 +38,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         OdinConfiguration configuration,
         IDnsRestClient dnsRestClient,
         IHttpClientFactory httpClientFactory,
-        IEmailSender emailSender,
-        IDnsLookupService dnsLookupService)
+        IDnsLookupService dnsLookupService,
+        IJobManager jobManager)
     {
         _logger = logger;
         _configuration = configuration;
         _registry = registry;
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
-        _emailSender = emailSender;
         _dnsLookupService = dnsLookupService;
+        _jobManager = jobManager;
 
         RegisterHttpClient();
     }
@@ -267,9 +267,12 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
             if (_configuration.Mailgun.Enabled)
             {
-                // SEB:TODO we should probably queue this on a Quartz worker instead
-                // and only send it once we're sure the certificate has been created
-                await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());
+                var scheduler = new SendProvisioningCompleteEmailScheduler(
+                    domain,
+                    email,
+                    firstRunToken.ToString(),
+                    TimeSpan.FromSeconds(1));
+                await _jobManager.Schedule<SendProvisioningCompleteEmailJob>(scheduler);
             }
 
             return firstRunToken;
@@ -298,24 +301,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var match = _configuration.Registry.InvitationCodes
             .Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
         return Task.FromResult(match);
-    }
-
-    //
-
-    private async Task SendProvisioningCompleteEmail(string domain, string email, string firstRunToken)
-    {
-        const string subject = "Your new identity is ready";
-        var firstRunlink = $"https://{domain}/owner/firstrun?frt={firstRunToken}";
-
-        var envelope = new Envelope
-        {
-            To = new List<NameAndEmailAddress> { new() { Email = email } },
-            Subject = subject,
-            TextMessage = RegistrationEmails.ProvisioningCompletedText(email, domain, firstRunlink),
-            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(email, domain, firstRunlink),
-        };
-
-        await _emailSender.SendAsync(envelope);
     }
 
     //

@@ -163,9 +163,9 @@ namespace Odin.Hosting.Middleware
                     var newQs = newQsBytes.ToStringFromUtf8Bytes();
                     var prefix = newQs.FirstOrDefault() == '?' ? "" : "?";
                     request.QueryString = new QueryString($"{prefix}{newQs}");
-                    if (_logger.IsEnabled(LogLevel.Debug))
+                    if (_logger.IsEnabled(LogLevel.Trace))
                     {
-                        _logger.LogDebug("qs: {querystring}", request.QueryString.ToString());
+                        _logger.LogTrace("qs: {querystring}", request.QueryString.ToString());
                     }
                 }
                 else

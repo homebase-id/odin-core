@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -31,8 +31,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public string ShardablePayloadRoot { get; private set; }
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
-    private readonly Dictionary<Guid, IdentityRegistration> _cache; // SEB:TODO this is not thread safe
-    private readonly Trie<IdentityRegistration> _trie; // SEB:TODO access to this needs to be synchronized with _cache
+    private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
+    private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
@@ -60,7 +60,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
         }
 
-        _cache = new Dictionary<Guid, IdentityRegistration>();
+        _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _logger = logger;
         _certificateServiceFactory = certificateServiceFactory;
@@ -160,7 +160,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             return false;
         }
-
         var registration = await Get(domain);
         return registration == null;
     }
@@ -185,17 +184,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PayloadShardKey = GetNextShard()
         };
 
-        await this.SaveRegistrationInternal(registration);
+        await SaveRegistrationInternal(registration);
 
         if (request.OptionalCertificatePemContent == null)
         {
-            await this.InitializeCertificate(request.OdinId);
+            await InitializeCertificate(request.OdinId);
         }
         else
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tenantContext = this.CreateTenantContext(request.OdinId, true);
+            var tenantContext = CreateTenantContext(request.OdinId, true);
 
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
             await tc.SaveSslCertificate(
@@ -462,28 +461,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         RegisterDotYouHttpClient(registration);
 
-        if (null != _trie.LookupExactName(registration.PrimaryDomainName))
-        {
-            _trie.RemoveDomain(registration.PrimaryDomainName);
-        }
-
+        _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
-
-        if (_cache.ContainsKey(registration.Id))
-        {
-            _cache.Remove(registration.Id);
-        }
-
-        _cache.Add(registration.Id, registration);
+        _cache[registration.Id] = registration;
     }
 
     private void UnloadRegistration(IdentityRegistration registration)
     {
-        if (_cache.ContainsKey(registration.Id))
-        {
-            _cache.Remove(registration.Id);
-        }
-
+        _cache.TryRemove(registration.Id, out _);
         _tenantContainer.Container().RemoveTenantScope(registration.PrimaryDomainName);
     }
 
