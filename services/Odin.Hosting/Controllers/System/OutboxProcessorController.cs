@@ -18,6 +18,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox(int batchSize)
         {
+            //test
             await peerOutgoingTransfer.ProcessOutbox();
             return true;
         }
