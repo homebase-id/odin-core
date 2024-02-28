@@ -1,19 +1,19 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Serilog;
-using Serilog.Events;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util;
+#nullable enable
 
 public static class RetryUtil
 {
     public static T Retry<T>(Func<T> operation,
         int maxRetryCount,
-        TimeSpan delayBetweenRetries, 
+        TimeSpan delayBetweenRetries,
         out int attempts)
     {
-        int retryCount = 0;
+        var retryCount = 0;
         while (true)
         {
             try
@@ -21,12 +21,14 @@ public static class RetryUtil
                 attempts = retryCount + 1;
                 return operation();
             }
-            catch
+            catch (Exception e)
             {
                 retryCount++;
                 if (retryCount >= maxRetryCount)
                 {
-                    throw;
+                    var delay = (long)delayBetweenRetries.TotalMilliseconds;
+                    throw new RetryUtilException(
+                        $"Failed to execute operation after {maxRetryCount} attempts (delay:{delay}ms)", e);
                 }
                 
                 Thread.Sleep(delayBetweenRetries);
@@ -37,25 +39,37 @@ public static class RetryUtil
     public static async Task<T> RetryAsync<T>(
         Func<Task<T>> operation,
         int maxRetryCount,
-        TimeSpan delayBetweenRetries)
+        TimeSpan delayBetweenRetries,
+        CancellationToken cancellationToken = default)
     {
-        int retryCount = 0;
+        var retryCount = 0;
         while (true)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new TaskCanceledException();
+            }
+
             try
             {
                 return await operation();
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 retryCount++;
                 if (retryCount >= maxRetryCount)
                 {
-                    throw;
+                    var delay = delayBetweenRetries.TotalSeconds;
+                    throw new RetryUtilException(
+                        $"Failed to execute operation after {maxRetryCount} attempts (delay:{delay}s)", e);
                 }
 
-                await Task.Delay(delayBetweenRetries);
+                await Task.Delay(delayBetweenRetries, cancellationToken);
             }
         }
     }
 }
+
+//
+
+public class RetryUtilException(string message, Exception innerException) : OdinSystemException(message, innerException);
