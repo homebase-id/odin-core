@@ -59,9 +59,9 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), () =>
         {
-            result = 42;
+            result += 42;
         });
 
         // Assert
@@ -78,7 +78,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
             result = 42;
@@ -100,7 +100,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithDelay(2, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), () =>
         {
             attempt++;
             if (attempt < 2)
@@ -123,7 +123,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -156,7 +156,7 @@ public class TryRetryTest
         }
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), Operation);
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), Operation);
 
         // Assert
         Assert.AreEqual(attempt, attempts);
@@ -367,7 +367,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
         {
             Thread.Sleep(1);
         });
@@ -384,7 +384,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
         });
@@ -404,7 +404,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
         {
             result = 42;
         });
@@ -423,7 +423,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
             result = 42;
@@ -445,7 +445,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(4, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
         {
             attempt++;
             if (attempt < 4)
@@ -468,7 +468,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -502,7 +502,7 @@ public class TryRetryTest
         }
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), Operation);
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), Operation);
 
         // Assert
         Assert.AreEqual(attempt, attempts);

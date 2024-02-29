@@ -42,12 +42,13 @@ public static class TryRetry
         }
 
         var attempt = 0;
-        while (attempt < attempts)
+        while (true)
         {
             attempt++;
             try
             {
                 action();
+                return attempt;
             }
             catch(T e)
             {
@@ -61,7 +62,6 @@ public static class TryRetry
             }
         }
 
-        return attempt;
     }
 
     public static int WithBackoff(int attempts, Action action)
@@ -87,12 +87,13 @@ public static class TryRetry
         }
 
         var attempt = 0;
-        while (attempt < attempts)
+        while (true)
         {
             attempt++;
             try
             {
                 action();
+                return attempt;
             }
             catch(T e)
             {
@@ -104,8 +105,6 @@ public static class TryRetry
                 Thread.Sleep(ms);
             }
         }
-
-        return attempt;
     }
 
     //
@@ -140,12 +139,13 @@ public static class TryRetry
         }
 
         var attempt = 0;
-        while (attempt < attempts)
+        while (true)
         {
             attempt++;
             try
             {
                 await action();
+                return attempt;
             }
             catch(T e)
             {
@@ -158,8 +158,6 @@ public static class TryRetry
                 await Task.Delay(Random.Next(delay1, delay2));
             }
         }
-
-        return attempt;
     }
 
     public static Task<int> WithBackoffAsync(int attempts, Func<Task> action)
@@ -185,12 +183,13 @@ public static class TryRetry
         }
 
         var attempt = 0;
-        while (attempt < attempts)
+        while (true)
         {
             attempt++;
             try
             {
                 await action();
+                return attempt;
             }
             catch(T e)
             {
@@ -202,8 +201,6 @@ public static class TryRetry
                 await Task.Delay(ms);
             }
         }
-
-        return attempt;
     }
 
     //
