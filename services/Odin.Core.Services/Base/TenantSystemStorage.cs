@@ -17,13 +17,20 @@ namespace Odin.Core.Services.Base
             ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
 
             string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
-            string dbName = "identity.db";
             if (!Directory.Exists(dbPath))
             {
                 Directory.CreateDirectory(dbPath!);
             }
 
-            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+            string dbName = "identity.db";
+            string finalPath = PathUtil.Combine(dbPath, dbName);
+
+            if (!File.Exists(finalPath))
+            {
+                string oldName = "sys.db";
+                finalPath = PathUtil.Combine(dbPath, oldName);
+            }
+
             IdentityDatabase = new IdentityDatabase($"Data Source={finalPath}");
             IdentityDatabase.CreateDatabase(false);
 
