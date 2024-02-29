@@ -138,6 +138,31 @@ public class TryRetryTest
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
+    [Test]
+    public async Task AsyncWithDelayShouldRetryAndSucceedWithoutAsyncAwaitKeywords()
+    {
+        // Arrange
+        var attempt = 0;
+        var ts = Stopwatch.StartNew();
+
+        async Task Operation()
+        {
+            attempt++;
+            await Task.Delay(1);
+            if (attempt < 3)
+            {
+                throw new Exception("oh no");
+            }
+        }
+
+        // Act
+        var attempts = await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), Operation);
+
+        // Assert
+        Assert.AreEqual(attempt, attempts);
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
+    }
+
     //
 
     [Test]
@@ -181,6 +206,34 @@ public class TryRetryTest
                 await Task.Delay(1);
                 throw new Exception("oh no");
             });
+        });
+
+        // Assert
+        Assert.AreEqual(3, attempt);
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
+        Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
+    }
+
+    [Test]
+    public void AsyncWithDelayShouldRetryAndFailWithoutAsyncAwaitKeywords()
+    {
+        // Arrange
+        var attempt = 0;
+        var ts = Stopwatch.StartNew();
+
+        async Task Operation()
+        {
+            attempt++;
+            await Task.Delay(1);
+            throw new Exception("oh no");
+        }
+
+        // Act
+        var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
+        {
+            await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), Operation);
         });
 
         // Assert
@@ -431,6 +484,32 @@ public class TryRetryTest
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
     }
 
+    [Test]
+    public async Task AsyncWithBackoffShouldRetryAndSucceedWithoutAsyncAwaitKeywords()
+    {
+        // Arrange
+        var attempt = 0;
+        var ts = Stopwatch.StartNew();
+
+        async Task Operation()
+        {
+            attempt++;
+            await Task.Delay(1);
+            if (attempt < 4)
+            {
+                throw new Exception("oh no");
+            }
+        }
+
+        // Act
+        var attempts = await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), Operation);
+
+        // Assert
+        Assert.AreEqual(attempt, attempts);
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+    }
+
     //
 
     [Test]
@@ -474,6 +553,34 @@ public class TryRetryTest
                 await Task.Delay(1);
                 throw new Exception("oh no");
             });
+        });
+
+        // Assert
+        Assert.AreEqual(4, attempt);
+        Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+        Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
+        Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
+    }
+
+    [Test]
+    public void AsyncWithBackoffShouldRetryAndFailWithoutAsyncAwaitKeywords()
+    {
+        // Arrange
+        var attempt = 0;
+        var ts = Stopwatch.StartNew();
+
+        async Task Operation()
+        {
+            attempt++;
+            await Task.Delay(1);
+            throw new Exception("oh no");
+        }
+
+        // Act
+        var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
+        {
+            await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), Operation);
         });
 
         // Assert
