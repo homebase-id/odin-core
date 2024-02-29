@@ -19,6 +19,10 @@
         /// </summary>
         UnknownError = 800,
 
+        /// <summary>
+        /// Indicates the recipient server did not respond to the request (i.e. timeout occured)
+        /// </summary>
+        RecipientServerNotResponding = 911,
 
         RecipientServerReturnedAccessDenied = 909,
 

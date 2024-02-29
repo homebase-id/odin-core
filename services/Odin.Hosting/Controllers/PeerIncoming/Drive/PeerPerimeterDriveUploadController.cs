@@ -88,7 +88,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             //S1000, S2000 - can the sender write the content to the target drive?
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
             _fileSystem.Storage.AssertCanWriteToDrive(driveId);
-
             //End Optimizations
 
             _incomingTransferService = GetPerimeterService(_fileSystem);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -86,7 +87,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 // Results is will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
                 // to report back to the job;
-                
+
                 // at this point, they are already back in the peer outbox; marked as failure
                 foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
                 {
@@ -344,36 +345,49 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 }
             }
 
-            var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
-
-            //TODO: needs more work to bring clarity to response code
-            var (peerCode, transferResult) = MapPeerResponseCode(response);
-
-            return new OutboxProcessingResult()
+            try
             {
-                File = file,
-                Recipient = recipient,
-                RecipientPeerResponseCode = peerCode,
-                TransferResult = transferResult,
-                Timestamp = UnixTimeUtc.Now().milliseconds,
-                OutboxItem = outboxItem
-            };
+                //TODO: need to handle error when recipient server is not accessible
+                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
+                var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
+
+                //TODO: needs more work to bring clarity to response code
+                var (peerCode, transferResult) = MapPeerResponseCode(response);
+
+                return new OutboxProcessingResult()
+                {
+                    File = file,
+                    Recipient = recipient,
+                    RecipientPeerResponseCode = peerCode,
+                    TransferResult = transferResult,
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    OutboxItem = outboxItem
+                };
+            }
+            catch (Exception e)
+            {
+                if (e is TaskCanceledException || e is HttpRequestException || e is OperationCanceledException)
+                {
+                    return new OutboxProcessingResult()
+                    {
+                        File = file,
+                        Recipient = recipient,
+                        RecipientPeerResponseCode = null,
+                        TransferResult = TransferResult.RecipientServerNotResponding,
+                        Timestamp = UnixTimeUtc.Now().milliseconds,
+                        OutboxItem = outboxItem
+                    };
+                }
+
+                throw;
+            }
         }
 
         private (PeerResponseCode? peerCode, TransferResult transferResult) MapPeerResponseCode(ApiResponse<PeerTransferResponse> response)
         {
             if (response.IsSuccessStatusCode)
             {
-                var peerResponseCode = response!.Content!.Code;
-                switch (peerResponseCode)
-                {
-                    case PeerResponseCode.AcceptedDirectWrite:
-                    case PeerResponseCode.AcceptedIntoInbox:
-                        break;
-                }
-
-                return (peerResponseCode, TransferResult.Success);
+                return (response!.Content!.Code, TransferResult.Success);
             }
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -464,18 +478,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             return await MapOutboxCreationResult(outboxStatus);
         }
 
-        private Task<Dictionary<string, TransferStatus>> MapOutboxCreationResult(Dictionary<string, bool> outboxStatus)
-        {
-            var transferStatus = new Dictionary<string, TransferStatus>();
-
-            foreach (var s in outboxStatus)
-            {
-                transferStatus.Add(s.Key, s.Value ? TransferStatus.TransferKeyCreated : TransferStatus.AwaitingTransferKey);
-            }
-
-            return Task.FromResult(transferStatus);
-        }
-
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
             TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
         {
@@ -505,6 +507,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 }
                 else
                 {
+                    // Map to something to tell the client
                     switch (result.TransferResult)
                     {
                         case TransferResult.EncryptedTransferInstructionSetNotAvailable:
@@ -514,6 +517,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                             break;
 
                         case TransferResult.RecipientServerError:
+                        case TransferResult.RecipientServerNotResponding:
                         case TransferResult.UnknownError:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
@@ -537,6 +541,18 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             }
 
             return transferStatus;
+        }
+
+        private Task<Dictionary<string, TransferStatus>> MapOutboxCreationResult(Dictionary<string, bool> outboxStatus)
+        {
+            var transferStatus = new Dictionary<string, TransferStatus>();
+
+            foreach (var s in outboxStatus)
+            {
+                transferStatus.Add(s.Key, s.Value ? TransferStatus.TransferKeyCreated : TransferStatus.AwaitingTransferKey);
+            }
+
+            return Task.FromResult(transferStatus);
         }
     }
 }
