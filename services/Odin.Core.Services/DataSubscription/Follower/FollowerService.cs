@@ -46,7 +46,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerQueryService peerQueryService, CircleNetworkService circleNetworkService)
+            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerQueryService peerQueryService,
+            CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -73,7 +74,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
                     OdinClientErrorCode.InvalidRecipient);
             }
-            
+
             var existingFollow = await this.GetIdentityIFollowInternal(identityToFollow);
             if (null != existingFollow)
             {
@@ -470,7 +471,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                             DriveId = feedDriveId
                         };
 
-                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck:true);
+                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true);
                     }
                 }
             }

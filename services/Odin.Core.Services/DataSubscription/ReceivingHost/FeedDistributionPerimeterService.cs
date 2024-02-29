@@ -11,7 +11,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer;
 using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.Incoming;
 
 namespace Odin.Core.Services.DataSubscription.ReceivingHost
 {
@@ -29,10 +28,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             //S0510
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new PeerTransferResponse()
-                {
-                    Code = PeerResponseCode.Rejected
-                };
+                throw new OdinClientException("Invalid drive specified for reaction preview update");
             }
 
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
@@ -41,23 +37,10 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
 
                 if (null == fileId)
                 {
-                    return new PeerTransferResponse()
-                    {
-                        Code = PeerResponseCode.Rejected
-                    };
+                    throw new OdinClientException("Invalid File");
                 }
 
-                try
-                {
-                    await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
-                }
-                catch (OdinSecurityException)
-                {
-                    return new PeerTransferResponse()
-                    {
-                        Code = PeerResponseCode.Rejected
-                    };
-                }
+                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
             }
 
             return new PeerTransferResponse()
@@ -71,10 +54,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
             await followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
-                return new PeerTransferResponse()
-                {
-                    Code = PeerResponseCode.Rejected
-                };
+                throw new OdinClientException("Target drive must be the feed drive");
             }
 
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
@@ -106,20 +86,9 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 }
                 else
                 {
-
-                    // update
-                    try
-                    {
-                        request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
-                    }
-                    catch (OdinSecurityException)
-                    {
-                        return new PeerTransferResponse()
-                        {
-                            Code = PeerResponseCode.Rejected
-                        };
-                    }
+                    // perform update
+                    request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
                 }
             }
 

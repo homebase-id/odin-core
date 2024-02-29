@@ -2,10 +2,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Authentication.System;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Controllers.System
 {
@@ -15,12 +13,13 @@ namespace Odin.Hosting.Controllers.System
     [ApiController]
     [Route(OwnerApiPathConstants.TransitV1 + "/outbox/processor")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
-    public class OutboxProcessorController(IPeerTransferService peerTransfer) : ControllerBase
+    public class OutboxProcessorController(IPeerOutgoingTransferService peerOutgoingTransfer) : ControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox(int batchSize)
         {
-            await peerTransfer.ProcessOutbox();
+            //test
+            await peerOutgoingTransfer.ProcessOutbox();
             return true;
         }
     }

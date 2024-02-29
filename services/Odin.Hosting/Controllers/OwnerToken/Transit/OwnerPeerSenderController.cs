@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {
-        public OwnerPeerSenderController(IPeerTransferService peerTransferService) : base(peerTransferService)
+        public OwnerPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService) : base(peerOutgoingTransferService)
         {
         }
     }

@@ -20,9 +20,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        IPeerTransferService peerTransferService,
+        IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerTransferService)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)
     {
     }
 

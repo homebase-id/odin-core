@@ -15,8 +15,8 @@ using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
-    public abstract class DriveQueryByUniqueIdControllerBase(ILogger logger, FileSystemResolver fileSystemResolver, IPeerTransferService peerTransferService)
-        : DriveStorageControllerBase(logger, fileSystemResolver, peerTransferService)
+    public abstract class DriveQueryByUniqueIdControllerBase(FileSystemResolver fileSystemResolver, IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
@@ -35,7 +35,6 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
             var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)

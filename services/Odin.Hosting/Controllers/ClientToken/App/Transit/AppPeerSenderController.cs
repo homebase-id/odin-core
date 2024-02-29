@@ -9,5 +9,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerSenderController(IPeerTransferService peerTransferService) : PeerSenderControllerBase(peerTransferService);
+    public class AppPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService) : PeerSenderControllerBase(peerOutgoingTransferService);
 }

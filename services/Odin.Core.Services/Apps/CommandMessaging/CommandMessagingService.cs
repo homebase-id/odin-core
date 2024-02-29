@@ -26,12 +26,12 @@ namespace Odin.Core.Services.Apps.CommandMessaging;
 /// </remarks>
 public class CommandMessagingService
 {
-    private readonly IPeerTransferService _peerTransferService;
+    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
     private readonly StandardFileSystem _standardFileSystem;
 
-    public CommandMessagingService(IPeerTransferService peerTransferService, StandardFileSystem standardFileSystem)
+    public CommandMessagingService(IPeerOutgoingTransferService peerOutgoingTransferService, StandardFileSystem standardFileSystem)
     {
-        _peerTransferService = peerTransferService;
+        _peerOutgoingTransferService = peerOutgoingTransferService;
         _standardFileSystem = standardFileSystem;
     }
 
@@ -70,7 +70,7 @@ public class CommandMessagingService
         await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
         //TODO: with the introduction of file system type, we can probably make commands a file system type
-        var transferResult = await _peerTransferService.SendFile(
+        var transferResult = await _peerOutgoingTransferService.SendFile(
             internalFile: internalFile,
             options: new TransitOptions()
             {

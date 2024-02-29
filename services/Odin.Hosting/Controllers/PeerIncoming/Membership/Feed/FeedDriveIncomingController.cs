@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
     [ApiController]
     [Route(PeerApiPathConstants.FeedV1)]
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
-    public class FeedDrivePerimeterController : OdinControllerBase
+    public class FeedDriveIncomingController : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly IMediator _mediator;
 
         /// <summary />
-        public FeedDrivePerimeterController(OdinContextAccessor contextAccessor,
+        public FeedDriveIncomingController(OdinContextAccessor contextAccessor,
             FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
