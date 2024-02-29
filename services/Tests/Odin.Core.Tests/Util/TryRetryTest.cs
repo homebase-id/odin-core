@@ -22,12 +22,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
         {
             Thread.Sleep(1);
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -38,12 +39,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -57,12 +59,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
         {
             result = 42;
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
@@ -75,13 +78,14 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
             result = 42;
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
@@ -96,7 +100,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithDelay(2, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(2, TimeSpan.FromMilliseconds(100), () =>
         {
             attempt++;
             if (attempt < 2)
@@ -106,7 +110,8 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(2, attempt);
+
+        Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(100));
     }
 
@@ -118,7 +123,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -129,7 +134,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
@@ -309,12 +314,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
         {
             Thread.Sleep(1);
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -325,12 +331,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -344,12 +351,13 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(1, TimeSpan.FromMilliseconds(100), () =>
         {
             result = 42;
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
@@ -362,13 +370,14 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(1, TimeSpan.FromMilliseconds(100), async () =>
         {
             await Task.Delay(1);
             result = 42;
         });
 
         // Assert
+        Assert.AreEqual(1, attempts);
         Assert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
@@ -383,7 +392,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        TryRetry.WithBackoff(4, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(4, TimeSpan.FromMilliseconds(100), () =>
         {
             attempt++;
             if (attempt < 4)
@@ -393,7 +402,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(4, attempt);
+        Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
     }
@@ -406,7 +415,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -417,7 +426,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(4, attempt);
+        Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
     }

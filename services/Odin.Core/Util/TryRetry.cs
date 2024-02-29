@@ -14,22 +14,22 @@ public static class TryRetry
     // SYNC
     //
 
-    public static void WithDelay(int attempts, TimeSpan delay, Action action)
+    public static int WithDelay(int attempts, TimeSpan delay, Action action)
     {
-        WithDelay<Exception>(attempts, (delay, delay), action);
+        return WithDelay<Exception>(attempts, (delay, delay), action);
     }
 
-    public static void WithDelay(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action)
+    public static int WithDelay(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action)
     {
-        WithDelay<Exception>(attempts, randomDelay, action);
+        return WithDelay<Exception>(attempts, randomDelay, action);
     }
 
-    public static void WithDelay<T>(int attempts, TimeSpan delay, Action action) where T : Exception
+    public static int WithDelay<T>(int attempts, TimeSpan delay, Action action) where T : Exception
     {
-        WithDelay<T>(attempts, (delay, delay), action);
+        return WithDelay<T>(attempts, (delay, delay), action);
     }
 
-    public static void WithDelay<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action) where T : Exception
+    public static int WithDelay<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -60,24 +60,26 @@ public static class TryRetry
                 Thread.Sleep(Random.Next(delay1, delay2));
             }
         }
+
+        return attempt;
     }
 
-    public static void WithBackoff(int attempts, Action action)
+    public static int WithBackoff(int attempts, Action action)
     {
-        WithBackoff<Exception>(attempts, DefaultExponentialMs, action);
+        return WithBackoff<Exception>(attempts, DefaultExponentialMs, action);
     }
 
-    public static void WithBackoff<T>(int attempts, Action action) where T : Exception
+    public static int WithBackoff<T>(int attempts, Action action) where T : Exception
     {
-        WithBackoff<T>(attempts, DefaultExponentialMs, action);
+        return WithBackoff<T>(attempts, DefaultExponentialMs, action);
     }
 
-    public static void WithBackoff(int attempts, TimeSpan exponentialBackoff, Action action)
+    public static int WithBackoff(int attempts, TimeSpan exponentialBackoff, Action action)
     {
-        WithBackoff<Exception>(attempts, exponentialBackoff, action);
+        return WithBackoff<Exception>(attempts, exponentialBackoff, action);
     }
 
-    public static void WithBackoff<T>(int attempts, TimeSpan exponentialBackoff, Action action) where T : Exception
+    public static int WithBackoff<T>(int attempts, TimeSpan exponentialBackoff, Action action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -102,28 +104,30 @@ public static class TryRetry
                 Thread.Sleep(ms);
             }
         }
+
+        return attempt;
     }
 
     //
     // ASYNC
     //
 
-    public static Task WithDelayAsync(int attempts, TimeSpan delay, Func<Task> action)
+    public static Task<int> WithDelayAsync(int attempts, TimeSpan delay, Func<Task> action)
     {
         return WithDelayAsync<Exception>(attempts, (delay, delay), action);
     }
 
-    public static Task WithDelayAsync(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action)
+    public static Task<int> WithDelayAsync(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action)
     {
         return WithDelayAsync<Exception>(attempts, randomDelay, action);
     }
 
-    public static Task WithDelayAsync<T>(int attempts, TimeSpan delay, Func<Task> action) where T : Exception
+    public static Task<int> WithDelayAsync<T>(int attempts, TimeSpan delay, Func<Task> action) where T : Exception
     {
         return WithDelayAsync<T>(attempts, (delay, delay), action);
     }
 
-    public static async Task WithDelayAsync<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action) where T : Exception
+    public static async Task<int> WithDelayAsync<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -154,24 +158,26 @@ public static class TryRetry
                 await Task.Delay(Random.Next(delay1, delay2));
             }
         }
+
+        return attempt;
     }
 
-    public static Task WithBackoffAsync(int attempts, Func<Task> action)
+    public static Task<int> WithBackoffAsync(int attempts, Func<Task> action)
     {
         return WithBackoffAsync<Exception>(attempts, DefaultExponentialMs, action);
     }
 
-    public static Task WithBackoffAsync<T>(int attempts, Func<Task> action) where T : Exception
+    public static Task<int> WithBackoffAsync<T>(int attempts, Func<Task> action) where T : Exception
     {
         return WithBackoffAsync<T>(attempts, DefaultExponentialMs, action);
     }
 
-    public static Task WithBackoffAsync(int attempts, TimeSpan exponentialBackoff, Func<Task> action)
+    public static Task<int> WithBackoffAsync(int attempts, TimeSpan exponentialBackoff, Func<Task> action)
     {
         return WithBackoffAsync<Exception>(attempts, exponentialBackoff, action);
     }
 
-    public static async Task WithBackoffAsync<T>(int attempts, TimeSpan exponentialBackoff, Func<Task> action) where T : Exception
+    public static async Task<int> WithBackoffAsync<T>(int attempts, TimeSpan exponentialBackoff, Func<Task> action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -196,6 +202,8 @@ public static class TryRetry
                 await Task.Delay(ms);
             }
         }
+
+        return attempt;
     }
 
     //
