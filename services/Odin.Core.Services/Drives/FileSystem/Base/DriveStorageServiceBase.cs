@@ -826,12 +826,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             var mgr = GetLongTermStorageManager(header.FileMetadata.File.DriveId);
 
-            await RetryUtil.Retry(
-                operation: () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream),
-                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
-                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
-                out var attempts
-            );
+            var attempts = await TryRetry.WithDelayAsync(
+                _odinConfiguration.Host.FileOperationRetryAttempts,
+                TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
+                () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {
@@ -907,12 +905,14 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var mgr = GetLongTermStorageManager(file.DriveId);
 
-            var header = await RetryUtil.Retry(
-                operation: () => mgr.GetServerFileHeader(file.FileId),
-                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
-                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
-                out var attempts
-            );
+            ServerFileHeader header = null;
+            var attempts = await TryRetry.WithDelayAsync(
+                _odinConfiguration.Host.FileOperationRetryAttempts,
+                TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
+                async () =>
+                {
+                    header = await mgr.GetServerFileHeader(file.FileId);
+                });
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {
