@@ -125,9 +125,9 @@ public class DriveManager
     public Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        StorageDrive storageDrive = this.GetDrive(driveId).GetAwaiter().GetResult();
+        StorageDrive storageDrive = GetDrive(driveId).GetAwaiter().GetResult();
 
-        if (storageDrive.TargetDriveInfo == SystemDriveConstants.ContactDrive || storageDrive.TargetDriveInfo == SystemDriveConstants.ProfileDrive)
+        if(SystemDriveConstants.SystemDrives.Any(d=> d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }

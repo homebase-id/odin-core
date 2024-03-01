@@ -61,6 +61,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return true;
         }
 
+        [HttpPost("setdrivereadmode")]
+        public async Task<IActionResult> SetDriveReadMode([FromBody] UpdateDriveReadModeRequest request)
+        {
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, true);
+            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
+            return Ok();
+        }
+
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
@@ -84,8 +93,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class UpdateDriveDefinitionRequest
     {
         public TargetDrive TargetDrive { get; set; }
-        public bool AllowAnonymousReads { get; set; }
 
         public string Metadata { get; set; }
+    }
+
+    public class UpdateDriveReadModeRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool AllowAnonymousReads { get; set; }
     }
 }

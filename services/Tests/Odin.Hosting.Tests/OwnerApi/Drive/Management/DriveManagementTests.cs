@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -53,7 +54,8 @@ public class DriveManagementTests
             var page = getDrivesResponse.Content;
 
             Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+            Assert.NotNull(page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
         }
     }
 
@@ -84,7 +86,8 @@ public class DriveManagementTests
             var page = getDrivesResponse.Content;
 
             Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+            Assert.NotNull(page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
 
             var createDuplicateDriveResponse = await svc.CreateDrive(new CreateDriveRequest()
             {
@@ -124,7 +127,8 @@ public class DriveManagementTests
             var page = getDrivesResponse.Content;
 
             Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+            Assert.NotNull(page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
 
             await svc.UpdateMetadata(new UpdateDriveDefinitionRequest()
             {
@@ -139,6 +143,74 @@ public class DriveManagementTests
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
             Assert.IsTrue(updatedDrive.Metadata == "ankles and toes");
+        }
+    }
+
+    [Test]
+    public async Task CanSetSystemDriveReadMode()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+            string name = "test drive 01";
+            string metadata = "{some:'json'}";
+
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = name,
+                Metadata = metadata,
+                AllowAnonymousReads = false
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            Assert.IsNotNull(response.Content);
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            var page = getDrivesResponse.Content;
+
+            Assert.IsTrue(page.Results.Any());
+            var theDrive = page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
+            Assert.NotNull(theDrive);
+            Assert.IsFalse(theDrive.AllowAnonymousReads);
+
+            await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
+            {
+                TargetDrive = targetDrive,
+                AllowAnonymousReads = true
+            });
+
+            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            var updatedDrivesPage = getUpdatedResponse.Content;
+            Assert.IsNotNull(updatedDrivesPage);
+
+            var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            Assert.IsTrue(updatedDrive.AllowAnonymousReads);
+        }
+    }
+
+    [Test]
+    public async Task FailToSetSystemDriveReadMode()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            foreach (var systemDrive in SystemDriveConstants.SystemDrives)
+            {
+                var response = await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
+                {
+                    TargetDrive = systemDrive,
+                    AllowAnonymousReads = true
+                });
+                
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, "Should have failed to set system drive read-mode");
+            }
         }
     }
 }

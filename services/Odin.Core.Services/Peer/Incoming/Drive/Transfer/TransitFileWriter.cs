@@ -190,13 +190,13 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
                 if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null) ||
                     (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 //Must be the same file
                 if (existingFileBySharedSecretEncryptedUniqueId.FileId != existingFileByGlobalTransitId.FileId)
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();

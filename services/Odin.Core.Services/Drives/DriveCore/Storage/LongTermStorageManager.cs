@@ -2,11 +2,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Time;
 
@@ -19,20 +17,17 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
-        private readonly OdinConfiguration _odinConfiguration;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, OdinConfiguration odinConfiguration,
-            DriveFileReaderWriter driveFileReaderWriter)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
             drive.EnsureDirectories();
 
             _logger = logger;
-            _odinConfiguration = odinConfiguration;
             _driveFileReaderWriter = driveFileReaderWriter;
             _drive = drive;
         }
@@ -132,18 +127,23 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task<Stream> GetPayloadStream(Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
             var path = GetPayloadFilePath(fileId, descriptor);
-            return GetChunkedStream(path, chunk);
-        }
+            _logger.LogInformation($"Get Chunked Stream called on file [{path}]");
 
-        private Task<Stream> GetChunkedStream(string path, FileChunk chunk = null)
-        {
-            if (!File.Exists(path))
+            Stream fileStream;
+            try
             {
-                return Task.FromResult(Stream.Null);
+                fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+            }
+            catch (IOException io)
+            {
+                if (io is FileNotFoundException || io is DirectoryNotFoundException)
+                {
+                    throw new OdinFileHeaderHasCorruptPayloadException($"Missing payload file for key {descriptor.Key} with uid: {descriptor.Uid}");
+                }
+
+                throw;
             }
 
-            _logger.LogInformation($"Get Chunked Stream called on file [{path}]");
-            var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
             if (null != chunk)
             {
                 try
@@ -174,6 +174,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             return Task.FromResult(fileStream);
         }
 
+
         /// <summary>
         /// Gets a read stream of the thumbnail
         /// </summary>
@@ -182,15 +183,21 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
             string dir = GetFilePath(fileId, FilePart.Thumb);
             string path = Path.Combine(dir, fileName);
-            var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
 
-            return Task.FromResult(fileStream);
-        }
+            try
+            {
+                var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+                return Task.FromResult(fileStream);
+            }
+            catch (IOException io)
+            {
+                if (io is FileNotFoundException || io is DirectoryNotFoundException)
+                {
+                    throw new OdinFileHeaderHasCorruptPayloadException($"Missing payload file for key {payloadKey} with uid: {payloadUid}");
+                }
 
-        private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
-        {
-            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
-            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+                throw;
+            }
         }
 
         /// <summary>
@@ -231,6 +238,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 return false;
             }
+
             //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
             foreach (var d in header.FileMetadata.Payloads)
             {
@@ -280,23 +288,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             var destinationFile = GetPayloadFilePath(targetFileId, descriptor, ensureExists: true);
             _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
 
-            //
-            // if (IoUtils.WaitForFileUnlock(destinationFile,
-            //         TimeSpan.FromSeconds(_odinConfiguration.Host.FileMoveWaitTimeoutSeconds)))
-            // {
-            //     IoUtils.RetryOperation(() => File.Move(sourceFile, destinationFile, true),
-            //         _odinConfiguration.Host.FileMoveRetryAttempts,
-            //         _odinConfiguration.Host.FileMoveRetryDelayMs,
-            //         $"MovePayloadToLongTerm - source ({sourceFile} to {destinationFile})");
-            //
-            //     _logger.LogInformation("File Moved to {dest}", destinationFile);
-            // }
-            // else
-            // {
-            //     _logger.LogWarning($"Timeout waiting {_odinConfiguration.Host.FileMoveWaitTimeoutSeconds} seconds for destination file [{destinationFile}] to be unlocked.");
-            //     throw new OdinFileWriteException($"IO Exception while reading file {sourceFile} to write to {destinationFile}");
-            // }
-
             return Task.CompletedTask;
         }
 
@@ -311,13 +302,6 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             Directory.CreateDirectory(Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null"));
 
             _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
-
-            // // File.Move(sourceThumbnail, dest, true);
-            // IoUtils.RetryOperation(() => File.Move(sourceThumbnail, destinationFile, true),
-            //     _odinConfiguration.Host.FileMoveRetryAttempts,
-            //     _odinConfiguration.Host.FileMoveRetryDelayMs,
-            //     $"MoveThumbnailToLongTerm source ({sourceThumbnail}) to ({destinationFile})");
-
             _logger.LogInformation($"File Moved to {destinationFile}");
 
             return Task.CompletedTask;
@@ -430,6 +414,12 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             }
 
             return Task.CompletedTask;
+        }
+
+        private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
+        {
+            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
+            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetThumbnailPath(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
