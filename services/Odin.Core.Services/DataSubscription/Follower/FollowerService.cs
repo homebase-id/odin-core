@@ -35,7 +35,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         private readonly TenantContext _tenantContext;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly StandardFileSystem _standardFileSystem;
-        private readonly PeerQueryService _peerQueryService;
+        private readonly PeerDriveQueryService _peerDriveQueryService;
         private readonly CircleNetworkService _circleNetworkService;
 
         private const int MaxRecordsPerChannel = 100; //TODO:config
@@ -46,7 +46,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerQueryService peerQueryService,
+            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
             CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;
@@ -56,7 +56,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
             _standardFileSystem = standardFileSystem;
-            _peerQueryService = peerQueryService;
+            _peerDriveQueryService = peerDriveQueryService;
             _circleNetworkService = circleNetworkService;
         }
 
@@ -370,7 +370,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            var channelDrives = await _peerQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
+            var channelDrives = await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
 
             //filter the drives to those I want to see
             if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -405,7 +405,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _peerQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
+            var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
 
             foreach (var results in collection.Results)
             {

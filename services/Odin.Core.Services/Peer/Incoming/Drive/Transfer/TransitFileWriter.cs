@@ -12,7 +12,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Core.Time;

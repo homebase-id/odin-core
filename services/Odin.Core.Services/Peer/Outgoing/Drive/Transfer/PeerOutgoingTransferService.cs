@@ -25,6 +25,7 @@ using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Core.Services.Util;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Refit;
 
 namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
@@ -82,7 +83,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
             foreach (var drive in page.Results)
             {
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                var results = await this.SendOutboxItemsBatchToPeers(batch);
+                var results = await SendOutboxItemsBatchToPeers(batch);
 
                 // Results is will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
@@ -345,14 +346,22 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 }
             }
 
-            try
+            async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
             {
-                //TODO: need to handle error when recipient server is not accessible
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
+                return response;
+            }
 
-                //TODO: needs more work to bring clarity to response code
-                var (peerCode, transferResult) = MapPeerResponseCode(response);
+            try
+            {
+                PeerResponseCode peerCode = PeerResponseCode.Unknown;
+                TransferResult transferResult = TransferResult.UnknownError;
+
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    async () => { (peerCode, transferResult) = MapPeerResponseCode(await TrySendFile()); });
 
                 return new OutboxProcessingResult()
                 {
@@ -364,27 +373,29 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     OutboxItem = outboxItem
                 };
             }
-            catch (Exception e)
+            catch (TryRetryException ex)
             {
-                if (e is TaskCanceledException || e is HttpRequestException || e is OperationCanceledException)
-                {
-                    return new OutboxProcessingResult()
-                    {
-                        File = file,
-                        Recipient = recipient,
-                        RecipientPeerResponseCode = null,
-                        TransferResult = TransferResult.RecipientServerNotResponding,
-                        Timestamp = UnixTimeUtc.Now().milliseconds,
-                        OutboxItem = outboxItem
-                    };
-                }
+                var e = ex.InnerException;
+                var tr = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
+                    ? TransferResult.RecipientServerNotResponding
+                    : TransferResult.UnknownError;
 
-                throw;
+                return new OutboxProcessingResult()
+                {
+                    File = file,
+                    Recipient = recipient,
+                    RecipientPeerResponseCode = null,
+                    TransferResult = tr,
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    OutboxItem = outboxItem
+                };
             }
         }
 
-        private (PeerResponseCode? peerCode, TransferResult transferResult) MapPeerResponseCode(ApiResponse<PeerTransferResponse> response)
+        private (PeerResponseCode peerCode, TransferResult transferResult) MapPeerResponseCode(ApiResponse<PeerTransferResponse> response)
         {
+            //TODO: needs more work to bring clarity to response code
+
             if (response.IsSuccessStatusCode)
             {
                 return (response!.Content!.Code, TransferResult.Success);
@@ -392,15 +403,15 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return (null, TransferResult.RecipientServerReturnedAccessDenied);
+                return (PeerResponseCode.Unknown, TransferResult.RecipientServerReturnedAccessDenied);
             }
 
             if (response.StatusCode == HttpStatusCode.InternalServerError)
             {
-                return (null, TransferResult.RecipientServerError);
+                return (PeerResponseCode.Unknown, TransferResult.RecipientServerError);
             }
 
-            return (null, TransferResult.UnknownError);
+            return (PeerResponseCode.Unknown, TransferResult.UnknownError);
         }
 
         private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
