@@ -178,11 +178,13 @@ public class DriveManagementTests
             Assert.NotNull(theDrive);
             Assert.IsFalse(theDrive.AllowAnonymousReads);
 
-            await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
+           var setDriveModeResponse =  await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
             {
                 TargetDrive = targetDrive,
                 AllowAnonymousReads = true
             });
+           
+            Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
 
             var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
             Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
