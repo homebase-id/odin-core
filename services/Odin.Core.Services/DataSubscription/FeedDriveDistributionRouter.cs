@@ -36,7 +36,7 @@ namespace Odin.Core.Services.DataSubscription
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
-        private readonly IPeerTransferService _peerTransferService;
+        private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -54,7 +54,7 @@ namespace Odin.Core.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            IPeerTransferService peerTransferService, DriveManager driveManager, TenantContext tenantContext,
+            IPeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager, TenantContext tenantContext,
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
             TenantSystemStorage tenantSystemStorage,
@@ -66,7 +66,7 @@ namespace Odin.Core.Services.DataSubscription
             ILogger<FeedDriveDistributionRouter> logger)
         {
             _followerService = followerService;
-            _peerTransferService = peerTransferService;
+            _peerOutgoingTransferService = peerOutgoingTransferService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
             _serverSystemStorage = serverSystemStorage;
@@ -327,7 +327,7 @@ namespace Odin.Core.Services.DataSubscription
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive,
             };
 
-            var transferStatusMap = await _peerTransferService.SendFile(
+            var transferStatusMap = await _peerOutgoingTransferService.SendFile(
                 file,
                 transitOptions,
                 TransferFileType.Normal,
@@ -381,7 +381,7 @@ namespace Odin.Core.Services.DataSubscription
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
-                var map = await _peerTransferService.SendDeleteFileRequest(
+                var map = await _peerOutgoingTransferService.SendDeleteFileRequest(
                     new GlobalTransitIdFileIdentifier()
                     {
                         TargetDrive = SystemDriveConstants.FeedDrive,

@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Base;
 public class ServerSystemStorage : IDisposable
 {
     private readonly ServerDatabase _db;
-    public readonly TableCron tblCron;
+    public readonly TableCron JobQueue;
 
     public ServerSystemStorage(OdinConfiguration config)
     {
@@ -31,7 +31,7 @@ public class ServerSystemStorage : IDisposable
         _db.CreateDatabase(false);
 
         //temp test
-        tblCron = _db.tblCron;
+        JobQueue = _db.tblCron;
     }
 
     public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
@@ -43,7 +43,7 @@ public class ServerSystemStorage : IDisposable
     {
         try
         {
-            this.tblCron.Insert(new CronRecord()
+            this.JobQueue.Insert(new CronRecord()
             {
                 identityId = odinId,
                 type = (Int32)jobType,
@@ -63,7 +63,7 @@ public class ServerSystemStorage : IDisposable
 
     public void EnqueueJob<T>(OdinId odinId, CronJobType jobType, T data)
     {
-        this.tblCron.Insert(new CronRecord()
+        this.JobQueue.Insert(new CronRecord()
         {
             identityId = odinId,
             type = (Int32)jobType,

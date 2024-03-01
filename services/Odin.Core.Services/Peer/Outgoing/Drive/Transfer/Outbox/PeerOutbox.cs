@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public bool IsTransientFile { get; set; }
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
-        
+
         public TransitOptions OriginalTransitOptions { get; set; }
         public byte[] EncryptedClientAuthToken { get; set; }
     }
@@ -27,19 +27,9 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox : IPeerOutbox
+    public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
+        : IPeerOutbox
     {
-        private readonly IPendingTransfersService _pendingTransfers;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly TenantContext _tenantContext;
-
-        public PeerOutbox(IPendingTransfersService pendingTransfers, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
-        {
-            _pendingTransfers = pendingTransfers;
-            _tenantSystemStorage = tenantSystemStorage;
-            _tenantContext = tenantContext;
-        }
-
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
@@ -58,22 +48,19 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 OriginalTransitOptions = item.OriginalTransitOptions,
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
-            
-            
-            /*_tenantSystemStorage.Outbox.InsertRow(
-                item.File.DriveId.ToByteArray(),
-                item.File.FileId.ToByteArray(),
-                item.Priority,
-                state);*/
 
-            _tenantSystemStorage.Outbox.Insert(new OutboxRecord() {
+            tenantSystemStorage.Outbox.Insert(new OutboxRecord()
+            {
                 boxId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
                 priority = item.Priority,
-                value = state });
+                value = state
+            });
 
-            _pendingTransfers.EnsureIdentityIsPending(_tenantContext.HostOdinId);
+            var sender = tenantContext.HostOdinId;
+            serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
+           
             return Task.CompletedTask;
         }
 
@@ -89,18 +76,18 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public Task MarkComplete(Guid marker)
         {
-            _tenantSystemStorage.Outbox.PopCommitAll(marker);
+            tenantSystemStorage.Outbox.PopCommitAll(marker);
             return Task.CompletedTask;
         }
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(Guid marker, TransferFailureReason reason)
+        public async Task MarkFailure(Guid marker, TransferResult reason)
         {
-            _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
+            tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
             //TODO: there is no way to keep information on why an item failed
-            _tenantSystemStorage.Outbox.PopCancelAll(marker);
+            tenantSystemStorage.Outbox.PopCancelAll(marker);
 
             // if (null == item)
             // {
@@ -112,14 +99,14 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox
             //     TransferFailureReason = reason,
             //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             // });
-            
+
             await Task.CompletedTask;
         }
 
         public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize);
+            var records = tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize);
 
             var items = records.Select(r =>
             {

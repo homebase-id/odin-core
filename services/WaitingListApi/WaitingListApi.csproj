@@ -21,11 +21,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
-      <ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
       <None Include="appsettings.demo.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
@@ -62,6 +57,11 @@
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Odin.Core.Storage\Odin.Core.Storage.csproj" />
+      <ProjectReference Include="..\Odin.Core\Odin.Core.csproj" />
     </ItemGroup>
 
 </Project>

@@ -6,7 +6,7 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query
 {

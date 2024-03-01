@@ -885,34 +885,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                 clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
             }
-
-            // Access resource using cat and shared secret
-            {
-                // SEB:TODO Todd/Seb need to discuss how to resolve this test
-
-                // Note from Todd
-                // At this point in the test you have a ClientTokenType.IdentityConnectionRegistration so resource access will fail
-
-                // this test is doing only the first 1/2 of what the HomeAuthenticatorService does thus it will fail.
-                // in the ClientTokenType, it receives the ICR token from the remoteServer then
-                // calls its RegisterBrowserAccess.  This method creates a client with a Token of type
-                // ClientTokenType.BuiltInBrowserApp which can then be used to call the HomeApiPathConstants.AuthV1 API.
-                // the HomeApiPathConstants.AuthV1 API is authenticated by the YouAuthAuthenticationHandler.HandleYouAuth method
-                // this method only supports the ClientTokenType.BuiltInBrowserApp and ClientTokenType.YouAuth tokens (both of which
-                // are created in the ClientTokenType
-
-                // var catBase64 = Convert.ToBase64String(clientAuthToken);
-                // var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}{HomeApiPathConstants.AuthV1}/{HomeApiPathConstants.PingMethodName}?text=helloworld", sharedSecret);
-                // var request = new HttpRequestMessage(HttpMethod.Get, uri)
-                // {
-                //     Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }
-                // };
-                // var response = await apiClient.SendAsync(request);
-                // var content = await response.Content.ReadAsStringAsync();
-                // Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), content);
-                // var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
-                // Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
-            }
         }
 
         //

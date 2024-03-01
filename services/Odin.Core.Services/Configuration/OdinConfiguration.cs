@@ -183,6 +183,7 @@ namespace Odin.Core.Services.Configuration
             public string SystemDataRootPath { get; init; }
             public string SystemSslRootPath { get; init; }
 
+            public bool Http1Only { get; init; }
 
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
@@ -211,6 +212,8 @@ namespace Odin.Core.Services.Configuration
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 
+                Http1Only = config.GetOrDefault("Host:Http1Only", false);
+
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
 
                 CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
@@ -226,6 +229,9 @@ namespace Odin.Core.Services.Configuration
                 FileOperationRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 8);
                 FileOperationRetryDelayMs = config.GetOrDefault("Host:FileOperationRetryDelayMs", 100);
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
+
+                PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
+                PeerOperationDelayMs = config.GetOrDefault("Host:PeerOperationDelayMs", 300);
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
             }
 
@@ -251,6 +257,8 @@ namespace Odin.Core.Services.Configuration
             public int FileWriteChunkSizeInBytes { get; set; }
 
             public int PushNotificationBatchSize { get; set; }
+            public int PeerOperationMaxAttempts { get; init; }
+            public int PeerOperationDelayMs { get; init; }
         }
 
         public class ListenEntry

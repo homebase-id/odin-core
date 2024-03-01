@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Dns;
 using Odin.Core.Services.Email;
+using Odin.Core.Services.Quartz;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 
@@ -20,7 +21,7 @@ public class IdentityRegistrationServiceTest
     private readonly Mock<IIdentityRegistry> _registry = new();
     private readonly Mock<IDnsRestClient> _dnsRestClient = new();
     private readonly Mock<IHttpClientFactory> _httpClientFactory = new();
-    private readonly Mock<IEmailSender> _emailSender = new();
+    private readonly Mock<IJobManager> _jobManager = new();
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {
@@ -34,8 +35,8 @@ public class IdentityRegistrationServiceTest
             configuration,
             _dnsRestClient.Object,
             _httpClientFactory.Object,
-            _emailSender.Object,
-            dnsLookupService);
+            dnsLookupService,
+            _jobManager.Object);
     }
 
     //

@@ -27,9 +27,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
-
-            item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
-
+            
             this.Save(item);
             return id;
         }
@@ -49,28 +47,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
         {
             var item = await this.GetStateItem(transferStateItemId);
-            item.SetFilterState(part, FilterAction.Accept);
-
             await fileSystem.Storage.WriteTempStream(item.TempFile, fileExtension, data);
-            this.Save(item);
-        }
-
-        public async Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
-        {
-            var item = await this.GetStateItem(transferStateItemId);
-            item.SetFilterState(part, FilterAction.Quarantine);
-            await fileSystem.Storage.WriteTempStream(item.TempFile, fileExtension, data);
-            this.Save(item);
-        }
-
-        public async Task Reject(Guid transferStateItemId, MultipartHostTransferParts part)
-        {
-            var item = await this.GetStateItem(transferStateItemId);
-            item.SetFilterState(part, FilterAction.Reject);
-
-            //Note: we remove all temp files if a single part is rejected
-            await fileSystem.Storage.DeleteTempFiles(item.TempFile);
-
             this.Save(item);
         }
 

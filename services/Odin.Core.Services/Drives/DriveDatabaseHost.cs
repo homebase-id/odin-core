@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using LazyCache;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Core.Services.Drives.Management;
@@ -24,11 +25,13 @@ namespace Odin.Core.Services.Drives
         private readonly DriveManager _driveManager;
         private readonly ConcurrentDictionary<Guid, AsyncLazy<IDriveDatabaseManager>> _queryManagers = new();
         private readonly ILoggerFactory _loggerFactory;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
+        public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager, TenantSystemStorage tenantSystemStorage)
         {
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         // SEB:NOTE if this blows up, revert to commit 5a92a50c4d9a5dbe0790a1a15df9c20b6dc1192a
@@ -40,7 +43,7 @@ namespace Odin.Core.Services.Drives
                 var drive = await _driveManager.GetDrive(id, failIfInvalid: true);
                 var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
-                var manager = new SqliteDatabaseManager(drive, logger);
+                var manager = new SqliteDatabaseManager(_tenantSystemStorage, drive, logger);
                 await manager.LoadLatestIndex();
 
                 return manager;
@@ -61,7 +64,7 @@ namespace Odin.Core.Services.Drives
 
             if (notification.IsHardDelete)
             {
-                 await manager.RemoveFromCurrentIndex(notification.File);
+                await manager.RemoveFromCurrentIndex(notification.File);
             }
 
             await manager.UpdateCurrentIndex(notification.ServerFileHeader);

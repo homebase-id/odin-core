@@ -62,10 +62,10 @@ public class DefaultCronJob(
             throw new OdinSystemException("Quartz:CronBatchSize must be greater than zero");
         }
 
-        var batch = serverSystemStorage.tblCron.Pop(batchSize);
+        var batch = serverSystemStorage.JobQueue.Pop(batchSize);
         var tasks = new List<Task<(CronRecord record, bool success)>>(batch.Select(ProcessRecord));
-        serverSystemStorage.tblCron.PopCommitList(tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
-        serverSystemStorage.tblCron.PopCancelList(tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
+        serverSystemStorage.JobQueue.PopCommitList(tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
+        serverSystemStorage.JobQueue.PopCancelList(tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
 
         return Task.CompletedTask;
     }
@@ -76,7 +76,7 @@ public class DefaultCronJob(
         if (record.type == (Int32)CronJobType.PendingTransitTransfer)
         {
             var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-            success = await StokeOutbox(identity);
+            success = await ProcessPeerTransferOutbox(identity);
         }
 
         if (record.type == (Int32)CronJobType.FeedDistribution)
@@ -94,7 +94,7 @@ public class DefaultCronJob(
         return (record, success);
     }
 
-    private async Task<bool> StokeOutbox(OdinId identity)
+    private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)
     {
         var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
         var response = await svc.ProcessOutbox();

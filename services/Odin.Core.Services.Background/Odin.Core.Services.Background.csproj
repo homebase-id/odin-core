@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <Import Project="$(ProjectDir)../../lib/CommonProjectConfig.targets" />
+    <Import Project="$(ProjectDir)../CommonProjectConfig.targets" />
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
@@ -13,7 +13,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
       <ProjectReference Include="..\Odin.Core.Services\Odin.Core.Services.csproj" />
     </ItemGroup>
 

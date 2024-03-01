@@ -200,9 +200,24 @@ namespace Odin.Hosting
                 ? TimeSpan.FromMinutes(60)
                 : TimeSpan.FromSeconds(60);
 
+            // SEB:NOTE
+            // We get a strange error on MacOS when using http/2 when running debug build and/or frontend proxy.
+            // It doesn't happen on Linux in production.
+            //   https://github.com/dotnet/aspnetcore/issues/8843
+            //   https://github.com/dotnet/aspnetcore/issues/43625
+            //
+            // Repro:
+            //   $ curl -v --http2 https://frodo.dotyou.cloud
+            //
+            // Below: override the default protocols to troubleshoot:
+            if (odinConfig.Host.Http1Only)
+            {
+                Log.Warning("Limiting HTTP protocol to HTTP/1.1 only");
+                listenOptions.Protocols = HttpProtocols.Http1;
+            }
+
             listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
             {
-                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;

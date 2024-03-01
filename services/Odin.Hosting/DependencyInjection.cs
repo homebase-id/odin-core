@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Autofac;
 using MediatR;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
@@ -18,7 +16,6 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.DataSubscription;
 using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.DataSubscription.ReceivingHost;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Comment;
 using Odin.Core.Services.Drives.FileSystem.Comment.Attachments;
@@ -36,13 +33,9 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Services.Optimization.Cdn;
-using Odin.Core.Services.Peer.Incoming;
-using Odin.Core.Services.Peer.Incoming.Drive;
 using Odin.Core.Services.Peer.Incoming.Drive.Reactions;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
-using Odin.Core.Services.Peer.Incoming.Reactions;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive.Query;
 using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
@@ -61,7 +54,6 @@ namespace Odin.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<NotificationListService>().AsSelf().SingleInstance();
@@ -201,13 +193,13 @@ namespace Odin.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
-            cb.RegisterType<PeerTransferService>().As<IPeerTransferService>().SingleInstance();
+            cb.RegisterType<PeerOutgoingOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<PeerQueryService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
 
@@ -228,12 +220,8 @@ namespace Odin.Hosting
             // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
 
             var registry = scope.Resolve<IIdentityRegistry>();
-            var config = scope.Resolve<OdinConfiguration>();
             var tenantContext = scope.Resolve<TenantContext>();
-
-            var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name,
-                StringComparison.InvariantCultureIgnoreCase)) ?? false;
-
+            
             var tc = registry.CreateTenantContext(tenant.Name);
             tenantContext.Update(tc);
         }

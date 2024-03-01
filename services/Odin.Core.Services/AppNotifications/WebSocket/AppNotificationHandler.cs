@@ -90,7 +90,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                         // End of the line - nothing we can do here
                     }
                 }
-                _logger.LogDebug("WebSocket closed");
+                _logger.LogTrace("WebSocket closed");
             }
         }
 
@@ -124,11 +124,10 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                     }
                     catch (Exception)
                     {
-                        // SEB:TODO remove this when we figure out why it breaks from time to time
-                        // see ItShouldDecryptFromBase64 in SharedSecretEncryptedPayloadTest.cs
-                        _logger.LogError("[{sharedSecret}]", sharedSecret.GetKey().ToBase64());
-                        _logger.LogError("[{completeMessage}]", completeMessage.ToBase64());
-                        throw;
+                        // We can get here if the browser forgets to pre-auth the websocket connection...
+                        await SendErrorMessageAsync(deviceSocket, "Error decrypting message", cancellationToken);
+
+                        return; // hangup!
                     }
 
                     SocketCommand command = null;
@@ -163,8 +162,7 @@ namespace Odin.Core.Services.AppNotifications.WebSocket
                             var error = $"Unhandled exception on the backend while processing command: {command.Command}";
                             await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
 
-                            // Close the websocket in case of unhandled exceptions
-                            throw new CloseWebSocketException();
+                            return; // hangup!
                         }
                     }
                 }

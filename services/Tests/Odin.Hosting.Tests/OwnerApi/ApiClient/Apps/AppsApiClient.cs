@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.Apps;
