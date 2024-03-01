@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -55,7 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             DriveFileUtility.AssertValidPayloadKey(request.Key);
 
             var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
@@ -69,6 +70,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
             if (payloadStream == null)
             {
                 return NotFound();
+            }
+
+            // Indicates the payload is missing
+            if (payloadStream.Stream == Stream.Null)
+            {
+                return StatusCode((int)HttpStatusCode.Gone);
             }
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.AcceptRanges, "bytes");
@@ -120,6 +127,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 return NotFound();
             }
+            
+            //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
                 request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, request.DirectMatchOnly);
