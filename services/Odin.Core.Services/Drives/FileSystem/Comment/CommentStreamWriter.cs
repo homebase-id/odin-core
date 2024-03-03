@@ -19,19 +19,19 @@ namespace Odin.Core.Services.Drives.FileSystem.Comment;
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
     private readonly OdinContextAccessor _contextAccessor;
-    private readonly IPeerTransferService _peerTransferService;
+    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
         OdinContextAccessor contextAccessor,
-        IPeerTransferService peerTransferService,
+        IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerTransferService)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)
     {
         _contextAccessor = contextAccessor;
-        _peerTransferService = peerTransferService;
+        _peerOutgoingTransferService = peerOutgoingTransferService;
     }
 
     protected override Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor)

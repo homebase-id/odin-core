@@ -12,7 +12,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Peer.Encryption;
 using Odin.Core.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -24,18 +23,8 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class TransitFileWriter
+    public class TransitFileWriter(FileSystemResolver fileSystemResolver)
     {
-        private readonly OdinContextAccessor _contextAccessor;
-        private readonly FileSystemResolver _fileSystemResolver;
-
-        public TransitFileWriter(OdinContextAccessor contextAccessor,
-            FileSystemResolver fileSystemResolver)
-        {
-            _contextAccessor = contextAccessor;
-            _fileSystemResolver = fileSystemResolver;
-        }
-
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
@@ -96,7 +85,7 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
         {
             AccessControlList targetAcl;
 
-            var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
 
             if (null == referencedFs)
             {
@@ -201,13 +190,13 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Transfer
                 if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null) ||
                     (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 //Must be the same file
                 if (existingFileBySharedSecretEncryptedUniqueId.FileId != existingFileByGlobalTransitId.FileId)
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new OdinClientException("Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();

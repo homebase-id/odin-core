@@ -1,21 +1,15 @@
 ﻿using System;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Apps;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
-using Odin.Core.Util;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -25,18 +19,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveStorageController : DriveStorageControllerBase
+    public class OwnerDriveStorageController(
+        ILogger<OwnerDriveStorageController> logger,
+        FileSystemResolver fileSystemResolver,
+        IPeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
-        private readonly ILogger<OwnerDriveStorageController> _logger;
-
-        public OwnerDriveStorageController(
-            ILogger<OwnerDriveStorageController> logger,
-            FileSystemResolver fileSystemResolver,
-            IPeerTransferService peerTransferService) :
-            base(logger, fileSystemResolver, peerTransferService)
-        {
-            _logger = logger;
-        }
+        private readonly ILogger<OwnerDriveStorageController> _logger = logger;
 
         /// <summary>
         /// Retrieves a file's header and metadata
@@ -151,21 +140,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletefileidbatch")]
         public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
             return await base.DeleteFileIdBatch(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletegroupidbatch")]
         public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
             return await base.DeleteFilesByGroupIdBatch(request);
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)

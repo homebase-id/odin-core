@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -10,25 +9,28 @@ namespace Odin.Core.Services.Base
 {
     public class TenantSystemStorage : IDisposable
     {
-        private readonly ILogger<TenantSystemStorage> _logger;
-
         public IdentityDatabase IdentityDatabase { get; }
 
-        public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
+        public TenantSystemStorage(TenantContext tenantContext)
         {
             ArgumentNullException.ThrowIfNull(tenantContext);
             ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
 
-            _logger = logger;
-
             string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
-            string dbName = "sys.db";
             if (!Directory.Exists(dbPath))
             {
                 Directory.CreateDirectory(dbPath!);
             }
 
-            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+            string dbName = "identity.db";
+            string finalPath = PathUtil.Combine(dbPath, dbName);
+
+            if (!File.Exists(finalPath))
+            {
+                string oldName = "sys.db";
+                finalPath = PathUtil.Combine(dbPath, oldName);
+            }
+
             IdentityDatabase = new IdentityDatabase($"Data Source={finalPath}");
             IdentityDatabase.CreateDatabase(false);
 

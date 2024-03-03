@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Services.Drives.Management;
 
 namespace Odin.Core.Services.Drives;
@@ -8,8 +9,9 @@ namespace Odin.Core.Services.Drives;
 /// </summary>
 public static class SystemDriveConstants
 {
+
     public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
-        
+
     public static readonly TargetDrive TransientTempDrive = new()
     {
         Alias = GuidId.FromString("transit_temp_drive"),
@@ -45,20 +47,30 @@ public static class SystemDriveConstants
         Alias = GuidId.FromString("builtin_feed_drive"),
         Type = GuidId.FromString("feed_drive")
     };
-    
+
     public static readonly TargetDrive HomePageConfigDrive = new()
     {
         Alias = Guid.Parse("ec83345af6a747d4404ef8b0f8844caa"),
         Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
     };
-    
+
     public static readonly TargetDrive PublicPostsChannelDrive = new()
     {
         Alias = Guid.Parse("e8475dc46cb4b6651c2d0dbd0f3aad5f"),
         Type = ChannelDriveType
     };
-    
-    
+
+    public static readonly List<TargetDrive> SystemDrives =
+    [
+        TransientTempDrive,
+        ContactDrive,
+        ProfileDrive,
+        WalletDrive,
+        ChatDrive,
+        FeedDrive,
+        HomePageConfigDrive
+    ];
+
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
     {
         Name = "Transient temp drive",
@@ -67,7 +79,7 @@ public static class SystemDriveConstants
         TargetDrive = TransientTempDrive,
         OwnerOnly = false
     };
-    
+
     public static readonly CreateDriveRequest CreateFeedDriveRequest = new()
     {
         Name = "Feed",
@@ -76,7 +88,7 @@ public static class SystemDriveConstants
         TargetDrive = FeedDrive,
         OwnerOnly = true
     };
-    
+
     public static readonly CreateDriveRequest CreateHomePageConfigDriveRequest = new()
     {
         Name = "Homepage Config",
@@ -85,7 +97,7 @@ public static class SystemDriveConstants
         TargetDrive = HomePageConfigDrive,
         OwnerOnly = false
     };
-    
+
     public static readonly CreateDriveRequest CreatePublicPostsChannelDriveRequest = new()
     {
         Name = "Public Posts",
@@ -95,7 +107,7 @@ public static class SystemDriveConstants
         OwnerOnly = false,
         AllowSubscriptions = true
     };
-    
+
     public static readonly CreateDriveRequest CreateContactDriveRequest = new()
     {
         Name = "Contacts",
@@ -131,5 +143,4 @@ public static class SystemDriveConstants
         TargetDrive = ChatDrive,
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
-
 }

@@ -142,9 +142,19 @@ public sealed class JobManager(
 
     public async Task<bool> Delete(JobKey jobKey)
     {
+        //
+        // Race condition in Quartz when deleting here:
+        //   https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Core/QuartzScheduler.cs#L690
+        // It seems to work better if we explicitly unschedule the triggers before deleting the job.
+        //
         using (await _mutex.LockAsync())
         {
             var scheduler = await schedulerFactory.GetScheduler();
+            var triggers = await scheduler.GetTriggersOfJob(jobKey);
+            foreach (var trigger in triggers)
+            {
+                await scheduler.UnscheduleJob(trigger.Key);
+            }
             var deleted = await scheduler.DeleteJob(jobKey);
             if (deleted)
             {

@@ -10,9 +10,9 @@ namespace Odin.Core.Services.Peer
         AwaitingTransferKey = 1,
         
         /// <summary>
-        /// 
+        /// Item is enqueued in the outbox and will be send with the next call to ProcessOutbox
         /// </summary>
-        TransferKeyCreated = 3,
+        TransferKeyCreated = 3, //todo: rename to EnqueuedOutbox
 
         /// <summary>
         /// Indicates the transfer was successfully delivered to the inbox.

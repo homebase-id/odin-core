@@ -1,10 +1,11 @@
+using System;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Incoming;
 using Odin.Core.Storage;
 using Refit;
 
@@ -54,9 +55,15 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             };
             
             var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
-            var httpResponse = await client.DeleteFeedMetadata(request);
-
-            return IsSuccess(httpResponse);
+            try
+            {
+                var httpResponse = await client.DeleteFeedMetadata(request);
+                return IsSuccess(httpResponse);
+            }
+            catch (Exception e)
+            {
+                throw new OdinSystemException($"DeleteFile to {recipient.DomainName} failed", e);
+            }
         }
         
         public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
@@ -90,9 +97,15 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             };
             
             var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
-            var httpResponse = await client.SendFeedFileMetadata(request);
-
-            return IsSuccess(httpResponse);
+            try
+            {
+                var httpResponse = await client.SendFeedFileMetadata(request);
+                return IsSuccess(httpResponse);
+            }
+            catch (Exception e)
+            {
+                throw new OdinSystemException($"SendFile to {recipient.DomainName} failed", e);
+            }
         }
 
         bool IsSuccess(ApiResponse<PeerTransferResponse> httpResponse)

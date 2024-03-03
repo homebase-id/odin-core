@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
@@ -79,11 +78,6 @@ namespace Odin.Core.Services.Peer.Incoming.Drive.Query
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
 
             var ps = await fileSystem.Storage.GetPayloadStream(file, key, chunk);
-
-            if (null == ps)
-            {
-                throw new OdinClientException("Header file contains payload key but there is no payload stored with that key", OdinClientErrorCode.InvalidFile);
-            }
 
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, ps);
         }

@@ -23,38 +23,21 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Services.Drives.FileSystem.Base
 {
-    public abstract class DriveStorageServiceBase : RequirePermissionsBase
+    public abstract class DriveStorageServiceBase(
+        OdinContextAccessor contextAccessor,
+        ILoggerFactory loggerFactory,
+        IMediator mediator,
+        IDriveAclAuthorizationService driveAclAuthorizationService,
+        DriveManager driveManager,
+        OdinConfiguration odinConfiguration,
+        DriveFileReaderWriter driveFileReaderWriter)
+        : RequirePermissionsBase
     {
-        private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
-        private readonly IMediator _mediator;
-        private readonly ILoggerFactory _loggerFactory;
-        private readonly DriveManager _driveManager;
-        private readonly OdinConfiguration _odinConfiguration;
-        private readonly DriveFileReaderWriter _driveFileReaderWriter;
-        private readonly ILogger<DriveStorageServiceBase> _logger;
+        private readonly DriveManager _driveManager = driveManager;
+        private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
-        protected DriveStorageServiceBase(
-            OdinContextAccessor contextAccessor,
-            ILoggerFactory loggerFactory,
-            IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService,
-            DriveManager driveManager,
-            OdinConfiguration odinConfiguration,
-            DriveFileReaderWriter driveFileReaderWriter)
-        {
-            ContextAccessor = contextAccessor;
-            _loggerFactory = loggerFactory;
-            _mediator = mediator;
-            _driveAclAuthorizationService = driveAclAuthorizationService;
-            _driveManager = driveManager;
-            _odinConfiguration = odinConfiguration;
-            _driveFileReaderWriter = driveFileReaderWriter;
-            _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
-            DriveManager = driveManager;
-        }
-
-        protected override DriveManager DriveManager { get; }
-        protected override OdinContextAccessor ContextAccessor { get; }
+        protected override DriveManager DriveManager { get; } = driveManager;
+        protected override OdinContextAccessor ContextAccessor { get; } = contextAccessor;
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages
@@ -160,7 +143,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 {
                     if (wasAnUpdate)
                     {
-                        await _mediator.Publish(new DriveFileAddedNotification()
+                        await mediator.Publish(new DriveFileAddedNotification()
                         {
                             File = targetFile,
                             ServerFileHeader = header,
@@ -168,7 +151,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        await _mediator.Publish(new DriveFileChangedNotification()
+                        await mediator.Publish(new DriveFileChangedNotification()
                         {
                             File = targetFile,
                             ServerFileHeader = header,
@@ -236,12 +219,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return (Stream.Null, null);
             }
 
-
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                return (await GetLongTermStorageManager(file.DriveId).GetThumbnailStream(file.FileId, width, height, payloadKey, payloadUid),
-                    directMatchingThumb);
+                var s = await GetLongTermStorageManager(file.DriveId).GetThumbnailStream(file.FileId, width, height, payloadKey, payloadUid);
+                return (s, directMatchingThumb);
             }
 
             if (directMatchOnly)
@@ -327,7 +309,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return false;
             }
 
-            return await _driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList);
+            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
@@ -358,12 +340,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         public async Task<PayloadStream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
-            this.AssertCanReadDrive(file.DriveId);
+            AssertCanReadDrive(file.DriveId);
             DriveFileUtility.AssertValidPayloadKey(key);
 
             //Note: calling to get the file header will also
             //ensure the caller can touch this file.
-            var header = await this.GetServerFileHeader(file);
+            var header = await GetServerFileHeader(file);
             if (header == null)
             {
                 return null;
@@ -408,7 +390,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (ShouldRaiseDriveEvent(file).GetAwaiter().GetResult())
             {
-                _mediator.Publish(new DriveFileDeletedNotification()
+                mediator.Publish(new DriveFileDeletedNotification()
                 {
                     IsHardDelete = true,
                     File = file,
@@ -466,7 +448,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new DriveFileAddedNotification()
+                await mediator.Publish(new DriveFileAddedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
@@ -550,7 +532,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
@@ -618,7 +600,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
@@ -663,7 +645,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
@@ -684,7 +666,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new ReactionPreviewUpdatedNotification()
+                await mediator.Publish(new ReactionPreviewUpdatedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
@@ -786,7 +768,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await _mediator.Publish(new ReactionPreviewUpdatedNotification()
+                await mediator.Publish(new ReactionPreviewUpdatedNotification()
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
@@ -797,17 +779,17 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
         private LongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
-            var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
+            var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger, _odinConfiguration, _driveFileReaderWriter);
+            var manager = new LongTermStorageManager(drive, logger, driveFileReaderWriter);
             return manager;
         }
 
         private TempStorageManager GetTempStorageManager(Guid driveId)
         {
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var logger = _loggerFactory.CreateLogger<TempStorageManager>();
-            return new TempStorageManager(drive, logger, _driveFileReaderWriter);
+            var logger = loggerFactory.CreateLogger<TempStorageManager>();
+            return new TempStorageManager(drive, logger, driveFileReaderWriter);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
@@ -826,12 +808,10 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             var mgr = GetLongTermStorageManager(header.FileMetadata.File.DriveId);
 
-            await RetryUtil.Retry(
-                operation: () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream),
-                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
-                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
-                out var attempts
-            );
+            var attempts = await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {
@@ -879,7 +859,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(file))
             {
-                await _mediator.Publish(new DriveFileDeletedNotification()
+                await mediator.Publish(new DriveFileDeletedNotification()
                 {
                     PreviousServerFileHeader = existingHeader,
                     IsHardDelete = false,
@@ -907,12 +887,11 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             var mgr = GetLongTermStorageManager(file.DriveId);
 
-            var header = await RetryUtil.Retry(
-                operation: () => mgr.GetServerFileHeader(file.FileId),
-                maxRetryCount: _odinConfiguration.Host.FileOperationRetryAttempts,
-                delayBetweenRetries: TimeSpan.FromMilliseconds(_odinConfiguration.Host.FileOperationRetryDelayMs),
-                out var attempts
-            );
+            ServerFileHeader header = null;
+            var attempts = await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                async () => { header = await mgr.GetServerFileHeader(file.FileId); });
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {
@@ -924,7 +903,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
 
             return header;
         }

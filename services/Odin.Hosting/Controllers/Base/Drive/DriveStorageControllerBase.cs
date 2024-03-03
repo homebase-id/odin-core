@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
@@ -14,8 +14,6 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Encryption;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
@@ -26,11 +24,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// Base class for any endpoint reading drive storage
     /// </summary>
     public abstract class DriveStorageControllerBase(
-        ILogger logger,
+        // ILogger logger,
         FileSystemResolver fileSystemResolver,
-        IPeerTransferService peerTransferService) : OdinControllerBase
+        IPeerOutgoingTransferService peerOutgoingTransferService) : OdinControllerBase
     {
-        private readonly ILogger _logger = logger;
+        // private readonly ILogger _logger = logger;
 
         /// <summary>
         /// Returns the file header
@@ -58,7 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             DriveFileUtility.AssertValidPayloadKey(request.Key);
 
             var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
@@ -72,6 +70,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
             if (payloadStream == null)
             {
                 return NotFound();
+            }
+
+            // Indicates the payload is missing
+            if (payloadStream.Stream == Stream.Null)
+            {
+                return StatusCode((int)HttpStatusCode.Gone);
             }
 
             HttpContext.Response.Headers.Append(HttpHeaderConstants.AcceptRanges, "bytes");
@@ -123,6 +127,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 return NotFound();
             }
+            
+            //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
                 request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, request.DirectMatchOnly);
@@ -189,7 +195,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 var driveId = OdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
-                var queryResults = await base.GetHttpFileSystemResolver().ResolveFileSystem()
+                var queryResults = await GetHttpFileSystemResolver().ResolveFileSystem()
                     .Query.GetBatch(driveId, qp, options);
 
                 //
@@ -311,7 +317,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 };
 
                 //send the deleted file
-                var responses = await peerTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
+                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(remoteGlobalTransitIdentifier,
                     new FileTransferOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
@@ -319,27 +325,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     },
                     recipients);
 
-                foreach (var kvp in responses)
-                {
-                    var recipient = kvp.Key;
-                    var code = kvp.Value;
-
-                    switch (code)
-                    {
-                        case PeerResponseCode.AcceptedIntoInbox:
-                            result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestAccepted);
-                            break;
-
-                        case PeerResponseCode.Rejected:
-                        case PeerResponseCode.QuarantinedPayload:
-                        case PeerResponseCode.QuarantinedSenderNotConnected:
-                            result.RecipientStatus.Add(recipient, DeleteLinkedFileStatus.RequestRejected);
-                            break;
-
-                        default:
-                            throw new OdinSystemException($"Unknown TransitResponseCode {code}");
-                    }
-                }
+                result.RecipientStatus = responses;
             }
 
             await fs.Storage.SoftDeleteLongTermFile(file);

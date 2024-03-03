@@ -18,7 +18,6 @@ namespace Odin.Core.Services.Base
         public OdinContext GetCurrent()
         {
             return _accessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
-            // return _accessor.HttpContext.RequestServices.GetAutofacRoot().Resolve<DotYouContext>();
         }
     }
 }

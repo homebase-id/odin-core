@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Drives
         public override bool AllowAnonymousReads
         {
             get => _inner.AllowAnonymousReads;
-            set { }
+            set => _inner.AllowAnonymousReads = value;
         }
 
         public override bool OwnerOnly

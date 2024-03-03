@@ -31,18 +31,18 @@ public abstract class FileSystemStreamWriterBase
     private readonly OdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
-    private readonly IPeerTransferService _peerTransferService;
+    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
-        DriveManager driveManager, IPeerTransferService peerTransferService)
+        DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _driveManager = driveManager;
-        _peerTransferService = peerTransferService;
+        _peerOutgoingTransferService = peerOutgoingTransferService;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -334,7 +334,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _peerTransferService.SendFile(package.InternalFile,
+            recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
                 fileSystemType);

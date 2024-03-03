@@ -173,8 +173,7 @@ namespace Odin.Hosting
             });
 
             services.AddSingleton<ServerSystemStorage>();
-            services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-
+            
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
