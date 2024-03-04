@@ -53,7 +53,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false, allowSubscriptions: true);
+        await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false,
+            allowSubscriptions: true);
 
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
         await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
@@ -72,7 +73,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
 
         //Tell Pippin's identity to process the feed outbox
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from Sam's feed drive, validate we got it
         //
@@ -85,7 +86,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
@@ -112,29 +113,138 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         //
         var headerOnSamsFeedWithReaction = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
         Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
-        var reactionSummaryValue = headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
+        var reactionSummaryValue =
+            headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
         Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
 
         // Now, Sam deletes the reactions
-        var deleteReactionResponse = await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
+        var deleteReactionResponse =
+            await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
         // the changes
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from sam's feed drive again, it should have the header updated
         //
         var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(), "There should be no reactions in the summary but there was at least one");
-        
+        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
+            "There should be no reactions in the summary but there was at least one");
+    }
+
+    [Test]
+    public async Task ReactionPreviewUpdatesMultipleReactions()
+    {
+        //Scenario: when sam follows Pippin, content shows in Sam's feed from Pippin
+        //Sam can react and delete the reaction because he follows and can send over transit
+
+        const string reactionContent1 = ":cake:";
+        const string reactionContent2 = ":nauseated:";
+        const string reactionContent3 = ":figure:";
+
+        var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+        var pippinChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false,
+            allowSubscriptions: true);
+
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+        await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        //
+        // Validate Pippin knows Sam follows him
+        //
+        var samFollowingPippinDefinition = await pippinOwnerClient.OwnerFollower.GetFollower(samOwnerClient.Identity);
+        Assert.IsNotNull(samFollowingPippinDefinition);
+
+        //
+        // Pippin uploads a post
+        //
+        var uploadedContent = "I'm Hungry!";
+        var uploadResult = await UploadUnencryptedContentToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent, acl: AccessControlList.Anonymous);
+
+        //Tell Pippin's identity to process the feed outbox
+        await pippinOwnerClient.Cron.DistributeFeedFiles();
+
+        //
+        // Get the post from Sam's feed drive, validate we got it
+        //
+        var headerOnSamsFeed = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
+        Assert.IsTrue(headerOnSamsFeed.FileMetadata.AppData.Content == uploadedContent);
+
+        //
+        // Sam adds reaction from Sam's feed to Pippin's channel
+        //
+        await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier,
+            reactionContent1);
+
+        // Tell Pippin's identity to process the feed outbox
+        // doing this again in unit tests because we added a reaction
+        // which caused the summary to change; which means we have to re-distribute
+        // the changes
+        await pippinOwnerClient.Cron.DistributeFeedFiles();
+
+        await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier,
+            reactionContent2);
+
+        await pippinOwnerClient.Cron.DistributeFeedFiles();
+
+        //
+        // Sam queries across Transit to get all reactions
+        //
+        var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
+        {
+            File = uploadResult.GlobalTransitIdFileIdentifier,
+            Cursor = 0,
+            MaxRecords = 100
+        });
+
+        Assert.IsTrue(response.Reactions.Count == 1);
+        var theReaction = response.Reactions.SingleOrDefault();
+        Assert.IsTrue(theReaction!.ReactionContent == reactionContent1);
+        Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
+
+        //
+        // Get the post from Sam's feed drive, validate we got it
+        //
+        var headerOnSamsFeedWithReaction = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
+        Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
+        var reactionSummaryValue =
+            headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent1);
+        Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
+
+        // Now, Sam deletes the reactions
+        var deleteReactionResponse =
+            await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent1, uploadResult.GlobalTransitIdFileIdentifier);
+        Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
+
+        // Tell Pippin's identity to process the feed outbox
+        // doing this again in unit tests because we added a reaction
+        // which caused the summary to change; which means we have to re-distribute
+        // the changes
+        await pippinOwnerClient.Cron.DistributeFeedFiles();
+
+        //
+        // Get the post from sam's feed drive again, it should have the header updated
+        //
+        var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
+        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
+            "There should be no reactions in the summary but there was at least one");
     }
 
 
-    private async Task<UploadResult> UploadUnencryptedContentToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true,
+    private async Task<UploadResult> UploadUnencryptedContentToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
+        bool allowDistribution = true,
         AccessControlList acl = null)
     {
         var fileMetadata = new UploadFileMetadata()

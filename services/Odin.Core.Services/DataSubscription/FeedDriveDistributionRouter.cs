@@ -20,7 +20,6 @@ using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Core.Storage;
