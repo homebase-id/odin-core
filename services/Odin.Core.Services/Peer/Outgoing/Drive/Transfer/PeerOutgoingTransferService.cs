@@ -85,7 +85,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
                 var results = await SendOutboxItemsBatchToPeers(batch);
 
-                // Results is will be a set of outbox processing results
+                // Results will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
                 // to report back to the job;
 
@@ -111,12 +111,19 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: fileTransferOptions.FileSystemType);
 
-                //TODO: change to accept a request object that has targetDrive and global transit id
-                var httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileRequest()
-                {
-                    RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
-                    FileSystemType = fileTransferOptions.FileSystemType
-                });
+                ApiResponse<PeerTransferResponse> httpResponse = null;
+
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    async () =>
+                    {
+                        httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileRequest()
+                        {
+                            RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
+                            FileSystemType = fileTransferOptions.FileSystemType
+                        });
+                    });
 
                 if (httpResponse.IsSuccessStatusCode)
                 {
@@ -445,8 +452,6 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     var clientAuthToken = await ResolveClientAccessToken(recipient);
 
-                    status.Add(recipient, true);
-
                     //TODO: apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
@@ -465,6 +470,8 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                             fileTransferOptions.FileSystemType,
                             options)
                     });
+                    
+                    status.Add(recipient, true);
                 }
                 catch (Exception ex)
                 {

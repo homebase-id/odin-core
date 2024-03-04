@@ -78,7 +78,7 @@ namespace Odin.Core.Services.DataSubscription
             _driveAcl = driveAcl;
             _logger = logger;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl);
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -127,17 +127,10 @@ namespace Odin.Core.Services.DataSubscription
                 FeedDistroType = FeedDistroType.FileMetadata
             };
 
-            if (_odinConfiguration.Feed.InstantDistribution)
+            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
             {
-                await DistributeMetadataNow(item);
-            }
-            else
-            {
-                using (new FeedDriveDistributionSecurityContext(_contextAccessor))
-                {
-                    await EnqueueFollowers(notification, item);
-                    EnqueueCronJob();
-                }
+                await EnqueueFollowers(notification, item);
+                EnqueueCronJob();
             }
         }
 
@@ -318,13 +311,11 @@ namespace Odin.Core.Services.DataSubscription
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
-                Schedule = _odinConfiguration.Feed.InstantDistribution
-                    ? ScheduleOptions.SendNowAwaitResponse
-                    : ScheduleOptions.SendLater,
+                Schedule = ScheduleOptions.SendLater,
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
-                RemoteTargetDrive = SystemDriveConstants.FeedDrive,
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };
 
             var transferStatusMap = await _peerOutgoingTransferService.SendFile(
@@ -332,47 +323,25 @@ namespace Odin.Core.Services.DataSubscription
                 transitOptions,
                 TransferFileType.Normal,
                 header.ServerMetadata.FileSystemType);
-            
-            // there should be a result for each recipient
 
+            //Log warnings if, for some reason, transit does not create transfer keys
             foreach (var recipient in recipients)
             {
-                if (!transferStatusMap.TryGetValue(recipient, out var status))
+                if (transferStatusMap.TryGetValue(recipient, out var status))
                 {
-                    //no information for recipient in transfer status map; this
+                    if (status != TransferStatus.TransferKeyCreated)
+                    {
+                        _logger.LogError(
+                            "Feed Distribution Router result - {recipient} returned status was [{status}] but should have been TransferKeyCreated " +
+                            "for fileId [{fileId}] on drive [{driveId}]", recipient, status, file.FileId, file.DriveId);
+                    }
+                }
+                else
+                {
+                    // this should not happen
                     _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient, file.FileId,
                         file.DriveId);
                 }
-
-                // if (_logger.IsEnabled(LogLevel.Trace))
-                {
-                    _logger.LogInformation("Feed Distribution Router result - {recipient} returned status " +
-                                     "[{status}] for fileId [{fileId}] on drive [{driveId}]", recipient, status, file.FileId, file.DriveId);
-                }
-
-                // switch (status)
-                // {
-                //     // success scenarios
-                //     case TransferStatus.TransferKeyCreated:
-                //     case TransferStatus.DeliveredToInbox:
-                //     case TransferStatus.DeliveredToTargetDrive:
-                //         break;
-                //
-                //     case TransferStatus.AwaitingTransferKey:
-                //         break;
-                //     case TransferStatus.PendingRetry:
-                //         break;
-                //     case TransferStatus.TotalRejectionClientShouldRetry:
-                //         break;
-                //     case TransferStatus.RecipientReturnedAccessDenied:
-                //         break;
-                //
-                //     //these we should have checked earlier
-                //     case TransferStatus.FileDoesNotAllowDistribution:
-                //         break;
-                //     case TransferStatus.RecipientDoesNotHavePermissionToFileAcl:
-                //         break;
-                // }
             }
         }
 
@@ -394,22 +363,16 @@ namespace Odin.Core.Services.DataSubscription
                     },
                     recipients.Select(r => r.DomainName).ToList());
 
-                //TODO: Handle issues/results 
-                // foreach (var (key, value) in map)
-                // {
-                //     switch (value)
-                //     {
-                //         case TransitResponseCode.Accepted:
-                //             break;
-                //
-                //         case TransitResponseCode.Rejected:
-                //         case TransitResponseCode.QuarantinedPayload:
-                //         case TransitResponseCode.QuarantinedSenderNotConnected:
-                //             break;
-                //
-                //         default:
-                //     }
-                // }
+                //TODO: how to handle map?
+
+                foreach (var (recipient, status) in map)
+                {
+                    if (status == DeleteLinkedFileStatus.RemoteServerFailed)
+                    {
+                        //TODO: How to handle this in feed distributor?
+                        //the issue is that we have no fall back queue.
+                    }
+                }
             }
         }
 

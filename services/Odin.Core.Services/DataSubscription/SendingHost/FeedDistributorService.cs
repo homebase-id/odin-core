@@ -4,30 +4,24 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Peer;
 using Odin.Core.Storage;
+using Odin.Core.Util;
 using Refit;
 
 namespace Odin.Core.Services.DataSubscription.SendingHost
 {
-    public class FeedDistributorService
+    public class FeedDistributorService(
+        FileSystemResolver fileSystemResolver,
+        IOdinHttpClientFactory odinHttpClientFactory,
+        IDriveAclAuthorizationService driveAcl,
+        OdinConfiguration odinConfiguration)
     {
-        private readonly FileSystemResolver _fileSystemResolver;
-        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly IDriveAclAuthorizationService _driveAcl;
-
-        public FeedDistributorService(FileSystemResolver fileSystemResolver, IOdinHttpClientFactory odinHttpClientFactory,
-            IDriveAclAuthorizationService driveAcl)
-        {
-            _fileSystemResolver = fileSystemResolver;
-            _odinHttpClientFactory = odinHttpClientFactory;
-            _driveAcl = driveAcl;
-        }
-
         public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var fs = fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
 
             if (null == header)
@@ -36,9 +30,9 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 return false;
             }
 
-            var authorized = await _driveAcl.IdentityHasPermission(recipient,
+            var authorized = await driveAcl.IdentityHasPermission(recipient,
                 header.ServerMetadata.AccessControlList);
-            
+
             if (!authorized)
             {
                 //TODO: need more info here
@@ -53,22 +47,21 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                     TargetDrive = SystemDriveConstants.FeedDrive
                 }
             };
+
+            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            ApiResponse<PeerTransferResponse> httpResponse = null;
             
-            var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
-            try
-            {
-                var httpResponse = await client.DeleteFeedMetadata(request);
-                return IsSuccess(httpResponse);
-            }
-            catch (Exception e)
-            {
-                throw new OdinSystemException($"DeleteFile to {recipient.DomainName} failed", e);
-            }
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                async () => { httpResponse = await client.DeleteFeedMetadata(request); });
+
+            return IsSuccess(httpResponse);
         }
-        
+
         public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var fs = fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
 
             if (null == header)
@@ -77,9 +70,9 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 return false;
             }
 
-            var authorized = await _driveAcl.IdentityHasPermission(recipient,
+            var authorized = await driveAcl.IdentityHasPermission(recipient,
                 header.ServerMetadata.AccessControlList);
-            
+
             if (!authorized)
             {
                 //TODO: need more info here
@@ -96,21 +89,21 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 FileMetadata = header.FileMetadata
             };
             
-            var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
-            try
-            {
-                var httpResponse = await client.SendFeedFileMetadata(request);
-                return IsSuccess(httpResponse);
-            }
-            catch (Exception e)
-            {
-                throw new OdinSystemException($"SendFile to {recipient.DomainName} failed", e);
-            }
+            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+
+            ApiResponse<PeerTransferResponse> httpResponse = null;
+            
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                async () => { httpResponse = await client.SendFeedFileMetadata(request); });
+
+            return IsSuccess(httpResponse);
         }
 
         bool IsSuccess(ApiResponse<PeerTransferResponse> httpResponse)
         {
-            if (httpResponse.IsSuccessStatusCode)
+            if (httpResponse?.IsSuccessStatusCode ?? false)
             {
                 var transitResponse = httpResponse.Content;
                 return transitResponse!.Code == PeerResponseCode.AcceptedDirectWrite || transitResponse!.Code == PeerResponseCode.AcceptedIntoInbox;
