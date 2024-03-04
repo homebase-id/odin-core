@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Quartz;
+using Quartz;
 
 namespace Odin.Hosting.Quartz;
 
@@ -52,5 +53,14 @@ public static class Extensions
         }
     }
 
+    public static async Task GracefullyStopAllQuartzSchedulers(this IServiceProvider services)
+    {
+        var schedulerFactory = services.GetRequiredService<ISchedulerFactory>();
+        var schedulers = await schedulerFactory.GetAllSchedulers();
+        foreach (var scheduler in schedulers)
+        {
+            await scheduler.Shutdown(true);
+        }
+    }
 
 }

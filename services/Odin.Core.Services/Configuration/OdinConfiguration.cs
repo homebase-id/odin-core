@@ -192,6 +192,7 @@ namespace Odin.Core.Services.Configuration
 
             public int CacheSlidingExpirationSeconds { get; init; }
 
+            public int ShutdownTimeoutSeconds { get; init; }
             public Guid SystemProcessApiKey { get; set; }
 
             public HostSection()
@@ -220,6 +221,7 @@ namespace Odin.Core.Services.Configuration
 
                 HomePageCachingExpirationSeconds = config.GetOrDefault<int>("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
+                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 5);
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
                 //TODO: changed to required when Seb and I can coordinate config changes

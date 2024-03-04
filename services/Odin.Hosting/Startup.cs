@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
+using System.Threading.Tasks;
 using Autofac;
 using DnsClient;
 using HttpClientFactoryLite;
@@ -26,7 +27,6 @@ using Odin.Core.Services.Dns.PowerDns;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Email;
 using Odin.Core.Services.Logging;
-using Odin.Core.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant.Container;
@@ -56,10 +56,14 @@ namespace Odin.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-
             var config = new OdinConfiguration(Configuration);
             services.AddSingleton(config);
+
+            services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
+            services.Configure<HostOptions>(options =>
+            {
+                options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
+            });
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
@@ -312,11 +316,20 @@ namespace Odin.Hosting
 
             app.UseEndpoints(endpoints =>
             {
-                // endpoints.MapGet("/", async context =>
-                // {
-                //     context.Response.Redirect("/home");
-                //     await Task.CompletedTask;
-                // });
+                if (env.IsDevelopment())
+                {
+                    endpoints.MapGet("/test-shutdown", async context =>
+                    {
+                        var now = DateTime.UtcNow;
+                        while (DateTime.UtcNow < now.AddSeconds(60))
+                        {
+                            logger.LogInformation("Waiting for shutdown");
+                            await Task.Delay(1000);
+                        }
+                        await context.Response.WriteAsync("Done waiting for shutdown");
+                    });
+                }
+
                 endpoints.MapControllers();
             });
 
@@ -431,6 +444,18 @@ namespace Odin.Hosting
                 {
                     app.ApplicationServices.RemoveCronJobs().Wait();
                 }
+            });
+
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
+                    config.Host.ShutdownTimeoutSeconds);
+
+                //
+                // SEB:NOTE We need to stop all Quartz schedulers or else the process sometimes hangs on shutdown:
+                // https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Util/QueuedTaskScheduler.cs#L140
+                //
+                app.ApplicationServices.GracefullyStopAllQuartzSchedulers().Wait();
             });
         }
 

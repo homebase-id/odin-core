@@ -3,7 +3,7 @@ name: Sebs Sandbox Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [seq]
+    branches: [shutdown-timeout]
 
 permissions:
   contents: read
