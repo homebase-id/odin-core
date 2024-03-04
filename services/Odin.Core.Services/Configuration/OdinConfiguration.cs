@@ -87,7 +87,6 @@ namespace Odin.Core.Services.Configuration
 
             public FeedSection(IConfiguration config)
             {
-                InstantDistribution = config.Required<bool>("Feed:InstantDistribution");
                 DistributionBatchSize = config.Required<int>("Feed:DistributionBatchSize");
 
                 if (DistributionBatchSize <= 0)
@@ -99,12 +98,6 @@ namespace Odin.Core.Services.Configuration
             }
 
             public int DistributionBatchSize { get; init; }
-
-            /// <summary>
-            /// If true, the feed files are sent immediately to all
-            /// recipients; This should be false in high traffic environments
-            /// </summary>
-            public bool InstantDistribution { get; init; }
 
             public int MaxCommentsInPreview { get; init; }
         }
