@@ -88,30 +88,18 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Status = 499;
                 problemDetails.Title = "Operation was cancelled";
             }
-            else switch (exception)
+            else if (exception is ApiException ae)
             {
-                case OdinFileHeaderHasCorruptPayloadException:
-                    problemDetails.Status = (int)HttpStatusCode.Gone;
-                    break;
-                
-                case ApiException ae:
+                problemDetails.Status = (int)ae.HttpStatusCode;
+                if (exception is ClientException ce)
                 {
-                    problemDetails.Status = (int)ae.HttpStatusCode;
-                    if (exception is ClientException ce)
-                    {
-                        problemDetails.Title = ce.Message;
-                        problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
-                    }
-
-                    break;
+                    problemDetails.Title = ce.Message;
+                    problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
                 }
             }
 
             switch (problemDetails.Status)
             {
-                case (int)HttpStatusCode.Gone:
-                    logger.LogWarning("{text}", exception.Message);
-                    break;
                 case 499:
                     logger.LogWarning("{WarningText}", exception.Message);
                     break;
