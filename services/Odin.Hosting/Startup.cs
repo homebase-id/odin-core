@@ -316,22 +316,19 @@ namespace Odin.Hosting
 
             app.UseEndpoints(endpoints =>
             {
-                // endpoints.MapGet("/", async context =>
-                // {
-                //     context.Response.Redirect("/home");
-                //     await Task.CompletedTask;
-                // });
-
-                endpoints.MapGet("/test-shutdown", async context =>
+                if (env.IsDevelopment())
                 {
-                    var now = DateTime.UtcNow;
-                    while (DateTime.UtcNow < now.AddSeconds(60))
+                    endpoints.MapGet("/test-shutdown", async context =>
                     {
-                        logger.LogInformation("Waiting for shutdown");
-                        await Task.Delay(1000);
-                    }
-                    await context.Response.WriteAsync("Done waiting for shutdown");
-                });
+                        var now = DateTime.UtcNow;
+                        while (DateTime.UtcNow < now.AddSeconds(60))
+                        {
+                            logger.LogInformation("Waiting for shutdown");
+                            await Task.Delay(1000);
+                        }
+                        await context.Response.WriteAsync("Done waiting for shutdown");
+                    });
+                }
 
                 endpoints.MapControllers();
             });
