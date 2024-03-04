@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.WebSockets;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
@@ -18,26 +18,13 @@ using Odin.Hosting.ApiExceptions.Server;
 
 namespace Odin.Hosting.Middleware
 {
-    public class ExceptionHandlingMiddleware
+    public class ExceptionHandlingMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionHandlingMiddleware> logger,
+        ICorrelationContext correlationContext,
+        IHostEnvironment env)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-        private readonly ICorrelationContext _correlationContext;
-        private readonly bool _sendInternalErrorDetailsToClient;
-
-        //
-
-        public ExceptionHandlingMiddleware(
-            RequestDelegate next,
-            ILogger<ExceptionHandlingMiddleware> logger,
-            ICorrelationContext correlationContext,
-            IHostEnvironment env)
-        {
-            _next = next;
-            _logger = logger;
-            _correlationContext = correlationContext;
-            _sendInternalErrorDetailsToClient = env.IsDevelopment();
-        }
+        private readonly bool _sendInternalErrorDetailsToClient = env.IsDevelopment();
 
         //
 
@@ -45,7 +32,7 @@ namespace Odin.Hosting.Middleware
         {
             try
             {
-                await _next(context);
+                await next(context);
             }
             catch (OdinClientException e) // => HTTP 400
             {
@@ -58,13 +45,6 @@ namespace Odin.Hosting.Middleware
             {
                 var message = $"Remote identity host failed: {e.Message}";
                 await HandleExceptionAsync(context, new ServiceUnavailableException(message, e));
-            }
-            catch (DriveSecurityException e) // => HTTP 403
-            {
-                // SEB:TODO Does it make sense to return 403 to client?
-                // Is it really an internal server error because of bad state?
-                var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
-                await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
             catch (OdinSecurityException e) // => HTTP 403
             {
@@ -88,7 +68,7 @@ namespace Odin.Hosting.Middleware
             // so for now just log whatever it is as an error.
             if (context.WebSockets.IsWebSocketRequest && context.Request.Method == "CONNECT")
             {
-                _logger.LogError(exception, "{ErrorText}", exception.Message);
+                logger.LogError(exception, "{ErrorText}", exception.Message);
                 return Task.CompletedTask;
             }
 
@@ -99,7 +79,7 @@ namespace Odin.Hosting.Middleware
                 Type = "https://tools.ietf.org/html/rfc7231",
                 Extensions =
                 {
-                    ["correlationId"] = _correlationContext.Id
+                    ["correlationId"] = correlationContext.Id
                 }
             };
 
@@ -108,23 +88,35 @@ namespace Odin.Hosting.Middleware
                 problemDetails.Status = 499;
                 problemDetails.Title = "Operation was cancelled";
             }
-            else if (exception is ApiException ae)
+            else switch (exception)
             {
-                problemDetails.Status = (int)ae.HttpStatusCode;
-                if (exception is ClientException ce)
+                case OdinFileHeaderHasCorruptPayloadException:
+                    problemDetails.Status = (int)HttpStatusCode.Gone;
+                    break;
+                
+                case ApiException ae:
                 {
-                    problemDetails.Title = ce.Message;
-                    problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+                    problemDetails.Status = (int)ae.HttpStatusCode;
+                    if (exception is ClientException ce)
+                    {
+                        problemDetails.Title = ce.Message;
+                        problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+                    }
+
+                    break;
                 }
             }
 
             switch (problemDetails.Status)
             {
+                case (int)HttpStatusCode.Gone:
+                    logger.LogWarning("{text}", exception.Message);
+                    break;
                 case 499:
-                    _logger.LogWarning("{WarningText}", exception.Message);
+                    logger.LogWarning("{WarningText}", exception.Message);
                     break;
                 case >= 500:
-                    _logger.LogError(exception, "{ErrorText}", exception.Message);
+                    logger.LogError(exception, "{ErrorText}", exception.Message);
                     break;
             }
 

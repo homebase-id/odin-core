@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -85,6 +87,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 return NotFound();
             }
 
+            // Indicates the payload is missing
+            if (payloadStream.Stream == Stream.Null)
+            {
+                return StatusCode((int)HttpStatusCode.Gone);
+            }
+            
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
