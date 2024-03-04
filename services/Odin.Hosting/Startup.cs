@@ -451,7 +451,14 @@ namespace Odin.Hosting
 
             lifetime.ApplicationStopping.Register(() =>
             {
-                logger.LogTrace("Application is stopping");
+                logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
+                    config.Host.ShutdownTimeoutSeconds);
+
+                //
+                // SEB:NOTE We need to stop all Quartz schedulers or else the process sometimes hangs on shutdown:
+                // https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Util/QueuedTaskScheduler.cs#L140
+                //
+                app.ApplicationServices.GracefullyStopAllQuartzSchedulers().Wait();
             });
         }
 
