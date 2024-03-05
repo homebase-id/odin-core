@@ -37,18 +37,18 @@ public class ReactionContentService
         if (manager != null)
         {
             manager.AddReaction(callerId, file.FileId, reactionContent);
-        }
 
-        await _mediator.Publish(new ReactionContentAddedNotification()
-        {
-            Reaction = new Reaction()
+            await _mediator.Publish(new ReactionContentAddedNotification()
             {
-                OdinId = callerId,
-                Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
-                ReactionContent = reactionContent,
-                FileId = file
-            }
-        });
+                Reaction = new Reaction()
+                {
+                    OdinId = callerId,
+                    Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
+                    ReactionContent = reactionContent,
+                    FileId = file
+                }
+            });
+        }
     }
 
     public async Task DeleteReaction(InternalDriveFileId file, string reactionContent)
@@ -116,14 +116,14 @@ public class ReactionContentService
         if (manager != null)
         {
             manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
-            
+
             await _mediator.Publish(new AllReactionsByFileDeleted()
             {
                 FileId = file
             });
         }
     }
-    
+
     public async Task<GetReactionsResponse> GetReactions(InternalDriveFileId file, int cursor, int maxCount)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);

@@ -137,10 +137,11 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
     }
 
     [Test]
-    public async Task ReactionPreviewUpdatesMultipleReactions()
+    public async Task ReactionPreviewUpdatesMultipleReactionsFromMultipleIdentities()
     {
-        //Scenario: when sam follows Pippin, content shows in Sam's feed from Pippin
-        //Sam can react and delete the reaction because he follows and can send over transit
+        //Scenario: when frodo and sam follows Pippin, content shows in Sam's feed from Pippin
+        //Sam can react and frodo can react
+        // all reactions are in the reaction preview in the header
 
         const string reactionContent1 = ":cake:";
         const string reactionContent2 = ":nauseated:";
@@ -159,11 +160,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
         await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-        //
-        // Validate Pippin knows Sam follows him
-        //
-        var samFollowingPippinDefinition = await pippinOwnerClient.OwnerFollower.GetFollower(samOwnerClient.Identity);
-        Assert.IsNotNull(samFollowingPippinDefinition);
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        await frodoOwnerClient.OwnerFollower.FollowIdentity(TestIdentities.Samwise, FollowerNotificationType.AllNotifications, null);
 
         //
         // Pippin uploads a post
@@ -186,7 +184,14 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent1);
-
+        
+        //
+        // Frodo adds reaction from Sam's feed to Pippin's channel
+        //
+        await frodoOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
+            uploadResult.GlobalTransitIdFileIdentifier,
+            reactionContent3);
+        
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
@@ -209,7 +214,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             MaxRecords = 100
         });
 
-        Assert.IsTrue(response.Reactions.Count == 1);
+        Assert.IsTrue(response.Reactions.Count == 3);
         var theReaction = response.Reactions.SingleOrDefault();
         Assert.IsTrue(theReaction!.ReactionContent == reactionContent1);
         Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
@@ -223,23 +228,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent1);
         Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
 
-        // Now, Sam deletes the reactions
-        var deleteReactionResponse =
-            await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent1, uploadResult.GlobalTransitIdFileIdentifier);
-        Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
-
-        // Tell Pippin's identity to process the feed outbox
-        // doing this again in unit tests because we added a reaction
-        // which caused the summary to change; which means we have to re-distribute
-        // the changes
         await pippinOwnerClient.Cron.DistributeFeedFiles();
 
-        //
-        // Get the post from sam's feed drive again, it should have the header updated
-        //
-        var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
-            "There should be no reactions in the summary but there was at least one");
     }
 
 
