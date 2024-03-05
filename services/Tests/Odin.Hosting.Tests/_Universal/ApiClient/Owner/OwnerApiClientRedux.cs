@@ -10,6 +10,8 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
+using Odin.Hosting.Tests._Universal.ApiClient.Transit;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using SQLitePCL;
 
@@ -43,6 +45,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
+            Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
+            Transit = new UniversalTransitApiClient(identity.OdinId, factory, ownerApi.SystemProcessApiKey);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
@@ -59,11 +63,14 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         }
 
         public TestIdentity Identity => _identity;
-        
+
         public CronApiClient Cron { get; }
 
         public UniversalFollowerApiClient Follower { get; }
 
+        public UniversalDriveReactionClient Reactions { get; }
+
+        public UniversalTransitApiClient Transit { get; }
         public AppManagementApiClient AppManager { get; }
 
         public AppNotificationsApiClient AppNotifications { get; }

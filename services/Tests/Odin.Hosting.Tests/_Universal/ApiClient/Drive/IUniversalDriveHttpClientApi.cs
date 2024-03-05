@@ -6,7 +6,6 @@ using Odin.Core.Services.Base.SharedTypes;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
-using Odin.Core.Services.Peer;
 using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
 using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
