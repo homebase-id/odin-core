@@ -1,37 +1,25 @@
-name: Create new release from tip of branch
+name: Build and deploy main to Bleeding Edge
 
 on:
   workflow_dispatch:
-    # inputs:
-    #   reason:
-    #     description: "Reason for manual run"
-    #     required: true
-    #     default: "Just because"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  NEW_VERSION_TAG: "overwritten-below"
-  IMAGE_TAGS: "overwritten-below"
+  BRANCH_NAME: ""
+  DEPLOY_IMAGE: ""
 
 jobs:
-  tag-and-build:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Fetch all history so we can see all tags
-          path: dotyoucore
-
-      - name: Execute versioning script
-        working-directory: dotyoucore
-        run: |
-          output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
-          echo "Tagging output: $output"
-          echo "NEW_VERSION_TAG=${output}" >> $GITHUB_ENV
-
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
@@ -39,6 +27,11 @@ jobs:
           registry-url: "https://npm.pkg.github.com"
           # Defaults to the user or organization that owns the workflow file
           scope: "@octocat"
+
+      - name: Checkout dotyoucore
+        uses: actions/checkout@v3
+        with:
+          path: dotyoucore
 
       - name: Checkout dotyoucorejs monorepo
         uses: actions/checkout@v3
@@ -104,9 +97,6 @@ jobs:
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
           mv packages/provisioning-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
 
-      #
-      # Build Docker image
-      #
       - name: Log in to the Container registry
         uses: docker/login-action@v2
         with:
@@ -123,18 +113,47 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Combine Docker tags
-        run: |
-          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./dotyoucore
           file: ./dotyoucore/docker/Dockerfile-identity-host
           push: true
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
+
+      #
+      # Deploy
+      #
+      - name: Get the branch name
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+
+      - name: Create image deploy name
+        run: |
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
+
+      - name: Output DEPLOY_IMAGE
+        run: |
+          echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
+
+      - name: Deploy to bleeding edge
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script_stop: true
+          script: |
+            source $HOME/.profile
+            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo work folder: $ANSIBLE_WORK_FOLDER
+            mkdir $ANSIBLE_WORK_FOLDER
+            cd $ANSIBLE_WORK_FOLDER
+            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+            cd $ANSIBLE_WORK_FOLDER/ansible
+            ansible-playbook deploy-identity-hosts.yml --limit bleeding_edge -e "identity_host_docker_image=${{ env.DEPLOY_IMAGE }}"
+            cd /tmp
+            rm -rf $ANSIBLE_WORK_FOLDER

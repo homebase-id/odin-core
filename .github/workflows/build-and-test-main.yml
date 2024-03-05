@@ -1,0 +1,36 @@
+name: Build and test ODIN backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Checkout dotyoucore
+        uses: actions/checkout@v3
+
+      - name: Set folder permissions (RW required for SqLite)
+        run: |
+          chmod -R +rw ./
+
+      - name: Restore dependencies
+        #working-directory: dotyoucore
+        run: dotnet restore ./dotyoucore.sln
+
+      - name: Build
+        #working-directory: dotyoucore
+        run: dotnet build --no-restore --warnaserror ./dotyoucore.sln
+
+      - name: Test
+        #working-directory: dotyoucore
+        run: sudo dotnet test --no-build --verbosity normal ./dotyoucore.sln
