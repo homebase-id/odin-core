@@ -1,19 +1,17 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Controllers.ClientToken;
-using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Drive.Reactions
+namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
-    public interface IDriveTestHttpClientForOwnerReactions
+    public interface IUniversalDriveReactionHttpClient
     {
-        private const string ReactionRootEndpoint = OwnerApiPathConstants.DriveReactionsV1;
+        private const string ReactionRootEndpoint = "/drive/files/reactions";
 
         [Post(ReactionRootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] AddReactionRequest request);
@@ -26,5 +24,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Reactions
 
         [Post(ReactionRootEndpoint + "/list")]
         Task<ApiResponse<GetReactionsResponse>> GetReactions([Body] ExternalFileIdentifier file);
+        
+        [Post(ReactionRootEndpoint + "/summary")]
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] GetReactionsRequest file);
+
+        [Post(ReactionRootEndpoint + "/listbyidentity")]
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] GetReactionsByIdentityRequest file);
     }
 }

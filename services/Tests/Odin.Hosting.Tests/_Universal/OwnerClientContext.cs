@@ -6,16 +6,11 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class OwnerClientContext : IApiClientContext
+public class OwnerClientContext(TargetDrive targetDrive) : IApiClientContext
 {
     private OwnerApiClientFactory _factory;
 
-    public OwnerClientContext(TargetDrive targetDrive)
-    {
-        TargetDrive = targetDrive;
-    }
-
-    public TargetDrive TargetDrive { get; }
+    public TargetDrive TargetDrive { get; } = targetDrive;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {

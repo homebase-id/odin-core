@@ -480,6 +480,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
 
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
@@ -632,6 +633,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
+            newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
 
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 

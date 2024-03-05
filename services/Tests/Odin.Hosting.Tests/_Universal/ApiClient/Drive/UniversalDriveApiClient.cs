@@ -27,17 +27,8 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
 
-public class UniversalDriveApiClient
+public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 {
-    private readonly OdinId _identity;
-    private readonly IApiClientFactory _factory;
-
-    public UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
-    {
-        _identity = identity;
-        _factory = factory;
-    }
-
     /// <summary>
     /// Uploads a new file, unencrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
@@ -73,7 +64,7 @@ public class UniversalDriveApiClient
             TransitOptions = transitOptions
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -122,7 +113,7 @@ public class UniversalDriveApiClient
             TransitOptions = new TransitOptions() { }
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -180,7 +171,7 @@ public class UniversalDriveApiClient
             }
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -246,7 +237,7 @@ public class UniversalDriveApiClient
             Manifest = uploadManifest
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -335,7 +326,7 @@ public class UniversalDriveApiClient
             Manifest = uploadManifest
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
             var descriptor = new UploadFileDescriptor()
@@ -408,7 +399,7 @@ public class UniversalDriveApiClient
             }
         }
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var svc = RestService.For<IUniversalDriveHttpClientApi>(client);
             var response = await svc.UploadPayload(parts.ToArray());
@@ -463,7 +454,7 @@ public class UniversalDriveApiClient
             }
         }
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var svc = RestService.For<IUniversalDriveHttpClientApi>(client);
             var response = await svc.UploadPayload(parts.ToArray());
@@ -474,7 +465,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await svc.DeletePayload(new DeletePayloadRequest()
         {
@@ -489,7 +480,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
@@ -500,7 +491,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         return await svc.GetPayloadPost(new GetPayloadRequest()
@@ -514,7 +505,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
 
         var thumbnailResponse = await svc.GetThumbnailPost(new GetThumbnailRequest()
@@ -531,7 +522,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<DeleteFileResult>> DeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
@@ -546,7 +537,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdList(DeleteFilesByGroupIdBatchRequest batch,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         //wth - refit is not sending headers when you do GET request - why not!?
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.DeleteFilesByGroupIdBatch(batch);
@@ -562,7 +553,7 @@ public class UniversalDriveApiClient
             Requests = requests
         };
 
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var apiResponse = await svc.DeleteFileIdBatch(batch);
         return apiResponse;
@@ -570,7 +561,7 @@ public class UniversalDriveApiClient
 
     public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await svc.GetBatch(request);
         return response;
@@ -578,7 +569,7 @@ public class UniversalDriveApiClient
 
     public async Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await svc.GetModified(request);
         return response;
@@ -587,7 +578,7 @@ public class UniversalDriveApiClient
     public async Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(QueryBatchCollectionRequest request,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = _factory.CreateHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await svc.GetBatchCollection(request);
         return response;

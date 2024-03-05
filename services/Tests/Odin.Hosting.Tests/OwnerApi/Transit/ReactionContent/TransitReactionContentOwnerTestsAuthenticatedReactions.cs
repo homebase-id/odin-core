@@ -53,7 +53,8 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false, allowSubscriptions: true);
+        await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false,
+            allowSubscriptions: true);
 
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
         await samOwnerClient.OwnerFollower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
@@ -72,7 +73,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
 
         //Tell Pippin's identity to process the feed outbox
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from Sam's feed drive, validate we got it
         //
@@ -85,7 +86,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
             uploadResult.GlobalTransitIdFileIdentifier,
             reactionContent);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
@@ -112,29 +113,32 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         //
         var headerOnSamsFeedWithReaction = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
         Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
-        var reactionSummaryValue = headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
+        var reactionSummaryValue =
+            headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
         Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
 
         // Now, Sam deletes the reactions
-        var deleteReactionResponse = await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
+        var deleteReactionResponse =
+            await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
         Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
-        
+
         // Tell Pippin's identity to process the feed outbox
         // doing this again in unit tests because we added a reaction
         // which caused the summary to change; which means we have to re-distribute
         // the changes
         await pippinOwnerClient.Cron.DistributeFeedFiles();
-        
+
         //
         // Get the post from sam's feed drive again, it should have the header updated
         //
         var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(), "There should be no reactions in the summary but there was at least one");
-        
+        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
+            "There should be no reactions in the summary but there was at least one");
     }
 
 
-    private async Task<UploadResult> UploadUnencryptedContentToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true,
+    private async Task<UploadResult> UploadUnencryptedContentToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
+        bool allowDistribution = true,
         AccessControlList acl = null)
     {
         var fileMetadata = new UploadFileMetadata()
