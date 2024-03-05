@@ -1,4 +1,4 @@
-name: Bleeding Edge Docker
+name: Build and deploy main to Bleeding Edge
 
 on:
   workflow_dispatch:

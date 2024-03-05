@@ -1,4 +1,4 @@
-name: Build and test ODIN backend on Ubuntu
+name: Build and test ODIN backend
 
 on:
   push:
