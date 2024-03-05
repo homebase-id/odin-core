@@ -1,4 +1,4 @@
-name: Build ODIN backend on Ubuntu
+name: Build and test ODIN backend on Ubuntu
 
 on:
   push:
@@ -25,12 +25,12 @@ jobs:
 
       - name: Restore dependencies
         #working-directory: dotyoucore
-        run: dotnet restore services/dotyoucore.sln
+        run: dotnet restore ./dotyoucore.sln
 
       - name: Build
         #working-directory: dotyoucore
-        run: dotnet build --no-restore --warnaserror services/dotyoucore.sln
+        run: dotnet build --no-restore --warnaserror ./dotyoucore.sln
 
       - name: Test
         #working-directory: dotyoucore
-        run: sudo dotnet test --no-build --verbosity normal services/dotyoucore.sln
+        run: sudo dotnet test --no-build --verbosity normal ./dotyoucore.sln
