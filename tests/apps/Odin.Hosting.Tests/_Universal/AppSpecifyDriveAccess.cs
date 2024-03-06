@@ -3,18 +3,22 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class AppReadonlyAccessToDrive //: IApiClientContext
+public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission permission, TestPermissionKeyList keys = null)
+    : IApiClientContext
 {
     private AppApiClientFactory _factory;
 
-    public async Task Initialize(OwnerApiClient ownerApiClient, TargetDrive targetDrive)
+    public TargetDrive TargetDrive { get; } = targetDrive;
+
+    public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app
         Guid appId = Guid.NewGuid();
@@ -26,23 +30,29 @@ public class AppReadonlyAccessToDrive //: IApiClientContext
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
-                        Drive = targetDrive,
-                        Permission = DrivePermission.Read
+                        Drive = TargetDrive,
+                        Permission = permission
                     }
                 }
-            }
+            },
+            PermissionSet = new PermissionSet(keys?.PermissionKeys ?? new List<int>())
         };
 
         var circles = new List<Guid>();
         var circlePermissions = new PermissionSetGrantRequest();
-        await ownerApiClient.Apps.RegisterApp(appId, permissions, circles, circlePermissions);
+        await ownerApiClient.AppManager.RegisterApp(appId, permissions, circles, circlePermissions);
 
-        var (appToken, appSharedSecret) = await ownerApiClient.Apps.RegisterAppClient(appId);
+        var (appToken, appSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
         _factory = new AppApiClientFactory(appToken, appSharedSecret);
     }
 
     public IApiClientFactory GetFactory()
     {
         return _factory;
+    }
+
+    public override string ToString()
+    {
+        return nameof(AppWriteOnlyAccessToDrive);
     }
 }

@@ -138,7 +138,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 if (io is FileNotFoundException || io is DirectoryNotFoundException)
                 {
-                    throw new OdinFileHeaderHasCorruptPayloadException($"Missing payload file for key {descriptor.Key} with uid: {descriptor.Uid}");
+                    throw new OdinFileHeaderHasCorruptPayloadException(
+                        $"Missing payload file [path:{path}] for key {descriptor.Key} with uid: {descriptor.Uid.uniqueTime}");
                 }
 
                 throw;
@@ -193,7 +194,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
             {
                 if (io is FileNotFoundException || io is DirectoryNotFoundException)
                 {
-                    throw new OdinFileHeaderHasCorruptPayloadException($"Missing payload file for key {payloadKey} with uid: {payloadUid}");
+                    throw new OdinFileHeaderHasCorruptPayloadException($"Missing payload file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
                 }
 
                 throw;

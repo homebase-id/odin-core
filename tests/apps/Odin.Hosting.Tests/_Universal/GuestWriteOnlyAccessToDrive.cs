@@ -13,18 +13,12 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class GuestWriteOnlyAccessToDrive : IApiClientContext
+public class GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
 {
-    private readonly TestPermissionKeyList _keys;
+    private readonly TestPermissionKeyList _keys = keys;
     private GuestApiClientFactory _factory;
 
-    public GuestWriteOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionKeyList keys = null)
-    {
-        TargetDrive = targetDrive;
-        _keys = keys;
-    }
-
-    public TargetDrive TargetDrive { get; }
+    public TargetDrive TargetDrive { get; } = targetDrive;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {

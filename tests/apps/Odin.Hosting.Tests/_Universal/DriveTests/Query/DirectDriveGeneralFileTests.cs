@@ -1,15 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Query;
 
@@ -38,13 +43,13 @@ public class DirectDriveQueryTests
     public async Task QueryBatchEnforcesPermissions()
     {
         // Setup
-        
+
         var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        
-        var targetDrive = callerContext.TargetDrive;
-        await pippinOwnerClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+        await pippinOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var circle1 = Guid.NewGuid();
         await pippinOwnerClient.Network.CreateCircle(circle1, "secured circle", new PermissionSetGrantRequest()
@@ -61,37 +66,77 @@ public class DirectDriveQueryTests
         // Connect sam and pippin; giving sam circle1
         await pippinOwnerClient.Connections.SendConnectionRequest(TestIdentities.Samwise.OdinId, new List<GuidId>() { circle1 });
         await samOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
-        
+
         // Connect merry and pippin; no circles
         await pippinOwnerClient.Connections.SendConnectionRequest(TestIdentities.Merry.OdinId);
         await merryOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
 
+        const int fileType = 1090;
         // Pippin uploads files
         // file 1: only connect identities in a specific circle 
-        var file1 = SampleMetadataData.Create(fileType: 100,
+        var file1 = SampleMetadataData.Create(fileType: fileType,
             acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [circle1] });
         var file1UploadResult = await UploadAndValidate(file1, targetDrive);
 
         // file 2: only connected identities can see it (a circle is not required)
-        var file2 = SampleMetadataData.Create(fileType: 100, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected });
+        var file2 = SampleMetadataData.Create(fileType: fileType, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected });
         var file2UploadResult = await UploadAndValidate(file2, targetDrive);
 
         // Act
-        // query Pippin's drive as Sam; should get both files
 
-        // query Pippin's drive as Merry; should get file2 only
-
-        //
-        await callerContext.Initialize(pippinOwnerClient);
-
-        // Act
-        var callerDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewMetadata(targetDrive, file1);
+        var query = new QueryBatchRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = targetDrive,
+                FileType = [fileType]
+            },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = 100,
+                IncludeMetadataHeader = true
+            }
+        };
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        // Sam Queries pippin; should get both files
+        var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, pippinOwnerClient, targetDrive);
+        var samDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, samGuestTokenFactory);
+        var samQueryResults = await samDriveClient.QueryBatch(query);
+        Assert.IsTrue(samQueryResults.IsSuccessStatusCode);
+        Assert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
+
+        // Merry queries Pippin; should get file2 only
+        var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, pippinOwnerClient, targetDrive);
+        var merryDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, merryGuestTokenFactory);
+        var merryQueryResults = await merryDriveClient.QueryBatch(query);
+        Assert.IsTrue(merryQueryResults.IsSuccessStatusCode);
+        Assert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
+        //
+
     }
 
+
+    private async Task<IApiClientFactory> CreateGuestTokenFactory(TestIdentity guestIdentity, OwnerApiClientRedux client, TargetDrive targetDrive)
+    {
+        var driveGrants = new List<DriveGrantRequest>()
+        {
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = targetDrive,
+                    Permission = DrivePermission.Read
+                }
+            }
+        };
+        // Login to Frodo's identity as Sam
+        var frodoCallerContextOnSam = new GuestAccess(guestIdentity.OdinId, driveGrants, new TestPermissionKeyList());
+        await frodoCallerContextOnSam.Initialize(client);
+
+        return frodoCallerContextOnSam.GetFactory();
+    }
 
     private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)
     {
