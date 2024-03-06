@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.Circles;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.Circles;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.CircleMembership

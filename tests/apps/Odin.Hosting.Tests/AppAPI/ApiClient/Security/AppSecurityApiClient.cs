@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 

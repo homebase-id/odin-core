@@ -1,8 +1,8 @@
 using System;
 using NUnit.Framework;
-using Odin.Core.Services.Apps;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Services.Apps;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Hosting.Tests;
 

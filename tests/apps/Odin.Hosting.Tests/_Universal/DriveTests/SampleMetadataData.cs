@@ -1,6 +1,6 @@
 using System;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 

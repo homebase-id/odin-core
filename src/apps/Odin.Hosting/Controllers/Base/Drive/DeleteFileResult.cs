@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Drives;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
 

@@ -11,12 +11,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.Authorization;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Configuration;
+using Odin.Services.Authorization;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
+using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Authentication.System
 {

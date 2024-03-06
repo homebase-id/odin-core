@@ -1,6 +1,6 @@
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Services.Authentication.YouAuth;
 
 // SEB:TODO
 // This is a partial copy of the class in namespace Odin.Hosting.Controllers.OwnerToken.YouAuth.

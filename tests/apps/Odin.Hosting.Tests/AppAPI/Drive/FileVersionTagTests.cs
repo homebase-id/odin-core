@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Refit;
 

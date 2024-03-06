@@ -6,10 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Util;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
 

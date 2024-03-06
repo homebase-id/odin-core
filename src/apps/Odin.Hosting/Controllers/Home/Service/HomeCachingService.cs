@@ -7,11 +7,11 @@ using LazyCache;
 using LazyCache.Providers;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.Mediator;
+using Odin.Services.Base;
+using Odin.Services.Configuration;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
+using Odin.Services.Mediator;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 

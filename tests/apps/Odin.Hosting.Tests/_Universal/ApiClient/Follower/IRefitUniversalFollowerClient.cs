@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Services.DataSubscription.Follower;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Follower

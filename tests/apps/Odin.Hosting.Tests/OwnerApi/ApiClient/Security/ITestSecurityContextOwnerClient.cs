@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Base;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
 

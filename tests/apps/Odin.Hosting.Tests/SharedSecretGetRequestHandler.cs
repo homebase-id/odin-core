@@ -7,7 +7,7 @@ using System.Web;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Org.BouncyCastle.Utilities.Encoders;
 
 namespace Odin.Hosting.Tests;

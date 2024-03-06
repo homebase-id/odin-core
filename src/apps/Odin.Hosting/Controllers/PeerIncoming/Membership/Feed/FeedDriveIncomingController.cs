@@ -1,12 +1,12 @@
 ﻿using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.DataSubscription.ReceivingHost;
-using Odin.Core.Services.DataSubscription.SendingHost;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Incoming;
+using Odin.Services.Base;
+using Odin.Services.DataSubscription.Follower;
+using Odin.Services.DataSubscription.ReceivingHost;
+using Odin.Services.DataSubscription.SendingHost;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Incoming;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 

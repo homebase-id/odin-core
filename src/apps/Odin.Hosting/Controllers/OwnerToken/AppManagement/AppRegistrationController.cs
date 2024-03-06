@@ -5,9 +5,9 @@ using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Authorization.Apps;
-using Odin.Core.Services.Util;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Apps;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
 {

@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
+using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Refit;
 

@@ -4,7 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Configuration.Eula;
+using Odin.Services.Configuration.Eula;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {

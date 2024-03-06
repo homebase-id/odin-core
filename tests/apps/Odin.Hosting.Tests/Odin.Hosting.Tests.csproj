@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../src/services/Odin.Core.Services/Odin.Core.Services.csproj" />
+    <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj" />
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>

@@ -2,10 +2,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Fluff;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Membership.Connections.Requests;
-using Odin.Core.Services.Peer;
+using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
+using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership

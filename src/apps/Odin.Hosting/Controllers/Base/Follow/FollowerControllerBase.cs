@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Services.DataSubscription.Follower;
 using Refit;
 
 namespace Odin.Hosting.Controllers.Base.Follow

@@ -5,9 +5,9 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive

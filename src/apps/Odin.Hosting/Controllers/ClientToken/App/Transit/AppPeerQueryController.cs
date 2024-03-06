@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Drive.Query;
+using Odin.Services.Peer.Outgoing;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Hosting.Controllers.Base.Transit;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit

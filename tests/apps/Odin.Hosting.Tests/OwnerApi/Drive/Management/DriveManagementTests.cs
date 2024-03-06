@@ -3,8 +3,8 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.Management;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;

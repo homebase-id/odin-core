@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer.Encryption;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Encryption;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 

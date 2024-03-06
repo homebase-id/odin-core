@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.EncryptionKeyService;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Util;
+using Odin.Services.DataSubscription.Follower;
+using Odin.Services.EncryptionKeyService;
+using Odin.Services.Peer;
+using Odin.Services.Util;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 

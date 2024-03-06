@@ -3,10 +3,10 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Membership.Connections;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
 
 namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections;
