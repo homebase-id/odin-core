@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -116,6 +117,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    CancellationToken.None,
                     async () =>
                     {
                         httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileRequest()
@@ -368,6 +370,7 @@ namespace Odin.Core.Services.Peer.Outgoing.Drive.Transfer
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    CancellationToken.None,
                     async () => { (peerCode, transferResult) = MapPeerResponseCode(await TrySendFile()); });
 
                 return new OutboxProcessingResult()

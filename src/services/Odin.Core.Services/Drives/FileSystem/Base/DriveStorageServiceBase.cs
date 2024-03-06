@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -813,6 +814,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var attempts = await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                CancellationToken.None,
                 () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
@@ -893,6 +895,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var attempts = await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                CancellationToken.None,
                 async () => { header = await mgr.GetServerFileHeader(file.FileId); });
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)

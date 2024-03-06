@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -41,6 +42,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { response = await client.AddReaction(payload); });
         }
         catch (TryRetryException ex)
@@ -64,6 +66,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { response = await client.GetReactions(payload); });
 
             return response.Content;
@@ -87,6 +90,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { response = await client.GetReactionCountsByFile(payload); });
 
             return response.Content;
@@ -109,6 +113,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { response = await client.GetReactionsByIdentity(payload); });
 
             return response.Content;
@@ -130,6 +135,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { await client.DeleteReactionContent(payload); });
         }
         catch (TryRetryException ex)
@@ -149,6 +155,7 @@ public class PeerReactionSenderService(
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                CancellationToken.None,
                 async () => { await client.GetReactionsByIdentity(payload); });
         }
         catch (TryRetryException ex)

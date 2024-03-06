@@ -22,7 +22,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(1, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             Thread.Sleep(1);
         });
@@ -39,7 +39,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(1, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             await Task.Delay(1);
         });
@@ -59,7 +59,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             result += 42;
         });
@@ -78,7 +78,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             await Task.Delay(1);
             result = 42;
@@ -100,7 +100,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithDelay(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             attempt++;
             if (attempt < 2)
@@ -123,7 +123,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -156,7 +156,7 @@ public class TryRetryTest
         }
 
         // Act
-        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), Operation);
+        var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
 
         // Assert
         Assert.AreEqual(attempt, attempts);
@@ -175,7 +175,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<TryRetryException>(() =>
         {
-            TryRetry.WithDelay(3, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithDelay(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new Exception("oh no");
@@ -200,7 +200,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);
@@ -233,7 +233,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), Operation);
+            await TryRetry.WithDelayAsync(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
         });
 
         // Assert
@@ -256,7 +256,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<TryRetryException>(() =>
         {
-            TryRetry.WithDelay<ArgumentException>(3, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithDelay<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new ArgumentException("oh no");
@@ -282,7 +282,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithDelayAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithDelayAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);
@@ -311,7 +311,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<InvalidOperationException>(() =>
         {
-            TryRetry.WithDelay<ArgumentException>(3, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithDelay<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new InvalidOperationException("oh no");
@@ -335,7 +335,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await TryRetry.WithDelayAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithDelayAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);
@@ -367,7 +367,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             Thread.Sleep(1);
         });
@@ -384,7 +384,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             await Task.Delay(1);
         });
@@ -404,7 +404,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             result = 42;
         });
@@ -423,7 +423,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             await Task.Delay(1);
             result = 42;
@@ -445,7 +445,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), () =>
+        var attempts = TryRetry.WithBackoff(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
         {
             attempt++;
             if (attempt < 4)
@@ -468,7 +468,7 @@ public class TryRetryTest
         var ts = Stopwatch.StartNew();
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), async () =>
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
         {
             attempt++;
             await Task.Delay(1);
@@ -502,7 +502,7 @@ public class TryRetryTest
         }
 
         // Act
-        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), Operation);
+        var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
 
         // Assert
         Assert.AreEqual(attempt, attempts);
@@ -522,7 +522,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<TryRetryException>(() =>
         {
-            TryRetry.WithBackoff(4, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithBackoff(4, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new Exception("oh no");
@@ -547,7 +547,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);
@@ -580,7 +580,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), Operation);
+            await TryRetry.WithBackoffAsync(4, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
         });
 
         // Assert
@@ -603,7 +603,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<TryRetryException>(() =>
         {
-            TryRetry.WithBackoff<ArgumentException>(3, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithBackoff<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new ArgumentException("oh no");
@@ -629,7 +629,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<TryRetryException>(async () =>
         {
-            await TryRetry.WithBackoffAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithBackoffAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);
@@ -658,7 +658,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.Throws<InvalidOperationException>(() =>
         {
-            TryRetry.WithBackoff<ArgumentException>(3, TimeSpan.FromMilliseconds(100), () =>
+            TryRetry.WithBackoff<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, () =>
             {
                 attempt++;
                 throw new InvalidOperationException("oh no");
@@ -682,7 +682,7 @@ public class TryRetryTest
         // Act
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await TryRetry.WithBackoffAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), async () =>
+            await TryRetry.WithBackoffAsync<ArgumentException>(3, TimeSpan.FromMilliseconds(100), CancellationToken.None, async () =>
             {
                 attempt++;
                 await Task.Delay(1);

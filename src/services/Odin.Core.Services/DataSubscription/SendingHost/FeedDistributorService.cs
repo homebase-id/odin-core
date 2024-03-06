@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -57,6 +58,7 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    CancellationToken.None,
                     async () => { httpResponse = await client.DeleteFeedMetadata(request); });
             }
             catch (TryRetryException e)
@@ -107,6 +109,7 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    CancellationToken.None,
                     async () => { httpResponse = await client.SendFeedFileMetadata(request); });
             }
             catch (TryRetryException e)
