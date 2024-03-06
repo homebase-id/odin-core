@@ -5,6 +5,9 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util;
 
+// In TryRetry CancellationToken parameters must be explicit and action should always be last parameter
+#pragma warning disable CA1068
+
 public static class TryRetry
 {
     private static readonly TimeSpan DefaultExponentialMs = TimeSpan.FromMilliseconds(100);
@@ -274,5 +277,6 @@ public static class TryRetry
     //
 
 }
+#pragma warning restore CA1068
 
 public class TryRetryException(string message, Exception innerException) : OdinSystemException(message, innerException);
