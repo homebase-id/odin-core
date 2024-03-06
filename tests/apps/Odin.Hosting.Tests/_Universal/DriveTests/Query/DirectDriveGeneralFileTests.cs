@@ -44,15 +44,28 @@ public class DirectDriveQueryTests
     {
         // Setup
 
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-        var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
         var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
-        await pippinOwnerClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        await frodoOwnerClient.DriveManager.CreateDrive(targetDrive, "Public posts drive", "", allowAnonymousReads: true);
 
-        var circle1 = Guid.NewGuid();
-        await pippinOwnerClient.Network.CreateCircle(circle1, "secured circle", new PermissionSetGrantRequest()
+        var mordorCrewCircle = Guid.NewGuid();
+        await frodoOwnerClient.Network.CreateCircle(mordorCrewCircle, "Mordor Crew", new PermissionSetGrantRequest()
+        {
+            Drives =
+            [
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive() { Drive = targetDrive, Permission = DrivePermission.Read },
+                },
+            ]
+        });
+        
+        var hobbitsCircle = Guid.NewGuid();
+        await frodoOwnerClient.Network.CreateCircle(hobbitsCircle, "Hobbits", new PermissionSetGrantRequest()
         {
             Drives =
             [
@@ -63,24 +76,23 @@ public class DirectDriveQueryTests
             ]
         });
 
-        // Connect sam and pippin; giving sam circle1
-        await pippinOwnerClient.Connections.SendConnectionRequest(TestIdentities.Samwise.OdinId, new List<GuidId>() { circle1 });
-        await samOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
+        // Connect frodo and sam; giving sam hobbits and mordor crew circle
+        await frodoOwnerClient.Connections.SendConnectionRequest(TestIdentities.Samwise.OdinId, new List<GuidId>() { hobbitsCircle, mordorCrewCircle });
+        await samOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Frodo.OdinId);
 
         // Connect merry and pippin; no circles
-        await pippinOwnerClient.Connections.SendConnectionRequest(TestIdentities.Merry.OdinId);
-        await merryOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
+        await frodoOwnerClient.Connections.SendConnectionRequest(TestIdentities.Pippin.OdinId, new List<GuidId>() { hobbitsCircle });
+        await pippinOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Frodo.OdinId);
 
+        // frodo uploads a post
         const int fileType = 1090;
-        // Pippin uploads files
-        // file 1: only connect identities in a specific circle 
         var file1 = SampleMetadataData.Create(fileType: fileType,
-            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [circle1] });
+            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [mordorCrewCircle] });
         var file1UploadResult = await UploadAndValidate(file1, targetDrive);
 
         // file 2: only connected identities can see it (a circle is not required)
-        var file2 = SampleMetadataData.Create(fileType: fileType, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected });
-        var file2UploadResult = await UploadAndValidate(file2, targetDrive);
+        // var file2 = SampleMetadataData.Create(fileType: fileType, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected });
+        // var file2UploadResult = await UploadAndValidate(file2, targetDrive);
 
         // Act
 
@@ -101,22 +113,20 @@ public class DirectDriveQueryTests
         // Assert
 
         // Sam Queries pippin; should get both files
-        var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, pippinOwnerClient, targetDrive);
+        var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, frodoOwnerClient, targetDrive);
         var samDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, samGuestTokenFactory);
         var samQueryResults = await samDriveClient.QueryBatch(query);
         Assert.IsTrue(samQueryResults.IsSuccessStatusCode);
         Assert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
 
         // Merry queries Pippin; should get file2 only
-        var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, pippinOwnerClient, targetDrive);
+        var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, frodoOwnerClient, targetDrive);
         var merryDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, merryGuestTokenFactory);
         var merryQueryResults = await merryDriveClient.QueryBatch(query);
         Assert.IsTrue(merryQueryResults.IsSuccessStatusCode);
         Assert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
         //
-
     }
-
 
     private async Task<IApiClientFactory> CreateGuestTokenFactory(TestIdentity guestIdentity, OwnerApiClientRedux client, TargetDrive targetDrive)
     {
