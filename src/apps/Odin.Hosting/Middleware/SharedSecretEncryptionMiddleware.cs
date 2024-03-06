@@ -1,0 +1,289 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Odin.Core;
+using Odin.Core.Cryptography;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Base;
+using Odin.Services.Peer;
+using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.Controllers.Home.Auth;
+using Odin.Hosting.Controllers.OwnerToken;
+
+namespace Odin.Hosting.Middleware
+{
+    /// <summary>
+    /// Decrypts requests and encrypts responses using the shared secret.  This does not handle websockets, they are
+    /// handled by their own controller
+    /// </summary>
+    public class SharedSecretEncryptionMiddleware
+    {
+        private const string SharedSecretQueryStringParam = "ss";
+
+        private readonly RequestDelegate _next;
+        private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
+        private readonly List<string> _ignoredPathsForRequests;
+
+        /// <summary>
+        /// Paths that should not have their responses encrypted
+        /// </summary>
+        private readonly List<string> _ignoredPathsForResponses;
+        //
+
+        /// <summary />
+        public SharedSecretEncryptionMiddleware(
+            RequestDelegate next,
+            ILogger<SharedSecretEncryptionMiddleware> logger)
+        {
+            _next = next;
+            _logger = logger;
+
+
+            _ignoredPathsForRequests = new List<string>
+            {
+                PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
+                $"{HomeApiPathConstants.AuthV1}/is-authenticated",
+
+                OwnerApiPathConstants.YouAuthV1,
+                OwnerApiPathConstants.AuthV1,
+                $"{OwnerApiPathConstants.TransitV1}/outbox/processor",
+                $"{OwnerApiPathConstants.DriveV1}/files/upload",
+                $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
+
+                $"{GuestApiPathConstants.DriveV1}/files/upload",
+                $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
+
+                $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstants.PeerSenderV1}/files/send",
+
+                $"{AppApiPathConstants.DriveV1}/files/upload",
+                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
+                $"{AppApiPathConstants.AuthV1}/logout",
+                $"{AppApiPathConstants.NotificationsV1}/preauth"
+            };
+
+            //Paths that should not have their responses encrypted with shared secret
+            _ignoredPathsForResponses = new List<string>
+            {
+                $"{OwnerApiPathConstants.DriveV1}/files/payload",
+                $"{OwnerApiPathConstants.DriveV1}/files/thumb",
+
+                $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+
+                $"{OwnerApiPathConstants.TransitV1}/query/payload",
+                $"{OwnerApiPathConstants.TransitV1}/query/thumb",
+
+                $"{OwnerApiPathConstants.TransitV1}/query/payload_byglobaltransitid",
+                $"{OwnerApiPathConstants.TransitV1}/query/thumb_byglobaltransitid",
+
+                $"{AppApiPathConstants.DriveV1}/files/payload",
+                $"{AppApiPathConstants.DriveV1}/files/thumb",
+
+                $"{AppApiPathConstants.PeerQueryV1}/payload",
+                $"{AppApiPathConstants.PeerQueryV1}/thumb",
+
+                $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
+                $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
+
+                $"{GuestApiPathConstants.DriveV1}/files/thumb",
+                $"{GuestApiPathConstants.DriveV1}/files/payload",
+                "/cdn",
+            };
+
+            _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
+        }
+
+        //
+
+        public async Task Invoke(HttpContext context)
+        {
+            if (ShouldDecryptRequest(context))
+            {
+                await DecryptRequest(context);
+            }
+
+            if (ShouldEncryptResponse(context))
+            {
+                using (var responseStream = new MemoryStream())
+                {
+                    //create a separate response stream to collect all of the content being written
+                    var originalBody = context.Response.Body;
+                    context.Response.Body = responseStream;
+
+                    try
+                    {
+                        await _next(context);
+
+                        responseStream.Seek(0L, SeekOrigin.Begin);
+                        await EncryptResponse(context, originalBody);
+                    }
+                    catch (Exception)
+                    {
+                        context.Response.Body = originalBody;
+                        throw;
+                    }
+                }
+            }
+            else
+            {
+                await _next(context);
+            }
+        }
+
+        private async Task DecryptRequest(HttpContext context)
+        {
+            var request = context.Request;
+
+            try
+            {
+                if (request.Method.ToUpper() == "GET")
+                {
+                    if (request.Query.TryGetValue(SharedSecretQueryStringParam, out var qs) == false || string.IsNullOrEmpty(qs.FirstOrDefault()) ||
+                        string.IsNullOrWhiteSpace(qs.FirstOrDefault()))
+                    {
+                        throw new OdinClientException("Querystring must be encrypted", OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
+                    }
+
+                    var newQsBytes = SharedSecretEncryptedPayload.Decrypt(qs.FirstOrDefault() ?? "", this.GetSharedSecret(context));
+                    var newQs = newQsBytes.ToStringFromUtf8Bytes();
+                    var prefix = newQs.FirstOrDefault() == '?' ? "" : "?";
+                    request.QueryString = new QueryString($"{prefix}{newQs}");
+                    if (_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        _logger.LogTrace("qs: {querystring}", request.QueryString.ToString());
+                    }
+                }
+                else
+                {
+                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
+
+                    //update the body with the decrypted json file so it can be read down stream as expected
+                    request.Body = new MemoryStream(decryptedBytes);
+                }
+            }
+            catch (JsonException)
+            {
+                throw new OdinClientException(
+                    "Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
+                    OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
+            }
+            catch (CryptographicException ex) when (ex.Message.Contains("Padding is invalid and cannot be removed"))
+            {
+                // We can get here if the encryption keys don't match. Go figure.
+                throw new OdinClientException(
+                    "Failed to decrypt shared secret payload. Ensure encryption keys are matching.",
+                    OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
+            }
+        }
+
+        private async Task EncryptResponse(HttpContext context, Stream originalBody)
+        {
+            if (context.Response.HasStarted)
+            {
+                // Avoids error "Headers are read-only, response has already started."
+                // We can't change or undo an already started response.
+                return;
+            }
+
+            //if a controller tells us no content, write nothing to the stream
+            if (context.Response.StatusCode == (int)HttpStatusCode.NoContent)
+            {
+                context.Response.Body = originalBody;
+                return;
+            }
+
+            var key = this.GetSharedSecret(context);
+            var responseBytes = context.Response.Body.ToByteArray();
+            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(
+                SharedSecretEncryptedPayload.Encrypt(responseBytes, key),
+                typeof(SharedSecretEncryptedPayload),
+                OdinSystemSerializer.JsonSerializerOptions);
+
+            // context.Response.Headers.Append("X-SSE", "1");
+            context.Response.ContentLength = finalBytes.Length;
+            await new MemoryStream(finalBytes).CopyToAsync(originalBody);
+
+            context.Response.Body = originalBody;
+        }
+
+        private SensitiveByteArray GetSharedSecret(HttpContext context)
+        {
+            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
+            var dotYouContext = accessor.GetCurrent();
+            var key = dotYouContext.PermissionsContext?.SharedSecretKey;
+            return key;
+        }
+
+        private bool ShouldDecryptRequest(HttpContext context)
+        {
+            if (context.Request.Method.ToUpper() == "GET" && !context.Request.Query.Any())
+            {
+                return false;
+            }
+
+            if (context.WebSockets.IsWebSocketRequest)
+            {
+                return false;
+            }
+
+            if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
+            {
+                return false;
+            }
+
+            if (context.Request.Method.ToUpper() == "POST" && context.Request.Headers.ContentLength == 0)
+            {
+                return false;
+            }
+
+            if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
+            {
+                return false;
+            }
+
+            if (context.Request.Method.ToUpper() == "OPTIONS")
+            {
+                return false;
+            }
+
+            return !_ignoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
+        }
+
+        private bool ShouldEncryptResponse(HttpContext context)
+        {
+            if (context.WebSockets.IsWebSocketRequest)
+            {
+                return false;
+            }
+
+            if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
+            {
+                return false;
+            }
+
+            return !_ignoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
+        }
+
+        private bool CallerMustHaveSharedSecret(HttpContext context)
+        {
+            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
+            var dotYouContext = accessor.GetCurrent();
+            return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
+        }
+    }
+}
