@@ -142,8 +142,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
             ? Array.Empty<byte>()
             : ((OdinId)metadata.SenderOdinId).ToByteArray();
+        
         var acl = new List<Guid>();
-
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
             ((OdinId)odinId).ToHashId()
