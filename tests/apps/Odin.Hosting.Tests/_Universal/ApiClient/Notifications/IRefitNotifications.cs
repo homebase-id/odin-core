@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.AppNotifications.Data;
+using Odin.Services.AppNotifications.Data;
 using Odin.Core.Time;
 using Refit;
 

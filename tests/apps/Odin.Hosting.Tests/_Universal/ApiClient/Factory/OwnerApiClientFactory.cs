@@ -2,9 +2,9 @@ using System;
 using System.Net.Http;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Base;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 

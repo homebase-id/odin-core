@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using Odin.Core.Services.Authentication.Owner;
+using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Authentication.Owner;
 
 namespace Odin.Hosting.Controllers.OwnerToken

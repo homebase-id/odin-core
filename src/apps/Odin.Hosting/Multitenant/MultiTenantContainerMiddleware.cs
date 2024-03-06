@@ -2,8 +2,8 @@
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Services.Registry;
-using Odin.Core.Services.Tenant.Container;
+using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
 
 #nullable enable
 namespace Odin.Hosting.Multitenant

@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.Drives;
+using Odin.Services.DataSubscription.Follower;
+using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Refit;
 

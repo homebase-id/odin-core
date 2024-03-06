@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Services.Quartz;
+using Odin.Services.Quartz;
 using Quartz;
 
 namespace Odin.Hosting.Tests.Quartz.Jobs;

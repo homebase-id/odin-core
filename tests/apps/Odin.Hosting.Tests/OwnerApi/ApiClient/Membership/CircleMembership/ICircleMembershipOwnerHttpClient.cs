@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.CircleMembership;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Refit;
 

@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Configuration.Eula;
+using Odin.Services.Configuration;
+using Odin.Services.Configuration.Eula;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 

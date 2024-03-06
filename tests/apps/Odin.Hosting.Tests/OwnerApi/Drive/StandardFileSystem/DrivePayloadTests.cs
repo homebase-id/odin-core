@@ -3,11 +3,11 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 

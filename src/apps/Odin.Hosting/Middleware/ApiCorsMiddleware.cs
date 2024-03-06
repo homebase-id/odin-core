@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Registry.Registration;
+using Odin.Services.Base;
+using Odin.Services.Registry.Registration;
 using Odin.Hosting.Authentication.YouAuth;
 
 namespace Odin.Hosting.Middleware

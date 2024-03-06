@@ -1,6 +1,6 @@
 #nullable enable
-using Odin.Core.Services.Apps.CommandMessaging;
-using Odin.Core.Services.Drives;
+using Odin.Services.Apps.CommandMessaging;
+using Odin.Services.Drives;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Commands;
 

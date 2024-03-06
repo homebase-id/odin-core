@@ -10,12 +10,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using Odin.Core.Services.Authentication.YouAuth;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Optimization.Cdn;
-using Odin.Core.Services.Tenant;
-using Odin.Core.Services.Util;
+using Odin.Services.Authentication.YouAuth;
+using Odin.Services.Base;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Optimization.Cdn;
+using Odin.Services.Tenant;
+using Odin.Services.Util;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.Home;
 

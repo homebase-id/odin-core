@@ -1,7 +1,7 @@
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Quartz;
+using Odin.Services.Configuration;
+using Odin.Services.Quartz;
 using Quartz;
 using Quartz.AspNetCore;
 

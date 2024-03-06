@@ -1,6 +1,6 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Optimization.Cdn;
+using Odin.Services.Optimization.Cdn;
 using Odin.Hosting.Controllers.Base.Cdn;
 using Odin.Hosting.Controllers.OwnerToken.Cdn;
 using Refit;

@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Peer.Incoming.Reactions;
-using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Drives.Reactions;
+using Odin.Services.Peer.Incoming.Reactions;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Transit

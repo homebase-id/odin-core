@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Membership.CircleMembership;
+using Odin.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.CircleMembership;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Membership.CircleMembership

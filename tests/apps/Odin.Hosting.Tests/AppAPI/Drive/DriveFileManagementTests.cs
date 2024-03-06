@@ -9,19 +9,19 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Encryption;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Encryption;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Refit;
-using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
+using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.AppAPI.Drive
 {

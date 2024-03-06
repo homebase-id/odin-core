@@ -1,8 +1,8 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Refit;
 

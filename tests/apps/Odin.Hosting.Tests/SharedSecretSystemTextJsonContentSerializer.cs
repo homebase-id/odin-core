@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Refit;
 
 namespace Odin.Hosting.Tests;

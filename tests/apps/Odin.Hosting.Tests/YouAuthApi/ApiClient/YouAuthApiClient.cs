@@ -1,4 +1,4 @@
-﻿using Odin.Core.Services.Authorization.ExchangeGrants;
+﻿using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 
 namespace Odin.Hosting.Tests.YouAuthApi.ApiClient

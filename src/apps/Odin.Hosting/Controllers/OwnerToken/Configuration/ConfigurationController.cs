@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Configuration.Eula;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Util;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Configuration;
+using Odin.Services.Configuration.Eula;
+using Odin.Services.Drives;
+using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;

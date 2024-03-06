@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Authorization;
+using Odin.Services.Authorization;
 using Odin.Core.Util;
 
 namespace Odin.Hosting.Authentication.Peer

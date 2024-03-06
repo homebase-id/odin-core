@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.AppNotifications.Data;
-using Odin.Core.Services.Base;
+using Odin.Services.AppNotifications.Data;
+using Odin.Services.Base;
 using Odin.Hosting.Controllers.Base.Notifications;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.List

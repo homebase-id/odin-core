@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using Odin.Core.Services.Authorization;
+using Odin.Services.Authorization;
 
 namespace Odin.Hosting.Authentication.Peer
 {

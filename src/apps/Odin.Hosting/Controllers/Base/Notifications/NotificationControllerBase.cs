@@ -4,8 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.AppNotifications.Data;
-using Odin.Core.Services.Base;
+using Odin.Services.AppNotifications.Data;
+using Odin.Services.Base;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Controllers.Base.Notifications

@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.YouAuth;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Refit;
 

@@ -3,7 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Configuration;
+using Odin.Services.Configuration;
 using Odin.Hosting.Tests.YouAuthApi.Circle;
 using Refit;
 

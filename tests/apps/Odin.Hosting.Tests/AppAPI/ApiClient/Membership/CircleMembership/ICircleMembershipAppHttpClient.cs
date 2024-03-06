@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Services.Membership.CircleMembership;
+using Odin.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;

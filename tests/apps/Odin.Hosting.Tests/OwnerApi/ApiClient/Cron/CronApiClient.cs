@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Background.DefaultCron;
-using Odin.Core.Services.Background.FeedDistributionApp;
+using Odin.Services.Background.DefaultCron;
+using Odin.Services.Background.FeedDistributionApp;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.Utils;

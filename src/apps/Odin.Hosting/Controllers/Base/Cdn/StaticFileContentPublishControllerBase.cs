@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Optimization.Cdn;
-using Odin.Core.Services.Util;
+using Odin.Services.Optimization.Cdn;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Cdn
 {

@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Registry;
+using Odin.Services.Base;
+using Odin.Services.Registry;
 using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.Guest

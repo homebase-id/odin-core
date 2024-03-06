@@ -1,8 +1,8 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;
 

@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.Membership.Connections;
+using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App;
