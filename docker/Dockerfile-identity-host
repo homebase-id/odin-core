@@ -1,0 +1,69 @@
+﻿# here's what to do when we upgrade to dotnet 8:
+# https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
+# https://github.com/dotnet/dotnet-docker/issues/4388
+
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
+ARG TARGETARCH
+
+WORKDIR /build
+
+COPY ./common-project.props ./
+
+# Copy project files for restoring
+COPY src/core/Odin.Core/Odin.Core.csproj                                             src/core/Odin.Core/
+COPY src/core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj                   src/core/Odin.Core.Cryptography/
+COPY src/core/Odin.Core.Storage/Odin.Core.Storage.csproj                             src/core/Odin.Core.Storage/
+COPY src/services/Odin.Core.Services/Odin.Core.Services.csproj                       src/services/Odin.Core.Services/
+COPY src/services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj src/services/Odin.Core.Services.Background/
+COPY src/apps/Odin.Hosting/Odin.Hosting.csproj                                       src/apps/Odin.Hosting/
+COPY src/apps/Odin.Cli/Odin.Cli.csproj                                               src/apps/Odin.Cli/
+
+# Restore dependencies
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core/Odin.Core.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/core/Odin.Core.Storage/Odin.Core.Storage.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/services/Odin.Core.Services/Odin.Core.Services.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/services/Odin.Core.Services.Background/Odin.Core.Services.Background.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/apps/Odin.Hosting/Odin.Hosting.csproj
+RUN dotnet restore -a $TARGETARCH --disable-parallel src/apps/Odin.Cli/Odin.Cli.csproj
+
+# Copy the rest for building
+COPY src/core/Odin.Core/                         src/core/Odin.Core/
+COPY src/core/Odin.Core.Cryptography/            src/core/Odin.Core.Cryptography/
+COPY src/core/Odin.Core.Storage/                 src/core/Odin.Core.Storage/
+COPY src/services/Odin.Core.Services/            src/services/Odin.Core.Services/
+COPY src/services/Odin.Core.Services.Background/ src/services/Odin.Core.Services.Background/
+COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
+COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
+
+# Build release
+RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
+RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
+
+# Create runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
+RUN echo "alias l='ls -lah'" >> ~/.bashrc
+RUN echo "alias ll='ls -lh'" >> ~/.bashrc
+
+RUN apt-get update -q && \
+    apt-get install -yq \
+    curl \
+    less \
+    netcat-openbsd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/cli
+COPY --from=build /build/out/cli .
+
+WORKDIR /app/web
+COPY --from=build /build/out/web .
+
+EXPOSE 80
+EXPOSE 443
+
+ENV PATH="/app/cli:${PATH}"
+
+ENTRYPOINT ["dotnet", "Odin.Hosting.dll"]

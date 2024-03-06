@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Odin.NotariusTests"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../../core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj" />
+		<ProjectReference Include="../../core/Odin.Core.Storage/Odin.Core.Storage.csproj" />
+		<ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
+	</ItemGroup>
+</Project>
