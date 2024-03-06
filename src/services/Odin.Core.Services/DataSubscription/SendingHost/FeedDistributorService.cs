@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -50,11 +51,19 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
 
             var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
             ApiResponse<PeerTransferResponse> httpResponse = null;
-            
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
-                async () => { httpResponse = await client.DeleteFeedMetadata(request); });
+
+            try
+            {
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    async () => { httpResponse = await client.DeleteFeedMetadata(request); });
+            }
+            catch (TryRetryException e)
+            {
+                HandleTryRetryException(e);
+                throw;
+            }
 
             return IsSuccess(httpResponse);
         }
@@ -88,15 +97,23 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
                 },
                 FileMetadata = header.FileMetadata
             };
-            
+
             var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
 
             ApiResponse<PeerTransferResponse> httpResponse = null;
-            
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
-                async () => { httpResponse = await client.SendFeedFileMetadata(request); });
+
+            try
+            {
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    async () => { httpResponse = await client.SendFeedFileMetadata(request); });
+            }
+            catch (TryRetryException e)
+            {
+                HandleTryRetryException(e);
+                throw;
+            }
 
             return IsSuccess(httpResponse);
         }
@@ -110,6 +127,15 @@ namespace Odin.Core.Services.DataSubscription.SendingHost
             }
 
             return false;
+        }
+
+        private void HandleTryRetryException(TryRetryException ex)
+        {
+            var e = ex.InnerException;
+            if (e is TaskCanceledException || e is HttpRequestException || e is OperationCanceledException)
+            {
+                throw new OdinClientException("Failed while calling remote identity", e);
+            }
         }
     }
 }
