@@ -413,7 +413,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
             else
             {
-                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
+                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
                             $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
             }
 
@@ -799,7 +799,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(aclAnyOf))
             {
-                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
+                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
                                  $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
             }
             else
