@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="../../services/Odin.Core.Services/Odin.Core.Services.csproj" />
+      <ProjectReference Include="..\..\services\Odin.Services\Odin.Services.csproj" />
     </ItemGroup>
 
 </Project>

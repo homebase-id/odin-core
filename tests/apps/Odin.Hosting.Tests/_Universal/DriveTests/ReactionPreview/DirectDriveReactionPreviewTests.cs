@@ -2,7 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Drives;
+using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.ReactionPreview;
 

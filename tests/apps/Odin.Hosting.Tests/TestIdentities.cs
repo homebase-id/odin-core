@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Odin.Core.Identity;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests
 {

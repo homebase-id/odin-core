@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.Certificate;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Registry;
+using Odin.Services.Certificate;
+using Odin.Services.Configuration;
+using Odin.Services.Registry;
 using Odin.Core.Util;
 using Serilog;
 

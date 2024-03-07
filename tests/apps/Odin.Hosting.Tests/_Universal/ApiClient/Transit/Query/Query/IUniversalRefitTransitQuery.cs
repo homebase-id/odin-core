@@ -1,12 +1,12 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Apps;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
+using Odin.Services.Apps;
+using Odin.Services.Base;
+using Odin.Services.Drives;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Transit.Query.Query

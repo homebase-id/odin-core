@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Services.Membership.Circles;
+using Odin.Services.Membership.Circles;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;

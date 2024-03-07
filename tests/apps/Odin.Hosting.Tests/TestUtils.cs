@@ -4,7 +4,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Peer.Encryption;
+using Odin.Services.Peer.Encryption;
 using Refit;
 
 namespace Odin.Hosting.Tests

@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Services.DataSubscription;
-using Odin.Core.Services.DataSubscription.Follower;
-using Odin.Core.Services.DataSubscription.ReceivingHost;
+using Odin.Services.DataSubscription;
+using Odin.Services.DataSubscription.Follower;
+using Odin.Services.DataSubscription.ReceivingHost;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Follow;
 using Refit;

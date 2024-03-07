@@ -2,9 +2,9 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Apps.CommandMessaging;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Util;
+using Odin.Services.Apps.CommandMessaging;
+using Odin.Services.Base;
+using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Commands

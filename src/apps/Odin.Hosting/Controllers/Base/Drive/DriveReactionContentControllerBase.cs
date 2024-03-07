@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Services.Drives.Reactions;
+using Odin.Services.Drives.Reactions;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
 

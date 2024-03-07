@@ -2,11 +2,11 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Drives.Reactions;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Incoming.Drive.Reactions;
-using Odin.Core.Services.Peer.Incoming.Reactions;
-using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Drives.Reactions;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Incoming.Drive.Reactions;
+using Odin.Services.Peer.Incoming.Reactions;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 

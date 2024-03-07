@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Configuration;
+using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {

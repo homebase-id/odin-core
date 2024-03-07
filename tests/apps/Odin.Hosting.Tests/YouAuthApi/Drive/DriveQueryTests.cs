@@ -6,16 +6,16 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives;
 using Refit;
-using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
+using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.YouAuthApi.Drive
 {

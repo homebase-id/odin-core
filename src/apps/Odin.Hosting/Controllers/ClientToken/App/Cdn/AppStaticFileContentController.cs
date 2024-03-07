@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Optimization.Cdn;
+using Odin.Services.Optimization.Cdn;
 using Odin.Hosting.Controllers.Base.Cdn;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Cdn

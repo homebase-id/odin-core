@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
-using Odin.Core.Services.Peer.Incoming;
-using Odin.Core.Services.Peer.Incoming.Drive;
-using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Incoming;
+using Odin.Services.Peer.Incoming.Drive;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;

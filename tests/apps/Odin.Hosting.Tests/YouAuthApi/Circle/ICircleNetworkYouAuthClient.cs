@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Membership.Connections;
+using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;

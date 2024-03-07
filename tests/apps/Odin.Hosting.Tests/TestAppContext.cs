@@ -1,8 +1,8 @@
 ﻿using System;
 using Odin.Core.Identity;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Drives;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests
 {

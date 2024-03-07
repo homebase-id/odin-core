@@ -1,14 +1,10 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Background.FeedDistributionApp;
 using Odin.Hosting.Authentication.System;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.Utils;
-using Quartz;
-using Quartz.Impl;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;

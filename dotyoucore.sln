@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "solution-items", "solution-
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		global.json = global.json
+		docker\Dockerfile-identity-host = docker\Dockerfile-identity-host
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2FCDE163-B192-46E2-8998-5FB233A01C5C}"
@@ -33,9 +34,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Cryptography", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Storage", "src\core\Odin.Core.Storage\Odin.Core.Storage.csproj", "{EB8FD81B-E8F6-402F-8AF4-14315F8B32B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services", "src\services\Odin.Core.Services\Odin.Core.Services.csproj", "{808E0023-DEC8-4098-8240-287D65C8C458}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Services", "src\services\Odin.Services\Odin.Services.csproj", "{808E0023-DEC8-4098-8240-287D65C8C458}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services.Background", "src\services\Odin.Core.Services.Background\Odin.Core.Services.Background.csproj", "{A147B8A1-A39E-4A84-AD2D-E97B48D5619F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Services.Background", "src\services\Odin.Services.Background\Odin.Services.Background.csproj", "{A147B8A1-A39E-4A84-AD2D-E97B48D5619F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Hosting", "src\apps\Odin.Hosting\Odin.Hosting.csproj", "{DF1CF9B6-E1DD-42BE-B680-42ECB483DA26}"
 EndProject
@@ -47,7 +48,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChain", "src\apps\O
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Cli", "src\apps\Odin.Cli\Odin.Cli.csproj", "{F19329D7-E475-40CF-AEBE-6DB2AE6F1351}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Attestation.Service", "src\apps\Odin.Attestation.Service\Odin.Attestation.Service.csproj", "{BBA87A99-3BF1-470F-9064-5EBDADD95A72}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Attestation", "src\apps\Odin.Attestation\Odin.Attestation.csproj", "{BBA87A99-3BF1-470F-9064-5EBDADD95A72}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YouAuthClientReferenceImplementation", "src\apps\YouAuthClientReferenceImplementation\YouAuthClientReferenceImplementation.csproj", "{3002CBE8-802F-483A-AA8B-8FF23D152B00}"
 EndProject
@@ -59,7 +60,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Storage.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Cryptography.Tests", "tests\core\Odin.Core.Cryptography.Tests\Odin.Core.Cryptography.Tests.csproj", "{53DF7B34-458C-4169-9610-5F88F8DF4717}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services.Tests", "tests\services\Odin.Core.Services.Tests\Odin.Core.Services.Tests.csproj", "{BA647B99-791C-4D16-BAF1-BC76FFEE3E12}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Services.Tests", "tests\services\Odin.Services.Tests\Odin.Services.Tests.csproj", "{BA647B99-791C-4D16-BAF1-BC76FFEE3E12}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Hosting.Tests", "tests\apps\Odin.Hosting.Tests\Odin.Hosting.Tests.csproj", "{3FE64F07-B141-4F71-8ED1-B8393B6A16F9}"
 EndProject

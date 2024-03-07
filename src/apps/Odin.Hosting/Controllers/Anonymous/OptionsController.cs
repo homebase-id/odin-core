@@ -1,8 +1,8 @@
 ﻿#nullable enable
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Base;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Base;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.App;

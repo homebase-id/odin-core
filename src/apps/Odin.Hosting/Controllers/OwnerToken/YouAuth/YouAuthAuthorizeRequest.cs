@@ -1,7 +1,7 @@
 using System;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;

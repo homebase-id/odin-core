@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Base64 = Org.BouncyCastle.Utilities.Encoders.Base64;
 
 namespace YouAuthClientReferenceImplementation.Controllers;

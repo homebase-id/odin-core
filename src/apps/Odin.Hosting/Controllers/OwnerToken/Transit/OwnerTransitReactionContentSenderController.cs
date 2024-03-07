@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.Outgoing;
-using Odin.Core.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Peer.Outgoing;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.Base.Transit;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit

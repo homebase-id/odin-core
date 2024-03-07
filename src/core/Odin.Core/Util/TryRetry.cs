@@ -5,6 +5,9 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util;
 
+// In TryRetry CancellationToken parameters must be explicit and action should always be last parameter
+#pragma warning disable CA1068
+
 public static class TryRetry
 {
     private static readonly TimeSpan DefaultExponentialMs = TimeSpan.FromMilliseconds(100);
@@ -14,22 +17,38 @@ public static class TryRetry
     // SYNC
     //
 
-    public static int WithDelay(int attempts, TimeSpan delay, Action action)
+    public static int WithDelay(
+        int attempts,
+        TimeSpan delay,
+        CancellationToken cancellationToken,
+        Action action)
     {
-        return WithDelay<Exception>(attempts, (delay, delay), action);
+        return WithDelay<Exception>(attempts, (delay, delay), cancellationToken, action);
     }
 
-    public static int WithDelay(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action)
+    public static int WithDelay(
+        int attempts,
+        ValueTuple<TimeSpan, TimeSpan> randomDelay,
+        CancellationToken cancellationToken,
+        Action action)
     {
-        return WithDelay<Exception>(attempts, randomDelay, action);
+        return WithDelay<Exception>(attempts, randomDelay, cancellationToken, action);
     }
 
-    public static int WithDelay<T>(int attempts, TimeSpan delay, Action action) where T : Exception
+    public static int WithDelay<T>(
+        int attempts,
+        TimeSpan delay,
+        CancellationToken cancellationToken,
+        Action action) where T : Exception
     {
-        return WithDelay<T>(attempts, (delay, delay), action);
+        return WithDelay<T>(attempts, (delay, delay), cancellationToken, action);
     }
 
-    public static int WithDelay<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Action action) where T : Exception
+    public static int WithDelay<T>(
+        int attempts,
+        ValueTuple<TimeSpan, TimeSpan> randomDelay,
+        CancellationToken cancellationToken,
+        Action action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -44,6 +63,8 @@ public static class TryRetry
         var attempt = 0;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             attempt++;
             try
             {
@@ -64,22 +85,36 @@ public static class TryRetry
 
     }
 
-    public static int WithBackoff(int attempts, Action action)
+    public static int WithBackoff(
+        int attempts,
+        Action action,
+        CancellationToken cancellationToken)
     {
-        return WithBackoff<Exception>(attempts, DefaultExponentialMs, action);
+        return WithBackoff<Exception>(attempts, DefaultExponentialMs, cancellationToken, action);
     }
 
-    public static int WithBackoff<T>(int attempts, Action action) where T : Exception
+    public static int WithBackoff<T>(
+        int attempts,
+        CancellationToken cancellationToken,
+        Action action) where T : Exception
     {
-        return WithBackoff<T>(attempts, DefaultExponentialMs, action);
+        return WithBackoff<T>(attempts, DefaultExponentialMs, cancellationToken, action);
     }
 
-    public static int WithBackoff(int attempts, TimeSpan exponentialBackoff, Action action)
+    public static int WithBackoff(
+        int attempts,
+        TimeSpan exponentialBackoff,
+        CancellationToken cancellationToken,
+        Action action)
     {
-        return WithBackoff<Exception>(attempts, exponentialBackoff, action);
+        return WithBackoff<Exception>(attempts, exponentialBackoff, cancellationToken, action);
     }
 
-    public static int WithBackoff<T>(int attempts, TimeSpan exponentialBackoff, Action action) where T : Exception
+    public static int WithBackoff<T>(
+        int attempts,
+        TimeSpan exponentialBackoff,
+        CancellationToken cancellationToken,
+        Action action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -89,6 +124,8 @@ public static class TryRetry
         var attempt = 0;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             attempt++;
             try
             {
@@ -111,22 +148,38 @@ public static class TryRetry
     // ASYNC
     //
 
-    public static Task<int> WithDelayAsync(int attempts, TimeSpan delay, Func<Task> action)
+    public static Task<int> WithDelayAsync(
+        int attempts,
+        TimeSpan delay,
+        CancellationToken cancellationToken,
+        Func<Task> action)
     {
-        return WithDelayAsync<Exception>(attempts, (delay, delay), action);
+        return WithDelayAsync<Exception>(attempts, (delay, delay), cancellationToken, action);
     }
 
-    public static Task<int> WithDelayAsync(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action)
+    public static Task<int> WithDelayAsync(
+        int attempts,
+        ValueTuple<TimeSpan, TimeSpan> randomDelay,
+        CancellationToken cancellationToken,
+        Func<Task> action)
     {
-        return WithDelayAsync<Exception>(attempts, randomDelay, action);
+        return WithDelayAsync<Exception>(attempts, randomDelay, cancellationToken, action);
     }
 
-    public static Task<int> WithDelayAsync<T>(int attempts, TimeSpan delay, Func<Task> action) where T : Exception
+    public static Task<int> WithDelayAsync<T>(
+        int attempts,
+        TimeSpan delay,
+        CancellationToken cancellationToken,
+        Func<Task> action) where T : Exception
     {
-        return WithDelayAsync<T>(attempts, (delay, delay), action);
+        return WithDelayAsync<T>(attempts, (delay, delay), cancellationToken, action);
     }
 
-    public static async Task<int> WithDelayAsync<T>(int attempts, ValueTuple<TimeSpan, TimeSpan> randomDelay, Func<Task> action) where T : Exception
+    public static async Task<int> WithDelayAsync<T>(
+        int attempts,
+        ValueTuple<TimeSpan, TimeSpan> randomDelay,
+        CancellationToken cancellationToken,
+        Func<Task> action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -141,6 +194,8 @@ public static class TryRetry
         var attempt = 0;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             attempt++;
             try
             {
@@ -155,27 +210,41 @@ public static class TryRetry
                 }
                 var delay1 = (int)randomDelay.Item1.TotalMilliseconds;
                 var delay2 = (int)randomDelay.Item2.TotalMilliseconds;
-                await Task.Delay(Random.Next(delay1, delay2));
+                await Task.Delay(Random.Next(delay1, delay2), cancellationToken);
             }
         }
     }
 
-    public static Task<int> WithBackoffAsync(int attempts, Func<Task> action)
+    public static Task<int> WithBackoffAsync(
+        int attempts,
+        CancellationToken cancellationToken,
+        Func<Task> action)
     {
-        return WithBackoffAsync<Exception>(attempts, DefaultExponentialMs, action);
+        return WithBackoffAsync<Exception>(attempts, DefaultExponentialMs, cancellationToken, action);
     }
 
-    public static Task<int> WithBackoffAsync<T>(int attempts, Func<Task> action) where T : Exception
+    public static Task<int> WithBackoffAsync<T>(
+        int attempts,
+        CancellationToken cancellationToken,
+        Func<Task> action) where T : Exception
     {
-        return WithBackoffAsync<T>(attempts, DefaultExponentialMs, action);
+        return WithBackoffAsync<T>(attempts, DefaultExponentialMs, cancellationToken, action);
     }
 
-    public static Task<int> WithBackoffAsync(int attempts, TimeSpan exponentialBackoff, Func<Task> action)
+    public static Task<int> WithBackoffAsync(
+        int attempts,
+        TimeSpan exponentialBackoff,
+        CancellationToken cancellationToken,
+        Func<Task> action)
     {
-        return WithBackoffAsync<Exception>(attempts, exponentialBackoff, action);
+        return WithBackoffAsync<Exception>(attempts, exponentialBackoff, cancellationToken, action);
     }
 
-    public static async Task<int> WithBackoffAsync<T>(int attempts, TimeSpan exponentialBackoff, Func<Task> action) where T : Exception
+    public static async Task<int> WithBackoffAsync<T>(
+        int attempts,
+        TimeSpan exponentialBackoff,
+        CancellationToken cancellationToken,
+        Func<Task> action) where T : Exception
     {
         if (attempts < 1)
         {
@@ -185,6 +254,8 @@ public static class TryRetry
         var attempt = 0;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             attempt++;
             try
             {
@@ -198,7 +269,7 @@ public static class TryRetry
                     throw new TryRetryException($"{e.Message} (giving up after {attempts} attempt(s))", e);
                 }
                 var ms = (int)(Math.Pow(2, attempt - 1) * exponentialBackoff.TotalMilliseconds);
-                await Task.Delay(ms);
+                await Task.Delay(ms, cancellationToken);
             }
         }
     }
@@ -206,5 +277,6 @@ public static class TryRetry
     //
 
 }
+#pragma warning restore CA1068
 
 public class TryRetryException(string message, Exception innerException) : OdinSystemException(message, innerException);

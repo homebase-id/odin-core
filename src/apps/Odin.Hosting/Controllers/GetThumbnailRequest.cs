@@ -1,7 +1,7 @@
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Peer;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer;
 
 namespace Odin.Hosting.Controllers;
 

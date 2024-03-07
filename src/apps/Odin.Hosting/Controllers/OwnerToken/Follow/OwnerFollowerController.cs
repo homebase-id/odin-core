@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Hosting.Controllers.Base.Follow;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Follow

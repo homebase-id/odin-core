@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Admin;
-using Odin.Core.Services.Admin.Tenants;
+using Odin.Services.Admin;
+using Odin.Services.Admin.Tenants;
 using Odin.Hosting.Controllers.Job;
 
 namespace Odin.Hosting.Controllers.Admin;

@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Pkcs;

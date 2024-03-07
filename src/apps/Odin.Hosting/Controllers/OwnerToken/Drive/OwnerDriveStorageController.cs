@@ -4,12 +4,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Base;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Drive;
 using Swashbuckle.AspNetCore.Annotations;
 

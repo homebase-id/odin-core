@@ -1,8 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Authentication.System;
 
 namespace Odin.Hosting.Controllers.System

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;

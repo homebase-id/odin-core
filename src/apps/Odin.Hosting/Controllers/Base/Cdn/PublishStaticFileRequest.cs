@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Odin.Core.Services.Optimization.Cdn;
+using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Hosting.Controllers.Base.Cdn;
 

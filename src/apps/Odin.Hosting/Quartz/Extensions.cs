@@ -1,9 +1,9 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Services.Background.Certificate;
-using Odin.Core.Services.Background.DefaultCron;
-using Odin.Core.Services.Quartz;
+using Odin.Services.Background.Certificate;
+using Odin.Services.Background.DefaultCron;
+using Odin.Services.Quartz;
 using Quartz;
 
 namespace Odin.Hosting.Quartz;

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.YouAuth;
-using Odin.Core.Services.Util;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.YouAuth;
+using Odin.Services.Util;
 using Odin.Core.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
