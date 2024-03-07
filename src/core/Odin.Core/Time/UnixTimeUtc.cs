@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using NodaTime;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Time
 {
@@ -10,7 +11,11 @@ namespace Odin.Core.Time
     {
         public override UnixTimeUtc Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var value = reader.GetInt64();
+            if (!reader.TryGetInt64(out var value))
+            {
+                throw new OdinClientException("Invalid UnixTimeUtc value");
+            }
+            
             return new UnixTimeUtc(value);
         }
 
@@ -19,12 +24,16 @@ namespace Odin.Core.Time
             writer.WriteNumberValue(value.milliseconds);
         }
     }
-    
+
     public class UnixTimeUtcUniqueConverter : JsonConverter<UnixTimeUtcUnique>
     {
         public override UnixTimeUtcUnique Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var value = reader.GetInt64();
+            if (!reader.TryGetInt64(out var value))
+            {
+                throw new OdinClientException("Invalid UnixTimeUtc value");
+            }
+
             return new UnixTimeUtcUnique(value);
         }
 

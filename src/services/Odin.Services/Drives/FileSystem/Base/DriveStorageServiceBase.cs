@@ -480,7 +480,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
 
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
-            newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            
+            //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
+            if (existingServerHeader.FileMetadata.GlobalTransitId != null)
+            {
+                newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            }
+
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
 

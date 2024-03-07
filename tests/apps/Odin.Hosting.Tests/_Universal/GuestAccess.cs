@@ -13,32 +13,23 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class GuestAccess : IApiClientContext
+public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, TestPermissionKeyList keys = null)
+    : IApiClientContext
 {
-    private readonly string _odinId;
-    private readonly List<DriveGrantRequest> _driveGrants;
-    private readonly TestPermissionKeyList _keys;
     private GuestApiClientFactory _factory;
-
-    public GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, TestPermissionKeyList keys = null)
-    {
-        _odinId = odinId;
-        _driveGrants = driveGrants;
-        _keys = keys;
-    }
 
     public TargetDrive TargetDrive { get; } = default;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
-        var domain = new AsciiDomainName(_odinId);
+        var domain = new AsciiDomainName(odinId);
 
         var circleId = Guid.NewGuid();
         await ownerApiClient.Network.CreateCircle(circleId, "Circle with valid permissions",
             new PermissionSetGrantRequest()
             {
-                Drives = _driveGrants,
-                PermissionSet = new PermissionSet(_keys.PermissionKeys)
+                Drives = driveGrants,
+                PermissionSet = new PermissionSet(keys.PermissionKeys)
             });
 
         var circles = new List<GuidId>() { circleId };
