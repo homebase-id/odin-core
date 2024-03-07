@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit.Query;
 
 public interface IRefitOwnerTransitQuery
 {
-    private const string RootEndpoint = OwnerApiPathConstants.TransitQueryV1;
+    private const string RootEndpoint = OwnerApiPathConstants.PeerQueryV1;
 
 
     [Post(RootEndpoint + "/modified")]

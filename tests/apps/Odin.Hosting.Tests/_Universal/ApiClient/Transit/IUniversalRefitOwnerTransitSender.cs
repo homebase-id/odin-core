@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Peer.Outgoing;
 using Odin.Core.Services.Peer.Outgoing.Drive;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
@@ -13,7 +12,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
     /// </summary>
     public interface IUniversalRefitOwnerTransitSender
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitSenderV1;
+        private const string RootEndpoint = OwnerApiPathConstants.PeerSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]

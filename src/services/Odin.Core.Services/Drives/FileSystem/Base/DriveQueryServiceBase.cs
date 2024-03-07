@@ -211,7 +211,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 if (!hasPermissionToFile)
                 {
                     Log.Warning(
-                        "Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
+                        "Caller with OdinId [{odinId}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
                         ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
                 }
                 else

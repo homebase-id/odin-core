@@ -10,7 +10,7 @@ using Odin.Hosting.Controllers.Base.Transit;
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitV1 + "/inbox/processor")]
+    [Route(OwnerApiPathConstants.PeerV1 + "/inbox/processor")]
     [AuthorizeValidOwnerToken]
     public class OwnerTransitProcessController(TransitInboxProcessor transitInboxProcessor) : TransitProcessControllerBase(transitInboxProcessor);
 }

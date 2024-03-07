@@ -46,7 +46,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var batch = await perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+            var options = request.ResultOptionsRequest ?? QueryBatchResultOptionsRequest.Default;
+            var batch = await perimeterService.QueryBatch(request.QueryParams, options.ToQueryBatchResultOptions());
             return QueryBatchResponse.FromResult(batch);
         }
 

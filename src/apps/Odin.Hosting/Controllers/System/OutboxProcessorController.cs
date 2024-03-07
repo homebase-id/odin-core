@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.System
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitV1 + "/outbox/processor")]
+    [Route(OwnerApiPathConstants.PeerV1 + "/outbox/processor")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(IPeerOutgoingTransferService peerOutgoingTransfer) : ControllerBase
     {

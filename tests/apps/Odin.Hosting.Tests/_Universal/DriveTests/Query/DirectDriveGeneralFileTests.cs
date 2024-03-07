@@ -12,9 +12,11 @@ using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.ApiClient.Transit.Query.Query;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Query;
 
@@ -42,8 +44,6 @@ public class DirectDriveQueryTests
     [Test]
     public async Task QueryBatchEnforcesPermissions()
     {
-        // Setup
-
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
@@ -59,11 +59,11 @@ public class DirectDriveQueryTests
             [
                 new DriveGrantRequest()
                 {
-                    PermissionedDrive = new PermissionedDrive() { Drive = targetDrive, Permission = DrivePermission.Read },
+                    PermissionedDrive = new() { Drive = targetDrive, Permission = DrivePermission.Read },
                 },
             ]
         });
-        
+
         var hobbitsCircle = Guid.NewGuid();
         await frodoOwnerClient.Network.CreateCircle(hobbitsCircle, "Hobbits", new PermissionSetGrantRequest()
         {
@@ -71,7 +71,7 @@ public class DirectDriveQueryTests
             [
                 new DriveGrantRequest()
                 {
-                    PermissionedDrive = new PermissionedDrive() { Drive = targetDrive, Permission = DrivePermission.Read },
+                    PermissionedDrive = new() { Drive = targetDrive, Permission = DrivePermission.Read },
                 },
             ]
         });
@@ -95,7 +95,6 @@ public class DirectDriveQueryTests
         // var file2UploadResult = await UploadAndValidate(file2, targetDrive);
 
         // Act
-
         var query = new QueryBatchRequest()
         {
             QueryParams = new FileQueryParams()
@@ -110,47 +109,69 @@ public class DirectDriveQueryTests
             }
         };
 
+        var peerQueryBatchReqeust = new PeerQueryBatchRequest()
+        {
+            OdinId = TestIdentities.Frodo.OdinId,
+            QueryParams = query.QueryParams,
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        };
+
         // Assert
+        // Sam queries frodo over peer (as he would from his owner feed)
+        var samOwnerClientQueryResponse = await samOwnerClient.PeerQuery.GetBatch(peerQueryBatchReqeust);
+        Assert.IsTrue(samOwnerClientQueryResponse.IsSuccessStatusCode);
+        Assert.IsTrue(samOwnerClientQueryResponse.Content.SearchResults.Count() == 1);
+        
+        // Pippin queries frodo over peer (as he would from his owner feed)
+        var pippinOwnerClientQueryResponse = await pippinOwnerClient.PeerQuery.GetBatch(peerQueryBatchReqeust);
+        Assert.IsTrue(pippinOwnerClientQueryResponse.IsSuccessStatusCode);
+        Assert.IsTrue(pippinOwnerClientQueryResponse.Content.SearchResults.Count() == 0);
+        
+        // Merry queries frodo over peer (as he would from his owner feed)
+        var merryOwnerClientQueryResponse = await merryOwnerClient.PeerQuery.GetBatch(peerQueryBatchReqeust);
+        Assert.IsTrue(merryOwnerClientQueryResponse.IsSuccessStatusCode);
+        Assert.IsTrue(merryOwnerClientQueryResponse.Content.SearchResults.Count() == 0);
+        
+        //
+        // // Sam Queries pippin; should get both files
+        // var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, frodoOwnerClient, targetDrive);
+        // var samDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, samGuestTokenFactory);
+        // var samQueryResults = await samDriveClient.QueryBatch(query);
+        // Assert.IsTrue(samQueryResults.IsSuccessStatusCode);
+        // Assert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
+        //
+        // // Merry queries Pippin; should get file2 only
+        // var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, frodoOwnerClient, targetDrive);
+        // var merryDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, merryGuestTokenFactory);
+        // var merryQueryResults = await merryDriveClient.QueryBatch(query);
+        // Assert.IsTrue(merryQueryResults.IsSuccessStatusCode);
+        // Assert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
 
-        // Sam Queries pippin; should get both files
-        var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, frodoOwnerClient, targetDrive);
-        var samDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, samGuestTokenFactory);
-        var samQueryResults = await samDriveClient.QueryBatch(query);
-        Assert.IsTrue(samQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
-
-        // Merry queries Pippin; should get file2 only
-        var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, frodoOwnerClient, targetDrive);
-        var merryDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, merryGuestTokenFactory);
-        var merryQueryResults = await merryDriveClient.QueryBatch(query);
-        Assert.IsTrue(merryQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
         //
     }
 
-    private async Task<IApiClientFactory> CreateGuestTokenFactory(TestIdentity guestIdentity, OwnerApiClientRedux client, TargetDrive targetDrive)
+    private async Task<IApiClientFactory> CreateGuestTokenFactory(TestIdentity guestIdentity, OwnerApiClientRedux ownerClient, TargetDrive targetDrive)
     {
         var driveGrants = new List<DriveGrantRequest>()
         {
             new()
             {
-                PermissionedDrive = new PermissionedDrive()
+                PermissionedDrive = new()
                 {
                     Drive = targetDrive,
                     Permission = DrivePermission.Read
                 }
             }
         };
-        // Login to Frodo's identity as Sam
-        var frodoCallerContextOnSam = new GuestAccess(guestIdentity.OdinId, driveGrants, new TestPermissionKeyList());
-        await frodoCallerContextOnSam.Initialize(client);
 
+        var frodoCallerContextOnSam = new GuestAccess(guestIdentity.OdinId, driveGrants, new TestPermissionKeyList());
+        await frodoCallerContextOnSam.Initialize(ownerClient);
         return frodoCallerContextOnSam.GetFactory();
     }
 
     private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)
     {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var response1 = await client.DriveRedux.UploadNewMetadata(targetDrive, f1);
         Assert.IsTrue(response1.IsSuccessStatusCode);
         var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response1.Content!.File);

@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
     /// </summary>
     public interface IUniversalRefitOwnerTransitReaction
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitReactionContentV1;
+        private const string RootEndpoint = OwnerApiPathConstants.PeerReactionContentV1;
 
         [Post(RootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] TransitAddReactionRequest request);

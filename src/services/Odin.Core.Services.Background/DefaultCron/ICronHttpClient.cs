@@ -7,7 +7,7 @@ namespace Odin.Core.Services.Background.DefaultCron
 {
     public interface ICronHttpClient
     {
-        private const string TransitRootEndpoint = $"{OwnerApiPathConstants.TransitV1}/outbox/processor";
+        private const string TransitRootEndpoint = $"{OwnerApiPathConstants.PeerV1}/outbox/processor";
 
         [Post(TransitRootEndpoint + "/process")]
         Task<ApiResponse<HttpContent>> ProcessOutbox();
