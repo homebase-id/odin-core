@@ -210,9 +210,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Warning(
-                        "Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
-                        ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
+                    throw new OdinSystemException($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive" +
+                                                  $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
                 }
                 else
                 {
@@ -251,7 +250,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-
                         var drive = await DriveManager.GetDrive(file.DriveId);
                         Log.Debug("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
@@ -261,7 +259,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                             serverFileHeader.FileMetadata.IsEncrypted,
                             ContextAccessor.GetCurrent().AuthContext,
                             file.FileId,
-                            drive.Name, 
+                            drive.Name,
                             drive.AllowAnonymousReads,
                             drive.TargetDriveInfo.Alias.Value.ToString(),
                             drive.TargetDriveInfo.Type.Value.ToString());
