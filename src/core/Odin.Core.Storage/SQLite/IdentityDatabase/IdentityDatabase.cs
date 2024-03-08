@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using static NodaTime.TimeZones.ZoneEqualityComparer;
 
 
 /*
@@ -407,14 +408,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             listWhereAnd.Add($"(fileSystemType == {fileSystemType})");
 
+            //
+            // An ACL for a file is the required security group and optional list of circles
+            //   This means that we first check for the security group, must match
+            //   We then also check if EITHER there is a circle matching anyOf the circles provided
+            //   OR if there are no circles defined for the fileId in question (the NOT IN check).
+            //
             if (aclAnyOf == null)
             {
                 listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
             }
             else
             {
-                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                            $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
+                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
+                            $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                             "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))");
+                // Think we have some optimization work pending here 8-/
             }
 
             if (IsSet(fileStateAnyOf))
@@ -792,15 +801,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
             }
 
-            // if (IsSet(aclAnyOf))
-            // {
-            //     strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})) ";
-            // }
-
             if (IsSet(aclAnyOf))
             {
-                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                                 $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
+                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " + 
+                            $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                             "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))";
             }
             else
             {
