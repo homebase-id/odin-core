@@ -1,5 +1,5 @@
 using Odin.Core;
-using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Tests
 {

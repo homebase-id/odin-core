@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Services.Apps.CommandMessaging;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.App.Commands;

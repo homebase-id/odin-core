@@ -1,5 +1,5 @@
 using System;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Controllers;

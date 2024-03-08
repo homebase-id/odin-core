@@ -2,11 +2,11 @@
 // using System.Reflection;
 // using System.Threading.Tasks;
 // using NUnit.Framework;
-// using Odin.Core.Services.Authorization.Acl;
-// using Odin.Core.Services.DataSubscription.Follower;
-// using Odin.Core.Services.Drive;
-// using Odin.Core.Services.Transit;
-// using Odin.Core.Services.Transit.Upload;
+// using Odin.Services.Authorization.Acl;
+// using Odin.Services.DataSubscription.Follower;
+// using Odin.Services.Drive;
+// using Odin.Services.Transit;
+// using Odin.Services.Transit.Upload;
 // using Odin.Hosting.Tests.OwnerApi.ApiClient;
 //
 // namespace Odin.Hosting.Tests.OwnerApi.Reactions;

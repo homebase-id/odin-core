@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core.Services.Drives.DriveCore.Storage;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 
 namespace Odin.Hosting.Tests;

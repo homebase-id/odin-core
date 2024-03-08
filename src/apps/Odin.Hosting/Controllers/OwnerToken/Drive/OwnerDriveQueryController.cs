@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Drives;
+using Odin.Services.Drives;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
-using Odin.Core.Services.Authentication.Owner;
+using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.Base.Drive;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive

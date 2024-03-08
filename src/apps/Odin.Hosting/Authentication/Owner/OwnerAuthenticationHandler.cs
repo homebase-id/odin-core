@@ -15,12 +15,12 @@ using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Authorization;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Mediator.Owner;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Mediator.Owner;
 using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Authentication.Owner

@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Quartz;
+using Odin.Services.Quartz;
 
 namespace Odin.Hosting.Controllers.Job;
 #nullable enable

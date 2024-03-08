@@ -18,11 +18,11 @@ using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
-using Odin.Core.Services.Certificate;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Registry;
-using Odin.Core.Services.Registry.Registration;
-using Odin.Core.Services.Tenant.Container;
+using Odin.Services.Certificate;
+using Odin.Services.Configuration;
+using Odin.Services.Registry;
+using Odin.Services.Registry.Registration;
+using Odin.Services.Tenant.Container;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
 

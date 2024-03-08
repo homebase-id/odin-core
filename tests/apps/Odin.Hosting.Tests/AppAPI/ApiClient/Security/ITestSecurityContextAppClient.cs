@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Odin.Core.Services.Base;
+using Odin.Services.Base;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Refit;

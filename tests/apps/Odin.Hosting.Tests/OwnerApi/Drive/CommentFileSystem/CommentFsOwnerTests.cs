@@ -2,8 +2,8 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem

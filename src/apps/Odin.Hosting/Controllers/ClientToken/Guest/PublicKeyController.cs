@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.EncryptionKeyService;
+using Odin.Services.EncryptionKeyService;
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]

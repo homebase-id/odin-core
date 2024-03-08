@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Drives.Management;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Refit;
 

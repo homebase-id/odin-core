@@ -1,14 +1,14 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Apps;
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Peer;
+using Odin.Services.Apps;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Peer;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;
-using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
+using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests.YouAuthApi.ApiClient.Drives
 {

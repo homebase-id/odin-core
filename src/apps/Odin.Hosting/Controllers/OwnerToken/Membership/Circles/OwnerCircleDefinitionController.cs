@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.CircleMembership;
-using Odin.Core.Services.Membership.Circles;
-using Odin.Core.Services.Membership.Connections;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Membership.Circles;
+using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Base.Membership.Circles;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles

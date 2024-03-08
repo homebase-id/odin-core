@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Configuration.Eula;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Configuration;
+using Odin.Services.Configuration.Eula;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration

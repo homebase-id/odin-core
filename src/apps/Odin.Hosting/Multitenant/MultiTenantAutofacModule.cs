@@ -1,7 +1,7 @@
 ﻿using Autofac;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Odin.Core.Services.Tenant;
+using Odin.Services.Tenant;
 
 #nullable enable
 namespace Odin.Hosting.Multitenant

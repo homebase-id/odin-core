@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 

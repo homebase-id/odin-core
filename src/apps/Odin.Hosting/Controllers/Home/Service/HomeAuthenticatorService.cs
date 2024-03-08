@@ -8,16 +8,16 @@ using MediatR;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Services.AppNotifications.ClientNotifications;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Membership;
-using Odin.Core.Services.Membership.CircleMembership;
-using Odin.Core.Services.Membership.Connections;
+using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Mediator;
+using Odin.Services.Membership;
+using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {

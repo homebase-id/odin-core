@@ -8,14 +8,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.DriveCore.Query;
-using Odin.Core.Services.Drives.FileSystem.Base;
-using Odin.Core.Services.Peer;
-using Odin.Core.Services.Peer.Outgoing.Drive.Transfer;
-using Odin.Core.Services.Util;
+using Odin.Services.Base;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
 
 namespace Odin.Hosting.Controllers.Base.Drive

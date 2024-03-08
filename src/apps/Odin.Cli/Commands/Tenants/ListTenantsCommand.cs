@@ -5,7 +5,7 @@ using Odin.Cli.Commands.Base;
 using Odin.Cli.Extensions;
 using Odin.Cli.Factories;
 using Odin.Core.Serialization;
-using Odin.Core.Services.Admin.Tenants;
+using Odin.Services.Admin.Tenants;
 using Spectre.Console;
 using Spectre.Console.Cli;
 

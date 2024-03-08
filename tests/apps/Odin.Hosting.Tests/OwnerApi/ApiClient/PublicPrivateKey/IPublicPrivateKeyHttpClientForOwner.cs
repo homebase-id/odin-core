@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Odin.Core.Services.EncryptionKeyService;
+using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Refit;

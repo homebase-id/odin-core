@@ -1,6 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Http;
-using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Authentication.YouAuth;
 

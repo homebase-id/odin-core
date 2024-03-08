@@ -5,10 +5,10 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
-using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
 namespace Odin.Hosting.Tests._Universal.Transit;

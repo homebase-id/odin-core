@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Peer.Incoming;
-using Odin.Core.Services.Peer.Incoming.Drive;
-using Odin.Core.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Core.Services.Util;
+using Odin.Services.Peer.Incoming;
+using Odin.Services.Peer.Incoming.Drive;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Transit
 {

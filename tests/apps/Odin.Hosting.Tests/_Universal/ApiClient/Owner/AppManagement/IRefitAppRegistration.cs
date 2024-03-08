@@ -3,8 +3,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Fluff;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Authorization.Apps;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Refit;
 

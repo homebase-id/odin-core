@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Services.Configuration;
+using Odin.Services.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;

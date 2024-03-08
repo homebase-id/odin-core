@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.Reactions;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken;

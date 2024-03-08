@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Services.Tenant;
+using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Middleware;
 

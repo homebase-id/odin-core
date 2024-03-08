@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authentication.Owner;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections

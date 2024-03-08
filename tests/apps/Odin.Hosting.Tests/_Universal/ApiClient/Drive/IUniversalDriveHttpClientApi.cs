@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Core.Services.Apps;
-using Odin.Core.Services.Base.SharedTypes;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Apps;
+using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
-using QueryModifiedRequest = Odin.Core.Services.Drives.QueryModifiedRequest;
+using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {

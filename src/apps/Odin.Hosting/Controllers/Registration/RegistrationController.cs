@@ -4,7 +4,7 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Registry.Registration;
+using Odin.Services.Registry.Registration;
 using Odin.Core.Util;
 using Odin.Hosting.ApiExceptions.Client;
 

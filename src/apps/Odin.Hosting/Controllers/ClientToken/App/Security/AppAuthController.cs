@@ -2,7 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authorization.Apps;
+using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Authentication.YouAuth;
 using Swashbuckle.AspNetCore.Annotations;
 

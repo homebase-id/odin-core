@@ -1,7 +1,7 @@
 #nullable enable
 using System;
 using Odin.Core.Identity;
-using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Controllers.Home.Service;
 

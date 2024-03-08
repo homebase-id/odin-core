@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Configuration;
+using Odin.Services.Configuration;
 
 
 namespace Odin.Hosting.Controllers.Anonymous;

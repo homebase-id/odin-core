@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Membership.Connections.Requests;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;

@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Drives.Management;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
