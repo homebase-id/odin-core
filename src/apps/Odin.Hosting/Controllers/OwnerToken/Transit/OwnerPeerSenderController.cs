@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
     /// <summary />
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitSenderV1)]
+    [Route(OwnerApiPathConstants.PeerSenderV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {

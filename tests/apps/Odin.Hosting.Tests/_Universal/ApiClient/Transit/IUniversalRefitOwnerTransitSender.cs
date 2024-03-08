@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
     /// </summary>
     public interface IUniversalRefitOwnerTransitSender
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitSenderV1;
+        private const string RootEndpoint = OwnerApiPathConstants.PeerSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]

@@ -210,9 +210,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
-                    Log.Warning(
-                        "Caller with OdinId [{odinid}] received the file from the drive search index but does not have read access to the file:{file} on drive:{drive}",
-                        ContextAccessor.GetCurrent().Caller.OdinId, file.FileId, file.DriveId);
+                    // throw new OdinSystemException($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive" +
+                    //                               $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
+                    Log.Error($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive" +
+                              $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
                 }
                 else
                 {
@@ -220,7 +221,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
 
-                    //Note: it is possible that an app can have read access to a drive that allows anonymous but the file is encrypted
+                    //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
                     if (shouldReceiveFile)
                     {
@@ -252,7 +253,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     else
                     {
                         var drive = await DriveManager.GetDrive(file.DriveId);
-                        Log.Error("Caller with OdinId [{odinid}] received the file from the drive search " +
+                        Log.Debug("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
                                   "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
                                   "[alias={driveAlias}, type={driveType}]",
@@ -260,7 +261,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                             serverFileHeader.FileMetadata.IsEncrypted,
                             ContextAccessor.GetCurrent().AuthContext,
                             file.FileId,
-                            drive.Name, 
+                            drive.Name,
                             drive.AllowAnonymousReads,
                             drive.TargetDriveInfo.Alias.Value.ToString(),
                             drive.TargetDriveInfo.Type.Value.ToString());
