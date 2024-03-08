@@ -1,4 +1,4 @@
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
 public enum JobStatus
 {

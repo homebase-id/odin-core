@@ -1,7 +1,7 @@
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
 #nullable enable
 

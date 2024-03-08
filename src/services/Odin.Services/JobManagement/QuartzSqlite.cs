@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
 public static class QuartzSqlite
 {

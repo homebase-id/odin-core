@@ -9,18 +9,19 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Quartz;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Services.Background.FeedDistributionApp;
+using Odin.Services.JobManagement;
 using Quartz;
 
 namespace Odin.Services.Background.DefaultCron;
 
-public class DefaultCronScheduler(
-    ILogger<DefaultCronScheduler> logger,
-    OdinConfiguration odinConfig) : AbstractJobScheduler
+public class DefaultCronSchedule(
+    ILogger<DefaultCronSchedule> logger,
+    OdinConfiguration odinConfig) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = "DefaultCron";
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

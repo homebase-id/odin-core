@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 
 namespace Odin.Hosting.Controllers.Job;
 #nullable enable
@@ -42,7 +42,7 @@ public class JobController : ControllerBase
     [HttpGet("/api/job/v1/dummy")]
     public async Task<ActionResult> JobTest()
     {
-        var scheduler = new DummyScheduler("Hello, World!");
+        var scheduler = new DummySchedule("Hello, World!");
         var jobKey = await _jobManager.Schedule<DummyJob>(scheduler);
         return AcceptedAtRoute(GetJobResponseRouteName, new { jobKey });
     }

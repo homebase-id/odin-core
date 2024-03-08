@@ -1,53 +1,39 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 #nullable enable
 
-public class JobListener : IJobListener
+public class JobListener(
+    IServiceProvider serviceProvider,
+    ILogger<JobListener> logger,
+    ILoggerFactory loggerFactory,
+    ICorrelationContext correlationContext)
+    : IJobListener
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<JobListener> _logger;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly IJobManager _jobManager;
-    private readonly ICorrelationContext _correlationContext;
-
-    public JobListener(
-        IServiceProvider serviceProvider,
-        ILogger<JobListener> logger,
-        IJobManager jobManager,
-        ILoggerFactory loggerFactory,
-        ICorrelationContext correlationContext)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        _jobManager = jobManager;
-        _loggerFactory = loggerFactory;
-        _correlationContext = correlationContext;
-    }
-
     //
 
     public async Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken)
     {
-        context.ApplyCorrelationId(_correlationContext);
+        context.ApplyCorrelationId(correlationContext);
 
         var job = context.JobDetail;
         var jobData = job.JobDataMap;
 
-        _logger.LogDebug("Job {JobKey} starting", job.Key);
+        logger.LogDebug("Job {JobKey} starting", job.Key);
         if (job.Durable)
         {
             jobData[JobConstants.StatusKey] = JobConstants.StatusValueStarted;
             await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
         }
 
-        await context.ExecuteJobEvent(_serviceProvider, JobStatus.Started);
+        await context.ExecuteJobEvent(serviceProvider, JobStatus.Started);
     }
 
     //
@@ -57,14 +43,14 @@ public class JobListener : IJobListener
         JobExecutionException? jobException,
         CancellationToken cancellationToken)
     {
-        context.ApplyCorrelationId(_correlationContext);
+        context.ApplyCorrelationId(correlationContext);
 
         var job = context.JobDetail;
         var jobData = job.JobDataMap;
 
         if (jobException == null)
         {
-            _logger.LogDebug("Job {JobKey} completed", job.Key);
+            logger.LogDebug("Job {JobKey} completed", job.Key);
 
             if (job.Durable)
             {
@@ -72,12 +58,9 @@ public class JobListener : IJobListener
                 await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
             }
 
-            if (jobData.TryGetString(JobConstants.CompletedRetentionSecondsKey, out var retention) && retention != null)
-            {
-                await ScheduleJobDeletion(job.Key, long.Parse(retention));
-            }
+            await ScheduleJobDeletion(context, JobConstants.CompletedRetentionSecondsKey);
 
-            await context.ExecuteJobEvent(_serviceProvider, JobStatus.Completed);
+            await context.ExecuteJobEvent(serviceProvider, JobStatus.Completed);
         }
         else
         {
@@ -91,7 +74,7 @@ public class JobListener : IJobListener
             {
                 retryCount++;
                 var retryAt = DateTimeOffset.Now + TimeSpan.FromSeconds(retryDelaySeconds);
-                _logger.LogWarning("Job {JobKey} failed. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
+                logger.LogWarning("Job {JobKey} failed. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
                     job.Key, retryCount, retryMax, retryAt);
 
                 jobData[JobConstants.RetryCountKey] = retryCount.ToString();
@@ -110,7 +93,7 @@ public class JobListener : IJobListener
                 {
                     exception = exception.InnerException;
                 }
-                _logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
+                logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
 
                 var errorMessage = exception is OdinClientException
                     ? exception.Message
@@ -123,12 +106,9 @@ public class JobListener : IJobListener
                     await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
                 }
 
-                if (jobData.TryGetString(JobConstants.FailedRetentionSecondsKey, out var retention) && retention != null)
-                {
-                    await ScheduleJobDeletion(job.Key, long.Parse(retention));
-                }
+                await ScheduleJobDeletion(context, JobConstants.FailedRetentionSecondsKey);
 
-                await context.ExecuteJobEvent(_serviceProvider, JobStatus.Failed);
+                await context.ExecuteJobEvent(serviceProvider, JobStatus.Failed);
 
                 // SEB:TODO dead letter queue???
             }
@@ -139,11 +119,27 @@ public class JobListener : IJobListener
 
     //
 
-    private async Task ScheduleJobDeletion(JobKey jobKey, long retentionSeconds)
+    private async Task ScheduleJobDeletion(IJobExecutionContext context, string retentionKey)
     {
-        var deleteAt = DateTimeOffset.Now + TimeSpan.FromSeconds(retentionSeconds);
-        var jobSchedule = new DeleteJobDetailsScheduler(_loggerFactory, jobKey, deleteAt);
-        await _jobManager.Schedule<DeleteJobDetailsJob>(jobSchedule);
+        var job = context.JobDetail;
+        var jobData = job.JobDataMap;
+
+        if (jobData.TryGetString(JobConstants.JobTypeName, out var jobTypeName) && jobTypeName != null)
+        {
+            // Don't schedule a job to delete a deletion job => infinite loop
+            if (jobTypeName == typeof(DeleteJobDetailsJob).FullName)
+            {
+                return;
+            }
+        }
+
+        if (jobData.TryGetString(retentionKey, out var retention) && retention != null)
+        {
+            var jobManager = serviceProvider.GetRequiredService<IJobManager>();
+            var deleteAt = DateTimeOffset.Now + TimeSpan.FromSeconds(long.Parse(retention));
+            var jobSchedule = new DeleteJobDetailsSchedule(loggerFactory, job.Key, deleteAt);
+            await jobManager.Schedule<DeleteJobDetailsJob>(jobSchedule);
+        }
     }
 
     //

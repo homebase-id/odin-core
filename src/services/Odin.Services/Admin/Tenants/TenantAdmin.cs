@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Admin.Tenants.Jobs;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Admin.Tenants;
@@ -61,7 +61,7 @@ public class TenantAdmin : ITenantAdmin
             throw new OdinClientException($"{domain} not found");
         }
 
-        var jobSchedule = new DeleteTenantScheduler(_loggerFactory.CreateLogger<DeleteTenantScheduler>(), domain);
+        var jobSchedule = new DeleteTenantSchedule(_loggerFactory.CreateLogger<DeleteTenantSchedule>(), domain);
         var jobKey = await _jobManager.Schedule<DeleteTenantJob>(jobSchedule);
 
         return jobKey.ToString();
@@ -76,7 +76,7 @@ public class TenantAdmin : ITenantAdmin
             throw new OdinClientException($"{domain} not found");
         }
 
-        var jobSchedule = new ExportTenantScheduler(_loggerFactory.CreateLogger<ExportTenantScheduler>(), domain);
+        var jobSchedule = new ExportTenantSchedule(_loggerFactory.CreateLogger<ExportTenantSchedule>(), domain);
         var jobKey = await _jobManager.Schedule<ExportTenantJob>(jobSchedule);
 
         return jobKey.ToString();

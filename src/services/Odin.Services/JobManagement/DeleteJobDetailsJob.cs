@@ -5,17 +5,17 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
-public class DeleteJobDetailsScheduler : AbstractJobScheduler
+public class DeleteJobDetailsSchedule : AbstractJobSchedule
 {
-    private readonly ILogger<DeleteJobDetailsScheduler> _logger;
+    private readonly ILogger<DeleteJobDetailsSchedule> _logger;
     private readonly JobKey _jobToDelete;
     private readonly DateTimeOffset _deleteAt;
 
-    public DeleteJobDetailsScheduler(ILoggerFactory loggerFactory, JobKey jobToDelete, DateTimeOffset deleteAt)
+    public DeleteJobDetailsSchedule(ILoggerFactory loggerFactory, JobKey jobToDelete, DateTimeOffset deleteAt)
     {
-        _logger = loggerFactory.CreateLogger<DeleteJobDetailsScheduler>();
+        _logger = loggerFactory.CreateLogger<DeleteJobDetailsSchedule>();
         _jobToDelete = jobToDelete;
         _deleteAt = deleteAt;
     }
@@ -24,14 +24,10 @@ public class DeleteJobDetailsScheduler : AbstractJobScheduler
 
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
 
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
-        if (_jobToDelete.Group == jobBuilder.GetGroupName<DeleteJobDetailsJob>())
-        {
-            // Don't schedule a job to delete a deletion job => infinite loop
-            return Task.FromResult((jobBuilder, new List<TriggerBuilder>()));
-        }
-
         _logger.LogDebug("Scheduling {JobType}", typeof(TJob).Name);
 
         jobBuilder.UsingJobData(JobConstants.JobToDeleteKey, _jobToDelete.ToString());

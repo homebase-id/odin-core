@@ -5,18 +5,19 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Email;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
 namespace Odin.Services.Registry.Registration;
 
-public class SendProvisioningCompleteEmailScheduler(
+public class SendProvisioningCompleteEmailSchedule(
     string domain,
     string email,
     string firstRunToken,
-    TimeSpan fromNow) : AbstractJobScheduler
+    TimeSpan fromNow) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
 
     public override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

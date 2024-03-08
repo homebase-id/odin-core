@@ -3,11 +3,12 @@ using System.Threading.Tasks;
 using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 #nullable enable
 
 public abstract class AbstractJob(ICorrelationContext correlationContext) : IJob
 {
+
     // Consumer must implement this method
     protected abstract Task Run(IJobExecutionContext context);
 

@@ -294,9 +294,9 @@ namespace Odin.Services.Configuration
 
             public bool EnableQuartzBackgroundService { get; init; }
 
-            public string SqliteDatabaseFileName { get; init; }
-
             public int MaxConcurrency { get; init; }
+
+            public bool ConnectionPooling { get; init; }
 
             public QuartzSection()
             {
@@ -311,8 +311,8 @@ namespace Odin.Services.Configuration
                 CronBatchSize = config.Required<int>("Quartz:CronBatchSize");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
-                SqliteDatabaseFileName = config.Required<string>("Quartz:SqliteDatabaseFileName");
                 MaxConcurrency = config.Required<int>("Quartz:MaxConcurrency");
+                ConnectionPooling = config.GetOrDefault("Quartz:ConnectionPooling", true);
             }
         }
 

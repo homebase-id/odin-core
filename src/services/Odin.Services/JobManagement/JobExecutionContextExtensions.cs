@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
 public static class JobExecutionContextExtensions
 {

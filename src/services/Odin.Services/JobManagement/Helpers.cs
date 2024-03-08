@@ -1,10 +1,9 @@
 using System;
-using System.Security.Cryptography;
 using Odin.Core;
 using Odin.Core.Util;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 #nullable enable
 
 public static class Helpers
@@ -42,7 +41,7 @@ public static class Helpers
 
     public static string UniqueId()
     {
-        return SHA256.HashData(Guid.NewGuid().ToByteArray()).ToHexString();
+        return Guid.NewGuid().ToString("N");
     }
 
     //
