@@ -91,7 +91,7 @@ public class PermissionGroup
             //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
             if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
-                Log.Information(
+                Log.Debug(
                     "Grant for drive {permissionDrive} with permission value ({permission}) has null key store key:{kskNull} and null key store key encrypted storage key: {kskstoragekey}",
                     grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
 
