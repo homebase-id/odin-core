@@ -1589,16 +1589,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
-            // For any security group, and an ACL, then the OR statement ignores the ACL, we should still have 5 entries
+            // For any security group, and an ACL, test the AND statement 
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 5);
+            Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // For NO valid security group, and a valid ACL, just the valid ACLs
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 2);
+            Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             // For just security Group 1 we have 2 entries
@@ -1610,19 +1610,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // For security Group 1 or any of the ACLs a1 we have 3
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 3);
+            Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // For security Group 1 or any of the ACLs a3, a4 we have 3
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
-            Debug.Assert(result.Count == 3);
+            Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             // For no security Group 1 getting ACLs a1we have 2
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 2);
+            Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
         }
 
