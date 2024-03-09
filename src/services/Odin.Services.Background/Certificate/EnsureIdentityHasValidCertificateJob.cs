@@ -27,10 +27,10 @@ public class EnsureIdentityHasValidCertificateSchedule(OdinConfiguration odinCon
             TriggerBuilder.Create()
                 .WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.EnsureCertificateProcessorIntervalSeconds))
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Job.EnsureCertificateProcessorIntervalSeconds))
                     .WithMisfireHandlingInstructionNextWithRemainingCount())
                 .StartAt(DateTimeOffset.UtcNow.Add(
-                    TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)))
+                    TimeSpan.FromSeconds(odinConfig.Job.BackgroundJobStartDelaySeconds)))
         };
 
         return Task.FromResult((jobBuilder, triggerBuilders));

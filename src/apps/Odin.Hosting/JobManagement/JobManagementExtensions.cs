@@ -13,9 +13,9 @@ public static class JobManagementExtensions
     {
         services.AddSingleton(new JobManagerConfig
         {
-            ConnectionPooling = config.Quartz.ConnectionPooling,
+            ConnectionPooling = config.Job.ConnectionPooling,
             DatabaseDirectory = Path.Combine(config.Host.SystemDataRootPath, "jobs"),
-            SchedulerThreadCount = config.Quartz.MaxConcurrency
+            SchedulerThreadCount = config.Job.MaxSchedulerConcurrency
         });
 
         services.AddSingleton<IJobFactory, DiJobFactory>();

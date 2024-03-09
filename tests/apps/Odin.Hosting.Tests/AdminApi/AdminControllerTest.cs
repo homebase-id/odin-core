@@ -33,6 +33,7 @@ public class AdminControllerTest
         _scaffold = new WebScaffold(folder);
         var env = new Dictionary<string, string>
         {
+            { "Job__Enabled", "true" },
             { "Admin__ApiEnabled", "true" },
             { "Admin__ApiKey", "your-secret-api-key-here" },
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },

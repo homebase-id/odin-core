@@ -55,10 +55,10 @@ public class JobManagerTest
             {
                 SystemDataRootPath = _tempPath
             },
-            Quartz = new OdinConfiguration.QuartzSection
+            Job = new OdinConfiguration.JobSection
             {
                 ConnectionPooling = false,
-                MaxConcurrency = maxSchedulerConcurrency
+                MaxSchedulerConcurrency = maxSchedulerConcurrency
             },
         };
 

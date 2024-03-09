@@ -92,7 +92,7 @@ namespace Odin.Hosting
             services.AddSingleton<DriveFileReaderWriter>();
 
             //
-            // Quartz
+            // Job stuff
             //
             services.AddJobManagementServices(config);
             services.AddCronSchedules();
@@ -437,16 +437,18 @@ namespace Odin.Hosting
                 DevEnvironmentSetup.ConfigureIfPresent(config, registry);
 
                 var services = app.ApplicationServices;
-                var jobManager = services.GetRequiredService<IJobManager>();
-                jobManager.Initialize(async () =>
+                if (config.Job.Enabled)
                 {
-                    await services.UnscheduleCronJobs();
-                    if (config.Quartz.EnableQuartzBackgroundService)
+                    var jobManager = services.GetRequiredService<IJobManager>();
+                    jobManager.Initialize(async () =>
                     {
-                        await services.ScheduleCronJobs();
-                    }
-                }).Wait();
-
+                        await services.UnscheduleCronJobs();
+                        if (config.Job.EnableJobBackgroundService)
+                        {
+                            await services.ScheduleCronJobs();
+                        }
+                    }).Wait();
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -455,7 +457,10 @@ namespace Odin.Hosting
                     config.Host.ShutdownTimeoutSeconds);
 
                 var services = app.ApplicationServices;
-                services.UnscheduleCronJobs().Wait();
+                if (config.Job.Enabled)
+                {
+                    services.UnscheduleCronJobs().Wait();
+                }
             });
         }
 

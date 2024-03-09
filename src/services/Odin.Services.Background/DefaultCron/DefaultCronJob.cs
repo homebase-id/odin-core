@@ -30,15 +30,15 @@ public class DefaultCronSchedule(
             TriggerBuilder.Create()
                 .WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.CronProcessingInterval))
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Job.CronProcessingInterval))
                     .WithMisfireHandlingInstructionNextWithRemainingCount())
                 .StartAt(DateTimeOffset.UtcNow.Add(
-                    TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)))
+                    TimeSpan.FromSeconds(odinConfig.Job.BackgroundJobStartDelaySeconds)))
         };
 
         logger.LogInformation(
             "Scheduling Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batchsize of {CronBatchSize}",
-            odinConfig.Quartz.CronProcessingInterval, odinConfig.Quartz.CronBatchSize);
+            odinConfig.Job.CronProcessingInterval, odinConfig.Job.CronBatchSize);
 
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
@@ -58,10 +58,10 @@ public class DefaultCronJob(
     {
         logger.LogTrace("DefaultCronJob running...");
 
-        var batchSize = config.Quartz.CronBatchSize;
+        var batchSize = config.Job.CronBatchSize;
         if (batchSize <= 0)
         {
-            throw new OdinSystemException("Quartz:CronBatchSize must be greater than zero");
+            throw new OdinSystemException("Job:CronBatchSize must be greater than zero");
         }
 
         var batch = serverSystemStorage.JobQueue.Pop(batchSize);
