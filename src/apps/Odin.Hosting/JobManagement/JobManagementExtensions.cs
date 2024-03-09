@@ -1,8 +1,5 @@
-using System;
 using System.IO;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Quartz;
@@ -27,22 +24,6 @@ public static class JobManagementExtensions
 
         return services;
     }
-
-    //
-
-    public static IServiceProvider InitializeJobManagementServices(this IServiceProvider services)
-    {
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
-        return services;
-    }
-
-    public static IApplicationBuilder InitializeJobManagementServices(this IApplicationBuilder app)
-    {
-        app.ApplicationServices.InitializeJobManagementServices();
-        return app;
-    }
-
 
     //
 

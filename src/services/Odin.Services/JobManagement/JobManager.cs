@@ -21,6 +21,7 @@ namespace Odin.Services.JobManagement;
 
 public interface IJobManager
 {
+    Task Initialize(Func<Task>? configureJobs = null);
     Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob;
     Task<JobResponse> GetResponse(JobKey jobKey);
     Task<(JobResponse, T?)> GetResponse<T>(JobKey jobKey) where T : class;
@@ -42,6 +43,7 @@ public sealed class JobManagerConfig
 
 public sealed class JobManager(
     ILogger<JobManager> logger,
+    ILoggerFactory loggerFactory,
     ICorrelationContext correlationContext,
     IJobFactory jobFactory,
     IJobListener jobListener,
@@ -54,6 +56,30 @@ public sealed class JobManager(
 
     //
 
+    public async Task Initialize(Func<Task>? configureJobs)
+    {
+        Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
+
+        using (await _mutex.LockAsync())
+        {
+            logger.LogDebug("Creating schedulers");
+            await CreateSchedulers();
+        }
+
+        if (configureJobs != null)
+        {
+            await configureJobs();
+        }
+
+        using (await _mutex.LockAsync())
+        {
+            logger.LogDebug("Starting schedulers");
+            await StartSchedulers();
+        }
+    }
+
+    //
+
     public async Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob
     {
         using (await _mutex.LockAsync())
@@ -61,10 +87,14 @@ public sealed class JobManager(
             // Sanity
             if (_disposing)
             {
-                throw new OdinSystemException("JobManager is shutting down");
+                throw new JobManagerException("JobManager is shutting down");
             }
 
-            var scheduler = await CreateScheduler(jobSchedule.SchedulerGroup);
+            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
+            if (scheduler == null)
+            {
+                throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
+            }
 
             var jobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
             if (jobKey != null)
@@ -155,7 +185,7 @@ public sealed class JobManager(
         var data = OdinSystemSerializer.Deserialize<T>(response.Data);
         if (data == null)
         {
-            throw new OdinSystemException("Error deserializing JobResponse.Data");
+            throw new JobManagerException("Error deserializing JobResponse.Data");
         }
 
         return (response, data);
@@ -250,13 +280,53 @@ public sealed class JobManager(
         using (await _mutex.LockAsync())
         {
             _disposing = true;
-            var schedulerNames = _schedulers.Keys;
-            foreach (var name in schedulerNames)
-            {
-                var scheduler = _schedulers[name];
-                await scheduler.Shutdown(true);
-                _schedulers.Remove(name);
-            }
+            await ShutdownSchedulers();
+        }
+    }
+
+    //
+
+    private async Task CreateSchedulers()
+    {
+        if (_disposing)
+        {
+            throw new JobManagerException("JobManager is shutting down");
+        }
+
+        var schedulerTypes = Enum.GetValues<SchedulerGroup>();
+        foreach (var schedulerType in schedulerTypes)
+        {
+            await CreateScheduler(schedulerType);
+        }
+    }
+
+    //
+
+    private async Task StartSchedulers()
+    {
+        if (_disposing)
+        {
+            throw new JobManagerException("JobManager is shutting down");
+        }
+
+        var schedulerNames = _schedulers.Keys;
+        foreach (var name in schedulerNames)
+        {
+            var scheduler = _schedulers[name];
+            await scheduler.Start();
+        }
+    }
+
+    //
+
+    private async Task ShutdownSchedulers()
+    {
+        var schedulerNames = _schedulers.Keys;
+        foreach (var name in schedulerNames)
+        {
+            var scheduler = _schedulers[name];
+            await scheduler.Shutdown(true);
+            _schedulers.Remove(name);
         }
     }
 
@@ -267,7 +337,7 @@ public sealed class JobManager(
         var schedulerName = schedulerType.ToString();
         if (_disposing)
         {
-            throw new OdinSystemException("JobManager is shutting down");
+            throw new JobManagerException("JobManager is shutting down");
         }
 
         return _schedulers.GetValueOrDefault(schedulerName);
@@ -277,12 +347,13 @@ public sealed class JobManager(
 
     private async Task<IScheduler> CreateScheduler(SchedulerGroup schedulerType)
     {
-        var schedulerName = schedulerType.ToString();
-
-        if (_schedulers.TryGetValue(schedulerName, out var scheduler))
+        var scheduler = GetScheduler(schedulerType);
+        if (scheduler != null)
         {
-            return scheduler;
+            throw new JobManagerException($"Scheduler already exists: ${schedulerType}" );
         }
+
+        var schedulerName = schedulerType.ToString();
 
         Directory.CreateDirectory(config.DatabaseDirectory);
 
@@ -315,8 +386,8 @@ public sealed class JobManager(
 
         _schedulers[schedulerName] = scheduler;
 
-        await scheduler.Start();
-
         return scheduler;
     }
 }
+
+public class JobManagerException(string message) : OdinSystemException(message);

@@ -42,6 +42,7 @@ using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.JobManagement;
 
 namespace Odin.Hosting
 {
@@ -94,7 +95,7 @@ namespace Odin.Hosting
             // Quartz
             //
             services.AddJobManagementServices(config);
-            services.AddCronJobs();
+            services.AddCronSchedules();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -272,8 +273,6 @@ namespace Odin.Hosting
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
             var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
 
-            app.InitializeJobManagementServices();
-
             // Note 1: see NotificationSocketController
             // Note 2: UseWebSockets must be before UseLoggingMiddleware
             app.UseWebSockets(new WebSocketOptions
@@ -437,11 +436,17 @@ namespace Odin.Hosting
             {
                 DevEnvironmentSetup.ConfigureIfPresent(config, registry);
 
-                app.ApplicationServices.RemoveCronJobs().Wait();
-                if (config.Quartz.EnableQuartzBackgroundService)
+                var services = app.ApplicationServices;
+                var jobManager = services.GetRequiredService<IJobManager>();
+                jobManager.Initialize(async () =>
                 {
-                    app.ApplicationServices.ScheduleCronJobs().Wait();
-                }
+                    await services.UnscheduleCronJobs();
+                    if (config.Quartz.EnableQuartzBackgroundService)
+                    {
+                        await services.ScheduleCronJobs();
+                    }
+                }).Wait();
+
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -449,7 +454,8 @@ namespace Odin.Hosting
                 logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
                     config.Host.ShutdownTimeoutSeconds);
 
-                app.ApplicationServices.RemoveCronJobs().Wait();
+                var services = app.ApplicationServices;
+                services.UnscheduleCronJobs().Wait();
             });
         }
 

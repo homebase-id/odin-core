@@ -9,12 +9,14 @@ namespace Odin.Hosting.JobManagement;
 
 public static class JobExtensions
 {
-    public static IServiceCollection AddCronJobs(this IServiceCollection services)
+    public static IServiceCollection AddCronSchedules(this IServiceCollection services)
     {
         services.AddSingleton<DefaultCronSchedule>();
         services.AddSingleton<EnsureIdentityHasValidCertificateSchedule>();
         return services;
     }
+
+    //
 
     public static async Task ScheduleCronJobs(this IServiceProvider services)
     {
@@ -35,7 +37,9 @@ public static class JobExtensions
         }
     }
 
-    public static async Task RemoveCronJobs(this IServiceProvider services)
+    //
+
+    public static async Task UnscheduleCronJobs(this IServiceProvider services)
     {
         var jobManager = services.GetRequiredService<IJobManager>();
 

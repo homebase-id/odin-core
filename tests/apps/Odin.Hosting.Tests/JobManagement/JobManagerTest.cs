@@ -42,7 +42,7 @@ public class JobManagerTest
 
     //
 
-    public IJobManager CreateHostedJobManager(int maxSchedulerConcurrency)
+    private IJobManager CreateHostedJobManager(bool initializeJobManager, int maxSchedulerConcurrency)
     {
         if (_host != null)
         {
@@ -79,9 +79,11 @@ public class JobManagerTest
             })
             .Build();
 
-        _host.Services.InitializeJobManagementServices();
-
         var jobManager = _host.Services.GetRequiredService<IJobManager>();
+        if (initializeJobManager)
+        {
+            jobManager.Initialize().Wait();
+        }
 
         return jobManager;
     }
@@ -110,9 +112,51 @@ public class JobManagerTest
     //
 
     [Test]
+    public async Task ItShouldCreateSchedulersDuringInitialize()
+    {
+        var jobManager = CreateHostedJobManager(false, 10);
+        await jobManager.Initialize();
+
+        var exception = Assert.ThrowsAsync<JobManagerException>(async () =>
+        {
+            await jobManager.Initialize();
+        });
+
+        Assert.That(exception?.Message, Does.StartWith("Scheduler already exists:"));
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldCreateSchedulersAndStartPreconfiguredJob()
+    {
+        var jobKey = new JobKey("foo");
+
+        var jobManager = CreateHostedJobManager(false, 10);
+        await jobManager.Initialize(async () =>
+        {
+            var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
+            jobKey = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+
+            // Check if job exists
+            var exists = await jobManager.Exists(jobKey);
+            Assert.That(exists, Is.True);
+
+            await Task.Delay(100);
+
+            // Check that job does not start before we exit the initialize method
+            var response = await jobManager.GetResponse(jobKey);
+            Assert.That(response.Status, Is.EqualTo(JobStatus.Scheduled));
+        });
+
+        // Wait for job to complete
+        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+    }
+
+    [Test]
     public async Task ItShouldScheduleAndRunNonExlusiveJob()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World";
@@ -147,7 +191,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldScheduleAndRunParallelNonExlusiveJob()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler1 = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
         scheduler1.TestEcho = "Hello World 1";
@@ -186,7 +230,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldScheduleAndRunExlusiveJob()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler1 = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler1.TestEcho = "Hello World 1";
@@ -223,7 +267,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldRunAndFail()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -246,7 +290,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldRunAndFailAndRetryAndSucceed()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -269,7 +313,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldRunAndFailAndRetryAndFail()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -292,7 +336,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldNotFindJob()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var jobKey = new JobKey(Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
         var exists = await jobManager.Exists(jobKey);
@@ -308,7 +352,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldBeRetainedWithRetention()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -328,7 +372,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldBeDeletedWithoutRetention()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -348,7 +392,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldBeDeletedAfterRetentionPeriod()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ExclusiveTestSchedule>();
         scheduler.TestEcho = "Hello World 1";
@@ -380,7 +424,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldChainJobs()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var scheduler = _host.Services.GetRequiredService<ChainTestSchedule>();
         scheduler.IterationCount = 3;
@@ -421,7 +465,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldExecuteEventOnJobStartingAndOnJobCompleting()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var eventDemoTestContainer = _host.Services.GetRequiredService<EventDemoTestContainer>();
         Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(0));
@@ -445,7 +489,7 @@ public class JobManagerTest
     [Test]
     public async Task ItShouldExecuteEventOnJobStartingAndOnJobFailed()
     {
-        var jobManager = CreateHostedJobManager(10);
+        var jobManager = CreateHostedJobManager(true, 10);
 
         var eventDemoTestContainer = _host.Services.GetRequiredService<EventDemoTestContainer>();
         Assert.That(eventDemoTestContainer.Status, Has.Count.EqualTo(0));
@@ -469,7 +513,7 @@ public class JobManagerTest
     [Test]
     public async Task SingleSchedulerShouldQueueOnThreadLimit()
     {
-        var jobManager = CreateHostedJobManager(1);
+        var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
         var scheduler = new SleepyTestSchedule(logger, SchedulerGroup.Default)
@@ -517,7 +561,7 @@ public class JobManagerTest
     [Test]
     public async Task MultipleSchedulersShouldRunInParallelOnThreadLimit()
     {
-        var jobManager = CreateHostedJobManager(1);
+        var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
         var scheduler1 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
