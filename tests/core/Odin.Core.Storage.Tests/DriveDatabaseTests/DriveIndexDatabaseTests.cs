@@ -1598,7 +1598,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // For NO valid security group, and a valid ACL, just the valid ACLs
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 1);
+            Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // For just security Group 1 we have 2 entries
@@ -1610,21 +1610,321 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // For security Group 1 or any of the ACLs a1 we have 3
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 2);
+            Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
             // For security Group 1 or any of the ACLs a3, a4 we have 3
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
-            Debug.Assert(result.Count == 1);
+            Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // For no security Group 1 getting ACLs a1we have 2
             cursor = null;
             (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 1);
+            Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
         }
+
+
+        // XXX
+        [Test]
+        public void SecurityGroupAndAclBatch02Test()
+        {
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            var a1 = SequentialGuid.CreateGuid();
+            var a2 = SequentialGuid.CreateGuid();
+            var a3 = SequentialGuid.CreateGuid();
+            var a4 = SequentialGuid.CreateGuid();
+            var a5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+
+            QueryBatchCursor cursor = null;
+
+            // ===== TEST RSG, no circles
+
+            // ACL: Any security group, no circles. We should have 5 entries
+            cursor = null;
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 5);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, no circles. We should have 2 entries
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 0, no circles. We should have 0 entries
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ======== TEST any RSG with circle combinations
+
+            // ACL: Any security group, circles a4. We should have 2 (one with a4, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a2. We should have 3 (two with a2, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a1, a2. We should have 4 (two with a2, one with a1, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 4);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a5. We should have 1 (none with a5, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // ======== TEST no RSG with circles
+
+            // ACL: No security group, circles a4. We should have none
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a2. We should have none
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a1, a2. We should have none
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a5. We should have none
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ======== Test partial RSG with circle combinations
+
+            // ACL: One security group 2, circles a2. We should have 2 (one with a2, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a4. We should have 0 (none with a4, none with circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a1, a2. We should have 2
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 2, circles a1, a2. We should have 2
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a5. We should have 0 (none with a5, none with circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 2, circles a5. We should have 1 (none with a5, one with no circles)
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // ========
+        }
+
+        [Test]
+        public void SecurityGroupAndAclBatch02ModifiedTest()
+        {
+            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            _testDatabase.CreateDatabase();
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            var a1 = SequentialGuid.CreateGuid();
+            var a2 = SequentialGuid.CreateGuid();
+            var a3 = SequentialGuid.CreateGuid();
+            var a4 = SequentialGuid.CreateGuid();
+            var a5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            _testDatabase.AddEntry(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            _testDatabase.AddEntry(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            _testDatabase.AddEntry(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+
+
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f1);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f2);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f3);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f4);
+            _testDatabase.tblDriveMainIndex.TestTouch(driveId, f5);
+
+
+            UnixTimeUtcUnique cursor;
+
+            // ===== TEST RSG, no circles
+
+            // ACL: Any security group, no circles. We should have 5 entries
+            cursor = new UnixTimeUtcUnique(0);
+            var (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 5);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, no circles. We should have 2 entries
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 0, no circles. We should have 0 entries
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ======== TEST any RSG with circle combinations
+
+            // ACL: Any security group, circles a4. We should have 2 (one with a4, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a2. We should have 3 (two with a2, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a1, a2. We should have 4 (two with a2, one with a1, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 4);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Any security group, circles a5. We should have 1 (none with a5, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // ======== TEST no RSG with circles
+
+            // ACL: No security group, circles a4. We should have none
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a2. We should have none
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a1, a2. We should have none
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: No security group, circles a5. We should have none
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ======== Test partial RSG with circle combinations
+
+            // ACL: One security group 2, circles a2. We should have 2 (one with a2, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a4. We should have 0 (none with a4, none with circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a1, a2. We should have 2
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 2, circles a1, a2. We should have 2
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 1, circles a5. We should have 0 (none with a5, none with circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            // ACL: Security group 2, circles a5. We should have 1 (none with a5, one with no circles)
+            cursor = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(driveId, 400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a5 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // ========
+        }
+
+
+
+
 
 
         [Test]

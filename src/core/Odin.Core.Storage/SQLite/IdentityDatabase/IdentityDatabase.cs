@@ -302,6 +302,89 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
+        private void SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf, 
+            List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
+            List<Int32> archivalStatusAnyOf,
+            List<byte[]> senderidAnyOf,
+            List<Guid> groupIdAnyOf,
+            UnixTimeUtcRange userdateSpan,
+            List<Guid> tagsAllOf,
+            Int32? fileSystemType,
+            Guid driveId)
+        {
+            listWhere.Add($"driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
+            listWhere.Add($"(fileSystemType == {fileSystemType})");
+            listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
+
+            //
+            // An ACL for a file is the required security group and optional list of circles
+            //   This means that we first check for the security group, must match
+            //   We then also check if EITHER there is a circle matching anyOf the circles provided
+            //   OR if there are no circles defined for the fileId in question (the NOT IN check).
+            //
+            if (IsSet(aclAnyOf))
+            {
+                listWhere.Add($"(((fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                               "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId))))");
+                // Think we have some optimization work pending here 8-/
+                // Let's do a LEFT JOIN on driveaclindex 
+                // Then we can simply test for NULL for the empty one
+            }
+
+            if (IsSet(filetypesAnyOf))
+            {
+                listWhere.Add($"filetype IN ({IntList(filetypesAnyOf)})");
+            }
+
+            if (IsSet(datatypesAnyOf))
+            {
+                listWhere.Add($"datatype IN ({IntList(datatypesAnyOf)})");
+            }
+
+            if (IsSet(globalTransitIdAnyOf))
+            {
+                listWhere.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
+            }
+
+            if (IsSet(uniqueIdAnyOf))
+            {
+                listWhere.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
+            }
+
+            if (IsSet(tagsAnyOf))
+            {
+                listWhere.Add($"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
+            }
+
+            if (IsSet(archivalStatusAnyOf))
+            {
+                listWhere.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
+            }
+
+            if (IsSet(senderidAnyOf))
+            {
+                listWhere.Add($"senderid IN ({HexList(senderidAnyOf)})");
+            }
+
+            if (IsSet(groupIdAnyOf))
+            {
+                listWhere.Add($"groupid IN ({HexList(groupIdAnyOf)})");
+            }
+
+            if (userdateSpan != null)
+            {
+                userdateSpan.Validate();
+                listWhere.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
+            }
+
+            if (IsSet(tagsAllOf))
+            {
+                // TODO: This will return 0 matches. Figure out the right query.
+                listWhere.Add($"{AndHexList(tagsAllOf)}");
+            }
+        }
+
+
         /// <summary>
         /// Get a page with up to 'noOfItems' rows in either newest first or oldest first order as
         /// specified by the 'newestFirstOrder' bool. If the cursor.stopAtBoundary is null, paging will
@@ -360,6 +443,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 cursor = new QueryBatchCursor();
             }
 
+            if (requiredSecurityGroup == null)
+            {
+                throw new Exception($"{nameof(requiredSecurityGroup)} is required");
+            }
+
+
             //
             // Set order for appropriate direction
             //
@@ -410,97 +499,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
 
-            if (requiredSecurityGroup == null)
-            {
-                throw new Exception($"{nameof(requiredSecurityGroup)} is required");
-            }
-
-            if (fileSystemType == null)
-            {
-                throw new Exception($"{nameof(fileSystemType)} is required");
-            }
-
-            listWhereAnd.Add($"(fileSystemType == {fileSystemType})");
-
-            //
-            // An ACL for a file is the required security group and optional list of circles
-            //   This means that we first check for the security group, must match
-            //   We then also check if EITHER there is a circle matching anyOf the circles provided
-            //   OR if there are no circles defined for the fileId in question (the NOT IN check).
-            //
-            if (aclAnyOf == null)
-            {
-                listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
-            }
-            else
-            {
-                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
-                                 $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
-                                 "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))");
-                // Think we have some optimization work pending here 8-/
-            }
+            SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf, 
+                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                fileSystemType, driveId);
 
             if (IsSet(fileStateAnyOf))
             {
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
-            }
-
-            if (IsSet(globalTransitIdAnyOf))
-            {
-                listWhereAnd.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
-            }
-
-            if (IsSet(filetypesAnyOf))
-            {
-                listWhereAnd.Add($"filetype IN ({IntList(filetypesAnyOf)})");
-            }
-
-            if (IsSet(datatypesAnyOf))
-            {
-                listWhereAnd.Add($"datatype IN ({IntList(datatypesAnyOf)})");
-            }
-
-            if (IsSet(archivalStatusAnyOf))
-            {
-                listWhereAnd.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
-            }
-
-            if (IsSet(senderidAnyOf))
-            {
-                listWhereAnd.Add($"senderid IN ({HexList(senderidAnyOf)})");
-            }
-
-            if (IsSet(groupIdAnyOf))
-            {
-                listWhereAnd.Add($"groupid IN ({HexList(groupIdAnyOf)})");
-            }
-
-            if (IsSet(uniqueIdAnyOf))
-            {
-                listWhereAnd.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
-            }
-
-            if (userdateSpan != null)
-            {
-                userdateSpan.Validate();
-                listWhereAnd.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
-            }
-
-            if (IsSet(tagsAnyOf))
-            {
-                listWhereAnd.Add($"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
-            }
-
-            if (IsSet(tagsAllOf))
-            {
-                // TODO: This will return 0 matches. Figure out the right query.
-                listWhereAnd.Add($"{AndHexList(tagsAllOf)}");
-            }
-
-            string strWhere = $"WHERE driveid=x'{Convert.ToHexString(driveId.ToByteArray())}'";
-            if (listWhereAnd.Count > 0)
-            {
-                strWhere += " AND " + string.Join(" AND ", listWhereAnd);
             }
 
             string selectOutputFields;
@@ -520,8 +525,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT {selectOutputFields} FROM drivemainindex " + strWhere + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-
+            string stm = $"SELECT {selectOutputFields} FROM drivemainindex WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
@@ -708,7 +712,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return (result, moreRows);
         }
 
-
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
@@ -735,105 +738,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            string stm;
-            string strWhere = $"WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' AND ";
-
             if (null == fileSystemType)
             {
                 throw new OdinSystemException("fileSystemType required in Query Modified");
             }
 
-            strWhere += $"modified > {cursor.uniqueTime} ";
-
-            if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
+            if (noOfItems < 1)
             {
-                strWhere += $"AND modified >= {stopAtModifiedUnixTimeSeconds.uniqueTime} ";
+                throw new OdinSystemException("Must QueryModified() no less than one item.");
             }
-
-            if (strWhere != "")
-                strWhere += "AND ";
-
-            strWhere += $"(fileSystemType == {fileSystemType})";
 
             if (requiredSecurityGroup == null)
             {
                 throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
 
-            strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
+            var listWhereAnd = new List<string>();
 
-            if (IsSet(filetypesAnyOf))
+            listWhereAnd.Add($"modified > {cursor.uniqueTime}");
+
+            if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
-                strWhere += $"AND filetype IN ({IntList(filetypesAnyOf)}) ";
+                listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.uniqueTime}");
             }
 
-            if (IsSet(datatypesAnyOf))
-            {
-                strWhere += $"AND datatype IN ({IntList(datatypesAnyOf)}) ";
-            }
+            SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
+                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                fileSystemType, driveId);
 
-            if (IsSet(archivalStatusAnyOf))
-            {
-                strWhere += $"AND archivalStatus IN ({IntList(archivalStatusAnyOf)}) ";
-            }
-
-            if (IsSet(senderidAnyOf))
-            {
-                strWhere += $"AND senderid IN ({HexList(senderidAnyOf)}) ";
-            }
-
-            if (IsSet(groupIdAnyOf))
-            {
-                strWhere += $"AND groupid IN ({HexList(groupIdAnyOf)}) ";
-            }
-
-            if (userdateSpan != null)
-            {
-                userdateSpan.Validate();
-
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds}) ";
-            }
-
-            if (IsSet(globalTransitIdAnyOf))
-            {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"globaltransitid IN ({HexList(globalTransitIdAnyOf)}) ";
-            }
-
-            if (IsSet(uniqueIdAnyOf))
-            {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"uniqueid IN ({HexList(uniqueIdAnyOf)}) ";
-            }
-
-            if (IsSet(tagsAnyOf))
-            {
-                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
-            }
-
-            if (IsSet(aclAnyOf))
-            {
-                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
-                            $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
-                            "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))";
-            }
-            else
-            {
-                strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})";
-            }
-
-            if (IsSet(tagsAllOf))
-            {
-                // TODO: This will return 0 matches. Figure out the right query.
-                strWhere += $"AND {AndHexList(tagsAllOf)} ";
-            }
-
-            stm = $"SELECT fileid, modified FROM drivemainindex " + strWhere + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-
+            string stm = $"SELECT fileid, modified FROM drivemainindex WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
