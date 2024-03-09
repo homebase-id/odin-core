@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using static NodaTime.TimeZones.ZoneEqualityComparer;
 
 
 /*
@@ -36,12 +37,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
     public class IdentityDatabase : DatabaseBase
     {
-        public class NullableGuid { public Guid? uniqueId; }
+        public class NullableGuid
+        {
+            public Guid? uniqueId;
+        }
 
         // Drive tables
         public readonly TableDriveMainIndex tblDriveMainIndex = null;
-        public readonly TableDriveAclIndex  tblDriveAclIndex = null;
-        public readonly TableDriveTagIndex  tblDriveTagIndex = null;
+        public readonly TableDriveAclIndex tblDriveAclIndex = null;
+        public readonly TableDriveTagIndex tblDriveTagIndex = null;
         public readonly TableDriveCommandMessageQueue tblDriveCommandMessageQueue = null;
         public readonly TableDriveReactions tblDriveReactions = null;
 
@@ -66,7 +70,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private readonly string _file;
         private readonly int _line;
 
-        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) :
+            base(connectionString, commitFrequencyMs)
         {
             // Drive
             tblDriveMainIndex = new TableDriveMainIndex(this, _cache);
@@ -206,7 +211,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             using (CreateCommitUnitOfWork())
             {
-                tblDriveMainIndex.Insert(new DriveMainIndexRecord() { driveId = driveId, fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate, fileType = fileType, dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus, historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType, byteCount = byteCount });
+                tblDriveMainIndex.Insert(new DriveMainIndexRecord()
+                {
+                    driveId = driveId, fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate, fileType = fileType,
+                    dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus,
+                    historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType, byteCount = byteCount
+                });
                 tblDriveAclIndex.InsertRows(driveId, fileId, accessControlList);
                 tblDriveTagIndex.InsertRows(driveId, fileId, tagIdList);
             }
@@ -242,9 +252,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-
-                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                    senderId: senderId,
+                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 tblDriveAclIndex.InsertRows(driveId, fileId, addAccessControlList);
                 tblDriveTagIndex.InsertRows(driveId, fileId, addTagIdList);
@@ -275,8 +286,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                    senderId: senderId,
+                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
                 tblDriveAclIndex.DeleteAllRows(driveId, fileId);
                 tblDriveAclIndex.InsertRows(driveId, fileId, accessControlList);
@@ -312,7 +325,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
-        public (List<Guid>, bool moreRows) QueryBatch(Guid driveId, 
+        public (List<Guid>, bool moreRows) QueryBatch(Guid driveId,
             int noOfItems,
             ref QueryBatchCursor cursor,
             bool newestFirstOrder,
@@ -378,7 +391,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     if (cursor.userDatePagingCursor == null)
                         throw new Exception("userDatePagingCursor cannot be null, cursor initialized incorrectly");
 
-                    listWhereAnd.Add($"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
+                    listWhereAnd.Add(
+                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
                 }
             }
 
@@ -391,7 +405,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     if (cursor.userDateStopAtBoundary == null)
                         throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
 
-                    listWhereAnd.Add($"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                    listWhereAnd.Add(
+                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
                 }
             }
 
@@ -407,14 +422,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             listWhereAnd.Add($"(fileSystemType == {fileSystemType})");
 
+            //
+            // An ACL for a file is the required security group and optional list of circles
+            //   This means that we first check for the security group, must match
+            //   We then also check if EITHER there is a circle matching anyOf the circles provided
+            //   OR if there are no circles defined for the fileId in question (the NOT IN check).
+            //
             if (aclAnyOf == null)
             {
                 listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
             }
             else
             {
-                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                            $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
+                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
+                                 $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                                 "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))");
+                // Think we have some optimization work pending here 8-/
             }
 
             if (IsSet(fileStateAnyOf))
@@ -551,7 +574,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryBatchAuto(Guid driveId, 
+        public (List<Guid>, bool moreRows) QueryBatchAuto(Guid driveId,
             int noOfItems,
             ref QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -573,23 +596,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             var (result, moreRows) =
                 QueryBatch(driveId, noOfItems,
-                              ref cursor,
-                              newestFirstOrder: true,
-                              fileIdSort: true,
-                              fileSystemType,
-                              fileStateAnyOf,
-                              requiredSecurityGroup,
-                              globalTransitIdAnyOf,
-                              filetypesAnyOf,
-                              datatypesAnyOf,
-                              senderidAnyOf,
-                              groupIdAnyOf,
-                              uniqueIdAnyOf,
-                              archivalStatusAnyOf,
-                              userdateSpan,
-                              aclAnyOf,
-                              tagsAnyOf,
-                              tagsAllOf);
+                    ref cursor,
+                    newestFirstOrder: true,
+                    fileIdSort: true,
+                    fileSystemType,
+                    fileStateAnyOf,
+                    requiredSecurityGroup,
+                    globalTransitIdAnyOf,
+                    filetypesAnyOf,
+                    datatypesAnyOf,
+                    senderidAnyOf,
+                    groupIdAnyOf,
+                    uniqueIdAnyOf,
+                    archivalStatusAnyOf,
+                    userdateSpan,
+                    aclAnyOf,
+                    tagsAnyOf,
+                    tagsAllOf);
 
             //
             // OldToNew:
@@ -792,15 +815,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
             }
 
-            // if (IsSet(aclAnyOf))
-            // {
-            //     strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})) ";
-            // }
-
             if (IsSet(aclAnyOf))
             {
-                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                                 $"(fileid IN (SELECT DISTINCT fileid FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))";
+                strWhere += $"AND ((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) AND " +
+                            $"(fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                            "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId)))";
             }
             else
             {
@@ -978,6 +997,5 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             return b2.ToString("X1") + "/" + b1.ToString("X1");
         }
-
     }
 }

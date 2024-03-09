@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     /// Routes requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitQueryV1)]
+    [Route(OwnerApiPathConstants.PeerQueryV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerPeerQueryController(PeerDriveQueryService peerDriveQueryService) : PeerQueryControllerBase(peerDriveQueryService);
 }

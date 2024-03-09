@@ -11,20 +11,12 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class AppSpecifyDriveAccess : IApiClientContext
+public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission permission, TestPermissionKeyList keys = null)
+    : IApiClientContext
 {
-    private readonly DrivePermission _permission;
-    private readonly TestPermissionKeyList _keys;
     private AppApiClientFactory _factory;
 
-    public AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission permission, TestPermissionKeyList keys = null)
-    {
-        TargetDrive = targetDrive;
-        _permission = permission;
-        _keys = keys;
-    }
-
-    public TargetDrive TargetDrive { get; }
+    public TargetDrive TargetDrive { get; } = targetDrive;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -39,11 +31,11 @@ public class AppSpecifyDriveAccess : IApiClientContext
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = TargetDrive,
-                        Permission = _permission
+                        Permission = permission
                     }
                 }
             },
-            PermissionSet = new PermissionSet(_keys?.PermissionKeys ?? new List<int>())
+            PermissionSet = new PermissionSet(keys?.PermissionKeys ?? new List<int>())
         };
 
         var circles = new List<Guid>();

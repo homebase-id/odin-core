@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
     /// </summary>
     public interface IRefitOwnerTransitSender
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitSenderV1;
+        private const string RootEndpoint = OwnerApiPathConstants.PeerSenderV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/send")]
