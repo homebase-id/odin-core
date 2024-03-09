@@ -302,7 +302,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        private void SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf, 
+        private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf, 
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
             List<Int32> archivalStatusAnyOf,
             List<byte[]> senderidAnyOf,
@@ -312,7 +312,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Int32? fileSystemType,
             Guid driveId)
         {
-            listWhere.Add($"driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
+            string leftJoin = "";
+
+            listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
             listWhere.Add($"(fileSystemType == {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
 
@@ -324,11 +326,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //
             if (IsSet(aclAnyOf))
             {
-                listWhere.Add($"(((fileid IN (SELECT DISTINCT fileId FROM driveaclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
-                               "(fileId NOT IN (SELECT DISTINCT fileId FROM driveaclindex WHERE driveMainIndex.fileId = driveAclIndex.fileId))))");
-                // Think we have some optimization work pending here 8-/
-                // Let's do a LEFT JOIN on driveaclindex 
-                // Then we can simply test for NULL for the empty one
+                leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
+
+
+                listWhere.Add($"(  (cir.fileId IS NULL) OR cir.aclMemberId IN ({HexList(aclAnyOf)})  )");
+
+                // Alternative working solution. Drop the LEFT JOIN and instead do this.
+                // I think that the LEFT JOIN will be more efficient, but not fully sure.
+                //
+                //listWhere.Add($"(((fileid IN (SELECT DISTINCT fileId FROM driveAclIndex WHERE aclmemberid IN ({HexList(aclAnyOf)}))) OR " +
+                //               "(fileId NOT IN (SELECT DISTINCT fileId FROM driveAclIndex WHERE driveMainIndex.fileId = driveAclIndex.fileId))))");
             }
 
             if (IsSet(filetypesAnyOf))
@@ -353,7 +360,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             if (IsSet(tagsAnyOf))
             {
-                listWhere.Add($"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
+                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(archivalStatusAnyOf))
@@ -380,8 +387,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (IsSet(tagsAllOf))
             {
                 // TODO: This will return 0 matches. Figure out the right query.
-                listWhere.Add($"{AndHexList(tagsAllOf)}");
+                listWhere.Add($"{AndIntersectHexList(tagsAllOf)}");
             }
+
+            return leftJoin;
         }
 
 
@@ -474,32 +483,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (cursor.pagingCursor != null)
             {
                 if (fileIdSort)
-                    listWhereAnd.Add($"fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}'");
+                    listWhereAnd.Add($"driveMainIndex.fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}'");
                 else
                 {
                     if (cursor.userDatePagingCursor == null)
                         throw new Exception("userDatePagingCursor cannot be null, cursor initialized incorrectly");
 
                     listWhereAnd.Add(
-                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
+                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND driveMainIndex.fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
                 }
             }
 
             if (cursor.stopAtBoundary != null)
             {
                 if (fileIdSort)
-                    listWhereAnd.Add($"fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
+                    listWhereAnd.Add($"driveMainIndex.fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
                 else
                 {
                     if (cursor.userDateStopAtBoundary == null)
                         throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
 
                     listWhereAnd.Add(
-                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND driveMainIndex.fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
                 }
             }
 
-            SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf, 
+            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf, 
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
@@ -510,22 +519,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             string selectOutputFields;
             if (fileIdSort)
-                selectOutputFields = "fileId";
+                selectOutputFields = "driveMainIndex.fileId";
             else
-                selectOutputFields = "fileId, userDate";
+                selectOutputFields = "driveMainIndex.fileId, userDate";
 
             string order;
             if (fileIdSort)
             {
-                order = "fileId " + direction;
+                order = "driveMainIndex.fileId " + direction;
             }
             else
             {
-                order = "userDate " + direction + ", fileId " + direction;
+                order = "userDate " + direction + ", driveMainIndex.fileId " + direction;
             }
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT {selectOutputFields} FROM drivemainindex WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
@@ -762,11 +771,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.uniqueTime}");
             }
 
-            SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
+            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
-            string stm = $"SELECT fileid, modified FROM drivemainindex WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
@@ -861,7 +870,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return list != null && list.Any();
         }
 
-        private string AndHexList(List<Guid> list)
+        private string AndIntersectHexList(List<Guid> list)
         {
             int len = list.Count;
             string s = "";
@@ -879,41 +888,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0].ToByteArray())}' ";
+            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0].ToByteArray())}' ";
 
             for (int i = 0 + 1; i < len; i++)
             {
                 s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[i].ToByteArray())}' ";
-            }
-
-            s += ") ";
-
-            return s;
-        }
-
-        private string AndHexList(List<byte[]> list)
-        {
-            int len = list.Count;
-            string s = "";
-
-            if (len < 1)
-                throw new Exception("AllOf list must have at least two entries");
-
-
-            // Alternative (but complicated):
-            // How to select ONE matching:
-            //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE tagid=x'189820F6018B51349CC07ED86B02C8F6';
-            // How to select TWO matching:
-            //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE tagid=x'189820F6018B51349CC07ED86B02C8F6') and tagid=x'189820F6018C218FA0F0F18E86139565';
-            // How to select TRHEE matching:
-            //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
-            //
-
-            s = $"fileid IN (SELECT DISTINCT fileid drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0])}' ";
-
-            for (int i = 0 + 1; i < len; i++)
-            {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[i])}' ";
             }
 
             s += ") ";
