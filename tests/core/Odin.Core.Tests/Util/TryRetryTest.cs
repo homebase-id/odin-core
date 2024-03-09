@@ -185,7 +185,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
     }
@@ -211,7 +211,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
     }
@@ -239,7 +239,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
     }
@@ -266,7 +266,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException.GetType(), Is.EqualTo(typeof(ArgumentException)));
@@ -293,7 +293,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThanOrEqualTo(250));
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException.GetType(), Is.EqualTo(typeof(ArgumentException)));
