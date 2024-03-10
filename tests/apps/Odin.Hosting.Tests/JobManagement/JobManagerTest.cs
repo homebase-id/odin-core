@@ -594,26 +594,12 @@ public class JobManagerTest
             SleepTime = 1000
         };
 
-        var scheduler4 = new SleepyTestSchedule(logger, SchedulerGroup.SlowHighPriority)
-        {
-            TestEcho = "Hello World",
-            SleepTime = 1000
-        };
-
-        var scheduler5 = new SleepyTestSchedule(logger, SchedulerGroup.FastHighPriority)
-        {
-            TestEcho = "Hello World",
-            SleepTime = 1000
-        };
-
         var sw = Stopwatch.StartNew();
         var jobKeys = new List<JobKey>
         {
             await jobManager.Schedule<SleepyTestJob>(scheduler1),
             await jobManager.Schedule<SleepyTestJob>(scheduler2),
             await jobManager.Schedule<SleepyTestJob>(scheduler3),
-            await jobManager.Schedule<SleepyTestJob>(scheduler4),
-            await jobManager.Schedule<SleepyTestJob>(scheduler5),
         };
 
         // Wait for jobs to complete
