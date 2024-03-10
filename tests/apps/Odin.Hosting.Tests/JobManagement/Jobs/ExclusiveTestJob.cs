@@ -70,7 +70,7 @@ public class ExclusiveTestJob(
 
         if (failCount > 0)
         {
-            throw new Exception("Job failed on purpose. This is not an error if you spot this in the logs.");
+            throw new Exception("Job threw exception on purpose. This is not an error if you spot this in the logs.");
         }
 
         if (context.JobDetail.Durable)
