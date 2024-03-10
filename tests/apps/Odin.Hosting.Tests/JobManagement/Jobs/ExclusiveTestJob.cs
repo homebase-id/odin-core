@@ -67,7 +67,7 @@ public class ExclusiveTestJob(
 
         if (failCount > 0)
         {
-            throw new Exception("Failing");
+            throw new Exception("Job failed on purpose. This is not an error if you spot this in the logs.");
         }
 
         await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });

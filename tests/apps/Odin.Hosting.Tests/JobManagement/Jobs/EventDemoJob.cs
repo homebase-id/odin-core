@@ -40,7 +40,7 @@ public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(
 
         if (jobData.TryGetBooleanValue("shouldFail", out var shouldFail) && shouldFail)
         {
-            throw new Exception("Job failed");
+            throw new Exception("Job failed on purpose. This is not an error if you spot this in the logs.");
         }
 
         return Task.CompletedTask;

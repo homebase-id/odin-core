@@ -50,7 +50,6 @@ public class SleepyTestJob(
 
         var jobKey = context.JobDetail.Key;
         logger.LogDebug("Starting {JobKey}", jobKey);
-        logger.LogDebug("XXXXXXXXX Sleeping...");
 
         var jobData = context.JobDetail.JobDataMap;
         jobData.TryGetString("echo", out var echo);
@@ -59,8 +58,6 @@ public class SleepyTestJob(
         await Task.Delay(sleep);
 
         await SetJobResponseData(context, new SleepyTestData { Echo = echo });
-
-        logger.LogDebug("XXXXXXXXX Finished {JobKey}", jobKey);
     }
 }
 
