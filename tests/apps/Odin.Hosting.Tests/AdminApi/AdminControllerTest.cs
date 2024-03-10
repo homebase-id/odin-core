@@ -20,6 +20,7 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
+[Timeout(60000)]
 public class AdminControllerTest
 {
     private WebScaffold _scaffold = null!;

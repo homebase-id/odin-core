@@ -17,6 +17,7 @@ using Quartz;
 
 namespace Odin.Hosting.Tests.JobManagement;
 
+[Timeout(60000)]
 public class JobManagerTest
 {
     private readonly TimeSpan _maxWaitForJobStatus = TimeSpan.FromSeconds(5);
@@ -26,8 +27,10 @@ public class JobManagerTest
     [SetUp]
     public void Setup()
     {
+        Console.WriteLine("JobManagerTest.Setup() enter");
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
+        Console.WriteLine("JobManagerTest.Setup() exit");
     }
 
     //
@@ -35,9 +38,11 @@ public class JobManagerTest
     [TearDown]
     public void TearDown()
     {
+        Console.WriteLine("JobManagerTest.Setup() enter");
         _host.Dispose();
         _host = null;
         Directory.Delete(_tempPath, true);
+        Console.WriteLine("JobManagerTest.Setup() exit");
     }
 
     //
@@ -82,7 +87,9 @@ public class JobManagerTest
         var jobManager = _host.Services.GetRequiredService<IJobManager>();
         if (initializeJobManager)
         {
+            Console.WriteLine("JobManagerTest.Initialize() before");
             jobManager.Initialize().Wait();
+            Console.WriteLine("JobManagerTest.Initialize() after");
         }
 
         return jobManager;
