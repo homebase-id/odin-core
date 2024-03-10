@@ -38,11 +38,11 @@ public class JobManagerTest
     [TearDown]
     public void TearDown()
     {
-        Console.WriteLine("JobManagerTest.Setup() enter");
+        Console.WriteLine("JobManagerTest.TearDown() enter");
         _host.Dispose();
         _host = null;
         Directory.Delete(_tempPath, true);
-        Console.WriteLine("JobManagerTest.Setup() exit");
+        Console.WriteLine("JobManagerTest.TearDown() exit");
     }
 
     //
