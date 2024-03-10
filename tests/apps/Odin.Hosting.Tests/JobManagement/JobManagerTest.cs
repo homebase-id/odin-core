@@ -51,6 +51,7 @@ public class JobManagerTest
     {
         if (_host != null)
         {
+            // This can happen if the previous test was cancelled by nunit for being too slow
             throw new Exception("NO!");
         }
 
