@@ -39,6 +39,9 @@ public class JobManagerTest
     public void TearDown()
     {
         Console.WriteLine("JobManagerTest.TearDown() enter");
+        // Tearing down too soon after schedulers having been created seems to hang the test runner process.
+        // Let's give it some time to do its thing.
+        Task.Delay(200).Wait();
         _host.Dispose();
         _host = null;
         Directory.Delete(_tempPath, true);
