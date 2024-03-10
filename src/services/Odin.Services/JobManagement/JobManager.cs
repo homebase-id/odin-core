@@ -324,9 +324,11 @@ public sealed class JobManager(
         var schedulerNames = _schedulers.Keys;
         foreach (var name in schedulerNames)
         {
+            logger.LogDebug("JobManager starting shutdown of scheduler {SchedulerName}", name);
             var scheduler = _schedulers[name];
             await scheduler.Shutdown(true);
             _schedulers.Remove(name);
+            logger.LogDebug("JobManager finished shutdown of scheduler {SchedulerName}", name);
         }
     }
 
