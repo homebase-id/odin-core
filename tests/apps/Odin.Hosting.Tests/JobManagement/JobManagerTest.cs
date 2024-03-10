@@ -20,6 +20,7 @@ namespace Odin.Hosting.Tests.JobManagement;
 [Timeout(60000)]
 public class JobManagerTest
 {
+    private readonly ILogger<JobManagerTest> _logger = TestLogFactory.CreateConsoleLogger<JobManagerTest>();
     private readonly TimeSpan _maxWaitForJobStatus = TimeSpan.FromSeconds(5);
     private string _tempPath;
     private IHost _host;
@@ -27,10 +28,10 @@ public class JobManagerTest
     [SetUp]
     public void Setup()
     {
-        Console.WriteLine("JobManagerTest.Setup() enter");
+        _logger.LogDebug("JobManagerTest.Setup() enter");
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
-        Console.WriteLine("JobManagerTest.Setup() exit");
+        _logger.LogDebug("JobManagerTest.Setup() exit");
     }
 
     //
@@ -38,14 +39,14 @@ public class JobManagerTest
     [TearDown]
     public void TearDown()
     {
-        Console.WriteLine("JobManagerTest.TearDown() enter");
+        _logger.LogDebug("JobManagerTest.TearDown() enter");
         // Tearing down too soon after schedulers having been created seems to hang the test runner process.
         // Let's give it some time to do its thing.
         Task.Delay(200).Wait();
         _host.Dispose();
         _host = null;
         Directory.Delete(_tempPath, true);
-        Console.WriteLine("JobManagerTest.TearDown() exit");
+        _logger.LogDebug("JobManagerTest.TearDown() exit");
     }
 
     //
@@ -91,9 +92,9 @@ public class JobManagerTest
         var jobManager = _host.Services.GetRequiredService<IJobManager>();
         if (initializeJobManager)
         {
-            Console.WriteLine("JobManagerTest.Initialize() before");
+            _logger.LogDebug("JobManagerTest.Initialize() before");
             jobManager.Initialize().Wait();
-            Console.WriteLine("JobManagerTest.Initialize() after");
+            _logger.LogDebug("JobManagerTest.Initialize() after");
         }
 
         return jobManager;
