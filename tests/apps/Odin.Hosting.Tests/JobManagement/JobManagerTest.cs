@@ -622,8 +622,7 @@ public class JobManagerTest
             await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
         }
 
-        // Jobs have run parallel and thus time taken should be < 2s
-
+        // Jobs have run in parallel and thus time taken should be < 2s
         Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(1000));
         Assert.That(sw.ElapsedMilliseconds, Is.LessThan(2000));
 
