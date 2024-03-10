@@ -63,14 +63,20 @@ public class ExclusiveTestJob(
         jobData.TryGetString("echo", out var echo);
         jobData.TryGetInt("failCount", out var failCount);
 
-        await context.UpdateJobMap("failCount", (failCount - 1).ToString());
+        if (context.JobDetail.Durable)
+        {
+            await context.UpdateJobMap("failCount", (failCount - 1).ToString());
+        }
 
         if (failCount > 0)
         {
             throw new Exception("Job failed on purpose. This is not an error if you spot this in the logs.");
         }
 
-        await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
+        if (context.JobDetail.Durable)
+        {
+            await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
+        }
 
         logger.LogDebug("Finished {JobKey}", jobKey);
     }
