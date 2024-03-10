@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -55,28 +54,16 @@ public sealed class JobManager(
     private readonly AsyncLock _mutex = new();
     private readonly Dictionary<string, IScheduler> _schedulers = new();
 
-    // SEB:TODO get rid of this mess once we have identified the deadlock issue. Argh.
-    private readonly TimeSpan _mutexTimeout = TimeSpan.FromSeconds(10);
-
     //
 
     public async Task Initialize(Func<Task>? configureJobs)
     {
         Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
 
-        using var cts1 = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
             logger.LogDebug("Creating schedulers");
-            using (await _mutex.LockAsync(cts1.Token))
-            {
-                await CreateSchedulers();
-            }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts1.Token)
-        {
-            logger.LogError("JobManager: CreateSchedulers() timed out acuiring the mutex");
-            throw;
+            await CreateSchedulers();
         }
 
         if (configureJobs != null)
@@ -84,19 +71,10 @@ public sealed class JobManager(
             await configureJobs();
         }
 
-        using var cts2 = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
             logger.LogDebug("Starting schedulers");
-            using (await _mutex.LockAsync(cts2.Token))
-            {
-                await StartSchedulers();
-            }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts2.Token)
-        {
-            logger.LogError("JobManager: StartSchedulers() timed out acuiring the mutex");
-            throw;
+            await StartSchedulers();
         }
     }
 
@@ -104,59 +82,50 @@ public sealed class JobManager(
 
     public async Task<JobKey> Schedule<TJob>(AbstractJobSchedule jobSchedule) where TJob : IJob
     {
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
-            using (await _mutex.LockAsync(cts.Token))
+            // Sanity
+            if (_disposing)
             {
-                // Sanity
-                if (_disposing)
-                {
-                    throw new JobManagerException("JobManager is shutting down");
-                }
+                throw new JobManagerException("JobManager is shutting down");
+            }
 
-                var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
-                if (scheduler == null)
-                {
-                    throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
-                }
+            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
+            if (scheduler == null)
+            {
+                throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
+            }
 
-                var jobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
-                if (jobKey != null)
-                {
-                    logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
-                    return jobKey;
-                }
-
-                var (jobBuilder, triggerBuilders) = await jobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
-                if (triggerBuilders.Count == 0)
-                {
-                    // Sanity: we don't want to schedule a job without triggers
-                    return new JobKey("non-scheduled-job");
-                }
-
-                jobKey = jobSchedule.CreateJobKey();
-                jobBuilder.WithIdentity(jobKey);
-                jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
-                jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
-                jobBuilder.UsingJobData(JobConstants.JobTypeName, typeof(TJob).FullName);
-
-                var job = jobBuilder.Build();
-                foreach (var triggerBuilder in triggerBuilders)
-                {
-                    var trigger = triggerBuilder.Build();
-                    await scheduler.ScheduleJob(job, trigger);
-                }
-
-                logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
-
+            var jobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
+            if (jobKey != null)
+            {
+                logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
                 return jobKey;
             }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: Schedule() timed out acuiring the mutex");
-            throw;
+
+            var (jobBuilder, triggerBuilders) = await jobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
+            if (triggerBuilders.Count == 0)
+            {
+                // Sanity: we don't want to schedule a job without triggers
+                return new JobKey("non-scheduled-job");
+            }
+
+            jobKey = jobSchedule.CreateJobKey();
+            jobBuilder.WithIdentity(jobKey);
+            jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
+            jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
+            jobBuilder.UsingJobData(JobConstants.JobTypeName, typeof(TJob).FullName);
+
+            var job = jobBuilder.Build();
+            foreach (var triggerBuilder in triggerBuilders)
+            {
+                var trigger = triggerBuilder.Build();
+                await scheduler.ScheduleJob(job, trigger);
+            }
+
+            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
+
+            return jobKey;
         }
     }
 
@@ -170,45 +139,36 @@ public sealed class JobManager(
             JobKey = jobKey.ToString(),
         };
 
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
-            using (await _mutex.LockAsync(cts.Token))
+            var schedulerGroup = jobKey.SchedulerGroup();
+            if (schedulerGroup == null)
             {
-                var schedulerGroup = jobKey.SchedulerGroup();
-                if (schedulerGroup == null)
-                {
-                    return response;
-                }
-
-                var scheduler = GetScheduler(schedulerGroup.Value);
-                if (scheduler == null)
-                {
-                    return response;
-                }
-
-                var job = await scheduler.GetJobDetail(jobKey);
-                if (job == null || !job.Key.Equals(jobKey))
-                {
-                    return response;
-                }
-
-                var jobData = job.JobDataMap;
-                jobData.TryGetString(JobConstants.StatusKey, out var status);
-                jobData.TryGetString(JobConstants.JobErrorMessageKey, out var errorMessage);
-                jobData.TryGetString(JobConstants.JobResponseDataKey, out var data);
-
-                response.Status = Helpers.JobStatusFromStatusValue(status ?? "");
-                response.Error = errorMessage;
-                response.Data = data;
-
                 return response;
             }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: GetResponse() timed out acuiring the mutex");
-            throw;
+
+            var scheduler = GetScheduler(schedulerGroup.Value);
+            if (scheduler == null)
+            {
+                return response;
+            }
+
+            var job = await scheduler.GetJobDetail(jobKey);
+            if (job == null || !job.Key.Equals(jobKey))
+            {
+                return response;
+            }
+
+            var jobData = job.JobDataMap;
+            jobData.TryGetString(JobConstants.StatusKey, out var status);
+            jobData.TryGetString(JobConstants.JobErrorMessageKey, out var errorMessage);
+            jobData.TryGetString(JobConstants.JobResponseDataKey, out var data);
+
+            response.Status = Helpers.JobStatusFromStatusValue(status ?? "");
+            response.Error = errorMessage;
+            response.Data = data;
+
+            return response;
         }
     }
 
@@ -235,30 +195,21 @@ public sealed class JobManager(
 
     public async Task<bool> Exists(JobKey jobKey)
     {
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
-            using (await _mutex.LockAsync(cts.Token))
+            var schedulerGroup = jobKey.SchedulerGroup();
+            if (schedulerGroup == null)
             {
-                var schedulerGroup = jobKey.SchedulerGroup();
-                if (schedulerGroup == null)
-                {
-                    return false;
-                }
-
-                var scheduler = GetScheduler(schedulerGroup.Value);
-                if (scheduler == null)
-                {
-                    return false;
-                }
-
-                return await scheduler.CheckExists(jobKey);
+                return false;
             }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: Exists() timed out acuiring the mutex");
-            throw;
+
+            var scheduler = GetScheduler(schedulerGroup.Value);
+            if (scheduler == null)
+            {
+                return false;
+            }
+
+            return await scheduler.CheckExists(jobKey);
         }
     }
 
@@ -266,46 +217,37 @@ public sealed class JobManager(
 
     public async Task<bool> Delete(JobKey jobKey)
     {
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        //
+        // Race condition in Quartz when deleting here:
+        //   https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Core/QuartzScheduler.cs#L690
+        // It seems to work better if we explicitly unschedule the triggers before deleting the job.
+        //
+        using (await _mutex.LockAsync())
         {
-            //
-            // Race condition in Quartz when deleting here:
-            //   https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Core/QuartzScheduler.cs#L690
-            // It seems to work better if we explicitly unschedule the triggers before deleting the job.
-            //
-            using (await _mutex.LockAsync(cts.Token))
+            var schedulerGroup = jobKey.SchedulerGroup();
+            if (schedulerGroup == null)
             {
-                var schedulerGroup = jobKey.SchedulerGroup();
-                if (schedulerGroup == null)
-                {
-                    return false;
-                }
-
-                var scheduler = GetScheduler(schedulerGroup.Value);
-                if (scheduler == null)
-                {
-                    return false;
-                }
-
-                var triggers = await scheduler.GetTriggersOfJob(jobKey);
-                foreach (var trigger in triggers)
-                {
-                    await scheduler.UnscheduleJob(trigger.Key);
-                }
-
-                var deleted = await scheduler.DeleteJob(jobKey);
-                if (deleted)
-                {
-                    // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
-                }
-                return deleted;
+                return false;
             }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: Delete(JobKey) timed out acuiring the mutex");
-            throw;
+
+            var scheduler = GetScheduler(schedulerGroup.Value);
+            if (scheduler == null)
+            {
+                return false;
+            }
+
+            var triggers = await scheduler.GetTriggersOfJob(jobKey);
+            foreach (var trigger in triggers)
+            {
+                await scheduler.UnscheduleJob(trigger.Key);
+            }
+
+            var deleted = await scheduler.DeleteJob(jobKey);
+            if (deleted)
+            {
+                // logger.LogDebug("Explicitly deleted {JobKey}", jobKey);
+            }
+            return deleted;
         }
     }
 
@@ -313,30 +255,21 @@ public sealed class JobManager(
 
     public async Task<bool> Delete(AbstractJobSchedule jobSchedule)
     {
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
-            using (await _mutex.LockAsync(cts.Token))
+            var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
+            if (scheduler == null)
             {
-                var scheduler = GetScheduler(jobSchedule.SchedulerGroup);
-                if (scheduler == null)
-                {
-                    return false;
-                }
-
-                var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobSchedule.SchedulingKey));
-                var deleted = await scheduler.DeleteJobs(jobKeys);
-                if (deleted)
-                {
-                    // logger.LogDebug("Explicitly deleted {JobId}", jobScheduler.JobId);
-                }
-                return deleted;
+                return false;
             }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: Delete(AbstractJobSchedule) timed out acuiring the mutex");
-            throw;
+
+            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(jobSchedule.SchedulingKey));
+            var deleted = await scheduler.DeleteJobs(jobKeys);
+            if (deleted)
+            {
+                // logger.LogDebug("Explicitly deleted {JobId}", jobScheduler.JobId);
+            }
+            return deleted;
         }
     }
 
@@ -344,19 +277,10 @@ public sealed class JobManager(
 
     public async ValueTask DisposeAsync()
     {
-        using var cts = new CancellationTokenSource(_mutexTimeout);
-        try
+        using (await _mutex.LockAsync())
         {
-            using (await _mutex.LockAsync(cts.Token))
-            {
-                _disposing = true;
-                await ShutdownSchedulers();
-            }
-        }
-        catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
-        {
-            logger.LogError("JobManager: DisposeAsync() timed out acuiring the mutex");
-            throw;
+            _disposing = true;
+            await ShutdownSchedulers();
         }
     }
 
