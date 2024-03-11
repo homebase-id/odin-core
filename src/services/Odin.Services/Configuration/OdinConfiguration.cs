@@ -22,7 +22,7 @@ namespace Odin.Services.Configuration
         public DevelopmentSection Development { get; init; }
 
         public LoggingSection Logging { get; init; }
-        public QuartzSection Quartz { get; init; }
+        public JobSection Job { get; init; }
         public CertificateRenewalSection CertificateRenewal { get; init; }
 
         public MailgunSection Mailgun { get; init; }
@@ -40,7 +40,7 @@ namespace Odin.Services.Configuration
         {
             Host = new HostSection(config);
             Logging = new LoggingSection(config);
-            Quartz = new QuartzSection(config);
+            Job = new JobSection(config);
             Registry = new RegistrySection(config);
             Mailgun = new MailgunSection(config);
             Admin = new AdminSection(config);
@@ -271,8 +271,13 @@ namespace Odin.Services.Configuration
 
         //
 
-        public class QuartzSection
+        public class JobSection
         {
+            /// <summary>
+            /// Toggle if job processing is enabled
+            /// </summary>
+            public bool Enabled { get; init; }
+
             /// <summary>
             /// Number of seconds to delay starting background jobs when starting the dotyoucore process
             /// </summary>
@@ -292,27 +297,28 @@ namespace Odin.Services.Configuration
             /// </summary>
             public int CronBatchSize { get; init; }
 
-            public bool EnableQuartzBackgroundService { get; init; }
+            public bool EnableJobBackgroundService { get; init; }
 
-            public string SqliteDatabaseFileName { get; init; }
+            public int MaxSchedulerConcurrency { get; init; }
 
-            public int MaxConcurrency { get; init; }
+            public bool ConnectionPooling { get; init; }
 
-            public QuartzSection()
+            public JobSection()
             {
                 // Mockable support
             }
 
-            public QuartzSection(IConfiguration config)
+            public JobSection(IConfiguration config)
             {
-                BackgroundJobStartDelaySeconds = config.Required<int>("Quartz:BackgroundJobStartDelaySeconds");
-                EnableQuartzBackgroundService = config.Required<bool>("Quartz:EnableQuartzBackgroundService");
-                CronProcessingInterval = config.Required<int>("Quartz:CronProcessingInterval");
-                CronBatchSize = config.Required<int>("Quartz:CronBatchSize");
-                EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
-                ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
-                SqliteDatabaseFileName = config.Required<string>("Quartz:SqliteDatabaseFileName");
-                MaxConcurrency = config.Required<int>("Quartz:MaxConcurrency");
+                Enabled = config.Required<bool>("Job:Enabled");
+                BackgroundJobStartDelaySeconds = config.Required<int>("Job:BackgroundJobStartDelaySeconds");
+                EnableJobBackgroundService = config.Required<bool>("Job:EnableJobBackgroundService");
+                CronProcessingInterval = config.Required<int>("Job:CronProcessingInterval");
+                CronBatchSize = config.Required<int>("Job:CronBatchSize");
+                EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");
+                ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Job:ProcessPendingCertificateOrderIntervalInSeconds");
+                MaxSchedulerConcurrency = config.Required<int>("Job:MaxSchedulerConcurrency");
+                ConnectionPooling = config.GetOrDefault("Job:ConnectionPooling", true);
             }
         }
 

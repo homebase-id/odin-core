@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -6,7 +5,7 @@ using Odin.Core.Serialization;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 #nullable enable
 
 public static class SchedulerExtensions

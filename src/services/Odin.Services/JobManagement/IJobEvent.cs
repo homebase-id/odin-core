@@ -1,8 +1,7 @@
-using System;
 using System.Threading.Tasks;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
 public interface IJobEvent
 {

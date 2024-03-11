@@ -2,15 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
-namespace Odin.Hosting.Tests.Quartz.Jobs;
+namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class ChainTestScheduler : AbstractJobScheduler
+public class ChainTestSchedule : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -43,7 +44,7 @@ public class ChainTestJob(ICorrelationContext correlationContext, IJobManager jo
         var nextJobKey = "";
         if (currentIteration > 1)
         {
-            var scheduler = new ChainTestScheduler
+            var scheduler = new ChainTestSchedule
             {
                 IterationCount = currentIteration - 1
             };

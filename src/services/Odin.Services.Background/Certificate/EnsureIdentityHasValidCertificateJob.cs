@@ -6,15 +6,16 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Quartz;
 
 namespace Odin.Services.Background.Certificate;
 
-public class EnsureIdentityHasValidCertificateScheduler(OdinConfiguration odinConfig) : AbstractJobScheduler
+public class EnsureIdentityHasValidCertificateSchedule(OdinConfiguration odinConfig) : AbstractJobSchedule
 {
-    public override string SchedulingKey => "CertificateRenewal";
+    public sealed override string SchedulingKey => "CertificateRenewal";
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     /// <summary>
     /// Watches for certificates that need renewal; starts the process when required
@@ -26,10 +27,10 @@ public class EnsureIdentityHasValidCertificateScheduler(OdinConfiguration odinCo
             TriggerBuilder.Create()
                 .WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.EnsureCertificateProcessorIntervalSeconds))
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Job.EnsureCertificateProcessorIntervalSeconds))
                     .WithMisfireHandlingInstructionNextWithRemainingCount())
                 .StartAt(DateTimeOffset.UtcNow.Add(
-                    TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)))
+                    TimeSpan.FromSeconds(odinConfig.Job.BackgroundJobStartDelaySeconds)))
         };
 
         return Task.FromResult((jobBuilder, triggerBuilders));

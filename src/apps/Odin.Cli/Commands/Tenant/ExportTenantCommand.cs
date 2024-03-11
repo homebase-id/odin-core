@@ -4,7 +4,7 @@ using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
 using Odin.Services.Admin.Tenants.Jobs;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Spectre.Console;
 using Spectre.Console.Cli;
 

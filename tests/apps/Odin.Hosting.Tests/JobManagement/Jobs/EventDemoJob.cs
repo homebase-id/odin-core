@@ -2,14 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
-namespace Odin.Hosting.Tests.Quartz.Jobs;
+namespace Odin.Hosting.Tests.JobManagement.Jobs;
 
-public class EventDemoScheduler : AbstractJobScheduler
+public class EventDemoSchedule : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -39,7 +40,7 @@ public class EventDemoJob(ICorrelationContext correlationContext) : AbstractJob(
 
         if (jobData.TryGetBooleanValue("shouldFail", out var shouldFail) && shouldFail)
         {
-            throw new Exception("Job failed");
+            throw new Exception("Job threw exception on purpose. This is not an error if you spot this in the logs.");
         }
 
         return Task.CompletedTask;

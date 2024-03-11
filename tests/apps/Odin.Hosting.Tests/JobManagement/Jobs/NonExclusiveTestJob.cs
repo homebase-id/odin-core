@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
-namespace Odin.Hosting.Tests.Quartz.Jobs;
+namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class NonExclusiveTestScheduler(ILogger<NonExclusiveTestScheduler> logger) : AbstractJobScheduler
+public class NonExclusiveTestSchedule(ILogger<NonExclusiveTestSchedule> logger) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

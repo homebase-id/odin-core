@@ -6,9 +6,9 @@ namespace Odin.Test.Helpers.Logging;
 
 public static class TestLogFactory
 {
-    public static ILogger<T> CreateConsoleLogger<T>(LogEventLevel minimumLevel = LogEventLevel.Debug)
+    public static ILoggerFactory CreateLoggerFactory(LogEventLevel minimumLevel = LogEventLevel.Debug)
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
+        return LoggerFactory.Create(builder =>
         {
             const string logOutputTemplate = "{Timestamp:HH:mm:ss.fff} {Level:u3} {Message:lj}{NewLine}{Exception}";
             var serilog = new LoggerConfiguration()
@@ -17,7 +17,11 @@ public static class TestLogFactory
                 .CreateLogger();
             builder.AddSerilog(serilog);
         });
+    }
 
+    public static ILogger<T> CreateConsoleLogger<T>(LogEventLevel minimumLevel = LogEventLevel.Debug)
+    {
+        var loggerFactory = CreateLoggerFactory(minimumLevel);
         return loggerFactory.CreateLogger<T>();
     }
 }

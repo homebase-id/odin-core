@@ -9,18 +9,19 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Quartz;
 using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Services.Background.FeedDistributionApp;
+using Odin.Services.JobManagement;
 using Quartz;
 
 namespace Odin.Services.Background.DefaultCron;
 
-public class DefaultCronScheduler(
-    ILogger<DefaultCronScheduler> logger,
-    OdinConfiguration odinConfig) : AbstractJobScheduler
+public class DefaultCronSchedule(
+    ILogger<DefaultCronSchedule> logger,
+    OdinConfiguration odinConfig) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = "DefaultCron";
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -29,15 +30,15 @@ public class DefaultCronScheduler(
             TriggerBuilder.Create()
                 .WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.CronProcessingInterval))
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Job.CronProcessingInterval))
                     .WithMisfireHandlingInstructionNextWithRemainingCount())
                 .StartAt(DateTimeOffset.UtcNow.Add(
-                    TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)))
+                    TimeSpan.FromSeconds(odinConfig.Job.BackgroundJobStartDelaySeconds)))
         };
 
         logger.LogInformation(
             "Scheduling Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batchsize of {CronBatchSize}",
-            odinConfig.Quartz.CronProcessingInterval, odinConfig.Quartz.CronBatchSize);
+            odinConfig.Job.CronProcessingInterval, odinConfig.Job.CronBatchSize);
 
         return Task.FromResult((jobBuilder, triggerBuilders));
     }
@@ -57,10 +58,10 @@ public class DefaultCronJob(
     {
         logger.LogTrace("DefaultCronJob running...");
 
-        var batchSize = config.Quartz.CronBatchSize;
+        var batchSize = config.Job.CronBatchSize;
         if (batchSize <= 0)
         {
-            throw new OdinSystemException("Quartz:CronBatchSize must be greater than zero");
+            throw new OdinSystemException("Job:CronBatchSize must be greater than zero");
         }
 
         var batch = serverSystemStorage.JobQueue.Pop(batchSize);

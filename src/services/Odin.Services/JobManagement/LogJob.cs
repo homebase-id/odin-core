@@ -4,11 +4,12 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
-public class LogScheduler(string text) : AbstractJobScheduler
+public class LogSchedule(string text) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

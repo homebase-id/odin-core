@@ -1,7 +1,7 @@
 using System;
 using Quartz;
 
-namespace Odin.Services.Quartz;
+namespace Odin.Services.JobManagement;
 
  public static class JobBuilderExtensions
  {

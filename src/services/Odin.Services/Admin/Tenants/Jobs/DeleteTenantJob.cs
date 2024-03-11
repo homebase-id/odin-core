@@ -4,16 +4,17 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Quartz;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
 
-public class DeleteTenantScheduler(ILogger<DeleteTenantScheduler> logger, string domain) : AbstractJobScheduler
+public class DeleteTenantSchedule(ILogger<DeleteTenantSchedule> logger, string domain) : AbstractJobSchedule
 {
-    public sealed override string SchedulingKey { get; } = $"delete-tenant:{domain}";
+    public sealed override string SchedulingKey { get; } = $"delete-tenant:{domain.Replace('.', '_')}";
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

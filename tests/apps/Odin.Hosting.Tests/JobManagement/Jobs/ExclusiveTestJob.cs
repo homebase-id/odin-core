@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
-namespace Odin.Hosting.Tests.Quartz.Jobs;
+namespace Odin.Hosting.Tests.JobManagement.Jobs;
 #nullable enable
 
-public class ExclusiveTestScheduler(ILogger<ExclusiveTestScheduler> logger) : AbstractJobScheduler
+public class ExclusiveTestSchedule(ILogger<ExclusiveTestSchedule> logger) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = "exclusive-test";
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -62,14 +63,20 @@ public class ExclusiveTestJob(
         jobData.TryGetString("echo", out var echo);
         jobData.TryGetInt("failCount", out var failCount);
 
-        await context.UpdateJobMap("failCount", (failCount - 1).ToString());
+        if (context.JobDetail.Durable)
+        {
+            await context.UpdateJobMap("failCount", (failCount - 1).ToString());
+        }
 
         if (failCount > 0)
         {
-            throw new Exception("Failing");
+            throw new Exception("Job threw exception on purpose. This is not an error if you spot this in the logs.");
         }
 
-        await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
+        if (context.JobDetail.Durable)
+        {
+            await SetJobResponseData(context, new NonExclusiveTestData { Echo = echo });
+        }
 
         logger.LogDebug("Finished {JobKey}", jobKey);
     }
