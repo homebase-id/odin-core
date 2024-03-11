@@ -59,10 +59,10 @@ namespace Odin.Hosting.Middleware
 
                 OwnerApiPathConstants.YouAuthV1,
                 OwnerApiPathConstants.AuthV1,
-                $"{OwnerApiPathConstants.TransitV1}/outbox/processor",
+                $"{OwnerApiPathConstants.PeerV1}/outbox/processor",
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
-                $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
+                $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
@@ -85,11 +85,11 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
 
-                $"{OwnerApiPathConstants.TransitV1}/query/payload",
-                $"{OwnerApiPathConstants.TransitV1}/query/thumb",
+                $"{OwnerApiPathConstants.PeerV1}/query/payload",
+                $"{OwnerApiPathConstants.PeerV1}/query/thumb",
 
-                $"{OwnerApiPathConstants.TransitV1}/query/payload_byglobaltransitid",
-                $"{OwnerApiPathConstants.TransitV1}/query/thumb_byglobaltransitid",
+                $"{OwnerApiPathConstants.PeerV1}/query/payload_byglobaltransitid",
+                $"{OwnerApiPathConstants.PeerV1}/query/thumb_byglobaltransitid",
 
                 $"{AppApiPathConstants.DriveV1}/files/payload",
                 $"{AppApiPathConstants.DriveV1}/files/thumb",

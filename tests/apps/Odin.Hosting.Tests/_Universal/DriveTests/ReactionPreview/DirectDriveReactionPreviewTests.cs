@@ -26,7 +26,6 @@ public class DirectDriveReactionPreviewTests
         _scaffold.RunAfterAnyTests();
     }
 
-
     [Test]
     public async Task CanUpdateHeaderAndKeepReactionPreview()
     {
