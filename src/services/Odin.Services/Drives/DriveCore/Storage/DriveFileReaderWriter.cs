@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
@@ -12,23 +12,38 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// Handles read/write access to drive files to ensure correct
 /// locking as well as apply system config for how files are written.
 /// </summary>
-public sealed class DriveFileReaderWriter(OdinConfiguration configuration, ConcurrentFileManager concurrentFileManager)
+public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, ConcurrentFileManager concurrentFileManager)
 {
-    public void WriteString(string filePath, string data)
+    public async Task WriteString(string filePath, string data)
     {
-        concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () => await concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data)));
     }
 
-    public void WriteAllBytes(string filePath, byte[] bytes)
+    public async Task WriteAllBytes(string filePath, byte[] bytes)
     {
-        concurrentFileManager.WriteFile(filePath, path => WriteAllBytesInternal(path, bytes));
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () => await concurrentFileManager.WriteFile(filePath, path => File.WriteAllBytes(path, bytes)));
     }
 
-    public uint WriteStream(string filePath, Stream stream)
+    public async Task<uint> WriteStream(string filePath, Stream stream)
     {
         uint bytesWritten = 0;
-        concurrentFileManager.WriteFile(filePath,
-            path => WriteStreamInternal(path, stream, configuration.Host.FileWriteChunkSizeInBytes, out bytesWritten));
+
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () =>
+                await concurrentFileManager.WriteFile(filePath,
+                    path => WriteStreamInternal(path, stream, odinConfiguration.Host.FileWriteChunkSizeInBytes, out bytesWritten))
+        );
 
         if (bytesWritten != stream.Length)
         {
@@ -60,19 +75,31 @@ public sealed class DriveFileReaderWriter(OdinConfiguration configuration, Concu
         }
     }
 
-    public void MoveFile(string sourceFilePath, string destinationFilePath)
+    public async Task MoveFile(string sourceFilePath, string destinationFilePath)
     {
-        concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) =>
-            File.Move(s, d, true)
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () => await concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) => File.Move(s, d, true))
         );
     }
 
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.Read)
+    public async Task<Stream> OpenStreamForReading(string filePath)
     {
-        Stream fileStream = concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
+        Stream fileStream = Stream.Null;
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () =>
+                // MS: The CFM opens in ReadOnly mode. 
+                fileStream = await concurrentFileManager.ReadStream(filePath)
+        );
+
         return fileStream;
     }
 
@@ -93,43 +120,25 @@ public sealed class DriveFileReaderWriter(OdinConfiguration configuration, Concu
             output.Close();
         }
     }
-
-    private static void WriteAllBytesInternal(string filePath, byte[] bytes)
+    
+    public async Task DeleteFile(string path)
     {
-        File.WriteAllBytes(filePath, bytes);
+        //TODO: Consider if we need to do file.exists before deleting?
+        await TryRetry.WithDelayAsync(
+            odinConfiguration.Host.FileOperationRetryAttempts,
+            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            CancellationToken.None,
+            async () =>
+                await concurrentFileManager.DeleteFile(path)
+        );
     }
 
-    public Task DeleteFile(string path)
-    {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task DeleteFiles(string[] paths)
+    public async Task DeleteFiles(string[] paths)
     {
         foreach (var path in paths)
         {
-            File.Delete(path);
+            await this.DeleteFile(path);
         }
-
-        return Task.CompletedTask;
-    }
-
-    public Task DeleteFilesInPath(DirectoryInfo dir, string searchPattern)
-    {
-        if (dir.Exists)
-        {
-            foreach (var file in dir.EnumerateFiles(searchPattern))
-            {
-                file.Delete();
-            }
-        }
-
-        return Task.CompletedTask;
     }
 
     public Task<bool> FileExists(string filePath)
@@ -146,8 +155,8 @@ public sealed class DriveFileReaderWriter(OdinConfiguration configuration, Concu
     {
         if (Directory.Exists(dir))
         {
-            var thumbnails = Directory.GetFiles(dir, searchPattern);
-            await this.DeleteFiles(thumbnails);
+            var files = Directory.GetFiles(dir, searchPattern);
+            await this.DeleteFiles(files);
         }
     }
 

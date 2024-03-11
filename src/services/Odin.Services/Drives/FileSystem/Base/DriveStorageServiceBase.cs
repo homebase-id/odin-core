@@ -163,10 +163,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
+        public async Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
-            return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
+            return await GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
         /// <summary>
@@ -810,11 +810,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var mgr = GetLongTermStorageManager(header.FileMetadata.File.DriveId);
 
+            //Note: this can probably be removed because the underlying file writer has retries in it
             var attempts = await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
                 CancellationToken.None,
-                () => mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
+                async () => await mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {

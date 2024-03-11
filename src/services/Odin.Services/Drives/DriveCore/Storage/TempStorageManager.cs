@@ -38,21 +38,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
+        public async Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
         {
             string filePath = GetTempFilenameAndPath(fileId, extension, true);
-            uint bytesWritten = _driveFileReaderWriter.WriteStream(filePath, stream);
-            return Task.FromResult(bytesWritten);
+            uint bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream);
+            return bytesWritten;
         }
 
         /// <summary>
         /// Deletes the file matching <param name="fileId"></param> and extension.
         /// </summary>
-        public Task EnsureDeleted(Guid fileId, string extension)
+        public async Task EnsureDeleted(Guid fileId, string extension)
         {
             string filePath = GetTempFilenameAndPath(fileId, extension);
-            _driveFileReaderWriter.DeleteFile(filePath);
-            return Task.CompletedTask;
+            await _driveFileReaderWriter.DeleteFile(filePath);
         }
 
         /// <summary>
@@ -61,8 +60,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <param name="fileId"></param>
         public async Task EnsureDeleted(Guid fileId)
         {
-            var dir = new DirectoryInfo(GetFileDirectory(fileId));
-            await _driveFileReaderWriter.DeleteFilesInPath(dir, searchPattern: GetFilename(fileId, "*"));
+            // var dir = new DirectoryInfo(GetFileDirectory(fileId));
+            var dir = GetFileDirectory(fileId);
+            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern: GetFilename(fileId, "*"));
         }
 
         /// <summary>

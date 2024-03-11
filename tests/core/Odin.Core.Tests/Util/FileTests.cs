@@ -15,6 +15,7 @@ public class ConcurrentFileManagerTests
 {
     private readonly ILogger<ConcurrentFileManager> _logger =
         TestLogFactory.CreateConsoleLogger<ConcurrentFileManager>(LogEventLevel.Verbose);
+
     private readonly CorrelationContext _correlationContext = new(new CorrelationUniqueIdGenerator());
     private ConcurrentFileManager _fileManager;
 
@@ -91,14 +92,11 @@ public class ConcurrentFileManagerTests
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
         _fileManager.ReadFile(testFilePath, path =>
-        { 
+        {
             actualContent1 = File.ReadAllText(path);
             Task innerTask = Task.Run(() =>
             {
-                _fileManager.ReadFile(testFilePath, innerPath =>
-                {
-                    actualContent2 = File.ReadAllText(innerPath);
-                });
+                _fileManager.ReadFile(testFilePath, innerPath => { actualContent2 = File.ReadAllText(innerPath); });
                 innerTaskFinished.Set();
             });
 
@@ -129,10 +127,7 @@ public class ConcurrentFileManagerTests
             {
                 try
                 {
-                    _fileManager.ReadFile(testFilePath, innerPath =>
-                    {
-                        actualContent2 = File.ReadAllText(innerPath);
-                    });
+                    _fileManager.ReadFile(testFilePath, innerPath => { actualContent2 = File.ReadAllText(innerPath); });
                     Assert.Fail("Not supposed to be here");
                 }
                 catch (Exception ex)
@@ -140,14 +135,14 @@ public class ConcurrentFileManagerTests
                     Assert.IsTrue(ex.Message.Contains("No access, file is already being"), "The exception message does not contain the expected substring.");
                 }
                 finally
-                { 
-                    innerTaskFinished.Set(); 
+                {
+                    innerTaskFinished.Set();
                 }
             });
 
             // Wait for the inner task to complete
             innerTaskFinished.WaitOne();
-        });
+        }).GetAwaiter().GetResult();
 
         Assert.AreEqual(expectedContent, actualContent1);
         Assert.AreEqual(actualContent2, null);
@@ -173,25 +168,22 @@ public class ConcurrentFileManagerTests
             {
                 try
                 {
-                    _fileManager.WriteFile(testFilePath, innerPath =>
-                    {
-                        actualContent2 = File.ReadAllText(innerPath);
-                    });
+                    _fileManager.WriteFile(testFilePath, innerPath => { actualContent2 = File.ReadAllText(innerPath); }).GetAwaiter().GetResult();
                     Assert.Fail("Not supposed to be here");
                 }
                 catch (Exception ex)
                 {
                     Assert.IsTrue(ex.Message.Contains("Timeout waiting for lock"), "The exception message does not contain the expected substring.");
                 }
-                finally 
-                { 
-                    innerTaskFinished.Set(); 
+                finally
+                {
+                    innerTaskFinished.Set();
                 }
             });
 
             // Wait for the inner task to complete
             innerTaskFinished.WaitOne();
-        });
+        }).GetAwaiter().GetResult();
 
         Assert.AreEqual(expectedContent, actualContent1);
         Assert.AreEqual(actualContent2, null);
@@ -204,7 +196,8 @@ public class ConcurrentFileManagerTests
         string newContent = "New content";
         var fileManager = new ConcurrentFileManager(_logger, _correlationContext);
 
-        fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent) );
+        fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent)).GetAwaiter().GetResult();
+        ;
 
         // Open a stream for reading
         var stream = fileManager.ReadStream(testFilePath);
@@ -214,10 +207,7 @@ public class ConcurrentFileManagerTests
         {
             try
             {
-                fileManager.WriteFile(testFilePath, path =>
-                {
-                    File.WriteAllText(path, newContent);
-                });
+                fileManager.WriteFile(testFilePath, path => { File.WriteAllText(path, newContent); }).GetAwaiter().GetResult();;
                 Assert.Fail("Write operation should not succeed while the stream is open.");
             }
             catch (Exception ex)
@@ -240,7 +230,7 @@ public class ConcurrentFileManagerTests
             {
                 File.WriteAllText(path, newContent);
                 writeSucceeded = true;
-            });
+            }).GetAwaiter().GetResult();
         }
         catch
         {
@@ -258,7 +248,7 @@ public class ConcurrentFileManagerTests
 
         string contentToWrite = "Sample content";
 
-        _fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite));
+        _fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite)).GetAwaiter().GetResult();;
 
         string actualContent = File.ReadAllText(testFilePath);
         Assert.AreEqual(contentToWrite, actualContent);
@@ -270,7 +260,7 @@ public class ConcurrentFileManagerTests
         string testFilePath = "testfile03.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
-        _fileManager.DeleteFile(testFilePath);
+        _fileManager.DeleteFile(testFilePath).GetAwaiter().GetResult();;
 
         Assert.IsFalse(File.Exists(testFilePath));
     }
@@ -316,10 +306,7 @@ public class ConcurrentFileManagerTests
         Assert.IsTrue(File.Exists(sourceFilePath), "Source file should exist before moving.");
         Assert.IsFalse(File.Exists(destinationFilePath), "Destination file should not exist before moving.");
 
-        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) =>
-        {
-            File.Move(source, destination);
-        });
+        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) => { File.Move(source, destination); });
 
         Assert.IsFalse(File.Exists(sourceFilePath), "Source file should not exist after moving.");
         Assert.IsTrue(File.Exists(destinationFilePath), "Destination file should exist after moving.");
@@ -354,10 +341,7 @@ public class ConcurrentFileManagerTests
         Assert.IsTrue(File.Exists(sourceFilePath), "Source file should exist before moving.");
         Assert.IsTrue(File.Exists(destinationFilePath), "file should exist before moving.");
 
-        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) =>
-        {
-            File.Replace(source, destination, null);
-        });
+        fileManager.MoveFile(sourceFilePath, destinationFilePath, (source, destination) => { File.Replace(source, destination, null); });
 
         Assert.IsFalse(File.Exists(sourceFilePath), "Source file should not exist after moving.");
         Assert.IsTrue(File.Exists(destinationFilePath), "Destination file should exist after moving.");
