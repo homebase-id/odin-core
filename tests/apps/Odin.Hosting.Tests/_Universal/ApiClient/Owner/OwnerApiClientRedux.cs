@@ -11,9 +11,9 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Transit;
+using Odin.Hosting.Tests._Universal.ApiClient.Transit.Query;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
-using SQLitePCL;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 {
@@ -41,12 +41,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
+            PeerQuery = new UniversalPeerQueryApiClient(identity.OdinId, factory);
 
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
             Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
-            Transit = new UniversalTransitApiClient(identity.OdinId, factory, ownerApi.SystemProcessApiKey);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
@@ -70,7 +70,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public UniversalDriveReactionClient Reactions { get; }
 
-        public UniversalTransitApiClient Transit { get; }
+        public UniversalPeerQueryApiClient PeerQuery { get; }
+
         public AppManagementApiClient AppManager { get; }
 
         public AppNotificationsApiClient AppNotifications { get; }

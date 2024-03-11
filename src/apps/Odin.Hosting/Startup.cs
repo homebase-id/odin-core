@@ -38,10 +38,11 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Extensions;
+using Odin.Hosting.JobManagement;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Hosting.Quartz;
+using Odin.Services.JobManagement;
 
 namespace Odin.Hosting
 {
@@ -91,10 +92,10 @@ namespace Odin.Hosting
             services.AddSingleton<DriveFileReaderWriter>();
 
             //
-            // Quartz
+            // Job stuff
             //
-            services.AddQuartzServices(config);
-            services.AddCronJobs();
+            services.AddJobManagementServices(config);
+            services.AddCronSchedules();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -321,7 +322,7 @@ namespace Odin.Hosting
                     endpoints.MapGet("/test-shutdown", async context =>
                     {
                         var now = DateTime.UtcNow;
-                        while (DateTime.UtcNow < now.AddSeconds(60))
+                        while (DateTime.UtcNow < now.AddSeconds(10))
                         {
                             logger.LogInformation("Waiting for shutdown");
                             await Task.Delay(1000);
@@ -448,7 +449,6 @@ namespace Odin.Hosting
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                            return;
                         });
                     });
             }
@@ -457,13 +457,18 @@ namespace Odin.Hosting
             {
                 DevEnvironmentSetup.ConfigureIfPresent(config, registry);
 
-                if (config.Quartz.EnableQuartzBackgroundService)
+                var services = app.ApplicationServices;
+                if (config.Job.Enabled)
                 {
-                    app.ApplicationServices.ScheduleCronJobs().Wait();
-                }
-                else
-                {
-                    app.ApplicationServices.RemoveCronJobs().Wait();
+                    var jobManager = services.GetRequiredService<IJobManager>();
+                    jobManager.Initialize(async () =>
+                    {
+                        await services.UnscheduleCronJobs();
+                        if (config.Job.EnableJobBackgroundService)
+                        {
+                            await services.ScheduleCronJobs();
+                        }
+                    }).Wait();
                 }
             });
 
@@ -472,11 +477,11 @@ namespace Odin.Hosting
                 logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
                     config.Host.ShutdownTimeoutSeconds);
 
-                //
-                // SEB:NOTE We need to stop all Quartz schedulers or else the process sometimes hangs on shutdown:
-                // https://github.com/quartznet/quartznet/blob/c4d3a0a9233d48078a288691e638505116a74ca9/src/Quartz/Util/QueuedTaskScheduler.cs#L140
-                //
-                app.ApplicationServices.GracefullyStopAllQuartzSchedulers().Wait();
+                var services = app.ApplicationServices;
+                if (config.Job.Enabled)
+                {
+                    services.UnscheduleCronJobs().Wait();
+                }
             });
         }
 

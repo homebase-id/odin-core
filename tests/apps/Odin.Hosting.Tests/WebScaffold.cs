@@ -128,13 +128,14 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
 
-            Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
-            Environment.SetEnvironmentVariable("Quartz__CronBatchSize", "100");
-            Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
-            Environment.SetEnvironmentVariable("Quartz__CronProcessingInterval", "5");
-            Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
-            Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
-
+            Environment.SetEnvironmentVariable("Job__Enabled", "false");
+            Environment.SetEnvironmentVariable("Job__ConnectionPooling", "false");
+            Environment.SetEnvironmentVariable("Job__EnableJobBackgroundService", "false");
+            Environment.SetEnvironmentVariable("Job__CronBatchSize", "100");
+            Environment.SetEnvironmentVariable("Job__BackgroundJobStartDelaySeconds", "10");
+            Environment.SetEnvironmentVariable("Job__CronProcessingInterval", "5");
+            Environment.SetEnvironmentVariable("Job__EnsureCertificateProcessorIntervalSeconds", "1000");
+            Environment.SetEnvironmentVariable("Job__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
 
             Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
             Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");

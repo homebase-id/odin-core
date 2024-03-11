@@ -14,13 +14,13 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Quartz;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
-using Quartz;
+using Odin.Services.JobManagement;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
+[Timeout(60000)]
 public class AdminControllerTest
 {
     private WebScaffold _scaffold = null!;
@@ -34,6 +34,7 @@ public class AdminControllerTest
         _scaffold = new WebScaffold(folder);
         var env = new Dictionary<string, string>
         {
+            { "Job__Enabled", "true" },
             { "Admin__ApiEnabled", "true" },
             { "Admin__ApiKey", "your-secret-api-key-here" },
             { "Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key" },
@@ -171,7 +172,7 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/delete-tenant%3Afrodo.dotyou.cloud."));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/delete-tenant%3Afrodo_dotyou_cloud."));
 
         var idx = 0;
         const int max = 20;
@@ -226,7 +227,7 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
-        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/export-tenant%3Afrodo.dotyou.cloud."));
+        Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/export-tenant%3Afrodo_dotyou_cloud."));
 
         var idx = 0;
         const int max = 20;

@@ -12,7 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry.Registration;
@@ -267,7 +267,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
             if (_configuration.Mailgun.Enabled)
             {
-                var scheduler = new SendProvisioningCompleteEmailScheduler(
+                var scheduler = new SendProvisioningCompleteEmailSchedule(
                     domain,
                     email,
                     firstRunToken.ToString(),

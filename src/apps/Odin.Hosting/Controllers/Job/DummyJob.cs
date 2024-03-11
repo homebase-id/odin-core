@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Quartz;
 
 namespace Odin.Hosting.Controllers.Job;
 #nullable enable
 
-public class DummyScheduler(string echo) : AbstractJobScheduler
+public class DummySchedule(string echo) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
+    public override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

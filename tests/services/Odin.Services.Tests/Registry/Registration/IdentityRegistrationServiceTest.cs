@@ -9,7 +9,7 @@ using NUnit.Framework;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.Email;
-using Odin.Services.Quartz;
+using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 
