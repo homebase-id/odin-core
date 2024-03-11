@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
@@ -9,39 +12,68 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// Handles read/write access to drive files to ensure correct
 /// locking as well as apply system config for how files are written.
 /// </summary>
-public sealed class DriveFileReaderWriter
+public sealed class DriveFileReaderWriter(OdinConfiguration configuration, ConcurrentFileManager concurrentFileManager)
 {
-    private readonly ConcurrentFileManager _concurrentFileManager;
-    private readonly OdinConfiguration _configuration;
-
-    public DriveFileReaderWriter(OdinConfiguration configuration, ConcurrentFileManager concurrentFileManager)
-    {
-        _configuration = configuration;
-        _concurrentFileManager = concurrentFileManager;
-    }
-
     public void WriteString(string filePath, string data)
     {
-        _concurrentFileManager.WriteFile(filePath, path => WriteStringInternal(path, data));
+        concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
     }
 
     public void WriteAllBytes(string filePath, byte[] bytes)
     {
-        _concurrentFileManager.WriteFile(filePath, path => WriteAllBytesInternal(path, bytes));
+        concurrentFileManager.WriteFile(filePath, path => WriteAllBytesInternal(path, bytes));
     }
 
     public uint WriteStream(string filePath, Stream stream)
     {
         uint bytesWritten = 0;
-        _concurrentFileManager.WriteFile(filePath,
-            path => WriteStreamInternal(path, stream, _configuration.Host.FileWriteChunkSizeInBytes, out bytesWritten));
+        concurrentFileManager.WriteFile(filePath,
+            path => WriteStreamInternal(path, stream, configuration.Host.FileWriteChunkSizeInBytes, out bytesWritten));
 
         if (bytesWritten != stream.Length)
         {
             throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {stream.Length}");
         }
-        
+
         return bytesWritten;
+    }
+
+    public Task<byte[]> GetAllFileBytes(string filePath)
+    {
+        //Note: i capture the file not found exception to avoid the extra call to File.Exists
+        try
+        {
+            byte[] bytes = null;
+
+            concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
+            //TODO: add server warning configuration when too my bytes are read
+            // if (bytes.Length > _configuration.Host.BytesWarningSize)
+            // {
+            //     Log.Warning("...");
+            // }
+
+            return Task.FromResult(bytes);
+        }
+        catch (FileNotFoundException)
+        {
+            return Task.FromResult<byte[]>(null);
+        }
+    }
+
+    public void MoveFile(string sourceFilePath, string destinationFilePath)
+    {
+        concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) =>
+            File.Move(s, d, true)
+        );
+    }
+
+    /// <summary>
+    /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
+    /// </summary>
+    public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.Read)
+    {
+        Stream fileStream = concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
+        return fileStream;
     }
 
     private static void WriteStreamInternal(string filePath, Stream stream, int chunkSize, out uint bytesWritten)
@@ -50,7 +82,7 @@ public sealed class DriveFileReaderWriter
 
         using (var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            var bytesRead = 0;
+            int bytesRead;
             do
             {
                 bytesRead = stream.Read(buffer, 0, buffer.Length);
@@ -62,61 +94,71 @@ public sealed class DriveFileReaderWriter
         }
     }
 
-    private static void WriteStringInternal(string filePath, string data)
-    {
-        File.WriteAllText(filePath, data);
-    }
-
-
     private static void WriteAllBytesInternal(string filePath, byte[] bytes)
     {
         File.WriteAllBytes(filePath, bytes);
     }
 
-    public byte[] GetAllFileBytes(string filePath)
+    public Task DeleteFile(string path)
     {
-        byte[] bytes = null;
-        _concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
 
-        //TODO: add server warning configuration when too my bytes are read
-        // if (bytes.Length > _configuration.Host.BytesWarningSize)
-        // {
-        //     Log.Warning("...");
-        // }
-
-        return bytes;
+        return Task.CompletedTask;
     }
 
-    public void MoveFile(string sourceFilePath, string destinationFilePath)
+    public Task DeleteFiles(string[] paths)
     {
-        _concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) =>
-            // File.Replace(s, d, null) //Replace requires the destination file to exist
-            File.Move(s, d, true)
-        );
+        foreach (var path in paths)
+        {
+            File.Delete(path);
+        }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
-    /// </summary>
-    public Stream OpenStreamForReading(string filePath, FileShare fileShare = FileShare.Read)
+    public Task DeleteFilesInPath(DirectoryInfo dir, string searchPattern)
     {
-        /* 
-        Orignal:
-
-        Stream fileStream = null;
-        _concurrentFileManager.ReadFile(filePath, path =>
+        if (dir.Exists)
         {
-            // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
-            fileStream = new OdinFilestream(path, FileMode.Open, FileAccess.Read, fileShare);
-        }); */
+            foreach (var file in dir.EnumerateFiles(searchPattern))
+            {
+                file.Delete();
+            }
+        }
 
-        /* _concurrentFileManager.ReadFile(filePath, path =>
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> FileExists(string filePath)
+    {
+        return Task.FromResult(File.Exists(filePath));
+    }
+
+    public Task<bool> DirectoryExists(string dir)
+    {
+        return Task.FromResult(Directory.Exists(dir));
+    }
+
+    public async Task DeleteFilesInDirectory(string dir, string searchPattern)
+    {
+        if (Directory.Exists(dir))
         {
-            // fileStream = File.Open(path, FileMode.Open, FileAccess.Read, fileShare);
-            fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare);
-        });*/
-        Stream fileStream = _concurrentFileManager.ReadStream(filePath); // MS: The CFM opens in ReadOnly mode. 
+            var thumbnails = Directory.GetFiles(dir, searchPattern);
+            await this.DeleteFiles(thumbnails);
+        }
+    }
 
-        return fileStream;
+    public Task<string[]> GetFilesInDirectory(string dir, string searchPattern = "*")
+    {
+        return Task.FromResult(Directory.GetFiles(dir!, searchPattern));
+    }
+
+    public Task CreateDirectory(string dir)
+    {
+        Directory.CreateDirectory(dir);
+        return Task.CompletedTask;
     }
 }

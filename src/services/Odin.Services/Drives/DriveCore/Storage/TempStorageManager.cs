@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 using Odin.Services.Drives.FileSystem.Base;
 
@@ -12,16 +11,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class TempStorageManager
     {
-        private readonly ILogger<TempStorageManager> _logger;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
         private readonly StorageDrive _drive;
 
-        public TempStorageManager(StorageDrive drive, ILogger<TempStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
+        public TempStorageManager(StorageDrive drive, DriveFileReaderWriter driveFileReaderWriter)
         {
             drive.EnsureDirectories();
 
-            _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
             _drive = drive;
         }
@@ -31,11 +28,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Gets a stream of data for the specified file
         /// </summary>
-        public Task<byte[]> GetAllFileBytes(Guid fileId, string extension)
+        public async Task<byte[]> GetAllFileBytes(Guid fileId, string extension)
         {
             string path = GetTempFilenameAndPath(fileId, extension);
-            var bytes = _driveFileReaderWriter.GetAllFileBytes(path);
-            return Task.FromResult(bytes);
+            var bytes = await _driveFileReaderWriter.GetAllFileBytes(path);
+            return bytes;
         }
 
         /// <summary>
@@ -54,11 +51,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Task EnsureDeleted(Guid fileId, string extension)
         {
             string filePath = GetTempFilenameAndPath(fileId, extension);
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-
+            _driveFileReaderWriter.DeleteFile(filePath);
             return Task.CompletedTask;
         }
 
@@ -66,19 +59,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Deletes all files matching <param name="fileId"></param> regardless of extension
         /// </summary>
         /// <param name="fileId"></param>
-        public Task EnsureDeleted(Guid fileId)
+        public async Task EnsureDeleted(Guid fileId)
         {
             var dir = new DirectoryInfo(GetFileDirectory(fileId));
-
-            if (dir.Exists)
-            {
-                foreach (var file in dir.EnumerateFiles(GetFilename(fileId, "*")))
-                {
-                    file.Delete();
-                }
-            }
-
-            return Task.CompletedTask;
+            await _driveFileReaderWriter.DeleteFilesInPath(dir, searchPattern: GetFilename(fileId, "*"));
         }
 
         /// <summary>

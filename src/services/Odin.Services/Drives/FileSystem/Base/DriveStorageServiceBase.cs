@@ -186,25 +186,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             return GetTempStorageManager(file.DriveId).GetAllFileBytes(file.FileId, extension);
         }
 
-        public Task DeleteTempFile(InternalDriveFileId file, string extension)
+        public async Task DeleteTempFile(InternalDriveFileId file, string extension)
         {
             AssertCanWriteToDrive(file.DriveId);
-            return GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId, extension);
+            await GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId, extension);
         }
 
-        public Task DeleteTempFiles(InternalDriveFileId file)
+        public async Task DeleteTempFiles(InternalDriveFileId file)
         {
             AssertCanWriteToDrive(file.DriveId);
 
-            return GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId);
+            await GetTempStorageManager(file.DriveId).EnsureDeleted(file.FileId);
         }
 
-        public Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
-        {
-            AssertCanReadDrive(driveId);
-
-            return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
-        }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, bool directMatchOnly = false)
@@ -384,15 +378,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             await WriteDeletedFileHeader(existingHeader);
         }
 
-        public Task HardDeleteLongTermFile(InternalDriveFileId file)
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file)
         {
             AssertCanWriteToDrive(file.DriveId);
 
-            var result = GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
+            await GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
 
             if (ShouldRaiseDriveEvent(file).GetAwaiter().GetResult())
             {
-                mediator.Publish(new DriveFileDeletedNotification()
+                await mediator.Publish(new DriveFileDeletedNotification()
                 {
                     IsHardDelete = true,
                     File = file,
@@ -400,8 +394,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     SharedSecretEncryptedFileHeader = null
                 });
             }
-
-            return result;
         }
 
         public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
@@ -480,7 +472,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
 
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
-            
+
             //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
             if (existingServerHeader.FileMetadata.GlobalTransitId != null)
             {
@@ -791,15 +783,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new LongTermStorageManager(drive, logger, driveFileReaderWriter);
+            var manager = new LongTermStorageManager(drive, logger, driveFileReaderWriter, odinConfiguration);
             return manager;
         }
 
         private TempStorageManager GetTempStorageManager(Guid driveId)
         {
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var logger = loggerFactory.CreateLogger<TempStorageManager>();
-            return new TempStorageManager(drive, logger, driveFileReaderWriter);
+            // var logger = loggerFactory.CreateLogger<TempStorageManager>();
+            return new TempStorageManager(drive, driveFileReaderWriter);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
@@ -808,7 +800,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var file = header.FileMetadata.File;
-            var payloadDiskUsage = GetLongTermStorageManager(file.DriveId).GetPayloadDiskUsage(file.FileId);
+            var payloadDiskUsage = await GetLongTermStorageManager(file.DriveId).GetPayloadDiskUsage(file.FileId);
 
             var json = OdinSystemSerializer.Serialize(header);
             header.ServerMetadata.FileByteCount = payloadDiskUsage + Encoding.UTF8.GetBytes(json).Length;
