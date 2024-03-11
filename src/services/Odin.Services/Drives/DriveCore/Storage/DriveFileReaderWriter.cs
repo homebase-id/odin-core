@@ -53,26 +53,29 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
         return bytesWritten;
     }
 
-    public Task<byte[]> GetAllFileBytes(string filePath)
+    public async Task<byte[]> GetAllFileBytes(string filePath)
     {
-        //Note: i capture the file not found exception to avoid the extra call to File.Exists
+        byte[] bytes = null;
+
         try
         {
-            byte[] bytes = null;
-
-            concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
-            //TODO: add server warning configuration when too my bytes are read
-            // if (bytes.Length > _configuration.Host.BytesWarningSize)
-            // {
-            //     Log.Warning("...");
-            // }
-
-            return Task.FromResult(bytes);
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                CancellationToken.None,
+                () => concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path)));
         }
-        catch (FileNotFoundException)
+        catch (TryRetryException e)
         {
-            return Task.FromResult<byte[]>(null);
+            if (e.InnerException is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return null;
+            }
+
+            throw;
         }
+
+        return bytes;
     }
 
     public async Task MoveFile(string sourceFilePath, string destinationFilePath)
@@ -120,7 +123,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
             output.Close();
         }
     }
-    
+
     public async Task DeleteFile(string path)
     {
         //TODO: Consider if we need to do file.exists before deleting?

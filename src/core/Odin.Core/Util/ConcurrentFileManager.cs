@@ -180,7 +180,7 @@ public class ConcurrentFileManager(
         LogUnlockStackTrace(filePath);
     }
 
-    public void ReadFile(string filePath, Action<string> readAction)
+    public Task ReadFile(string filePath, Action<string> readAction)
     {
         logger.LogTrace("ReadFile Lock requested on file {filePath}", filePath);
         EnterLock(filePath, ConcurrentFileLockEnum.ReadLock);
@@ -193,6 +193,8 @@ public class ConcurrentFileManager(
         {
             ExitLock(filePath);
         }
+
+        return Task.CompletedTask;
     }
 
     public Task<Stream> ReadStream(string filePath)

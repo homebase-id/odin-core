@@ -197,10 +197,9 @@ public class ConcurrentFileManagerTests
         var fileManager = new ConcurrentFileManager(_logger, _correlationContext);
 
         fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent)).GetAwaiter().GetResult();
-        ;
 
         // Open a stream for reading
-        var stream = fileManager.ReadStream(testFilePath);
+        var stream = fileManager.ReadStream(testFilePath).GetAwaiter().GetResult();
 
         // Attempt to write to the file in a separate task, which should fail due to the Stream's lock
         var writeTask = Task.Run(() =>
