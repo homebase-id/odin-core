@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -9,19 +10,18 @@ namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveQueryService : DriveQueryServiceBase
     {
-
         public StandardFileDriveQueryService(
-            OdinContextAccessor contextAccessor, 
-            DriveDatabaseHost driveDatabaseHost, 
-            DriveManager driveManager, 
-            StandardFileDriveStorageService storage) : 
+            OdinContextAccessor contextAccessor,
+            DriveDatabaseHost driveDatabaseHost,
+            DriveManager driveManager,
+            StandardFileDriveStorageService storage) :
             base(contextAccessor, driveDatabaseHost, driveManager, storage)
         {
         }
 
-        public override void AssertCanReadDrive(Guid driveId)
+        public override async Task AssertCanReadDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
@@ -36,7 +36,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
-        
+
         public override void AssertCanReadOrWriteToDrive(Guid driveId)
         {
             var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
@@ -52,7 +52,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
                 }
             }
         }
-        
+
         protected override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Standard;

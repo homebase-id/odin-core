@@ -38,7 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
 
             var o = options ?? QueryModifiedResultOptions.Default();
 
@@ -64,13 +64,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
             return await GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
 
             var qp = new FileQueryParams()
             {

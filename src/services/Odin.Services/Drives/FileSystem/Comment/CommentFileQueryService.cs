@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -14,10 +15,10 @@ namespace Odin.Services.Drives.FileSystem.Comment
             base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
         {
         }
-
-        public override void AssertCanReadDrive(Guid driveId)
+        
+        public override async Task AssertCanReadDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);

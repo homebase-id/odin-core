@@ -7,7 +7,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
-using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -20,20 +19,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private readonly StorageDrive _drive;
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
-        private readonly OdinConfiguration _odinConfiguration;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter,
-            OdinConfiguration odinConfiguration)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger, DriveFileReaderWriter driveFileReaderWriter)
         {
             drive.EnsureDirectories();
 
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
-            _odinConfiguration = odinConfiguration;
             _drive = drive;
         }
 
@@ -186,50 +182,39 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Ensures there is a valid file available for the given Id.
+        /// Checks if the header file exists on disk.  Does not check the validity of the header
         /// </summary>
-        /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
-        public void AssertFileIsValid(Guid fileId)
+        public async Task<bool> HeaderFileExists(Guid fileId)
         {
-            if (fileId == Guid.Empty)
-            {
-                throw new OdinClientException("No file specified", OdinClientErrorCode.UnknownId);
-            }
-
-            if (!IsFileValid(fileId))
-            {
-                throw new OdinClientException("File does not contain all parts", OdinClientErrorCode.MissingUploadData);
-            }
-        }
-
-        /// <summary>
-        /// Checks if the file exists.  Returns true if all parts exist, otherwise false
-        /// </summary>
-        public bool FileExists(Guid fileId)
-        {
-            return IsFileValid(fileId);
-        }
-
-        private bool IsFileValid(Guid fileId)
-        {
-            var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+            var header = await this.GetServerFileHeader(fileId);
             if (header == null)
             {
                 return false;
             }
 
-            //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
-            foreach (var d in header.FileMetadata.Payloads)
-            {
-                var payloadFilePath = GetPayloadFilePath(fileId, d);
-                if (!_driveFileReaderWriter.FileExists(payloadFilePath).GetAwaiter().GetResult())
-                {
-                    return false;
-                }
-            }
-
             return true;
         }
+
+        // private bool IsFileValid(Guid fileId)
+        // {
+        //     var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+        //     if (header == null)
+        //     {
+        //         return false;
+        //     }
+        //
+        //     //TODO: this needs to be optimized by getting all files in the folder; then checking the filename exists
+        //     foreach (var d in header.FileMetadata.Payloads)
+        //     {
+        //         var payloadFilePath = GetPayloadFilePath(fileId, d);
+        //         if (!_driveFileReaderWriter.FileExists(payloadFilePath).GetAwaiter().GetResult())
+        //         {
+        //             return false;
+        //         }
+        //     }
+        //
+        //     return true;
+        // }
 
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index

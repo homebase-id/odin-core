@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -20,9 +21,9 @@ namespace Odin.Services.Drives.FileSystem.Standard
         {
         }
 
-        public override void AssertCanReadDrive(Guid driveId)
+        public override async Task AssertCanReadDrive(Guid driveId)
         {
-            var drive = this.DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);

@@ -228,7 +228,7 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
             {
@@ -257,8 +257,7 @@ namespace Odin.Services.Authentication.Owner
                 return dotYouContext;
             });
 
-            var ctx = _cache.GetOrAddContext(token, creator).GetAwaiter().GetResult();
-            return Task.FromResult(ctx);
+            return await _cache.GetOrAddContext(token, creator);
         }
 
         /// <summary>

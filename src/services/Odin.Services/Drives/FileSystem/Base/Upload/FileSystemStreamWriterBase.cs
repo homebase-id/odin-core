@@ -78,7 +78,7 @@ public abstract class FileSystemStreamWriterBase
         if (overwriteFileId == Guid.Empty)
         {
             //get a new file id
-            file = FileSystem.Storage.CreateInternalFileId(driveId);
+            file = await FileSystem.Storage.CreateInternalFileId(driveId);
         }
         else
         {
@@ -206,7 +206,7 @@ public abstract class FileSystemStreamWriterBase
         if (Package.IsUpdateOperation)
         {
             // Validate the file exists by the File Id
-            if (!FileSystem.Storage.FileExists(Package.InternalFile))
+            if (!await FileSystem.Storage.FileExists(Package.InternalFile))
             {
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",
                     OdinClientErrorCode.CannotOverwriteNonExistentFile);

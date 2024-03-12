@@ -66,7 +66,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 if (null == fileId)
                 {
                     //new file
-                    var internalFile = fileSystem.Storage.CreateInternalFileId(driveId);
+                    var internalFile = await fileSystem.Storage.CreateInternalFileId(driveId);
 
                     var keyHeader = KeyHeader.Empty();
                     var serverMetadata = new ServerMetadata()

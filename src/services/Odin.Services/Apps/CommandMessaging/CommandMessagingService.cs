@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Odin.Core.Serialization;
 using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
@@ -37,7 +36,7 @@ public class CommandMessagingService
 
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
-        var internalFile = _standardFileSystem.Storage.CreateInternalFileId(driveId);
+        var internalFile = await _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
         var msg = new CommandTransferMessage()
         {
@@ -104,7 +103,7 @@ public class CommandMessagingService
     public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList)
     {
         var list = new List<InternalDriveFileId>();
-        
+
         foreach (var commandId in commandIdList)
         {
             list.Add(new InternalDriveFileId()
