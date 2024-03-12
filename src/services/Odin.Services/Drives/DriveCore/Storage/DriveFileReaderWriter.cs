@@ -87,6 +87,12 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
         try
         {
+            // await TryRetry.WithDelayAsync(
+            //     odinConfiguration.Host.FileOperationRetryAttempts,
+            //     TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            //     CancellationToken.None,
+            //     async () => await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytesAsync(path)));
+            //
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
