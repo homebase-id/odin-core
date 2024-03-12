@@ -334,7 +334,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file)
         {
-            this.AssertCanReadOrWriteToDrive(file.DriveId);
+            await AssertCanReadOrWriteToDrive(file.DriveId);
 
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;
@@ -367,7 +367,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<bool> FileExists(InternalDriveFileId file)
         {
-            this.AssertCanReadOrWriteToDrive(file.DriveId);
+            await AssertCanReadOrWriteToDrive(file.DriveId);
             var lts = await GetLongTermStorageManager(file.DriveId);
             return await lts.HeaderFileExists(file.FileId);
         }

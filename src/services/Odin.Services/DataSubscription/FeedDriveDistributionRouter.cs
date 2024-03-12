@@ -231,23 +231,6 @@ namespace Odin.Services.DataSubscription
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 
-        private async Task DistributeMetadataNow(ReactionPreviewDistributionItem distroItem)
-        {
-            var driveId = distroItem.SourceFile.DriveId;
-            var file = distroItem.SourceFile;
-
-            var recipients = await GetFollowers(driveId);
-            foreach (var recipient in recipients)
-            {
-                var success = await _feedDistributorService.SendFile(file, distroItem.FileSystemType, recipient);
-                if (!success)
-                {
-                    // fall back to queue
-                    AddToFeedOutbox(recipient, distroItem);
-                }
-            }
-        }
-
         /// <summary>
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
@@ -272,7 +255,7 @@ namespace Odin.Services.DataSubscription
 
             if (connectedFollowers.Any())
             {
-                var fs = _fileSystemResolver.ResolveFileSystem(file);
+                var fs = await _fileSystemResolver.ResolveFileSystem(file);
                 var header = await fs.Storage.GetServerFileHeader(file);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
@@ -387,7 +370,7 @@ namespace Odin.Services.DataSubscription
 
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
-            var drive = await _driveManager.GetDrive(driveId, false);
+            var drive = await _driveManager.GetDrive(driveId);
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 

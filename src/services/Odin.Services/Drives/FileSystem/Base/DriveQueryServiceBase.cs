@@ -134,7 +134,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
-            AssertCanReadOrWriteToDrive(driveId);
+            await AssertCanReadOrWriteToDrive(driveId);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -155,7 +155,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
         {
             var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
-            AssertCanReadOrWriteToDrive(driveId);
+            await AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
             {
