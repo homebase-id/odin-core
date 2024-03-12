@@ -68,7 +68,7 @@ public class StaticFileContentService
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -180,7 +180,7 @@ public class StaticFileContentService
     public async Task PublishProfileImage(string image64, string contentType)
     {
         string filename = StaticFileConstants.ProfileImageFileName;
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         var imageBytes = Convert.FromBase64String(image64);
@@ -201,7 +201,7 @@ public class StaticFileContentService
     public async Task PublishProfileCard(string json)
     {
         string filename = StaticFileConstants.PublicProfileCardFileName;
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         await _driveFileReaderWriter.WriteString(finalTargetPath, json);
@@ -248,10 +248,10 @@ public class StaticFileContentService
         return (config, fileExists: true, fileStream);
     }
 
-    private string EnsurePath()
+    private async Task<string> EnsurePath()
     {
         string targetFolder = _tenantContext.StorageConfig.StaticFileStoragePath;
-        _driveFileReaderWriter.CreateDirectory(targetFolder).GetAwaiter().GetResult();
+        await _driveFileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
 

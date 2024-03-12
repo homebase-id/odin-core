@@ -19,7 +19,7 @@ public abstract class RequirePermissionsBase
     /// <summary>
     /// Enforces drive permissions when writing files
     /// </summary>
-    public abstract void AssertCanWriteToDrive(Guid driveId);
+    public abstract Task AssertCanWriteToDrive(Guid driveId);
 
     /// <summary>
     /// Enforces that the caller can read or write to a drive.  Useful basic operations such as file exists

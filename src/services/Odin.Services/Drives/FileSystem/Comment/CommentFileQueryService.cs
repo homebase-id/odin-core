@@ -10,12 +10,12 @@ namespace Odin.Services.Drives.FileSystem.Comment
 {
     public class CommentFileQueryService : DriveQueryServiceBase
     {
-
-        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, CommentFileStorageService commentStorage) : 
+        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
+            CommentFileStorageService commentStorage) :
             base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
         {
         }
-        
+
         public override async Task AssertCanReadDrive(Guid driveId)
         {
             var drive = await DriveManager.GetDrive(driveId, true);
@@ -25,9 +25,9 @@ namespace Odin.Services.Drives.FileSystem.Comment
             }
         }
 
-        public override void AssertCanWriteToDrive(Guid driveId)
+        public override async Task AssertCanWriteToDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
@@ -49,7 +49,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
                 }
             }
         }
-        
+
         protected override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Comment;

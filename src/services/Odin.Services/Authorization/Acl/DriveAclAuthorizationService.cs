@@ -15,11 +15,9 @@ namespace Odin.Services.Authorization.Acl
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
-        public Task AssertCallerHasPermission(AccessControlList acl)
+        public async Task AssertCallerHasPermission(AccessControlList acl)
         {
-            ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
-
-            return Task.CompletedTask;
+            ThrowWhenFalse(await CallerHasPermission(acl));
         }
 
         public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl)
