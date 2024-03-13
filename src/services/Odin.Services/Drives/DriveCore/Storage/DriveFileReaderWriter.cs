@@ -18,7 +18,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     {
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {
@@ -37,7 +37,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     {
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {
@@ -58,7 +58,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {
@@ -87,15 +87,9 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
         try
         {
-            // await TryRetry.WithDelayAsync(
-            //     odinConfiguration.Host.FileOperationRetryAttempts,
-            //     TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            //     CancellationToken.None,
-            //     async () => await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytesAsync(path)));
-            //
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -126,7 +120,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     {
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {
@@ -150,7 +144,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {
@@ -195,7 +189,7 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
         //TODO: Consider if we need to do file.exists before deleting?
         await TryRetry.WithDelayAsync(
             odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+            odinConfiguration.Host.FileOperationRetryDelayMs,
             CancellationToken.None,
             async () =>
             {

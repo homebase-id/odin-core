@@ -388,7 +388,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var lts = await GetLongTermStorageManager(file.DriveId);
             await lts.HardDelete(file.FileId);
 
-            if (ShouldRaiseDriveEvent(file).GetAwaiter().GetResult())
+            if (await ShouldRaiseDriveEvent(file))
             {
                 await mediator.Publish(new DriveFileDeletedNotification()
                 {
@@ -824,7 +824,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //Note: this can probably be removed because the underlying file writer has retries in it
             var attempts = await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
                 async () => await mgr.WriteHeaderStream(header.FileMetadata.File.FileId, stream));
 
@@ -906,7 +906,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ServerFileHeader header = null;
             var attempts = await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
                 async () => { header = await mgr.GetServerFileHeader(file.FileId); });
 

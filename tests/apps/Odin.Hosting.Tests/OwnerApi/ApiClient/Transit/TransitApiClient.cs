@@ -71,7 +71,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
+            var resp = await transitSvc.AddReaction(new PeerAddReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new AddRemoteReactionRequest()
@@ -90,7 +90,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
+            var resp = await transitSvc.GetAllReactions(new PeerGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = request
@@ -105,7 +105,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var response = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
+            var response = await transitSvc.DeleteReactionContent(new PeerDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new DeleteReactionRequestByGlobalTransitId()
@@ -124,7 +124,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
+            var resp = await transitSvc.DeleteAllReactionsOnFile(new PeerDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new DeleteReactionRequestByGlobalTransitId()
@@ -141,7 +141,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetReactionCountsByFile(new TransitGetReactionsRequest()
+            var resp = await transitSvc.GetReactionCountsByFile(new PeerGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = request
@@ -156,7 +156,7 @@ public class TransitApiClient
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitReaction>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetReactionsByIdentity(new TransitGetReactionsByIdentityRequest()
+            var resp = await transitSvc.GetReactionsByIdentity(new PeerGetReactionsByIdentityRequest()
             {
                 OdinId = recipient.OdinId,
                 Identity = identity,

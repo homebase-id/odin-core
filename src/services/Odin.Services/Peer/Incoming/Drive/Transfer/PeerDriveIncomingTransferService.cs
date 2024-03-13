@@ -186,7 +186,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            TransitFileWriter writer = new TransitFileWriter(_fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(_fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
 

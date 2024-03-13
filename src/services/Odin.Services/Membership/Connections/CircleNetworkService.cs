@@ -521,18 +521,16 @@ namespace Odin.Services.Membership.Connections
             await _circleMembershipService.Delete(circleId);
         }
 
-        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.IsNewDrive)
             {
-                this.HandleDriveAdded(notification.Drive).GetAwaiter().GetResult();
+                await HandleDriveAdded(notification.Drive);
             }
             else
             {
-                this.HandleDriveUpdated(notification.Drive).GetAwaiter().GetResult();
+                await HandleDriveUpdated(notification.Drive);
             }
-
-            return Task.CompletedTask;
         }
 
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)

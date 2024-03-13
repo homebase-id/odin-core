@@ -12,5 +12,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerV1 + "/inbox/processor")]
     [AuthorizeValidOwnerToken]
-    public class OwnerTransitProcessController(TransitInboxProcessor transitInboxProcessor) : TransitProcessControllerBase(transitInboxProcessor);
+    public class OwnerTransitProcessController(PeerInboxProcessor peerInboxProcessor) : TransitProcessControllerBase(peerInboxProcessor);
 }

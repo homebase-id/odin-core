@@ -222,7 +222,8 @@ namespace Odin.Services.Configuration
                 PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
 
                 FileOperationRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 8);
-                FileOperationRetryDelayMs = config.GetOrDefault("Host:FileOperationRetryDelayMs", 100);
+                FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:FileOperationRetryDelayMs", 100));
+
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
                 UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", false);
@@ -245,7 +246,7 @@ namespace Odin.Services.Configuration
             /// <summary>
             /// Number of milliseconds to delay between file.move attempts
             /// </summary>
-            public int FileOperationRetryDelayMs { get; init; }
+            public TimeSpan FileOperationRetryDelayMs { get; init; }
 
             /// <summary>
             /// Specifies the number of bytes to write when writing a stream to disk in chunks

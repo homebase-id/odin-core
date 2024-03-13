@@ -21,7 +21,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         _token = token;
     }
 
-    public async Task<ApiResponse<HttpContent>> AddReaction(TransitAddReactionRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> AddReaction(PeerAddReactionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
@@ -31,7 +31,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<GetReactionsPerimeterResponse>> GetAllReactions([Body] TransitGetReactionsRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<GetReactionsPerimeterResponse>> GetAllReactions([Body] PeerGetReactionsRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
@@ -41,7 +41,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] TransitDeleteReactionRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] PeerDeleteReactionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
@@ -51,7 +51,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] TransitDeleteReactionRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] PeerDeleteReactionRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
@@ -61,7 +61,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] TransitGetReactionsRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] PeerGetReactionsRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {
@@ -71,7 +71,7 @@ public class AppTransitReactionSenderApiClient : AppApiClientBase
         }
     }
 
-    public async Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] TransitGetReactionsByIdentityRequest request, FileSystemType fst = FileSystemType.Standard)
+    public async Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] PeerGetReactionsByIdentityRequest request, FileSystemType fst = FileSystemType.Standard)
     {
         var client = CreateAppApiHttpClient(_token, fst);
         {

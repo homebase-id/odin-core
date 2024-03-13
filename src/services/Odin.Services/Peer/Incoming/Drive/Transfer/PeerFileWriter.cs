@@ -24,7 +24,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class TransitFileWriter(FileSystemResolver fileSystemResolver)
+    public class PeerFileWriter(FileSystemResolver fileSystemResolver)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,

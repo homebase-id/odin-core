@@ -158,7 +158,7 @@ namespace Odin.Services.EncryptionKeyService
         public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
         {
             //TODO: add logic to ensure we only call this periodically 
-            // this.CreateOrRotateOnlineKeys().GetAwaiter().GetResult();
+            // await this.CreateOrRotateOnlineKeys();
             return Task.CompletedTask;
         }
 

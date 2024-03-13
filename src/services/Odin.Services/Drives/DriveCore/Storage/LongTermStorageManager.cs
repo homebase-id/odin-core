@@ -195,9 +195,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return true;
         }
 
-        // private bool IsFileValid(Guid fileId)
+        // private async Task<bool> IsFileValid(Guid fileId)
         // {
-        //     var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+        //     var header = await this.GetServerFileHeader(fileId);
         //     if (header == null)
         //     {
         //         return false;
@@ -207,7 +207,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         //     foreach (var d in header.FileMetadata.Payloads)
         //     {
         //         var payloadFilePath = GetPayloadFilePath(fileId, d);
-        //         if (!_driveFileReaderWriter.FileExists(payloadFilePath).GetAwaiter().GetResult())
+        //         if (!await _driveFileReaderWriter.FileExists(payloadFilePath))
         //         {
         //             return false;
         //         }
