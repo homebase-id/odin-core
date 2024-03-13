@@ -2,10 +2,8 @@ docker run \
   --rm \
   --name push-notification \
   --env ASPNETCORE_ENVIRONMENT='production' \
-  --env ASPNETCORE_URLS='http://*:80;https://*:443' \
-  -p 8081:80 \
-  -p 4431:443 \
-  push-notification:local
+  --env ASPNETCORE_HTTP_PORTS=8080 \
+  -p 8081:8080 \
+  ghcr.io/youfoundation/dotyoucore-push-notification:pushnotification
 
-# docker exec identity-host du -h
-# docker exec --interactive --tty identity-host bash
+# docker exec --interactive --tty push-notification bash

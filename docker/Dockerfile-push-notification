@@ -38,7 +38,6 @@ RUN apt-get update -q && \
 WORKDIR /app
 COPY --from=build /build/out .
 
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "Odin.PushNotification.dll"]

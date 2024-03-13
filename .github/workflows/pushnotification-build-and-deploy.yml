@@ -67,7 +67,7 @@ jobs:
         run: |
           echo "Deploying: ${{ env.DEPLOY_IMAGE }}"
 
-      - name: Deploy to bleeding edge
+      - name: Deploy blackbird_aux
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ANSIBLE_HOST }}

@@ -26,8 +26,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
+// app.UseHttpsRedirection(); NO we're behind a reverse proxy
 
 app.MapPost("/post", () =>
     {
