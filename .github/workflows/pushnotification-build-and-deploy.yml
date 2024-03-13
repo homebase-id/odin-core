@@ -10,6 +10,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: "${{ github.repository }}-push-notification"
+  BRANCH_NAME: ""
   DEPLOY_IMAGE: ""
 
 jobs:
@@ -52,9 +53,12 @@ jobs:
       #
       # Deploy
       #
+      - name: Get the branch name
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+
       - name: Create image deploy name
         run: |
-          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev" | tr '[:upper:]' '[:lower:]')
+          lowercase_deploy_image=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}" | tr '[:upper:]' '[:lower:]')
           echo "DEPLOY_IMAGE=$lowercase_deploy_image" >> $GITHUB_ENV
 
       - name: Output DEPLOY_IMAGE
