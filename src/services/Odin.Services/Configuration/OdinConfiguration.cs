@@ -228,7 +228,7 @@ namespace Odin.Services.Configuration
 
                 UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", false);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
-                PeerOperationDelayMs = config.GetOrDefault("Host:PeerOperationDelayMs", 300);
+                PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
             }
 
@@ -256,7 +256,7 @@ namespace Odin.Services.Configuration
             public bool UseConcurrentFileManager { get; set; }
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
-            public int PeerOperationDelayMs { get; init; }
+            public TimeSpan PeerOperationDelayMs { get; init; }
         }
 
         public class ListenEntry

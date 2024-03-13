@@ -57,7 +57,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             {
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
-                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
                     async () => { httpResponse = await client.DeleteFeedMetadata(request); });
             }
@@ -108,7 +108,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             {
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
-                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
                     async () => { httpResponse = await client.SendFeedFileMetadata(request); });
             }
