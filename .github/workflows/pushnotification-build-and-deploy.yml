@@ -11,7 +11,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: push.homebase.id
+  IMAGE_NAME: "${{ github.repository }}-push-notification"
   BRANCH_NAME: ""
   DEPLOY_IMAGE: ""
 
