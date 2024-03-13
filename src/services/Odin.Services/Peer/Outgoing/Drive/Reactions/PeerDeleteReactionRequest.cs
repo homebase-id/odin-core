@@ -1,6 +1,6 @@
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 
-public class TransitDeleteReactionRequest
+public class PeerDeleteReactionRequest
 {
     public string OdinId { get; set; }
 

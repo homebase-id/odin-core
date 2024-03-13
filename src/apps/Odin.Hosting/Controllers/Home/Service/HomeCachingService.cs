@@ -35,7 +35,8 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private IAppCache? _cache;
 
-        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, OdinContextAccessor contextAccessor, FileSystemHttpRequestResolver fsResolver)
+        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, OdinContextAccessor contextAccessor,
+            FileSystemHttpRequestResolver fsResolver)
         {
             _driveManager = driveManager;
             _config = config;
@@ -63,7 +64,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 SlidingExpiration = TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
             };
-            
+
             return await _cache.GetOrAddAsync(key, queryBatchCollection, policy);
         }
 
@@ -75,18 +76,18 @@ namespace Odin.Hosting.Controllers.Home.Service
             {
                 Invalidate();
             }
-            
+
             return Task.CompletedTask;
         }
 
-        public Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var drive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult();
+            var drive = await _driveManager.GetDrive(notification.File.DriveId);
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason
                 Invalidate();
-                return Task.CompletedTask;
+                return;
             }
 
             if (drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
@@ -97,12 +98,9 @@ namespace Odin.Hosting.Controllers.Home.Service
                     if (_fileTypesCausingCacheReset.Any(fileType => header.FileMetadata.AppData.FileType == fileType))
                     {
                         Invalidate();
-                        return Task.CompletedTask;
                     }
                 }
             }
-
-            return Task.CompletedTask;
         }
 
         private string GetCacheKey(string key)
@@ -125,7 +123,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                         ExpirationScanFrequency = TimeSpan.FromMinutes(2),
                         // SizeLimit = ???
                     }));
-            
+
             _cache = new CachingService(provider);
         }
 
