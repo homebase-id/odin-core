@@ -42,14 +42,14 @@ namespace Odin.Services.Base
         /// <summary>
         /// Gets the file system for the specified file
         /// </summary>
-        public IDriveFileSystem ResolveFileSystem(InternalDriveFileId file)
+        public async Task<IDriveFileSystem> ResolveFileSystem(InternalDriveFileId file)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
             // the type, then get a new IDriveFileSystem
 
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
-            var targetFsType = fs.Storage.ResolveFileSystemType(file).GetAwaiter().GetResult();
+            var targetFsType = await fs.Storage.ResolveFileSystemType(file);
 
             if (targetFsType != FileSystemType.Standard)
             {
@@ -59,7 +59,8 @@ namespace Odin.Services.Base
             return fs;
         }
 
-        public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId, bool tryCommentDrive = true)
+        public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId,
+            bool tryCommentDrive = true)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
@@ -67,7 +68,7 @@ namespace Odin.Services.Base
 
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
             var file = await fs.Query.ResolveFileId(globalTransitFileId);
-            
+
             if (null == file && tryCommentDrive)
             {
                 //try by comment
@@ -80,7 +81,7 @@ namespace Odin.Services.Base
                 return (null, null);
             }
 
-            return (this.ResolveFileSystem(file.Value), file.Value);
+            return (await this.ResolveFileSystem(file.Value), file.Value);
         }
     }
 }

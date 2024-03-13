@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-
 using MediatR;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -76,7 +75,7 @@ public class DriveManager
         lock (_createDriveLock)
         {
             //driveAlias and type must be unique
-            if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
+            if (null != this.GetDriveIdByAlias(request.TargetDrive).GetAwaiter().GetResult())
             {
                 throw new OdinClientException("Drive alias and type must be unique", OdinClientErrorCode.DriveAliasAndTypeAlreadyExists);
             }
@@ -123,12 +122,12 @@ public class DriveManager
         return Task.FromResult(storageDrive);
     }
 
-    public Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
+    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        StorageDrive storageDrive = GetDrive(driveId).GetAwaiter().GetResult();
+        StorageDrive storageDrive = await GetDrive(driveId);
 
-        if(SystemDriveConstants.SystemDrives.Any(d=> d == storageDrive.TargetDriveInfo))
+        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinSecurityException("Cannot change system drive");
         }
@@ -147,14 +146,12 @@ public class DriveManager
 
             CacheDrive(storageDrive);
 
-            _mediator.Publish(new DriveDefinitionAddedNotification()
+            await _mediator.Publish(new DriveDefinitionAddedNotification()
             {
                 IsNewDrive = false,
                 Drive = storageDrive
             });
         }
-
-        return Task.CompletedTask;
     }
 
     public Task UpdateMetadata(Guid driveId, string metadata)

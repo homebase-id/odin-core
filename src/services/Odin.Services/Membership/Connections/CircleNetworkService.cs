@@ -4,7 +4,6 @@ using System.Linq;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-
 using MediatR;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -472,7 +471,7 @@ namespace Odin.Services.Membership.Connections
         /// <param name="circleDef"></param>
         public async Task UpdateCircleDefinition(CircleDefinition circleDef)
         {
-            _circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
+            await _circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
 
             var members = await GetCircleMembers(circleDef.Id);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -632,7 +631,7 @@ namespace Odin.Services.Membership.Connections
                 applyAppCircleGrants);
 
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
-            
+
             if (applyAppCircleGrants)
             {
                 foreach (var kvp in icr.AccessGrant.AppGrants)
@@ -688,17 +687,18 @@ namespace Odin.Services.Membership.Connections
 
             //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new Permissions_PermissionSet(), new List<DriveGrantRequest>()
-            {
-                new()
+            var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new Permissions_PermissionSet(),
+                new List<DriveGrantRequest>()
                 {
-                    PermissionedDrive = new()
+                    new()
                     {
-                        Drive = SystemDriveConstants.FeedDrive,
-                        Permission = DrivePermission.Write
+                        PermissionedDrive = new()
+                        {
+                            Drive = SystemDriveConstants.FeedDrive,
+                            Permission = DrivePermission.Write
+                        }
                     }
-                }
-            }, null);
+                }, null);
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
