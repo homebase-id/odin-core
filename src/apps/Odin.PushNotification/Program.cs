@@ -10,12 +10,12 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//
+// Logging
+//
+
 const string logOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Message:lj}{NewLine}{Exception}";
 var logOutputTheme = SystemConsoleTheme.Literate;
-
-//
-// Loggong
-//
 
 builder.Host.UseSerilog((context, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -47,7 +47,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/post", async (
+app.MapPost("/message", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
         IValidator<PushNotificationRequest> validator,

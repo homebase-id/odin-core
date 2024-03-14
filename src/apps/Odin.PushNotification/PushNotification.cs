@@ -18,7 +18,7 @@ public class PushNotification : IPushNotification
     {
         if (!File.Exists(firebaseCredentialsFile))
         {
-            throw new FileNotFoundException("Firebase credentials file not found", firebaseCredentialsFile);
+            throw new FileNotFoundException($"Firebase credentials file not found: {firebaseCredentialsFile}");
         }
 
         var firebaseApp = FirebaseApp.Create(new AppOptions
