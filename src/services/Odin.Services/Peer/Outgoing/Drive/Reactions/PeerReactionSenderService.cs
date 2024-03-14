@@ -274,6 +274,8 @@ public class PeerReactionSenderService(
 
     private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> SendReactionInternal(OdinId odinId, AddRemoteReactionRequest request)
     {
+        //TODO: need to try catch the entire thing and return a response code
+        
         var (token, client) = await CreateReactionContentClient(odinId);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
