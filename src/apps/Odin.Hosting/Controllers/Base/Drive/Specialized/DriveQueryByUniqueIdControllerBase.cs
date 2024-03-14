@@ -88,6 +88,40 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             });
         }
 
+        ///
+        /// These POST methods are due to an issue in Refit >:-[
+        ///
+        [HttpPost("header")]
+        public async Task<IActionResult> GetFileHeaderByUniqueIdAsPost([FromBody] ClientUniqueIdFileIdentifier file)
+        {
+            return await this.GetFileHeaderByUniqueId(file.ClientUniqueId, file.TargetDrive.Alias, file.TargetDrive.Type);
+        }
+
+        [HttpPost("payload")]
+        public async Task<IActionResult> GetPayloadStreamByUniqueIdAsPost([FromBody] GetPayloadByUniqueIdRequest request)
+        {
+            return await this.GetPayloadStreamByUniqueId(
+                request.UniqueId,
+                request.TargetDrive.Alias,
+                request.TargetDrive.Type,
+                request.Key,
+                request.Chunk?.Start,
+                request.Chunk?.Length);
+        }
+
+        [HttpPost("thumb")]
+        public async Task<IActionResult> GetThumbnailStreamByUniqueIdAsPost([FromBody] GetThumbnailByUniqueIdRequest request)
+        {
+            return await this.GetThumbnailStreamByUniqueId(
+                request.ClientUniqueId,
+                request.TargetDrive.Alias,
+                request.TargetDrive.Type,
+                request.Width,
+                request.Height,
+                request.PayloadKey);
+        }
+
+
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;

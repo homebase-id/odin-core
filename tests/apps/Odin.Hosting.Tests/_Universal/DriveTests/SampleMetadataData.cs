@@ -6,14 +6,15 @@ namespace Odin.Hosting.Tests._Universal.DriveTests;
 
 public static class SampleMetadataData
 {
-    public static UploadFileMetadata Create(int fileType, Guid? groupId = null, AccessControlList acl = null)
+    public static UploadFileMetadata Create(int fileType, Guid? groupId = null, AccessControlList acl = null, Guid? uniqueId = null)
     {
         return new UploadFileMetadata()
         {
             AppData = new UploadAppFileMetaData()
             {
                 FileType = fileType,
-                GroupId = groupId ?? default
+                GroupId = groupId ?? default,
+                UniqueId = uniqueId ?? default
             },
 
             AccessControlList = acl ?? AccessControlList.OwnerOnly

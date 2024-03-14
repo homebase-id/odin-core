@@ -42,7 +42,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
             DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
             PeerQuery = new UniversalPeerQueryApiClient(identity.OdinId, factory);
-
+            PeerReactions = new UniversalPeerReactionClient(identity.OdinId, factory);
+            
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
@@ -71,6 +72,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public UniversalDriveReactionClient Reactions { get; }
 
         public UniversalPeerQueryApiClient PeerQuery { get; }
+        
+        public UniversalPeerReactionClient PeerReactions { get; }
 
         public AppManagementApiClient AppManager { get; }
 

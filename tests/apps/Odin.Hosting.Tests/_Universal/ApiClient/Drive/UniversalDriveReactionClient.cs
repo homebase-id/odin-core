@@ -26,7 +26,7 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         return response;
     }
 
-    public async Task<ApiResponse<GetReactionsResponse>> GetAllReactions(TestIdentity recipient, ExternalFileIdentifier file)
+    public async Task<ApiResponse<GetReactionsResponse>> GetAllReactions(ExternalFileIdentifier file)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);

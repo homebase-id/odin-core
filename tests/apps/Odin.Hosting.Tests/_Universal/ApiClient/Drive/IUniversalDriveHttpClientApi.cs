@@ -16,7 +16,17 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
     {
         private const string RootStorageEndpoint = "/drive/files";
         private const string RootQueryEndpoint = "/drive/query";
+        private const string RootSpecializedEndPoint = "/drive/query/specialized/cuid";
+        
+        [Post(RootSpecializedEndPoint + "/header")]
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId(ClientUniqueIdFileIdentifier request);
+        
+        [Post(RootSpecializedEndPoint + "/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnailStreamByUniqueId([Body] GetThumbnailByUniqueIdRequest request);
 
+        [Post(RootSpecializedEndPoint + "/payload")]
+        Task<ApiResponse<HttpContent>> GetPayloadStreamByUniqueId([Body] GetPayloadByUniqueIdRequest request);
+        
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);

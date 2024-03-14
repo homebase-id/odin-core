@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -11,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -19,40 +21,96 @@ using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 
+public enum AddReactionResult
+{
+    Success = 200,
+    AccessDenied = 403,
+    RemoteServerError = 500
+}
+
 /// <summary/>
 public class PeerReactionSenderService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver,
+    ReactionContentService localReactionService,
     OdinConfiguration odinConfiguration)
     : PeerServiceBase(odinHttpClientFactory,
         circleNetworkService, contextAccessor, fileSystemResolver)
 {
     private readonly OdinContextAccessor _contextAccessor = contextAccessor;
 
+
+    public async Task<AddGroupReactionResponse> AddGroupReaction(IEnumerable<OdinId> recipients, AddRemoteReactionRequest request)
+    {
+        var internalFileId = await ResolveInternalFile(request.File);
+
+        if (null == internalFileId)
+        {
+            throw new OdinClientException("No local file found for global transit id", OdinClientErrorCode.InvalidFile);
+        }
+
+        // add a local reaction
+        await localReactionService.AddReaction(internalFileId.Value, request.Reaction);
+
+        //broadcast to recipients
+        var response = new AddGroupReactionResponse();
+        var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
+        var odinIds = recipients as OdinId[] ?? recipients.ToArray();
+        tasks.AddRange(odinIds.Select(id => SendReactionInternal(id, request)));
+        await Task.WhenAll(tasks);
+
+        tasks.ForEach(task =>
+        {
+            var sendResponse = task.Result;
+            response.Responses.Add(new RemoteAddDeleteReactionResponse()
+            {
+                Recipient = sendResponse.recipient,
+                RemoteHttpStatusCode = sendResponse.response.StatusCode
+            });
+        });
+
+        return response;
+    }
+
+    public async Task<DeleteGroupReactionResponse> DeleteGroupReaction(IEnumerable<OdinId> recipients, DeleteReactionRequestByGlobalTransitId request)
+    {
+        var internalFileId = await ResolveInternalFile(request.File);
+
+        if (null == internalFileId)
+        {
+            throw new OdinClientException("No local file found for global transit id", OdinClientErrorCode.InvalidFile);
+        }
+
+        // add a local reaction
+        await localReactionService.DeleteReaction(internalFileId.Value, request.Reaction);
+
+        //broadcast to recipients
+        var response = new DeleteGroupReactionResponse();
+        var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
+        var odinIds = recipients as OdinId[] ?? recipients.ToArray();
+        tasks.AddRange(odinIds.Select(id => DeleteReactionInternal(id, request)));
+        await Task.WhenAll(tasks);
+
+        tasks.ForEach(task =>
+        {
+            var sendResponse = task.Result;
+            response.Responses.Add(new RemoteAddDeleteReactionResponse()
+            {
+                Recipient = sendResponse.recipient,
+                RemoteHttpStatusCode = sendResponse.response.StatusCode
+            });
+        });
+
+        return response;
+    }
+
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
-
-        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        ApiResponse<HttpContent> response = null;
-        try
-        {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { response = await client.AddReaction(payload); });
-        }
-        catch (TryRetryException ex)
-        {
-            HandleTryRetryException(ex);
-            throw;
-        }
-
-        AssertValidResponse(response);
+        var result = await SendReactionInternal(odinId, request);
+        AssertValidResponse(result.response);
     }
 
     /// <summary />
@@ -128,22 +186,7 @@ public class PeerReactionSenderService(
 
     public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
-        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        try
-        {
-            // ApiResponse<HttpContent> response = null;
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { await client.DeleteReactionContent(payload); });
-        }
-        catch (TryRetryException ex)
-        {
-            HandleTryRetryException(ex);
-            throw;
-        }
+        var response = await DeleteReactionInternal(odinId, request);
     }
 
     public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
@@ -227,5 +270,52 @@ public class PeerReactionSenderService(
         {
             throw new OdinClientException("Failed while calling remote identity", e);
         }
+    }
+
+    private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> SendReactionInternal(OdinId odinId, AddRemoteReactionRequest request)
+    {
+        var (token, client) = await CreateReactionContentClient(odinId);
+
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        ApiResponse<HttpContent> response = null;
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                CancellationToken.None,
+                async () => { response = await client.AddReaction(payload); });
+        }
+        catch (TryRetryException ex)
+        {
+            HandleTryRetryException(ex);
+            throw;
+        }
+
+        return (odinId, response);
+    }
+
+    private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> DeleteReactionInternal(OdinId odinId,
+        DeleteReactionRequestByGlobalTransitId request)
+    {
+        var (token, client) = await CreateReactionContentClient(odinId);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        
+        ApiResponse<HttpContent> response = null;
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.PeerOperationMaxAttempts,
+                odinConfiguration.Host.PeerOperationDelayMs,
+                CancellationToken.None,
+                async () => { response = await client.DeleteReactionContent(payload); });
+        }
+        catch (TryRetryException ex)
+        {
+            HandleTryRetryException(ex);
+            throw;
+        }
+
+        return (odinId, response);
     }
 }

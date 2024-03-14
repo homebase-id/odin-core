@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base.Drive;

@@ -16,7 +16,7 @@ public static class SystemCircleConstants
             PermissionedDrive = new PermissionedDrive()
             {
                 Drive = SystemDriveConstants.ChatDrive,
-                Permission = DrivePermission.Write
+                Permission = DrivePermission.Write | DrivePermission.WriteReactionsAndComments
             }
         },
         new DriveGrantRequest()

@@ -583,4 +583,47 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var response = await svc.GetBatchCollection(request);
         return response;
     }
+
+
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId(ClientUniqueIdFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.GetFileHeaderByUniqueId(file);
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPayloadByUniqueId(ClientUniqueIdFileIdentifier file, string key, FileChunk chunk = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        //wth - refit is not sending headers when you do GET request - why not!?
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        return await svc.GetPayloadStreamByUniqueId(new GetPayloadByUniqueIdRequest
+        {
+            UniqueId = file.ClientUniqueId,
+            TargetDrive = file.TargetDrive,
+            Key = key,
+            Chunk = chunk
+        });
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetThumbnailByUniqueId(ClientUniqueIdFileIdentifier file, int width, int height, string payloadKey,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var thumbnailResponse = await svc.GetThumbnailStreamByUniqueId(new GetThumbnailByUniqueIdRequest()
+        {
+            ClientUniqueId = file.ClientUniqueId,
+            TargetDrive = file.TargetDrive,
+            Height = height,
+            Width = width,
+            PayloadKey = payloadKey
+        });
+
+        return thumbnailResponse;
+    }
 }

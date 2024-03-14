@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Identity;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -14,6 +16,32 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// </summary>
     public class PeerReactionContentSenderControllerBase(PeerReactionSenderService peerReactionSenderService) : OdinControllerBase
     {
+        /// <summary>
+        /// Adds a reaction for a given file
+        /// </summary>
+        /// <param name="request"></param>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("group-add")]
+        public async Task<IActionResult> AddGroupReactionContent([FromBody] PeerAddGroupReactionRequest request)
+        {
+            OdinValidationUtils.AssertValidRecipientList(request.Recipients);
+            var results = await peerReactionSenderService.AddGroupReaction(request.Recipients.Select(r => (OdinId)r), request.Request);
+            return new JsonResult(results);
+        }
+        
+        /// <summary>
+        /// Deletes a specific reaction on a given file
+        /// </summary>
+        /// <param name="request"></param>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("group-delete")]
+        public async Task<IActionResult> DeleteGroupReactionContent([FromBody] PeerDeleteGroupReactionRequest request)
+        {
+            OdinValidationUtils.AssertValidRecipientList(request.Recipients);
+            var response = await peerReactionSenderService.DeleteGroupReaction(request.Recipients.Select(r => (OdinId)r), request.Request);
+            return new JsonResult(response);
+        }
+
         /// <summary>
         /// Adds a reaction for a given file
         /// </summary>
