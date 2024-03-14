@@ -47,6 +47,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.MapGet("/ping", () => "pong");
+
 app.MapPost("/message", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
@@ -72,7 +74,6 @@ app.MapPost("/message", async (
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
     })
-    .WithName("Post")
     .WithOpenApi();
 
 app.Run();
