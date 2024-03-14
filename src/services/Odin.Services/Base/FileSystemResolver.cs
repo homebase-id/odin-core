@@ -67,13 +67,13 @@ namespace Odin.Services.Base
             // the type, then get a new IDriveFileSystem
 
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
-            var file = await fs.Query.ResolveFileId(globalTransitFileId);
+            var file = await fs.Query.ResolveFileByGlobalTransitId(globalTransitFileId);
 
             if (null == file && tryCommentDrive)
             {
                 //try by comment
                 fs = this.ResolveFileSystem(FileSystemType.Comment);
-                file = await fs.Query.ResolveFileId(globalTransitFileId);
+                file = await fs.Query.ResolveFileByGlobalTransitId(globalTransitFileId);
             }
 
             if (null == file)

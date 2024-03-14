@@ -23,6 +23,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Drives.DriveCore.Query;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -146,7 +147,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     /// </summary>
     public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
+        TransitOptions transitOptions,
         KeyHeader keyHeader = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -165,10 +166,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 Drive = targetDrive,
             },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            TransitOptions = transitOptions
         };
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -203,6 +201,23 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             return (response, encryptedJsonContent64);
         }
+    }
+
+    /// <summary>
+    /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
+    /// </summary>
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
+        bool useGlobalTransitId = false,
+        KeyHeader keyHeader = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var transitOptions = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+
+        return await this.UploadNewEncryptedMetadata(targetDrive, fileMetadata, transitOptions, keyHeader, fileSystemType);
     }
 
     /// <summary>

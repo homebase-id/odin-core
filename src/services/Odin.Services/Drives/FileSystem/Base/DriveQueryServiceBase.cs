@@ -70,7 +70,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
         {
-            await AssertCanReadDrive(driveId);
+            await AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
             {
@@ -85,7 +85,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
-            var results = await this.GetBatch(driveId, qp, options);
+            var results = await this.GetBatchInternal(driveId, qp, options);
 
             return results.SearchResults.SingleOrDefault();
         }
@@ -152,7 +152,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
+        public async Task<InternalDriveFileId?> ResolveFileByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
             var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
             await AssertCanReadOrWriteToDrive(driveId);

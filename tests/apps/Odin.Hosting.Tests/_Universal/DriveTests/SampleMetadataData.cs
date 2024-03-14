@@ -14,7 +14,7 @@ public static class SampleMetadataData
             {
                 FileType = fileType,
                 GroupId = groupId ?? default,
-                UniqueId = uniqueId ?? default
+                UniqueId = uniqueId
             },
 
             AccessControlList = acl ?? AccessControlList.OwnerOnly

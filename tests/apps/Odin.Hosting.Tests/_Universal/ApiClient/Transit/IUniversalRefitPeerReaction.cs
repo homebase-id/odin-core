@@ -13,10 +13,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
         private const string RootEndpoint = "/transit/reactions";
 
         [Post(RootEndpoint + "/group-add")]
-        Task<ApiResponse<HttpContent>> AddGroupReaction([Body] PeerAddGroupReactionRequest request);
+        Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction([Body] PeerAddGroupReactionRequest request);
         
         [Post(RootEndpoint + "/group-delete")]
-        Task<ApiResponse<HttpContent>> DeleteGroupReaction([Body] PeerDeleteGroupReactionRequest request);
+        Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction([Body] PeerDeleteGroupReactionRequest request);
         
         [Post(RootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] PeerAddReactionRequest request);

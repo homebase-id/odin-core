@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit;
 
 public class UniversalPeerReactionClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> AddGroupReaction(List<OdinId> recipients, GlobalTransitIdFileIdentifier file, string reactionContent)
+    public async Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction(List<OdinId> recipients, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 
@@ -32,7 +32,7 @@ public class UniversalPeerReactionClient(OdinId targetIdentity, IApiClientFactor
         return response;
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteGroupReaction(List<OdinId> recipients, string reaction, GlobalTransitIdFileIdentifier file)
+    public async Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction(List<OdinId> recipients, string reaction, GlobalTransitIdFileIdentifier file)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerReaction>(client, ownerSharedSecret);

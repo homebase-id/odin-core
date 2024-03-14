@@ -18,15 +18,9 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Reactions;
 using Refit;
+using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
-
-public enum AddReactionResult
-{
-    Success = 200,
-    AccessDenied = 403,
-    RemoteServerError = 500
-}
 
 /// <summary/>
 public class PeerReactionSenderService(
@@ -40,7 +34,6 @@ public class PeerReactionSenderService(
         circleNetworkService, contextAccessor, fileSystemResolver)
 {
     private readonly OdinContextAccessor _contextAccessor = contextAccessor;
-
 
     public async Task<AddGroupReactionResponse> AddGroupReaction(IEnumerable<OdinId> recipients, AddRemoteReactionRequest request)
     {
@@ -61,13 +54,14 @@ public class PeerReactionSenderService(
         tasks.AddRange(odinIds.Select(id => SendReactionInternal(id, request)));
         await Task.WhenAll(tasks);
 
+        //TODO: IM getting service unavailable for frodo as the target and the error is hidden
         tasks.ForEach(task =>
         {
             var sendResponse = task.Result;
             response.Responses.Add(new RemoteAddDeleteReactionResponse()
             {
                 Recipient = sendResponse.recipient,
-                RemoteHttpStatusCode = sendResponse.response.StatusCode
+                Status = MapResponse(sendResponse.response)
             });
         });
 
@@ -99,7 +93,7 @@ public class PeerReactionSenderService(
             response.Responses.Add(new RemoteAddDeleteReactionResponse()
             {
                 Recipient = sendResponse.recipient,
-                RemoteHttpStatusCode = sendResponse.response.StatusCode
+                Status = MapResponse(sendResponse.response)
             });
         });
 
@@ -209,6 +203,16 @@ public class PeerReactionSenderService(
         }
     }
 
+    private AddDeleteReactionStatusCode MapResponse(ApiResponse<HttpContent> apiResponse)
+    {
+        if (apiResponse.IsSuccessStatusCode)
+        {
+            return AddDeleteReactionStatusCode.Success;
+        }
+
+        return AddDeleteReactionStatusCode.Failure;
+    }
+
     /// <summary>
     /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
     /// </summary>
@@ -274,50 +278,64 @@ public class PeerReactionSenderService(
 
     private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> SendReactionInternal(OdinId odinId, AddRemoteReactionRequest request)
     {
-        //TODO: need to try catch the entire thing and return a response code
-        
-        var (token, client) = await CreateReactionContentClient(odinId);
-
-        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        ApiResponse<HttpContent> response = null;
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { response = await client.AddReaction(payload); });
-        }
-        catch (TryRetryException ex)
-        {
-            HandleTryRetryException(ex);
-            throw;
-        }
+            var (token, client) = await CreateReactionContentClient(odinId);
 
-        return (odinId, response);
+            SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
+            ApiResponse<HttpContent> response = null;
+            try
+            {
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () => { response = await client.AddReaction(payload); });
+            }
+            catch (TryRetryException ex)
+            {
+                HandleTryRetryException(ex);
+                throw;
+            }
+
+            return (odinId, response);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed sending reaction to recipient {recipient}", odinId);
+            return (odinId, null);
+        }
     }
 
     private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> DeleteReactionInternal(OdinId odinId,
         DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
-        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        
-        ApiResponse<HttpContent> response = null;
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { response = await client.DeleteReactionContent(payload); });
-        }
-        catch (TryRetryException ex)
-        {
-            HandleTryRetryException(ex);
-            throw;
-        }
+            var (token, client) = await CreateReactionContentClient(odinId);
+            SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
-        return (odinId, response);
+            ApiResponse<HttpContent> response = null;
+            try
+            {
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () => { response = await client.DeleteReactionContent(payload); });
+            }
+            catch (TryRetryException ex)
+            {
+                HandleTryRetryException(ex);
+                throw;
+            }
+
+            return (odinId, response);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed deleting reaction from recipient {recipient}", odinId);
+            return (odinId, null);
+        }
     }
 }

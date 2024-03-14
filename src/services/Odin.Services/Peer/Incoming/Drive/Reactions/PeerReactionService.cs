@@ -25,6 +25,8 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload);
         var fileId = await ResolveInternalFile(request.File);
+        
+        //TODO: here we need to enqueue the global transit id when the reaction is for a file *might be* in the inbox
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
