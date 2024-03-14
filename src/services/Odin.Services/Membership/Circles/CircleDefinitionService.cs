@@ -28,16 +28,16 @@ namespace Odin.Services.Membership.Circles
             _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
         }
 
-        public Task<CircleDefinition> Create(CreateCircleRequest request)
+        public async Task<CircleDefinition> Create(CreateCircleRequest request)
         {
-            return this.CreateCircleInternal(request);
+            return await this.CreateCircleInternal(request);
         }
 
-        public void CreateSystemCircle()
+        public async Task CreateSystemCircle()
         {
             if (null == this.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId))
             {
-                this.CreateCircleInternal(new CreateCircleRequest()
+                await this.CreateCircleInternal(new CreateCircleRequest()
                 {
                     Id = SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value,
                     Name = "All Connected Identities",
@@ -52,9 +52,9 @@ namespace Odin.Services.Membership.Circles
         }
 
 
-        public Task Update(CircleDefinition newCircleDefinition)
+        public async Task Update(CircleDefinition newCircleDefinition)
         {
-            AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            await AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
 
             var existingCircle = this.GetCircle(newCircleDefinition.Id);
 
@@ -70,8 +70,6 @@ namespace Odin.Services.Membership.Circles
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
             _circleValueStorage.Upsert(existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
-
-            return Task.CompletedTask;
         }
 
         public bool IsEnabled(GuidId circleId)
@@ -112,7 +110,7 @@ namespace Odin.Services.Membership.Circles
             return Task.CompletedTask;
         }
 
-        public void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
+        public async Task AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
         {
             if (null == driveGrantRequests)
             {
@@ -122,14 +120,14 @@ namespace Odin.Services.Membership.Circles
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var driveId = _driveManager.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
+                var driveId = await _driveManager.GetDriveIdByAlias(dgr.PermissionedDrive.Drive);
 
                 if (driveId == null)
                 {
                     throw new OdinClientException("Invalid drive specified on DriveGrantRequest", OdinClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
-                var drive = _driveManager.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
+                var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault());
 
                 //Allow access when OwnerOnly AND the only permission is Write; TODO: this defeats purpose of owneronly drive, i think
                 if (drive.OwnerOnly && ((int)dgr.PermissionedDrive.Permission != (int)DrivePermission.Write))
@@ -141,14 +139,15 @@ namespace Odin.Services.Membership.Circles
 
         //
 
-        private void AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
+        private async Task AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
         {
             bool hasDrives = driveGrantRequests?.Any() ?? false;
             bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
 
             if (!hasPermissions && !hasDrives)
             {
-                throw new OdinClientException("A circle must grant at least one drive or one permission", OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                throw new OdinClientException("A circle must grant at least one drive or one permission",
+                    OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
             }
 
             if (hasPermissions)
@@ -158,7 +157,7 @@ namespace Odin.Services.Membership.Circles
 
             if (hasDrives)
             {
-                AssertValidDriveGrants(driveGrantRequests);
+                await AssertValidDriveGrants(driveGrantRequests);
             }
         }
 
@@ -170,11 +169,11 @@ namespace Odin.Services.Membership.Circles
             }
         }
 
-        private Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
+        private async Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
         {
             if (!skipValidation)
             {
-                AssertValid(request.Permissions, request.DriveGrants?.ToList());
+                await AssertValid(request.Permissions, request.DriveGrants?.ToList());
             }
 
             if (null != this.GetCircle(request.Id))
@@ -196,7 +195,7 @@ namespace Odin.Services.Membership.Circles
 
             _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);
 
-            return Task.FromResult(circle);
+            return circle;
         }
     }
 }

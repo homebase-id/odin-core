@@ -42,7 +42,7 @@ public class PeerReactionSenderService(
         {
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.AddReaction(payload); });
         }
@@ -66,7 +66,7 @@ public class PeerReactionSenderService(
             ApiResponse<GetReactionsPerimeterResponse> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactions(payload); });
 
@@ -90,7 +90,7 @@ public class PeerReactionSenderService(
             ApiResponse<GetReactionCountsResponse> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionCountsByFile(payload); });
 
@@ -103,7 +103,7 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request)
     {
         var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -113,7 +113,7 @@ public class PeerReactionSenderService(
             ApiResponse<List<string>> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionsByIdentity(payload); });
 
@@ -135,7 +135,7 @@ public class PeerReactionSenderService(
             // ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { await client.DeleteReactionContent(payload); });
         }
@@ -155,7 +155,7 @@ public class PeerReactionSenderService(
         {
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { await client.GetReactionsByIdentity(payload); });
         }

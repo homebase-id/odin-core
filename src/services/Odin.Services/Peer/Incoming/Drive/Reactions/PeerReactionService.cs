@@ -61,7 +61,7 @@ public class PeerReactionService(
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<TransitGetReactionsByIdentityRequest>(payload);
+        var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)

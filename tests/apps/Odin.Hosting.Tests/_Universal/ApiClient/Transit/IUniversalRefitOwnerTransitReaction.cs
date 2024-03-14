@@ -17,21 +17,21 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
         private const string RootEndpoint = OwnerApiPathConstants.PeerReactionContentV1;
 
         [Post(RootEndpoint + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body] TransitAddReactionRequest request);
+        Task<ApiResponse<HttpContent>> AddReaction([Body] PeerAddReactionRequest request);
 
         [Post(RootEndpoint + "/list")]
-        Task<ApiResponse<GetReactionsPerimeterResponse>> GetAllReactions([Body] TransitGetReactionsRequest file);
+        Task<ApiResponse<GetReactionsPerimeterResponse>> GetAllReactions([Body] PeerGetReactionsRequest file);
 
         [Post(RootEndpoint + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] TransitDeleteReactionRequest file);
+        Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] PeerDeleteReactionRequest file);
 
         [Post(RootEndpoint + "/deleteall")]
-        Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] TransitDeleteReactionRequest file);
+        Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] PeerDeleteReactionRequest file);
 
         [Post(RootEndpoint + "/summary")]
-        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] TransitGetReactionsRequest file);
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] PeerGetReactionsRequest file);
 
         [Post(RootEndpoint + "/listbyidentity")]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] TransitGetReactionsByIdentityRequest file);
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] PeerGetReactionsByIdentityRequest file);
     }
 }

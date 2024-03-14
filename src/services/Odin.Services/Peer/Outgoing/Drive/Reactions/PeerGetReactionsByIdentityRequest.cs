@@ -3,7 +3,7 @@ using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 
-public class TransitGetReactionsByIdentityRequest
+public class PeerGetReactionsByIdentityRequest
 {
     /// <summary>
     /// The remote identity server 

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -9,33 +10,33 @@ namespace Odin.Services.Drives.FileSystem.Comment
 {
     public class CommentFileQueryService : DriveQueryServiceBase
     {
-
-        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, CommentFileStorageService commentStorage) : 
+        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
+            CommentFileStorageService commentStorage) :
             base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
         {
         }
 
-        public override void AssertCanReadDrive(Guid driveId)
+        public override async Task AssertCanReadDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
             }
         }
 
-        public override void AssertCanWriteToDrive(Guid driveId)
+        public override async Task AssertCanWriteToDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
 
-        public override void AssertCanReadOrWriteToDrive(Guid driveId)
+        public override async Task AssertCanReadOrWriteToDrive(Guid driveId)
         {
-            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 var pc = ContextAccessor.GetCurrent().PermissionsContext;
@@ -48,7 +49,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
                 }
             }
         }
-        
+
         protected override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Comment;

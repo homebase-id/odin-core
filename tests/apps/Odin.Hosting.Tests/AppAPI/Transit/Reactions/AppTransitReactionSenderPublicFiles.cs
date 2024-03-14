@@ -58,7 +58,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             const string reactionContent = "I dunno and stuff";
 
-            var request = new TransitAddReactionRequest()
+            var request = new PeerAddReactionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 Request = new AddRemoteReactionRequest()
@@ -77,7 +77,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             //
             // Validate reaction exists
             //
-            var getReactionsResponse = await merryAppClient.TransitReactionSender.GetAllReactions(new TransitGetReactionsRequest()
+            var getReactionsResponse = await merryAppClient.TransitReactionSender.GetAllReactions(new PeerGetReactionsRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 Request = new GetRemoteReactionsRequest()
@@ -116,7 +116,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, false.ToString());
 
             const string reactionContent = "I dunno and stuff";
-            var request = new TransitAddReactionRequest()
+            var request = new PeerAddReactionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 Request = new AddRemoteReactionRequest()
@@ -151,7 +151,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives, true.ToString());
 
             const string reactionContent = "I dunno and stuff";
-            var request = new TransitAddReactionRequest()
+            var request = new PeerAddReactionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
                 Request = new AddRemoteReactionRequest()

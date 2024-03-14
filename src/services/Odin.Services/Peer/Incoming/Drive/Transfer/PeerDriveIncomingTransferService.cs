@@ -102,7 +102,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
             //TODO: add checks if the sender can write comments if this is a comment
-            _fileSystem.Storage.AssertCanWriteToDrive(driveId);
+            await _fileSystem.Storage.AssertCanWriteToDrive(driveId);
 
             //if the sender can write, we can perform this now
 
@@ -161,7 +161,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
-            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
+            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
@@ -176,7 +176,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
         {
-            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
+            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
             //HACK: if it's not a connected token
             if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
@@ -186,7 +186,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            TransitFileWriter writer = new TransitFileWriter(_fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(_fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
 

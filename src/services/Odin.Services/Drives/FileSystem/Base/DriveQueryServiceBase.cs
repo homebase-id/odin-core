@@ -38,7 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
 
             var o = options ?? QueryModifiedResultOptions.Default();
 
@@ -64,13 +64,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
             return await GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, bool excludePreviewThumbnail = true)
         {
-            AssertCanReadDrive(driveId);
+            await AssertCanReadDrive(driveId);
 
             var qp = new FileQueryParams()
             {
@@ -134,7 +134,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
-            AssertCanReadOrWriteToDrive(driveId);
+            await AssertCanReadOrWriteToDrive(driveId);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -155,7 +155,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
         {
             var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
-            AssertCanReadOrWriteToDrive(driveId);
+            await AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
             {

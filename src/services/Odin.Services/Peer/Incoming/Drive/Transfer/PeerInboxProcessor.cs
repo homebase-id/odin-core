@@ -13,7 +13,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
-    public class TransitInboxProcessor(
+    public class PeerInboxProcessor(
         OdinContextAccessor contextAccessor,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
@@ -30,7 +30,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
-            TransitFileWriter writer = new TransitFileWriter(fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
 
             foreach (var inboxItem in items)
             {
@@ -91,24 +91,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
         {
-            // if (notification.KeyType == RsaKeyType.OnlineKey)
-            // {
-            //     var decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            //
-            //     foreach (var expiredKey in notification.ExpiredKeys)
-            //     {
-            //         //Get all items with expired keys
-            //         var itemsWithExpiredKeys = _transitInboxBoxStorage.GetItemsByPublicKey(expiredKey.crc32c).GetAwaiter().GetResult();
-            //
-            //         foreach (var item in itemsWithExpiredKeys)
-            //         {
-            //             var newPayload = _rsaKeyService.UpgradeRsaKey(RsaKeyType.OnlineKey, expiredKey,
-            //                 decryptionKey, item.RsaEncryptedKeyHeaderPayload).GetAwaiter().GetResult();
-            //             _transitInboxBoxStorage.UpdateRsaPayload(item.FileId, newPayload);
-            //         }
-            //     }
-            // }
-
             return Task.CompletedTask;
         }
     }

@@ -127,7 +127,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 return NotFound();
             }
-            
+
             //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
@@ -298,7 +298,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = fileSystemResolver.ResolveFileSystem(file);
+            var fs = await fileSystemResolver.ResolveFileSystem(file);
 
             var header = await fs.Storage.GetServerFileHeader(file);
             if (header == null)

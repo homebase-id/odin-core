@@ -61,10 +61,7 @@ namespace Odin.Hosting
             services.AddSingleton(config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-            services.Configure<HostOptions>(options =>
-            {
-                options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
-            });
+            services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
@@ -178,7 +175,7 @@ namespace Odin.Hosting
             });
 
             services.AddSingleton<ServerSystemStorage>();
-            
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
@@ -327,6 +324,7 @@ namespace Odin.Hosting
                             logger.LogInformation("Waiting for shutdown");
                             await Task.Delay(1000);
                         }
+
                         await context.Response.WriteAsync("Done waiting for shutdown");
                     });
                 }

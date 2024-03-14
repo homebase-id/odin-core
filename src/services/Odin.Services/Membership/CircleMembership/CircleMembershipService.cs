@@ -243,9 +243,9 @@ public class CircleMembershipService
         return _circleDefinitionService.GetCircle(circleId);
     }
 
-    public void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrants)
+    public async Task AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrants)
     {
-        _circleDefinitionService.AssertValidDriveGrants(driveGrants);
+        await _circleDefinitionService.AssertValidDriveGrants(driveGrants);
     }
 
     public async Task Update(CircleDefinition circleDef)
@@ -266,42 +266,39 @@ public class CircleMembershipService
     /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
     /// </summary>
     /// <param name="circleId"></param>
-    public Task DisableCircle(GuidId circleId)
+    public async Task DisableCircle(GuidId circleId)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         var circle = this.GetCircle(circleId);
         circle.Disabled = true;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        _circleDefinitionService.Update(circle);
-        return Task.CompletedTask;
+        await _circleDefinitionService.Update(circle);
     }
 
     /// <summary>
     /// Enables a circle
     /// </summary>
     /// <param name="circleId"></param>
-    public Task EnableCircle(GuidId circleId)
+    public async Task EnableCircle(GuidId circleId)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         var circle = this.GetCircle(circleId);
         circle.Disabled = false;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-        _circleDefinitionService.Update(circle);
-        return Task.CompletedTask;
+        await _circleDefinitionService.Update(circle);
     }
 
     /// <summary>
     /// Creates the system circle
     /// </summary>
     /// <returns></returns>
-    public Task CreateSystemCircle()
+    public async Task CreateSystemCircle()
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        _circleDefinitionService.CreateSystemCircle();
-        return Task.CompletedTask;
+        await _circleDefinitionService.CreateSystemCircle();
     }
 
     private bool CircleIsEnabled(GuidId circleId, out bool exists)

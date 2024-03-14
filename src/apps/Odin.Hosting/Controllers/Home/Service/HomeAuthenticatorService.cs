@@ -55,15 +55,16 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Creates a <see cref="ClientAccessToken"/> for access the Home app via the browser
         /// </summary>
-        public async ValueTask<ClientAccessToken> RegisterBrowserAccess(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken)
+        public async ValueTask<ClientAccessToken?> RegisterBrowserAccess(OdinId odinId, ClientAuthenticationToken remoteClientAuthToken)
         {
             //if the remote identity gave us an ICR token, the remote identity is saying we are connected
             if (remoteClientAuthToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
                 //so let's grant the browser token connected level access
-                if (await this.TryCreateIdentityConnectionClient(odinId, remoteClientAuthToken, out var icrClientAccessToken))
+                var result = await TryCreateIdentityConnectionClient(odinId, remoteClientAuthToken);
+                if (result.success)
                 {
-                    return icrClientAccessToken!;
+                    return result.clientAccessToken;
                 }
 
                 //TODO: if not connected, do we fall back to anonymous or let authentication fail?
@@ -72,9 +73,10 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             if (remoteClientAuthToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                if (TryCreateAuthenticatedYouAuthClient(odinId, remoteClientAuthToken, out ClientAccessToken youAuthClientAccessToken))
+                var result = await TryCreateAuthenticatedYouAuthClient(odinId, remoteClientAuthToken);
+                if (result.success)
                 {
-                    return youAuthClientAccessToken;
+                    return result.clientAccessToken;
                 }
 
                 //TODO: if failed to create a youauth client
@@ -159,7 +161,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             return await Task.FromResult(result);
         }
 
-        private ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
+        private async ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             /*
              * trying to determine if the icr token given was valid but was blocked
@@ -169,34 +171,34 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             if (!this.HasValidClientAuthToken(authToken, out var client))
             {
-                return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((null, null));
+                return (null, null);
             }
 
             if (client!.ClientType == HomeAppClientType.ConnectedIdentity)
             {
                 try
                 {
-                    var (cc, permissionContext) = CreateConnectedPermissionContext(authToken).GetAwaiter().GetResult();
-                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionContext));
+                    var (cc, permissionContext) = await CreateConnectedPermissionContext(authToken);
+                    return (cc, permissionContext);
                 }
                 catch (OdinSecurityException)
                 {
                     //if you're no longer connected, we can mark you as authenticated because you still have a client.
-                    var (cc, permissionCtx) = CreateAuthenticatedPermissionContext(authToken, client).GetAwaiter().GetResult();
-                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionCtx));
+                    var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client);
+                    return (cc, permissionCtx);
                 }
             }
 
             if (client.ClientType == HomeAppClientType.UnconnectedIdentity)
             {
-                var (cc, permissionCtx) = CreateAuthenticatedPermissionContext(authToken, client).GetAwaiter().GetResult();
-                return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionCtx));
+                var (cc, permissionCtx) = await CreateAuthenticatedPermissionContext(authToken, client);
+                return (cc, permissionCtx);
             }
 
             throw new OdinSecurityException("Unhandled Built-in app client type type");
         }
 
-        private Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
+        private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
             ClientAuthenticationToken authToken, HomeAppClient client)
         {
             if (null == client)
@@ -218,13 +220,12 @@ namespace Odin.Hosting.Controllers.Home.Service
                 //no additional grants for authenticated
             };
 
-            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken,
-                    grants,
-                    client.AccessRegistration!,
-                    additionalPermissionKeys: permissionKeys, //read_connections
-                    includeAnonymousDrives: true,
-                    anonymousDrivePermission: anonDrivePermissions)
-                .GetAwaiter().GetResult();
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken,
+                grants,
+                client.AccessRegistration!,
+                additionalPermissionKeys: permissionKeys, //read_connections
+                includeAnonymousDrives: true,
+                anonymousDrivePermission: anonDrivePermissions);
 
             // var token = authToken.AccessTokenHalfKey;
             // var accessKey = client.AccessRegistration?.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
@@ -234,7 +235,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // var permissionCtx = new PermissionContext(
             //     new Dictionary<string, PermissionGroup>
             //     {
-            //         { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
+            //         { "read_anonymous_drives", await _exchangeGrantService.CreateAnonymousDrivePermissionGroup() },
             //         { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
             //     },
             //     sharedSecretKey: ss);
@@ -253,7 +254,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 }
             );
 
-            return Task.FromResult((cc, permissionCtx));
+            return (cc, permissionCtx);
         }
 
         private bool HasValidClientAuthToken(ClientAuthenticationToken authToken, out HomeAppClient? client)
@@ -286,37 +287,35 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// <summary>
         /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
         /// </summary>
-        private bool TryCreateAuthenticatedYouAuthClient(string odinId, ClientAuthenticationToken remoteClientAuthToken,
-            out ClientAccessToken browserClientAccessToken)
+        private async Task<(bool success, ClientAccessToken clientAccessToken)> TryCreateAuthenticatedYouAuthClient(string odinId,
+            ClientAuthenticationToken remoteClientAuthToken)
         {
             var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            browserClientAccessToken = StoreClient((OdinId)odinId, emptyKey, HomeAppClientType.UnconnectedIdentity);
-            return true;
+            var browserClientAccessToken = await StoreClient((OdinId)odinId, emptyKey, HomeAppClientType.UnconnectedIdentity);
+            return (true, browserClientAccessToken);
         }
 
-        private Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteClientAuthToken,
-            out ClientAccessToken? browserClientAccessToken)
+        private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClient(string odinId,
+            ClientAuthenticationToken remoteClientAuthToken)
         {
-            var icr = _circleNetworkService.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken).GetAwaiter().GetResult();
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(new OdinId(odinId), remoteClientAuthToken);
 
             if (!icr.IsConnected())
             {
-                browserClientAccessToken = null;
-                return Task.FromResult(false);
+                return (false, null);
             }
 
             var (grantKeyStoreKey, sharedSecret) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
             sharedSecret.Wipe();
 
-            browserClientAccessToken = StoreClient(icr.OdinId, grantKeyStoreKey, HomeAppClientType.ConnectedIdentity);
+            var browserClientAccessToken = await StoreClient(icr.OdinId, grantKeyStoreKey, HomeAppClientType.ConnectedIdentity);
 
-            return Task.FromResult(true);
+            return (true, browserClientAccessToken);
         }
 
-        private ClientAccessToken StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType)
+        private async Task<ClientAccessToken> StoreClient(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType)
         {
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(
-                grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp).GetAwaiter().GetResult();
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp);
 
             grantKeyStoreKey.Wipe();
 

@@ -9,7 +9,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "solution-items", "solution-
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		global.json = global.json
-		docker\Dockerfile-identity-host = docker\Dockerfile-identity-host
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2FCDE163-B192-46E2-8998-5FB233A01C5C}"
@@ -67,6 +66,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.NotariusTests", "tests\apps\Odin.NotariusTests\Odin.NotariusTests.csproj", "{998C3929-8234-42BE-BCB1-D7A6F7283525}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChainTests", "tests\apps\Odin.KeyChainTests\Odin.KeyChainTests.csproj", "{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.PushNotification", "src\apps\Odin.PushNotification\Odin.PushNotification.csproj", "{1640966F-E7C2-4ED0-BC65-7E595057A2E6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -154,6 +155,10 @@ Global
 		{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -186,6 +191,7 @@ Global
 		{3FE64F07-B141-4F71-8ED1-B8393B6A16F9} = {49702A0E-286C-4700-AC99-C5841C224E00}
 		{998C3929-8234-42BE-BCB1-D7A6F7283525} = {49702A0E-286C-4700-AC99-C5841C224E00}
 		{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0} = {49702A0E-286C-4700-AC99-C5841C224E00}
+		{1640966F-E7C2-4ED0-BC65-7E595057A2E6} = {6FA858C3-D738-476B-B5ED-475D83CF5ECB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

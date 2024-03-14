@@ -14,10 +14,6 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerReactionContentV1)]
     [AuthorizeValidAppToken]
-    public class AppTransitReactionContentSenderController : TransitReactionContentSenderControllerBase
-    {
-        public AppTransitReactionContentSenderController(PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
-        {
-        }
-    }
+    public class AppPeerReactionContentSenderController(PeerReactionSenderService peerReactionSenderService)
+        : PeerReactionContentSenderControllerBase(peerReactionSenderService);
 }

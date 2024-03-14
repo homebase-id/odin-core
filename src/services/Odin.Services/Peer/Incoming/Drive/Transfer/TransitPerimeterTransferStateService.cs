@@ -22,7 +22,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // Notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();
-            var file = fileSystem.Storage.CreateInternalFileId(driveId);
+            var file = await fileSystem.Storage.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file, transferInstructionSet);
 
             // Write the instruction set to disk

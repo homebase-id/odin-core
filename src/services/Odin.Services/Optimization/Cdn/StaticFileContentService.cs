@@ -68,7 +68,7 @@ public class StaticFileContentService
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -142,6 +142,7 @@ public class StaticFileContentService
                             {
                                 await ps.Stream.DisposeAsync();
                             }
+
                             ps = null;
                         }
                     }
@@ -179,11 +180,11 @@ public class StaticFileContentService
     public async Task PublishProfileImage(string image64, string contentType)
     {
         string filename = StaticFileConstants.ProfileImageFileName;
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         var imageBytes = Convert.FromBase64String(image64);
-        _driveFileReaderWriter.WriteAllBytes(finalTargetPath, imageBytes);
+        await _driveFileReaderWriter.WriteAllBytes(finalTargetPath, imageBytes);
 
         var config = new StaticFileConfiguration()
         {
@@ -200,10 +201,10 @@ public class StaticFileContentService
     public async Task PublishProfileCard(string json)
     {
         string filename = StaticFileConstants.PublicProfileCardFileName;
-        string targetFolder = EnsurePath();
+        string targetFolder = await EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        _driveFileReaderWriter.WriteString(finalTargetPath, json);
+        await _driveFileReaderWriter.WriteString(finalTargetPath, json);
 
         var config = new StaticFileConfiguration()
         {
@@ -214,7 +215,7 @@ public class StaticFileContentService
 
         config.ContentType = MediaTypeNames.Application.Json;
         _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
-        
+
         await Task.CompletedTask;
     }
 
@@ -223,14 +224,15 @@ public class StaticFileContentService
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
-    public Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename, UnixTimeUtc? ifModifiedSince = null)
+    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename,
+        UnixTimeUtc? ifModifiedSince = null)
     {
         var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 
         if (config == null || !File.Exists(targetFile))
         {
-            return Task.FromResult(((StaticFileConfiguration)null, false, Stream.Null));
+            return (null, false, Stream.Null);
         }
 
         if (ifModifiedSince != null) //I was asked to check...
@@ -238,23 +240,18 @@ public class StaticFileContentService
             bool wasModified = config.LastModified > ifModifiedSince;
             if (!wasModified)
             {
-                return Task.FromResult((config, fileExists: true, Stream.Null));
+                return (config, fileExists: true, Stream.Null);
             }
         }
 
-        var fileStream = _driveFileReaderWriter.OpenStreamForReading(targetFile);
-        return Task.FromResult((config, fileExists: true, fileStream));
+        var fileStream = await _driveFileReaderWriter.OpenStreamForReading(targetFile);
+        return (config, fileExists: true, fileStream);
     }
 
-    private string EnsurePath()
+    private async Task<string> EnsurePath()
     {
         string targetFolder = _tenantContext.StorageConfig.StaticFileStoragePath;
-
-        if (!Directory.Exists(targetFolder))
-        {
-            Directory.CreateDirectory(targetFolder);
-        }
-
+        await _driveFileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
 

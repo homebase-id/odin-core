@@ -89,7 +89,7 @@ public class ConfigurationController : OdinControllerBase
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
-        _tenantConfigService.UpdateSystemFlag(request);
+        await _tenantConfigService.UpdateSystemFlag(request);
 
         //todo: map to all the various flags
         return await Task.FromResult(false);

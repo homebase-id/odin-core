@@ -46,7 +46,7 @@ public abstract class PayloadStreamWriterBase
         InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile);
 
         //bail earlier to save some bandwidth
-        if (!FileSystem.Storage.FileExists(file))
+        if (!await FileSystem.Storage.FileExists(file))
         {
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
@@ -192,7 +192,7 @@ public abstract class PayloadStreamWriterBase
     private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader)
     {
         // Validate the file exists by the Id
-        if (!FileSystem.Storage.FileExists(_package.InternalFile))
+        if (!await FileSystem.Storage.FileExists(_package.InternalFile))
         {
             throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
         }

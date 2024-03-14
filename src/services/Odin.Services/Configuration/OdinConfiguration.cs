@@ -222,11 +222,13 @@ namespace Odin.Services.Configuration
                 PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
 
                 FileOperationRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 8);
-                FileOperationRetryDelayMs = config.GetOrDefault("Host:FileOperationRetryDelayMs", 100);
+                FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:FileOperationRetryDelayMs", 100));
+
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
+                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", false);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
-                PeerOperationDelayMs = config.GetOrDefault("Host:PeerOperationDelayMs", 300);
+                PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
             }
 
@@ -244,16 +246,17 @@ namespace Odin.Services.Configuration
             /// <summary>
             /// Number of milliseconds to delay between file.move attempts
             /// </summary>
-            public int FileOperationRetryDelayMs { get; init; }
+            public TimeSpan FileOperationRetryDelayMs { get; init; }
 
             /// <summary>
             /// Specifies the number of bytes to write when writing a stream to disk in chunks
             /// </summary>
             public int FileWriteChunkSizeInBytes { get; set; }
 
+            public bool UseConcurrentFileManager { get; set; }
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
-            public int PeerOperationDelayMs { get; init; }
+            public TimeSpan PeerOperationDelayMs { get; init; }
         }
 
         public class ListenEntry

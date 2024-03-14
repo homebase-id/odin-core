@@ -152,7 +152,7 @@ public class TenantConfigService
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
-        
+
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCircle();
@@ -188,7 +188,7 @@ public class TenantConfigService
         });
     }
 
-    public void UpdateSystemFlag(UpdateFlagRequest request)
+    public async Task UpdateSystemFlag(UpdateFlagRequest request)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -211,7 +211,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                this.UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -224,7 +224,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                this.UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -441,10 +441,10 @@ public class TenantConfigService
         return false;
     }
 
-    private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
+    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
         var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
-        
+
         if (shouldGrantKey)
         {
             if (!systemCircle.Permissions.Keys.Contains(key))
@@ -460,6 +460,6 @@ public class TenantConfigService
             }
         }
 
-        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
+        await _cns.UpdateCircleDefinition(systemCircle);
     }
 }

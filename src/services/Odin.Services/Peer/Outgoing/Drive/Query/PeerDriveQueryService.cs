@@ -48,11 +48,11 @@ public class PeerDriveQueryService(
 
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { queryModifiedResponse = await httpClient.QueryModified(request); });
 
-            HandleInvalidResponse(odinId, queryModifiedResponse);
+            await HandleInvalidResponse(odinId, queryModifiedResponse);
 
             var response = queryModifiedResponse.Content;
 
@@ -81,11 +81,11 @@ public class PeerDriveQueryService(
 
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatchCollection(request); });
 
-            HandleInvalidResponse(odinId, queryBatchResponse);
+            await HandleInvalidResponse(odinId, queryBatchResponse);
 
             var batch = queryBatchResponse.Content;
             return batch;
@@ -108,11 +108,11 @@ public class PeerDriveQueryService(
 
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
 
-            HandleInvalidResponse(odinId, queryBatchResponse);
+            await HandleInvalidResponse(odinId, queryBatchResponse);
 
             var batch = queryBatchResponse.Content;
             return new QueryBatchResult()
@@ -141,7 +141,7 @@ public class PeerDriveQueryService(
             ApiResponse<SharedSecretEncryptedFileHeader> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await httpClient.GetFileHeader(file); });
 
@@ -150,7 +150,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response);
 
             var header = TransformSharedSecret(response.Content, icr);
             return header;
@@ -174,7 +174,7 @@ public class PeerDriveQueryService(
             ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk }); });
 
@@ -202,7 +202,7 @@ public class PeerDriveQueryService(
             ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -235,7 +235,7 @@ public class PeerDriveQueryService(
             ApiResponse<IEnumerable<PerimeterDriveData>> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -250,7 +250,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response);
             return response.Content;
         }
         catch (TryRetryException t)
@@ -272,7 +272,7 @@ public class PeerDriveQueryService(
             ApiResponse<SharedSecretEncryptedFileHeader> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await httpClient.GetFileHeaderByGlobalTransitId(file); });
 
@@ -281,7 +281,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response);
 
             var header = TransformSharedSecret(response.Content, icr);
             return header;
@@ -305,7 +305,7 @@ public class PeerDriveQueryService(
             ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -343,7 +343,7 @@ public class PeerDriveQueryService(
             ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -376,12 +376,12 @@ public class PeerDriveQueryService(
             ApiResponse<RedactedOdinContext> response = null;
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                odinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await httpClient.GetRemoteDotYouContext(); });
 
-            HandleInvalidResponse(odinId, response);
-            
+            await HandleInvalidResponse(odinId, response);
+
             return response.Content;
         }
         catch (TryRetryException t)
@@ -461,7 +461,7 @@ public class PeerDriveQueryService(
         return newEncryptedKeyHeader;
     }
 
-    private void HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response)
+    private async Task HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
@@ -470,7 +470,7 @@ public class PeerDriveQueryService(
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    circleNetworkService.RevokeConnection(odinId).GetAwaiter().GetResult();
+                    await circleNetworkService.RevokeConnection(odinId);
                 }
             }
 
@@ -501,7 +501,7 @@ public class PeerDriveQueryService(
             return (null, default, null, null, Stream.Null);
         }
 
-        HandleInvalidResponse(odinId, response);
+        await HandleInvalidResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -541,7 +541,7 @@ public class PeerDriveQueryService(
             return (null, default, null);
         }
 
-        HandleInvalidResponse(odinId, response);
+        await HandleInvalidResponse(odinId, response);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
