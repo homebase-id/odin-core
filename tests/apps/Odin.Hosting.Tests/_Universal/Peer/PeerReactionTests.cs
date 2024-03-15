@@ -13,6 +13,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests._Universal.Peer;
 
@@ -79,7 +80,7 @@ public class PeerGroupReactionTests
         const string reactionContent1 = ":cake:";
         var addGroupReactionResponse = await pippinOwnerApiClient.PeerReactions
             .AddGroupReaction([TestIdentities.Frodo.OdinId], uploadResult.GlobalTransitIdFileIdentifier, reactionContent1);
-
+        
         Assert.IsTrue(addGroupReactionResponse.IsSuccessStatusCode);
         foreach (var response in addGroupReactionResponse.Content.Responses)
         {
@@ -103,8 +104,11 @@ public class PeerGroupReactionTests
         Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
                 .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {TestIdentities.Frodo.OdinId}");
 
+        var frodosReactionsViaPippin =
+            await pippinOwnerApiClient.PeerReactions.GetAllReactions(TestIdentities.Frodo.OdinId, uploadResult.GlobalTransitIdFileIdentifier);
+        Assert.IsTrue(frodosReactionsViaPippin.IsSuccessStatusCode);
+        Assert.IsNotNull(frodosReactionsViaPippin.Content.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier), "Frodo should have one reaction");
 
-        //todo: check for reactions for frodo
     }
 
     [Test]
@@ -187,7 +191,12 @@ public class PeerGroupReactionTests
         Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
                 .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {TestIdentities.Frodo.OdinId}");
 
-        //TODO: check for reactions on frodo
+        var frodosReactionsViaPippin =
+            await pippinOwnerApiClient.PeerReactions.GetAllReactions(TestIdentities.Frodo.OdinId, uploadResult.GlobalTransitIdFileIdentifier);
+        Assert.IsTrue(frodosReactionsViaPippin.IsSuccessStatusCode);
+        Assert.IsNotNull(frodosReactionsViaPippin.Content.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier), "Frodo should have one reaction");
+
+        
     }
 
     [Test]
@@ -270,24 +279,27 @@ public class PeerGroupReactionTests
         Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
                 .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {TestIdentities.Frodo.OdinId}");
 
-        //TODO: check for reactions on frodo
+        var frodosReactionsViaPippin =
+            await pippinOwnerApiClient.PeerReactions.GetAllReactions(TestIdentities.Frodo.OdinId, uploadResult.GlobalTransitIdFileIdentifier);
+        Assert.IsTrue(frodosReactionsViaPippin.IsSuccessStatusCode);
+        Assert.IsNotNull(frodosReactionsViaPippin.Content.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier), "Frodo should have one reaction");
 
         // Delete the file on frodo's
-        await pippinOwnerApiClient.DriveRedux.DeleteFileList([
-            new()
-            {
-                File = uploadResult.File,
-                Recipients = [TestIdentities.Frodo.OdinId]
-            }
-        ]);
+        var deleteFileResponse = await pippinOwnerApiClient.DriveRedux.DeleteFile(uploadResult.File, [TestIdentities.Frodo.OdinId]);
+        Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+        Assert.IsTrue(deleteFileResponse.Content.RecipientStatus[TestIdentities.Frodo.OdinId] == DeleteLinkedFileStatus.RequestAccepted);
+
+        await _scaffold.CreateOwnerApiClient(TestIdentities.Frodo).Transit.ProcessInbox(targetDrive); //todo: replace with redux client
 
         // All recipients must have the reaction AND the corresponding file must have the preview
         var getRecipientHeaderResponse2 = await frodoOwnerClient.DriveRedux.GetFileHeaderByUniqueId(clientUniqueId);
         Assert.IsTrue(getRecipientHeaderResponse2.StatusCode == HttpStatusCode.NotFound, $"Header should not exist on {TestIdentities.Frodo.OdinId}");
         
-        //TODO: check for reactions on frodo, there should be none for the clientUniqueId
+        var frodosReactionsViaPippin2 =
+            await pippinOwnerApiClient.PeerReactions.GetAllReactions(TestIdentities.Frodo.OdinId, uploadResult.GlobalTransitIdFileIdentifier);
+        Assert.IsTrue(frodosReactionsViaPippin2.IsSuccessStatusCode);
+        Assert.IsNull(frodosReactionsViaPippin2.Content.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier), "Frodo should not have the reaction");
 
-        
     }
 
     // [Test]
