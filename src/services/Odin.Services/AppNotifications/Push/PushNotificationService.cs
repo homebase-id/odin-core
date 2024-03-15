@@ -3,18 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HttpClientFactoryLite;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Dto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Services.AppNotifications.SystemNotifications;
-using Odin.Services.Dns.PowerDns;
-using Odin.Services.Drives.Reactions;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Apps;
@@ -25,12 +24,13 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Outgoing.Drive;
-using Serilog;
+using Refit;
 using WebPush;
 
 namespace Odin.Services.AppNotifications.Push;
 
 public class PushNotificationService(
+    ILogger<PushNotificationService> logger,
     TenantSystemStorage storage,
     OdinContextAccessor contextAccessor,
     PublicPrivateKeyService keyService,
@@ -38,6 +38,7 @@ public class PushNotificationService(
     ServerSystemStorage serverSystemStorage,
     NotificationListService notificationListService,
     IAppRegistrationService appRegistrationService,
+    IHttpClientFactory httpClientFactory,
     OdinConfiguration configuration)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
@@ -111,7 +112,7 @@ public class PushNotificationService(
                 }
                 else
                 {
-                    Log.Warning($"No app registered with Id {record.Options.AppId}");
+                    logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
                 }
             }
 
@@ -142,26 +143,74 @@ public class PushNotificationService(
         var subscriptions = await GetAllSubscriptions();
         var keys = keyService.GetNotificationsKeys();
 
-        foreach (var deviceSubscription in subscriptions)
+        var tasks = new List<Task>();
+        foreach (var subscription in subscriptions)
         {
-            //TODO: enforce sub.ExpirationTime
 
-            var subscription = new PushSubscription(deviceSubscription.Endpoint, deviceSubscription.P256DH, deviceSubscription.Auth);
-            var vapidDetails = new VapidDetails(configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
-
-            var data = OdinSystemSerializer.Serialize(content);
-
-            //TODO: this will probably need to get an http client via @Seb's work
-            var webPushClient = new WebPushClient();
-            try
+            if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                await webPushClient.SendNotificationAsync(subscription, data, vapidDetails);
+                tasks.Add(WebPush(subscription, keys, content));
             }
-            catch (WebPushException exception)
+            else
             {
-                Log.Warning($"Failed sending push notification [{exception.PushSubscription}]");
-                //TODO: collect all errors and send back to client or do something with it
+                tasks.Add(DevicePush(subscription, content));
             }
+
+            // SEB:TODO Delete me
+            subscription.FirebaseDeviceToken = "eFexvFVVQmeYfj33Hxayb9:APA91bFJzpFMxR6hN7jSwPLDwOrPG6Ajrcbm8kvfdGOihFw6iOeZiNzm4_HkV5K-d-ETNcwrmfJ7grcuxoA7_B373E1r4WUMXlCAQjiU1BNmcP17fafrOFpCYwQxCpGmnC8ngi3V_Mni";
+            await DevicePush(subscription, content);
+        }
+        await Task.WhenAll(tasks);
+
+    }
+
+    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
+    {
+        var pushSubscription = new PushSubscription(subscription.Endpoint, subscription.P256DH, subscription.Auth);
+        var vapidDetails = new VapidDetails(configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
+
+        var data = OdinSystemSerializer.Serialize(content);
+
+        //TODO: this will probably need to get an http client via @Seb's work
+        var webPushClient = new WebPushClient();
+        try
+        {
+            await webPushClient.SendNotificationAsync(pushSubscription, data, vapidDetails);
+        }
+        catch (WebPushException exception)
+        {
+            logger.LogWarning("Failed sending web push notification {notification}", exception.PushSubscription);
+            //TODO: collect all errors and send back to client or do something with it
+        }
+    }
+
+    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationContent content)
+    {
+        // SEB:TODO popluate the request
+        var request = new DevicePushNotificationRequest()
+        {
+            DeviceToken = subscription.FirebaseDeviceToken,
+            Title = "The Title",
+            Body = "The Body",
+            OriginDomain = "The Origin Domain",
+            Signature = "The Signature"
+        };
+
+        logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);
+
+        try
+        {
+            await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, () =>
+            {
+                // SEB:TODO this should be a configuration value
+                var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("https://push.homebase.id"));
+                var push = RestService.For<IDevicePushNotificationApi>(httpClient);
+                return push.PostMessage(request);
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed sending device push notification");
         }
     }
 

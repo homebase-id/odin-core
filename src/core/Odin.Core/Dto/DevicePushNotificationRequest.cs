@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Odin.Core.Dto;
 
-public class PushNotificationRequest
+public class DevicePushNotificationRequest
 {
     [Required]
     public string DeviceToken { get; set; } = "";

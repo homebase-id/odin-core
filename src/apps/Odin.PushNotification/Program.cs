@@ -52,8 +52,8 @@ app.MapGet("/ping", () => "pong");
 app.MapPost("/message", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
-        IValidator<PushNotificationRequest> validator,
-        [FromBody] PushNotificationRequest request) =>
+        IValidator<DevicePushNotificationRequest> validator,
+        [FromBody] DevicePushNotificationRequest request) =>
     {
         var validationResult = validator.Validate(request);
         if (!validationResult.IsValid)
@@ -65,7 +65,7 @@ app.MapPost("/message", async (
         {
             var response = await pushNotification.Post(request);
             logger.LogInformation("Successfully sent message: {response}", response);
-            return Results.Ok();
+            return Results.Ok("Message sent successfully to Firebase.");
 
         }
         catch (Exception e)
@@ -80,7 +80,7 @@ app.Run();
 
 //
 
-public class PushNotificationRequestValidator : AbstractValidator<PushNotificationRequest>
+public class PushNotificationRequestValidator : AbstractValidator<DevicePushNotificationRequest>
 {
     public PushNotificationRequestValidator()
     {

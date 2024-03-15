@@ -7,7 +7,7 @@ namespace Odin.PushNotification;
 
 public interface IPushNotification
 {
-    Task<string> Post(PushNotificationRequest request);
+    Task<string> Post(DevicePushNotificationRequest request);
 }
 
 public class PushNotification : IPushNotification
@@ -31,7 +31,7 @@ public class PushNotification : IPushNotification
 
     //
 
-    public async Task<string> Post(PushNotificationRequest request)
+    public async Task<string> Post(DevicePushNotificationRequest request)
     {
         var message = new Message
         {
