@@ -1,3 +1,5 @@
+using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
@@ -66,7 +68,11 @@ app.MapPost("/message", async (
             var response = await pushNotification.Post(request);
             logger.LogInformation("Successfully sent message: {response}", response);
             return Results.Ok("Message sent successfully to Firebase.");
-
+        }
+        catch (FirebaseException e)
+        {
+            logger.LogError(e, "Error sending message: {error}", e.Message);
+            return Results.Problem(e.Message, statusCode: 502);
         }
         catch (Exception e)
         {

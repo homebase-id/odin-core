@@ -37,7 +37,8 @@ Do the following for each project:
 6. Then go here: https://rnfirebase.io/messaging/usage for the React Native setup.
 
 ### Create iOS app
-Repeat the above instructions for iOS.
+1. Repeat the above instructions for iOS.
+2. Then go here: https://rnfirebase.io/messaging/usage/ios-setup#linking-apns-with-fcm-ios
 
 ## Test
 
