@@ -12,15 +12,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     {
         public TransferInboxItem()
         {
-            this.Id = Guid.NewGuid();
+            
         }
-
-        public Guid Id { get; set; }
-
-        /// <summary>
-        /// The CRC of the <see cref="TransitPublicKey"/> used by the sender
-        /// </summary>
-        // public uint PublicKeyCrc { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         public TransferInstructionType InstructionType { get; set; }
         

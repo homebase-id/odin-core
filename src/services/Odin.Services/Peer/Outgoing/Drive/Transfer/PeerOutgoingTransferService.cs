@@ -505,7 +505,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
 
-            //first map the outbox creation status for any that might have failed
+            // First map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
 
             var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);

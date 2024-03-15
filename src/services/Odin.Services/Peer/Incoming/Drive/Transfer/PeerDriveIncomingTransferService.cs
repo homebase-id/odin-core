@@ -139,8 +139,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-
+                Sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
                 InstructionType = TransferInstructionType.DeleteLinkedFile,
                 DriveId = driveId,
                 GlobalTransitId = globalTransitId,
@@ -171,7 +170,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             //S1220
-            return await RouteToInbox(stateItem);
+            return await RouteToInbox(stateItem, fileMetadata);
         }
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
@@ -232,7 +231,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem)
+        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
             var item = new TransferInboxItem()
             {
@@ -247,7 +246,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
-
+                GlobalTransitId = fileMetadata.GlobalTransitId.GetValueOrDefault(),
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 

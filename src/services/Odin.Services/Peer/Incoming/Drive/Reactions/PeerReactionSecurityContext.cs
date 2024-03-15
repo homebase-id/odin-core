@@ -20,6 +20,9 @@ public class PeerReactionSecurityContext : IDisposable
 
     private const string GroupName = "patch_in_owner_access_to_get_file_by_global_transit_id";
 
+    /// <summary>
+    /// Temporarily upgrades access so we can complete the reaction operation
+    /// </summary>
     public PeerReactionSecurityContext(OdinContextAccessor odinContextAccessor, Guid driveId, TargetDrive targetDrive)
     {
         _odinContextAccessor = odinContextAccessor;

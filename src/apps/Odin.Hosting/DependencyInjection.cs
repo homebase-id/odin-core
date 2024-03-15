@@ -44,6 +44,7 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Peer.Incoming.Drive.Reactions.Inbox;
 
 namespace Odin.Hosting
 {
@@ -171,6 +172,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
+            cb.RegisterType<PeerReactionInbox>().SingleInstance();
             cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()

@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// </summary>
     public class PeerFileWriter(FileSystemResolver fileSystemResolver)
     {
-        public async Task HandleFile(InternalDriveFileId tempFile,
+        public async Task<FileMetadata> HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
@@ -80,6 +80,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 default:
                     throw new OdinClientException("Invalid TransferFileType", OdinClientErrorCode.InvalidTransferFileType);
             }
+
+            return metadata;
         }
 
         private async Task<AccessControlList> ResetAclForComment(FileSystemType fileSystemType, FileMetadata metadata)

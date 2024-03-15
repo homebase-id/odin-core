@@ -6,10 +6,13 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Incoming.Drive.Reactions;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -18,7 +21,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,
-        CircleNetworkService circleNetworkService)
+        CircleNetworkService circleNetworkService,
+        PeerReactionService peerReactionService,
+        DriveManager driveManager)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         /// <summary>
@@ -30,7 +35,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
-            PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
+            var writer = new PeerFileWriter(fileSystemResolver);
 
             foreach (var inboxItem in items)
             {
@@ -52,11 +57,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             var sharedSecret = icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
-                            await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
+                            var metadata = await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
+
+                            if (metadata.GlobalTransitId.HasValue && inboxItem.TransferFileType == TransferFileType.Normal)
+                            {
+                                await peerReactionService.ProcessInbox(new GlobalTransitIdFileIdentifier()
+                                {
+                                    GlobalTransitId = metadata.GlobalTransitId.GetValueOrDefault(),
+                                    TargetDrive = (await driveManager.GetDrive(inboxItem.DriveId)).TargetDriveInfo
+                                });
+                            }
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
+                            // delete reactions from the 
+                            await peerReactionService.DeleteAllReactions(new DeleteReactionRequestByGlobalTransitId()
+                            {
+                                File = new GlobalTransitIdFileIdentifier()
+                                {
+                                    GlobalTransitId = inboxItem.GlobalTransitId,
+                                    TargetDrive = (await driveManager.GetDrive(inboxItem.DriveId)).TargetDriveInfo
+                                }
+                            });
+                            
                             await writer.DeleteFile(fs, inboxItem);
+                           
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)
                         {

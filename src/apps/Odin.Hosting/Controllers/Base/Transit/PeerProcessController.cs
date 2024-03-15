@@ -8,7 +8,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     public class TransitProcessControllerBase(PeerInboxProcessor peerInboxProcessor) : OdinControllerBase
     {
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessTransfers([FromBody] ProcessInboxRequest request)
+        public async Task<IActionResult> ProcessPeerInbox([FromBody] ProcessInboxRequest request)
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
             var result = await peerInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);

@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Incoming.Drive.Reactions.Inbox;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
@@ -22,10 +22,21 @@ public class PeerReactionService(
     CircleNetworkService circleNetworkService,
     OdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver,
-    DriveManager driveManager)
+    DriveManager driveManager,
+    PeerReactionInbox peerReactionInbox)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
 {
     private readonly OdinContextAccessor _contextAccessor = contextAccessor;
+
+    public async Task ProcessInbox(GlobalTransitIdFileIdentifier file)
+    {
+        // Now that the file is stored, unpack any queued reactions
+        var reactions = await peerReactionInbox.GetItems(file.GlobalTransitId);
+        foreach (var r in reactions)
+        {
+            await this.AddReaction(r.Payload);
+        }
+    }
 
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
@@ -34,17 +45,15 @@ public class PeerReactionService(
         InternalDriveFileId? fileId;
         var driveId = await driveManager.GetDriveIdByAlias(request.File.TargetDrive);
 
-        // Upgrade to owner access to let us reach the file by global transit id
         using (new PeerReactionSecurityContext(_contextAccessor, driveId.GetValueOrDefault(), request.File.TargetDrive))
         {
             fileId = await ResolveInternalFile(request.File);
 
-            //TODO: here we need to enqueue the global transit id when
-            // the reaction is for a file *might be* in the inbox
-
             if (null == fileId)
             {
-                throw new OdinRemoteIdentityException("Invalid global transit id");
+                //Enqueue these so we can replay them later
+                await peerReactionInbox.EnqueueAddReaction(request.File, payload, request);
+                return;
             }
 
             await reactionContentService.AddReaction(fileId.Value, request.Reaction);
@@ -55,18 +64,18 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
 
-        // Upgrade to owner access to let us reach the file by global transit id
         InternalDriveFileId? fileId;
         var driveId = await driveManager.GetDriveIdByAlias(request.File.TargetDrive);
 
-        // Upgrade to owner access to let us reach the file by global transit id
         using (new PeerReactionSecurityContext(_contextAccessor, driveId.GetValueOrDefault(), request.File.TargetDrive))
         {
             fileId = await ResolveInternalFile(request.File);
 
             if (null == fileId)
             {
-                throw new OdinRemoteIdentityException("Invalid global transit id");
+                //Enqueue these so we can replay them later
+                await peerReactionInbox.EnqueueDeleteReaction(request.File, payload, request);
+                return;
             }
 
             await reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
@@ -99,14 +108,21 @@ public class PeerReactionService(
         return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
     }
 
+    /// <summary>
+    /// Deletes all reactions for a given file
+    /// </summary>
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload)
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
+        await this.DeleteAllReactions(request);
+    }
 
+    public async Task DeleteAllReactions(DeleteReactionRequestByGlobalTransitId request)
+    {
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new OdinRemoteIdentityException("Invalid global transit id");
+            return;
         }
 
         await reactionContentService.DeleteAllReactions(fileId.Value);
