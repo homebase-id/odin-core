@@ -30,5 +30,5 @@ public class ReactionPreviewUpdatedNotification : EventArgs, INotification, IDri
     public InternalDriveFileId File { get; set; }
 
     public ServerFileHeader ServerFileHeader { get; set; }
-    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
+    
 }

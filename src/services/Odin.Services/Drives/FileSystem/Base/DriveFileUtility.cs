@@ -12,6 +12,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
+using Serilog;
 
 namespace Odin.Services.Drives.FileSystem.Base;
 
@@ -37,10 +38,18 @@ public static class DriveFileUtility
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
         if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-            var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
+            if (contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(header.FileMetadata.File.DriveId, out var storageKey))
+            {
+                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
+            }
+            else
+            {
+                Log.Debug("No storage key available for caller for file x");
+                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+            }
+            
         }
         else
         {

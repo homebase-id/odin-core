@@ -54,7 +54,6 @@ public class PeerReactionSenderService(
         tasks.AddRange(odinIds.Select(id => SendReactionInternal(id, request)));
         await Task.WhenAll(tasks);
 
-        //TODO: IM getting service unavailable for frodo as the target and the error is hidden
         tasks.ForEach(task =>
         {
             var sendResponse = task.Result;

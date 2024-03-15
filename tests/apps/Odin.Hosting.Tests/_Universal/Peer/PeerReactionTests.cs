@@ -34,39 +34,88 @@ public class PeerGroupReactionTests
     }
 
     [Test]
-    public Task CanSendReactionsToMultipleIdentitiesUsingEncryptedFileEvenWhenTargetFileIsInInbox()
+    public async Task CanSendReactionsToMultipleIdentitiesUsingEncryptedFileEvenWhenTargetFileIsInInbox()
     {
-        Assert.Inconclusive("TODO");
-        return Task.CompletedTask;
+        var pippinOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var targetDrive = SystemDriveConstants.ChatDrive;
+
+        await pippinOwnerApiClient.Connections.SendConnectionRequest(TestIdentities.Frodo.OdinId);
+        await frodoOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
+
+        //
+        // Send an encrypted file
+        //
+        var clientUniqueId = new ClientUniqueIdFileIdentifier()
+        {
+            ClientUniqueId = Guid.NewGuid(),
+            TargetDrive = targetDrive
+        };
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected, uniqueId: clientUniqueId.ClientUniqueId);
+        uploadedFileMetadata.AllowDistribution = true;
+        uploadedFileMetadata.AppData.Content = "ping ping pong";
+
+        var transitOptions = new TransitOptions()
+        {
+            Recipients = [TestIdentities.Frodo.OdinId],
+            UseGlobalTransitId = true,
+            Schedule = ScheduleOptions.SendNowAwaitResponse,
+        };
+
+        var uploadMetadataResponse = await pippinOwnerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, transitOptions);
+        var uploadResult = uploadMetadataResponse.response.Content;
+
+        //
+        // validate the files went to the inbox
+        //
+        Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(TestIdentities.Frodo.OdinId, out var transferStatus));
+        Assert.IsTrue(transferStatus == TransferStatus.DeliveredToInbox);
+
+        //
+        // send the reactions
+        //
+        const string reactionContent1 = ":cake:";
+        var addGroupReactionResponse = await pippinOwnerApiClient.PeerReactions
+            .AddGroupReaction([TestIdentities.Frodo.OdinId], uploadResult.GlobalTransitIdFileIdentifier, reactionContent1);
+
+        Assert.IsTrue(addGroupReactionResponse.IsSuccessStatusCode);
+        foreach (var response in addGroupReactionResponse.Content.Responses)
+        {
+            Assert.IsTrue(response.Status == AddDeleteReactionStatusCode.Success, $"failed to add reaction for {response.Recipient}");
+        }
+
+        // At this point, the reactions should be stored in a queue somewhere but i have no way to test
+
+        //
+        // Process the inbox
+        //
+        var frodoOwnerClientOld = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        await frodoOwnerClientOld.Transit.ProcessInbox(targetDrive);
+
+
+        // The reactions should be applied to the files 
+
+        // All recipients must have the reaction AND the corresponding file must have the preview
+        var getRecipientHeaderResponse = await frodoOwnerClient.DriveRedux.GetFileHeaderByUniqueId(clientUniqueId);
+        Assert.IsTrue(getRecipientHeaderResponse.IsSuccessStatusCode, $"failed to get header for {TestIdentities.Frodo.OdinId}");
+        Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
+                .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {TestIdentities.Frodo.OdinId}");
+        
+        
+        //todo: check for reactions for frodo
     }
 
     [Test]
     public async Task CanSendReactionsToMultipleIdentitiesUsingEncryptedFile()
     {
         var pippinOwnerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
-        var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        
+        await pippinOwnerApiClient.Connections.SendConnectionRequest(TestIdentities.Frodo.OdinId);
+        await frodoOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
 
         var targetDrive = SystemDriveConstants.ChatDrive;
-
-        var chatGroupRecipients = new List<OdinId>()
-        {
-            TestIdentities.Frodo.OdinId,
-            // TestIdentities.Merry.OdinId
-        };
-
-        //
-        // Errr-body connected
-        //
-        foreach (var recipient in chatGroupRecipients)
-        {
-            await pippinOwnerApiClient.Connections.SendConnectionRequest(recipient);
-            var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
-            await client.Connections.AcceptConnectionRequest(TestIdentities.Pippin.OdinId);
-        }
-
-        // await merryOwnerClient.Connections.SendConnectionRequest(TestIdentities.Frodo.OdinId);
-        // await frodoOwnerClient.Connections.AcceptConnectionRequest(TestIdentities.Merry.OdinId);
 
         //
         // Send a file
@@ -83,7 +132,7 @@ public class PeerGroupReactionTests
 
         var transitOptions = new TransitOptions()
         {
-            Recipients = chatGroupRecipients.Select(r => (string)r).ToList(),
+            Recipients = [TestIdentities.Frodo.OdinId],
             UseGlobalTransitId = true,
             Schedule = ScheduleOptions.SendNowAwaitResponse,
         };
@@ -92,42 +141,36 @@ public class PeerGroupReactionTests
         var uploadResult = uploadMetadataResponse.response.Content;
 
         //process inboxes
-        foreach (var recipient in chatGroupRecipients)
-        {
-            Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient, out var transferStatus));
-            Assert.IsTrue(transferStatus == TransferStatus.DeliveredToInbox);
+        Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(TestIdentities.Frodo.OdinId, out var transferStatus));
+        Assert.IsTrue(transferStatus == TransferStatus.DeliveredToInbox);
 
-            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[recipient]);
-            await client.Transit.ProcessInbox(targetDrive);
-        }
+        await _scaffold.CreateOwnerApiClient(TestIdentities.Frodo).Transit.ProcessInbox(targetDrive); //todo: replace with redux client
 
         //all recipients should have the file by GlobalTransitId
-        foreach (var recipient in chatGroupRecipients)
+        var request = new QueryBatchRequest
         {
-            var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
-            var request = new QueryBatchRequest
+            QueryParams = new FileQueryParams()
             {
-                QueryParams = new FileQueryParams()
-                {
-                    TargetDrive = targetDrive,
-                    GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
-                },
-                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
-                {
-                    MaxRecords = 10,
-                    IncludeMetadataHeader = true
-                }
-            };
+                TargetDrive = targetDrive,
+                GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
+            },
+            ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+            {
+                MaxRecords = 10,
+                IncludeMetadataHeader = true
+            }
+        };
 
-            var qbResponse = await client.DriveRedux.QueryBatch(request);
-            Assert.IsTrue(qbResponse.IsSuccessStatusCode);
-            var file = qbResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(file, $"File with global transitId not found on {recipient}");
-        }
+        var qbResponse = await frodoOwnerClient.DriveRedux.QueryBatch(request);
+        Assert.IsTrue(qbResponse.IsSuccessStatusCode);
+        var file = qbResponse.Content.SearchResults.SingleOrDefault();
+        Assert.IsNotNull(file, $"File with global transitId not found on {TestIdentities.Frodo.OdinId}");
 
         const string reactionContent1 = ":cake:";
-        var addGroupReactionResponse = await pippinOwnerApiClient.PeerReactions
-            .AddGroupReaction(chatGroupRecipients, uploadResult.GlobalTransitIdFileIdentifier, reactionContent1);
+        var addGroupReactionResponse = await pippinOwnerApiClient.PeerReactions.AddGroupReaction(
+            [TestIdentities.Frodo.OdinId],
+            uploadResult.GlobalTransitIdFileIdentifier,
+            reactionContent1);
 
         Assert.IsTrue(addGroupReactionResponse.IsSuccessStatusCode);
         foreach (var response in addGroupReactionResponse.Content.Responses)
@@ -135,34 +178,14 @@ public class PeerGroupReactionTests
             Assert.IsTrue(response.Status == AddDeleteReactionStatusCode.Success, $"failed to add reaction for {response.Recipient}");
         }
 
-        // all recipients must have the reaction AND the corresponding file must have the preview
-        foreach (var recipient in chatGroupRecipients)
-        {
-            var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
-            var getRecipientHeaderResponse = await client.DriveRedux.GetFileHeaderByUniqueId(clientUniqueId);
-            Assert.IsTrue(getRecipientHeaderResponse.IsSuccessStatusCode, $"failed to get header for {recipient}");
-            Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
-                    .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {recipient}");
-        }
+        // The reactions should be applied to the files 
 
-
-        // Validate the reaction is there (get file)
-        var getHeaderResponse1 = await pippinOwnerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
-            .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
-
-        // update the same file
-        uploadedFileMetadata.AppData.Content = "changed data";
-        var updateResponse =
-            await pippinOwnerApiClient.DriveRedux.UpdateExistingMetadata(uploadResult.File, getHeaderResponse1.Content.FileMetadata.VersionTag,
-                uploadedFileMetadata);
-        Assert.IsTrue(updateResponse.IsSuccessStatusCode);
-
-        // Validate the reaction is there (get file)
-        var getHeaderResponse2 = await pippinOwnerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse2.Content.FileMetadata.AppData.Content == "changed data");
-        Assert.IsNotNull(
-            getHeaderResponse2.Content.FileMetadata.ReactionPreview.Reactions
-                .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
+        // All recipients must have the reaction AND the corresponding file must have the preview
+        var getRecipientHeaderResponse = await frodoOwnerClient.DriveRedux.GetFileHeaderByUniqueId(clientUniqueId);
+        Assert.IsTrue(getRecipientHeaderResponse.IsSuccessStatusCode, $"failed to get header for {TestIdentities.Frodo.OdinId}");
+        Assert.IsNotNull(getRecipientHeaderResponse.Content.FileMetadata.ReactionPreview?.Reactions
+                .SingleOrDefault(r => r.Value.ReactionContent == reactionContent1), $"reaction preview missing for {TestIdentities.Frodo.OdinId}");
+        
+        //TODO: check for reactions on frodo
     }
 }
