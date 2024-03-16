@@ -280,9 +280,10 @@ public class ReactionContentService(
     private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> DeleteReactionInternal(OdinId odinId,
         DeleteReactionRequestByGlobalTransitId request)
     {
+        
         try
         {
-            var response = reactionSenderService.DeleteReaction(odinId, request);
+            var response = await reactionSenderService.DeleteReaction(odinId, request);
             return (odinId, response);
         }
         catch (Exception ex)
