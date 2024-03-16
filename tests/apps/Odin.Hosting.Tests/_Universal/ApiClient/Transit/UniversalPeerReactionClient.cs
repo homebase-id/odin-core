@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
@@ -14,42 +15,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit;
 
 public class UniversalPeerReactionClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction(List<OdinId> recipients, GlobalTransitIdFileIdentifier file, string reactionContent)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-
-        var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerReaction>(client, ownerSharedSecret);
-        var response = await svc.AddGroupReaction(new PeerAddGroupReactionRequest()
-        {
-            Recipients = recipients.Select(r => (string)r).ToList(),
-            Request = new AddRemoteReactionRequest()
-            {
-                File = file,
-                Reaction = reactionContent
-            }
-        });
-
-        return response;
-    }
-
-    public async Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction(List<OdinId> recipients, string reaction, GlobalTransitIdFileIdentifier file)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        var svc = RefitCreator.RestServiceFor<IUniversalRefitPeerReaction>(client, ownerSharedSecret);
-        var response = await svc.DeleteGroupReaction(new PeerDeleteGroupReactionRequest()
-        {
-            Recipients = recipients.Select(r => (string)r).ToList(),
-            Request = new DeleteReactionRequestByGlobalTransitId
-            {
-                Reaction = reaction,
-                File = file
-            }
-        });
-
-        return response;
-    }
-
-
     public async Task<ApiResponse<HttpContent>> AddReaction(string odinId, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);

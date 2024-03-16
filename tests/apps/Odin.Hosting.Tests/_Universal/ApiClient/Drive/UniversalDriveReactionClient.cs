@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Refit;
 
@@ -21,6 +22,41 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         {
             File = file,
             Reaction = reactionContent
+        });
+
+        return response;
+    }
+    
+    public async Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction(List<OdinId> recipients, GlobalTransitIdFileIdentifier file, string reactionContent)
+    {
+        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
+
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
+        var response = await svc.AddGroupReaction(new AddGroupReactionRequest()
+        {
+            Recipients = recipients.Select(r => (string)r).ToList(),
+            Request = new AddRemoteReactionRequest()
+            {
+                File = file,
+                Reaction = reactionContent
+            }
+        });
+
+        return response;
+    }
+
+    public async Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction(List<OdinId> recipients, string reaction, GlobalTransitIdFileIdentifier file)
+    {
+        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
+        var response = await svc.DeleteGroupReaction(new DeleteGroupReactionRequest()
+        {
+            Recipients = recipients.Select(r => (string)r).ToList(),
+            Request = new DeleteReactionRequestByGlobalTransitId
+            {
+                Reaction = reaction,
+                File = file
+            }
         });
 
         return response;

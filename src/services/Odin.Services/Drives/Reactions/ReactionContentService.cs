@@ -1,11 +1,17 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using Refit;
 
 namespace Odin.Services.Drives.Reactions;
 
@@ -14,8 +20,88 @@ namespace Odin.Services.Drives.Reactions;
 /// <summary>
 /// Manages reactions to files
 /// </summary>
-public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, OdinContextAccessor contextAccessor, IMediator mediator)
+public class ReactionContentService(
+    DriveDatabaseHost driveDatabaseHost,
+    OdinContextAccessor contextAccessor,
+    IMediator mediator,
+    ILogger<ReactionContentService> logger,
+    PeerReactionSenderService reactionSenderService)
 {
+    public async Task<AddGroupReactionResponse> AddGroupReaction(InternalDriveFileId internalFile, IEnumerable<OdinId> recipients, string reaction)
+    {
+        //TODO: lookup the global transit id for the file
+
+        // add a local reaction
+        await this.AddReaction(internalFile, reaction);
+
+        
+        //broadcast to recipients
+        var response = new AddGroupReactionResponse();
+        var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
+        var odinIds = recipients as OdinId[] ?? recipients.ToArray();
+        tasks.AddRange(odinIds.Select(id =>
+            {
+                try
+                {
+                    var response = await reactionSenderService.SendReaction(id, new AddRemoteReactionRequest()
+                    {
+                        File = null,
+                        Reaction = reaction
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed sending reaction to recipient {recipient}", odinId);
+                }
+                
+                return (id, null);
+
+            }
+        ));
+        await Task.WhenAll(tasks);
+
+        tasks.ForEach(task =>
+        {
+            var sendResponse = task.Result;
+            response.Responses.Add(new RemoteAddDeleteReactionResponse()
+            {
+                Recipient = sendResponse.recipient,
+                Status = MapResponse(sendResponse.response)
+            });
+        });
+
+        return response;
+    }
+
+    public async Task<DeleteGroupReactionResponse> DeleteGroupReaction(InternalDriveFileId internalFile, IEnumerable<OdinId> recipients, string reaction)
+    {
+        //TODO: lookup global transit id by DeleteReactionRequestByGlobalTransitId 
+
+        // add a local reaction
+        await DeleteReaction(internalFile, reaction);
+
+        //get the global transit id for this file
+        
+        //broadcast to recipients
+        var response = new DeleteGroupReactionResponse();
+        var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
+        var odinIds = recipients as OdinId[] ?? recipients.ToArray();
+        tasks.AddRange(odinIds.Select(id => DeleteReactionInternal(id, request)));
+        await Task.WhenAll(tasks);
+
+        tasks.ForEach(task =>
+        {
+            var sendResponse = task.Result;
+            response.Responses.Add(new RemoteAddDeleteReactionResponse()
+            {
+                Recipient = sendResponse.recipient,
+                Status = MapResponse(sendResponse.response)
+            });
+        });
+
+        return response;
+    }
+
     public async Task AddReaction(InternalDriveFileId file, string reactionContent)
     {
         var context = contextAccessor.GetCurrent();
@@ -131,5 +217,30 @@ public class ReactionContentService(DriveDatabaseHost driveDatabaseHost, OdinCon
         }
 
         throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
+    }
+
+    private AddDeleteReactionStatusCode MapResponse(ApiResponse<HttpContent> apiResponse)
+    {
+        if (apiResponse.IsSuccessStatusCode)
+        {
+            return AddDeleteReactionStatusCode.Success;
+        }
+
+        return AddDeleteReactionStatusCode.Failure;
+    }
+    
+    private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> DeleteReactionInternal(OdinId odinId,
+        DeleteReactionRequestByGlobalTransitId request)
+    {
+        try
+        {
+            var response = reactionSenderService.DeleteReaction(odinId, request);
+            return (odinId, response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed deleting reaction from recipient {recipient}", odinId);
+            return (odinId, null);
+        }
     }
 }

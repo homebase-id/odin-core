@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
+namespace Odin.Services.Drives.Reactions;
 
 public class AddGroupReactionResponse
 {
