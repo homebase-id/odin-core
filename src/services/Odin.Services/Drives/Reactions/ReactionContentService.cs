@@ -7,9 +7,12 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Refit;
 
@@ -25,39 +28,45 @@ public class ReactionContentService(
     OdinContextAccessor contextAccessor,
     IMediator mediator,
     ILogger<ReactionContentService> logger,
-    PeerReactionSenderService reactionSenderService)
+    PeerReactionSenderService reactionSenderService,
+    DriveManager driveManager,
+    FileSystemResolver fileSystemResolver)
 {
     public async Task<AddGroupReactionResponse> AddGroupReaction(InternalDriveFileId internalFile, IEnumerable<OdinId> recipients, string reaction)
     {
-        //TODO: lookup the global transit id for the file
+        var fs = await fileSystemResolver.ResolveFileSystem(internalFile);
+        var header = await fs.Storage.GetServerFileHeader(internalFile);
+
+        if (header == null)
+        {
+            throw new OdinClientException("file does not exist");
+        }
+
+        if (header.FileMetadata.GlobalTransitId == null)
+        {
+            throw new OdinClientException("File must be global transit id when adding a group reaction");
+        }
+
+        var gtid = new GlobalTransitIdFileIdentifier()
+        {
+            GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+            TargetDrive = (await driveManager.GetDrive(internalFile.DriveId)).TargetDriveInfo
+        };
 
         // add a local reaction
         await this.AddReaction(internalFile, reaction);
 
-        
+        var request = new AddRemoteReactionRequest()
+        {
+            File = gtid,
+            Reaction = reaction
+        };
+
         //broadcast to recipients
         var response = new AddGroupReactionResponse();
         var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
         var odinIds = recipients as OdinId[] ?? recipients.ToArray();
-        tasks.AddRange(odinIds.Select(id =>
-            {
-                try
-                {
-                    var response = await reactionSenderService.SendReaction(id, new AddRemoteReactionRequest()
-                    {
-                        File = null,
-                        Reaction = reaction
-                    });
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed sending reaction to recipient {recipient}", odinId);
-                }
-                
-                return (id, null);
-
-            }
-        ));
+        tasks.AddRange(odinIds.Select(id => SendReactionInternal(id, request)));
         await Task.WhenAll(tasks);
 
         tasks.ForEach(task =>
@@ -75,17 +84,40 @@ public class ReactionContentService(
 
     public async Task<DeleteGroupReactionResponse> DeleteGroupReaction(InternalDriveFileId internalFile, IEnumerable<OdinId> recipients, string reaction)
     {
-        //TODO: lookup global transit id by DeleteReactionRequestByGlobalTransitId 
+        //TODO: lookup global transit id by DeleteReactionRequestByGlobalTransitId
+
+        var fs = await fileSystemResolver.ResolveFileSystem(internalFile);
+        var header = await fs.Storage.GetServerFileHeader(internalFile);
+
+        if (header == null)
+        {
+            throw new OdinClientException("File does not exist");
+        }
+
+        if (header.FileMetadata.GlobalTransitId == null)
+        {
+            throw new OdinClientException("File must be global transit id when adding a group reaction");
+        }
 
         // add a local reaction
         await DeleteReaction(internalFile, reaction);
 
         //get the global transit id for this file
-        
+
         //broadcast to recipients
         var response = new DeleteGroupReactionResponse();
         var tasks = new List<Task<(OdinId recipient, ApiResponse<HttpContent> response)>>();
         var odinIds = recipients as OdinId[] ?? recipients.ToArray();
+        var request = new DeleteReactionRequestByGlobalTransitId()
+        {
+            File = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                TargetDrive = (await driveManager.GetDrive(internalFile.DriveId)).TargetDriveInfo
+            },
+            Reaction = reaction
+        };
+
         tasks.AddRange(odinIds.Select(id => DeleteReactionInternal(id, request)));
         await Task.WhenAll(tasks);
 
@@ -228,7 +260,23 @@ public class ReactionContentService(
 
         return AddDeleteReactionStatusCode.Failure;
     }
-    
+
+    private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> SendReactionInternal(OdinId odinId,
+        AddRemoteReactionRequest request)
+    {
+        try
+        {
+            await reactionSenderService.SendReaction(odinId, request);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed sending reaction to recipient {recipient}", odinId);
+        }
+        
+        //TODO???  need to return the result so we can send it back to the client
+        
+    }
+
     private async Task<(OdinId recipient, ApiResponse<HttpContent> response)> DeleteReactionInternal(OdinId odinId,
         DeleteReactionRequestByGlobalTransitId request)
     {
