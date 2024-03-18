@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
@@ -12,7 +13,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// Handles read/write access to drive files to ensure correct
 /// locking as well as apply system config for how files are written.
 /// </summary>
-public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, ConcurrentFileManager concurrentFileManager)
+public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, ConcurrentFileManager concurrentFileManager, ILogger<DriveFileReaderWriter> logger)
 {
     public async Task WriteString(string filePath, string data)
     {
@@ -133,6 +134,12 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
                     File.Move(sourceFilePath, destinationFilePath, true);
                 }
             });
+
+        if (!File.Exists(destinationFilePath))
+        {
+            throw new OdinSystemException(
+                $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
+        }
     }
 
     /// <summary>
@@ -239,6 +246,9 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     public Task CreateDirectory(string dir)
     {
         Directory.CreateDirectory(dir);
+        
+        logger.LogDebug("Created Directory [{dir}]", dir);
+        
         return Task.CompletedTask;
     }
 }
