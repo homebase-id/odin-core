@@ -186,6 +186,8 @@ public class PushNotificationService(
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationContent content)
     {
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         // SEB:TODO popluate the request
         var request = new DevicePushNotificationRequest()
         {
@@ -216,7 +218,8 @@ public class PushNotificationService(
 
     public Task AddDevice(PushNotificationSubscription subscription)
     {
-        contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        
         //TODO: validate expiration time
         
         subscription.AccessRegistrationId = GetDeviceKey();
@@ -228,19 +231,21 @@ public class PushNotificationService(
 
     public Task<PushNotificationSubscription> GetDeviceSubscription()
     {
-        contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        
         return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(GetDeviceKey()));
     }
 
     public Task RemoveDevice()
     {
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         return this.RemoveDevice(GetDeviceKey());
     }
     
     public Task RemoveDevice(Guid deviceKey)
     {
-        contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         _deviceSubscriptionStorage.Delete(deviceKey);
         return Task.CompletedTask;
@@ -258,6 +263,8 @@ public class PushNotificationService(
 
     public Task<List<PushNotificationSubscription>> GetAllSubscriptions()
     {
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(_deviceStorageDataType);
         return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
     }
