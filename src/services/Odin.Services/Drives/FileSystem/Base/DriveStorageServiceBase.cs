@@ -35,7 +35,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveFileReaderWriter driveFileReaderWriter)
         : RequirePermissionsBase
     {
-        private readonly DriveManager _driveManager = driveManager;
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
@@ -228,9 +227,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var s = await lts.GetThumbnailStream(file.FileId, width, height, payloadKey, payloadUid);
                     return (s, directMatchingThumb);
                 }
-                catch (OdinFileHeaderHasCorruptPayloadException e)
+                catch (OdinFileHeaderHasCorruptPayloadException)
                 {
-                    var drive = await driveManager.GetDrive(file.DriveId);
+                    var drive = await DriveManager.GetDrive(file.DriveId);
                     if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
@@ -266,9 +265,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 return (stream, nextSizeUp);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException e)
+            catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                var drive = await driveManager.GetDrive(file.DriveId);
+                var drive = await DriveManager.GetDrive(file.DriveId);
                 if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
@@ -393,9 +392,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return new PayloadStream(descriptor, stream);
 
             }
-            catch (OdinFileHeaderHasCorruptPayloadException e)
+            catch (OdinFileHeaderHasCorruptPayloadException)
             {
-                var drive = await driveManager.GetDrive(file.DriveId);
+                var drive = await DriveManager.GetDrive(file.DriveId);
                 if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
                     return null;
@@ -731,7 +730,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // Method assumes you ensured the file was unique by some other method
 
-            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             await AssertCanWriteToDrive(feedDriveId.GetValueOrDefault());
             var file = await this.CreateInternalFileId(feedDriveId.GetValueOrDefault());
 
@@ -751,7 +750,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
             AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
 
             if (file.DriveId != feedDriveId)
             {
@@ -777,7 +776,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
             AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
 
             if (file.DriveId != feedDriveId)
             {
@@ -796,7 +795,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary)
         {
             await AssertCanWriteToDrive(targetFile.DriveId);
-            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             if (targetFile.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Cannot update reaction preview on this drive");
@@ -890,7 +889,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task<bool> ShouldRaiseDriveEvent(InternalDriveFileId file)
         {
-            return file.DriveId != (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive));
+            return file.DriveId != (await DriveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive));
         }
 
         private async Task WriteDeletedFileHeader(ServerFileHeader existingHeader)
