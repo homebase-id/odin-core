@@ -223,8 +223,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                var s = await lts.GetThumbnailStream(file.FileId, width, height, payloadKey, payloadUid);
-                return (s, directMatchingThumb);
+                try
+                {
+                    var s = await lts.GetThumbnailStream(file.FileId, width, height, payloadKey, payloadUid);
+                    return (s, directMatchingThumb);
+                }
+                catch (OdinFileHeaderHasCorruptPayloadException e)
+                {
+                    var drive = await driveManager.GetDrive(file.DriveId);
+                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    {
+                        return (Stream.Null, directMatchingThumb);
+                    }
+
+                    throw;
+                }
             }
 
             if (directMatchOnly)
@@ -243,13 +256,26 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            var stream = await lts.GetThumbnailStream(
-                file.FileId,
-                nextSizeUp.PixelWidth,
-                nextSizeUp.PixelHeight,
-                payloadKey, payloadUid);
+            try
+            {
+                var stream = await lts.GetThumbnailStream(
+                    file.FileId,
+                    nextSizeUp.PixelWidth,
+                    nextSizeUp.PixelHeight,
+                    payloadKey, payloadUid);
 
-            return (stream, nextSizeUp);
+                return (stream, nextSizeUp);
+            }
+            catch (OdinFileHeaderHasCorruptPayloadException e)
+            {
+                var drive = await driveManager.GetDrive(file.DriveId);
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                {
+                    return (Stream.Null, nextSizeUp);
+                }
+
+                throw;
+            }
         }
 
 
@@ -360,9 +386,23 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var lts = await GetLongTermStorageManager(file.DriveId);
-            var stream = await lts.GetPayloadStream(file.FileId, descriptor, chunk);
-            return new PayloadStream(descriptor, stream);
+            try
+            {
+                var lts = await GetLongTermStorageManager(file.DriveId);
+                var stream = await lts.GetPayloadStream(file.FileId, descriptor, chunk);
+                return new PayloadStream(descriptor, stream);
+
+            }
+            catch (OdinFileHeaderHasCorruptPayloadException e)
+            {
+                var drive = await driveManager.GetDrive(file.DriveId);
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                {
+                    return null;
+                }
+
+                throw;
+            }
         }
 
         public async Task<bool> FileExists(InternalDriveFileId file)

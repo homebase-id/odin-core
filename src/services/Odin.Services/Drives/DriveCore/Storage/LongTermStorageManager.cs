@@ -8,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
+using Serilog;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -147,7 +148,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 finally
                 {
-                    fileStream.Dispose();
+                    await fileStream.DisposeAsync();
                 }
             }
 
@@ -174,7 +175,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 if (io is FileNotFoundException || io is DirectoryNotFoundException)
                 {
                     throw new OdinFileHeaderHasCorruptPayloadException(
-                        $"Missing payload file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
+                        $"Missing thumbnail file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
                 }
 
                 throw;
@@ -257,6 +258,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 payloadDescriptor.Uid);
 
             string dir = Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null");
+            _logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
             await _driveFileReaderWriter.CreateDirectory(dir);
 
             await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
