@@ -12,8 +12,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BRANCH_NAME: ""
-  DEPLOY_IMAGE: ""
+  BRANCH_NAME: ''
+  DEPLOY_IMAGE: ''
 
 jobs:
   build:
@@ -23,10 +23,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
-          registry-url: "https://npm.pkg.github.com"
+          node-version: '18.x'
+          registry-url: 'https://npm.pkg.github.com'
           # Defaults to the user or organization that owns the workflow file
-          scope: "@octocat"
+          scope: '@octocat'
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -50,7 +50,7 @@ jobs:
         working-directory: ./client/apps
         run: |
           npm ci
-          npm run build-libs
+          npm run build:libs
           touch packages/public-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env
@@ -59,41 +59,50 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/feed-app/.env
           touch packages/chat-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/chat-app/.env
+          touch packages/mail-app/.env
+          echo VITE_VERSION=$(date +%s) >> packages/mail-app/.env
           touch packages/provisioning-app/.env
           echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
 
       - name: Build owner-app
         working-directory: ./client/apps
         run: |
-          npm run build -w ./packages/owner-app
+          npm run build:owner
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/owner-app
           mv packages/owner-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/owner-app
 
       - name: Build public-app
         working-directory: ./client/apps
         run: |
-          npm run build -w ./packages/public-app
+          npm run build:public
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/public-app
 
       - name: Build feed-app
         working-directory: ./client/apps
         run: |
-          npm run build -w ./packages/feed-app
+          npm run build:feed
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/feed
           mv packages/feed-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/feed
 
       - name: Build chat-app
         working-directory: ./client/apps
         run: |
-          npm run build -w ./packages/chat-app
+          npm run build:chat
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/chat
           mv packages/chat-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/chat
+
+      - name: Build mail-app
+        working-directory: ./client/apps
+        run: |
+          npm run build:mail
+          rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
+          mv packages/mail-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
 
       - name: Build provisioning-app
         working-directory: ./client/apps
         run: |
-          npm run build -w ./packages/provisioning-app
+          npm run build:provisioning
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
           mv packages/provisioning-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
 
