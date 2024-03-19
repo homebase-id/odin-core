@@ -12,7 +12,6 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Transit;
 using Odin.Hosting.Tests._Universal.ApiClient.Transit.Query;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
@@ -40,14 +39,15 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             Network = new CircleNetworkApiClient(ownerApi, identity);
             YouAuth = new YouAuthDomainApiClient(ownerApi, identity);
 
-            DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);
+            DriveRedux = new UniversalDriveApiClient(identity.OdinId, factory);            
+            Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
+
             PeerQuery = new UniversalPeerQueryApiClient(identity.OdinId, factory);
             PeerReactions = new UniversalPeerReactionClient(identity.OdinId, factory);
             
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
-            Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 

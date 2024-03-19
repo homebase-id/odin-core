@@ -46,7 +46,7 @@ public class DirectDriveReactionPreviewTests
 
         // Validate the reaction is there (get file)
         var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
+        Assert.IsNotNull(getHeaderResponse1.Content!.FileMetadata.ReactionPreview.Reactions
             .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
 
         // update the same file

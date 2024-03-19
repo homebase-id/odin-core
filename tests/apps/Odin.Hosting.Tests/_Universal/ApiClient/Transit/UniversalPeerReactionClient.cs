@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Transit;
 
 public class UniversalPeerReactionClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> AddReaction(string odinId, GlobalTransitIdFileIdentifier file, string reactionContent)
+    public async Task<ApiResponse<HttpContent>> AddReaction(OdinId odinId, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 

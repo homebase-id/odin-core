@@ -1,15 +1,11 @@
 using Odin.Core.Identity;
+using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 namespace Odin.Services.Drives.Reactions;
 
-public enum AddDeleteReactionStatusCode
-{
-    Failure = 0,
-    Success = 1
-}
 
-public class RemoteAddDeleteReactionResponse
+public class AddDeleteRemoteReactionResponse
 {
     public OdinId Recipient { get; set; }
-    public AddDeleteReactionStatusCode Status { get; set; }
+    public AddDeleteRemoteReactionStatusCode Status { get; set; }
 }

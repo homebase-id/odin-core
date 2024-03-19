@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -26,8 +27,9 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
 
         return response;
     }
-    
-    public async Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction(List<OdinId> recipients, GlobalTransitIdFileIdentifier file, string reactionContent)
+
+    public async Task<ApiResponse<AddGroupReactionResponse>> AddGroupReaction(ExternalFileIdentifier file,
+        string reactionContent, List<OdinId> recipients)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
 
@@ -35,7 +37,7 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         var response = await svc.AddGroupReaction(new AddGroupReactionRequest()
         {
             Recipients = recipients.Select(r => (string)r).ToList(),
-            Request = new AddRemoteReactionRequest()
+            Request = new AddReactionRequest()
             {
                 File = file,
                 Reaction = reactionContent
@@ -45,14 +47,14 @@ public class UniversalDriveReactionClient(OdinId targetIdentity, IApiClientFacto
         return response;
     }
 
-    public async Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction(List<OdinId> recipients, string reaction, GlobalTransitIdFileIdentifier file)
+    public async Task<ApiResponse<DeleteGroupReactionResponse>> DeleteGroupReaction(ExternalFileIdentifier file, string reaction, List<OdinId> recipients)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveReactionHttpClient>(client, ownerSharedSecret);
         var response = await svc.DeleteGroupReaction(new DeleteGroupReactionRequest()
         {
             Recipients = recipients.Select(r => (string)r).ToList(),
-            Request = new DeleteReactionRequestByGlobalTransitId
+            Request = new DeleteReactionRequest
             {
                 Reaction = reaction,
                 File = file

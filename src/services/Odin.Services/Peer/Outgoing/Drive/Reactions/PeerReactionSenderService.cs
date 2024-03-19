@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -12,13 +11,11 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Reactions;
 using Refit;
-using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 
@@ -28,18 +25,20 @@ public class PeerReactionSenderService(
     CircleNetworkService circleNetworkService,
     OdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver,
-    OdinConfiguration odinConfiguration)
-    : PeerServiceBase(odinHttpClientFactory,
-        circleNetworkService, contextAccessor, fileSystemResolver)
+    OdinConfiguration odinConfiguration) :
+    PeerServiceBase(
+        odinHttpClientFactory,
+        circleNetworkService,
+        contextAccessor,
+        fileSystemResolver)
 {
     private readonly OdinContextAccessor _contextAccessor = contextAccessor;
 
-    /// <summary />
-    public async Task SendReaction(OdinId odinId, AddRemoteReactionRequest request)
+    public async Task<AddDeleteRemoteReactionStatusCode> SendReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
         var (token, client) = await CreateReactionContentClient(odinId);
-
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
+
         ApiResponse<HttpContent> response = null;
         try
         {
@@ -55,7 +54,7 @@ public class PeerReactionSenderService(
             throw;
         }
 
-        AssertValidResponse(response);
+        return MapResponse(response);
     }
 
     /// <summary />
@@ -129,7 +128,7 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
+    public async Task<AddDeleteRemoteReactionStatusCode> DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
         var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -148,8 +147,8 @@ public class PeerReactionSenderService(
             HandleTryRetryException(ex);
             throw;
         }
-        
-        AssertValidResponse(response);
+
+        return MapResponse(response);
     }
 
     public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
@@ -208,25 +207,6 @@ public class PeerReactionSenderService(
         return newEncryptedKeyHeader;
     }
 
-    private void AssertValidResponse<T>(ApiResponse<T> response)
-    {
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-        {
-            // throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
-            throw new OdinSecurityException("Remote server returned 403");
-        }
-
-        if (response.StatusCode == HttpStatusCode.InternalServerError)
-        {
-            throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
-        }
-    }
-
     private void HandleTryRetryException(TryRetryException ex)
     {
         var e = ex.InnerException;
@@ -235,4 +215,26 @@ public class PeerReactionSenderService(
             throw new OdinClientException("Failed while calling remote identity", e);
         }
     }
+    
+    private AddDeleteRemoteReactionStatusCode MapResponse(ApiResponse<HttpContent> apiResponse)
+    {
+        if (null == apiResponse)
+        {
+            return AddDeleteRemoteReactionStatusCode.Failure;
+        }
+        
+        if (apiResponse.IsSuccessStatusCode)
+        {
+            return AddDeleteRemoteReactionStatusCode.Success;
+        }
+
+        if (apiResponse.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return AddDeleteRemoteReactionStatusCode.RemoteServerAccessDenied;
+        }
+
+        return AddDeleteRemoteReactionStatusCode.Failure;
+    }
+
+    
 }
