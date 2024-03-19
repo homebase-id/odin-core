@@ -449,7 +449,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _popSpecificBoxCommand = _database.CreateCommand();
                     _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
+                                              "SELECT rowId,boxId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
 
                     _psbparam1 = _popSpecificBoxCommand.CreateParameter();
                     _psbparam1.ParameterName = "$popstamp";

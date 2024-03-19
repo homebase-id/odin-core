@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 10, value = v2 });
             var tshi = UnixTimeUtc.Now();
 
-            var r = db.tblInbox.Get(f1);
+            var r = db.tblInbox.Get(boxid, f1);
             if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             if (r.priority != 0)
                 Assert.Fail();
 
-            r = db.tblInbox.Get(f2);
+            r = db.tblInbox.Get(boxid, f2);
             if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
