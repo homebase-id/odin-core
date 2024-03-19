@@ -96,8 +96,8 @@ jobs:
         working-directory: ./client/apps
         run: |
           npm run build:mail
-          rm -rf ../../dotyoucore/services/Odin.Hosting/client/apps/mail
-          mv packages/mail-app/dist ../../dotyoucore/services/Odin.Hosting/client/apps/mail
+          rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
+          mv packages/mail-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/apps/mail
 
       - name: Build provisioning-app
         working-directory: ./client/apps
