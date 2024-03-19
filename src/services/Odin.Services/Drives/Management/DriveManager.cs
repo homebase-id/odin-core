@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -32,7 +33,7 @@ public class DriveManager
 
     private readonly ConcurrentDictionary<Guid, StorageDrive> _driveCache;
 
-    private readonly object _createDriveLock = new object();
+    private readonly AsyncLock _createDriveLock = new ();
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
@@ -49,7 +50,7 @@ public class DriveManager
         LoadCache();
     }
 
-    public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
+    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -72,7 +73,7 @@ public class DriveManager
 
         StorageDrive storageDrive;
 
-        lock (_createDriveLock)
+        using (await _createDriveLock.LockAsync())
         {
             //driveAlias and type must be unique
             if (null != this.GetDriveIdByAlias(request.TargetDrive).GetAwaiter().GetResult())
@@ -113,13 +114,13 @@ public class DriveManager
             Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
-        _mediator.Publish(new DriveDefinitionAddedNotification()
+        await _mediator.Publish(new DriveDefinitionAddedNotification()
         {
             IsNewDrive = true,
             Drive = storageDrive
         });
 
-        return Task.FromResult(storageDrive);
+        return storageDrive;
     }
 
     public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
