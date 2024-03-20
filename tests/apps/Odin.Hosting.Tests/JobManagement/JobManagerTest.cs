@@ -84,8 +84,10 @@ public class JobManagerTest
                 services.AddTransient<ExclusiveTestSchedule>();
                 services.AddTransient<ChainTestSchedule>();
                 services.AddTransient<EventDemoSchedule>();
+                services.AddTransient<JobMemoryCacheDemoSchedule>();
 
                 services.AddSingleton<EventDemoTestContainer>();
+                services.AddSingleton<JobMemoryCacheDemoTestContainer>();
             })
             .Build();
 
@@ -523,7 +525,7 @@ public class JobManagerTest
     }
 
     [Test]
-    public async Task AnInstanceOfAbstractJobScheduleCannotScheduleMoreThanOneJob()
+    public async Task ItShouldNotScheduleMoreThanOneJobOnTheSameScheduleInstance()
     {
         var jobManager = CreateHostedJobManager(true, 1);
 
@@ -656,5 +658,33 @@ public class JobManagerTest
             var exists = await jobManager.Exists(jobKey);
             Assert.That(exists, Is.False);
         }
+    }
+
+    [Test]
+    public async Task ItShouldAccessSecretsInJobMemoryCache()
+    {
+        var jobManager = CreateHostedJobManager(true, 10);
+
+        var jobMemoryCache = _host.Services.GetRequiredService<IJobMemoryCache>();
+        var jobMemoryCacheDemoTestContainer = _host.Services.GetRequiredService<JobMemoryCacheDemoTestContainer>();
+        Assert.That(jobMemoryCacheDemoTestContainer.Secret, Is.EqualTo(""));
+
+        var schedule = _host.Services.GetRequiredService<JobMemoryCacheDemoSchedule>();
+        var jobKey = await jobManager.Schedule<EventDemoJob>(schedule);
+
+        Assert.That(jobMemoryCache.Contains(jobKey), Is.True);
+
+        jobMemoryCache.TryGet<string>(jobKey, out var secret);
+        Assert.That(secret, Is.EqualTo("my secret data that is only stored in memory"));
+
+        // Wait for job to complete
+        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+
+        // Give the event some time to sync and execute
+        await Task.Delay(200);
+
+        Assert.That(jobMemoryCacheDemoTestContainer.Secret, Is.EqualTo("my secret data that is only stored in memory"));
+
+        Assert.That(jobMemoryCache.Contains(jobKey), Is.False);
     }
 }
