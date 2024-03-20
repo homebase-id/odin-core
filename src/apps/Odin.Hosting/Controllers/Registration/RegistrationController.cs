@@ -28,7 +28,6 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-valid-domain/{domain}")]
     public IActionResult IsValidDomain(string domain)
     {
-        ValidateDomain(domain);
         return new JsonResult(AsciiDomainNameValidator.TryValidateDomain(domain));
     }
 
@@ -172,7 +171,6 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-own-domain-available/{domain}")]
     public async Task<IActionResult> IsOwnDomainAvailable(string domain)
     {
-        ValidateDomain(domain);
         try
         {
             var result = await _regService.IsOwnDomainAvailable(domain);
