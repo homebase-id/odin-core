@@ -15,7 +15,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions
         private const string RootPath = PeerApiPathConstants.ReactionsV1;
 
         [Post(RootPath + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
+        Task<ApiResponse<bool>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
 
         [Post(RootPath + "/list")]
         Task<ApiResponse<GetReactionsPerimeterResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);

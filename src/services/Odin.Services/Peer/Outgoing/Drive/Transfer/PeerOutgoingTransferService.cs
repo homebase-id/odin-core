@@ -34,7 +34,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
     public class PeerOutgoingOutgoingTransferService(
         OdinContextAccessor contextAccessor,
-        IPeerOutbox peerOutbox,
+        PeerOutbox peerOutbox,
         TenantSystemStorage tenantSystemStorage,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantContext tenantContext,
@@ -197,6 +197,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             sendFileTasks.AddRange(items.Select(SendOutboxItemAsync));
 
             await Task.WhenAll(sendFileTasks);
+            
+            //check results
 
             List<TransitOutboxItem> filesForDeletion = new List<TransitOutboxItem>();
             sendFileTasks.ForEach(task =>

@@ -23,8 +23,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent(SharedSecretEncryptedTransitPayload payload)
         {
-            await reactionService.AddReaction(payload);
-            return NoContent();
+            var wasEnqueued = await reactionService.AddReaction(payload);
+            return new JsonResult(wasEnqueued);
         }
 
         [HttpPost("list")]

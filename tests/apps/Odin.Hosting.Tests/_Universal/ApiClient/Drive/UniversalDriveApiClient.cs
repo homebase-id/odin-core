@@ -24,12 +24,29 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
 
 public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 {
+    public async Task<ApiResponse<InboxStatus>> ProcessInbox(TargetDrive drive)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
+        return response;
+    }
+
+    public async Task<ApiResponse<HttpContent>> ProcessOutbox(TargetDrive drive)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.ProcessOutbox();
+        return response;
+    }
+
     /// <summary>
     /// Uploads a new file, unencrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>

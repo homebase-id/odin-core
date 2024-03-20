@@ -38,7 +38,7 @@ public class ReactionContentService(
 
         if (header.FileMetadata.GlobalTransitId == null)
         {
-            throw new OdinClientException("File must be global transit id when adding a group reaction");
+            throw new OdinClientException("File must have a global transit id when adding a group reaction");
         }
 
         // add a local reaction

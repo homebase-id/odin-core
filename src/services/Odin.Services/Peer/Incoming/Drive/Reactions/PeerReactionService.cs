@@ -34,29 +34,28 @@ public class PeerReactionService(
         var reactions = await peerReactionInbox.GetItems(file.GlobalTransitId);
         foreach (var r in reactions)
         {
-            await this.AddReaction(r.Payload);
+            var wasEnqueued = await this.AddReaction(r.Payload);
         }
     }
 
-    public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
+    public async Task<bool> AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload);
-
-        InternalDriveFileId? fileId;
         var driveId = await driveManager.GetDriveIdByAlias(request.File.TargetDrive);
 
         using (new PeerReactionSecurityContext(_contextAccessor, driveId.GetValueOrDefault(), request.File.TargetDrive))
         {
-            fileId = await ResolveInternalFile(request.File);
+            var fileId = await ResolveInternalFile(request.File);
 
             if (null == fileId)
             {
                 //Enqueue these so we can replay them later
                 await peerReactionInbox.EnqueueAddReaction(request.File, payload, request);
-                return;
+                return true;
             }
 
             await reactionContentService.AddReaction(fileId.Value, request.Reaction);
+            return false;
         }
     }
 

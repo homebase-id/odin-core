@@ -173,7 +173,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<PeerReactionInbox>().SingleInstance();
-            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()

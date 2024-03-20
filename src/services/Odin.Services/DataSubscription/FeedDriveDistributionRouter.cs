@@ -116,8 +116,7 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(
-            IDriveNotification notification)
+        private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification)
         {
             var item = new ReactionPreviewDistributionItem()
             {

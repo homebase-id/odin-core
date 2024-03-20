@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -39,7 +40,7 @@ public class PeerReactionSenderService(
         var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
-        ApiResponse<HttpContent> response = null;
+        ApiResponse<bool> response = null;
         try
         {
             await TryRetry.WithDelayAsync(
@@ -215,14 +216,14 @@ public class PeerReactionSenderService(
             throw new OdinClientException("Failed while calling remote identity", e);
         }
     }
-    
-    private AddDeleteRemoteReactionStatusCode MapResponse(ApiResponse<HttpContent> apiResponse)
+
+    private AddDeleteRemoteReactionStatusCode MapResponse<T>(ApiResponse<T> apiResponse)
     {
         if (null == apiResponse)
         {
             return AddDeleteRemoteReactionStatusCode.Failure;
         }
-        
+
         if (apiResponse.IsSuccessStatusCode)
         {
             return AddDeleteRemoteReactionStatusCode.Success;
@@ -235,6 +236,4 @@ public class PeerReactionSenderService(
 
         return AddDeleteRemoteReactionStatusCode.Failure;
     }
-
-    
 }

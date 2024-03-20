@@ -29,7 +29,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
     public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
-        : IPeerOutbox
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
@@ -56,6 +55,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
                 priority = item.Priority,
+                type = type,
                 value = state
             });
 
@@ -133,6 +133,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await Task.FromResult(items.ToList());
         }
 
+        /// <summary>
+        /// Removes the outbox item for the given recipient and file
+        /// </summary>
+        /// <returns></returns>
         public Task Remove(OdinId recipient, InternalDriveFileId file)
         {
             //TODO: need to make a better queue here

@@ -146,11 +146,11 @@ public class PeerGroupReactionTests
         var uploadMetadataResponse = await pippinOwnerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.response.Content;
 
-        //process inboxes
         Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(TestIdentities.Frodo.OdinId, out var transferStatus));
         Assert.IsTrue(transferStatus == TransferStatus.DeliveredToInbox);
 
-        await _scaffold.CreateOwnerApiClient(TestIdentities.Frodo).Transit.ProcessInbox(targetDrive); //todo: replace with redux client
+        //process inboxes
+        await frodoOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
         //all recipients should have the file by GlobalTransitId
         var request = new QueryBatchRequest
@@ -309,7 +309,7 @@ public class PeerGroupReactionTests
             "Frodo should not have the reaction");
     }
 
-    
+
     // [Test]
     // public async Task CanSendMultipleReactionsUsingEncryptedFileEvenWhenTargetFileIsInInbox()
     // {
