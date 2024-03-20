@@ -30,31 +30,45 @@ public abstract class AbstractJobSchedule : IJobScheduler
     public abstract Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder) where TJob : IJob;
 
     /// <summary>
-    /// Create a unique job key for this schedule.
+    /// Unique job key for this schedule.
     /// </summary>
-    public JobKey CreateJobKey()
+    public JobKey JobKey
     {
-        if (SchedulingKey.Contains('.') || SchedulingKey.Contains('|'))
+        get
         {
-            throw new ArgumentException("SchedulingKey must not contain '.' nor '|'");
+            if (_jobKey == null)
+            {
+                lock (_lock)
+                {
+                    if (_jobKey == null)
+                    {
+                        if (SchedulingKey.Contains('.') || SchedulingKey.Contains('|'))
+                        {
+                            throw new ArgumentException("SchedulingKey must not contain '.' nor '|'");
+                        }
+
+                        var schedulerGroup = SchedulerGroup.ToString();
+                        if (schedulerGroup.Contains('.') || schedulerGroup.Contains('|'))
+                        {
+                            throw new ArgumentException("SchedulerGroup must not contain '.' nor '|'");
+                        }
+
+                        var jobInstance = Helpers.UniqueId();
+                        if (jobInstance.Contains('.') || jobInstance.Contains('|'))
+                        {
+                            throw new ArgumentException("JobInstance must not contain '.' nor '|'");
+                        }
+
+                        var jobName = $"{jobInstance}|{schedulerGroup}";
+                        _jobKey = new JobKey(jobName, SchedulingKey);
+                    }
+                }
+            }
+            return _jobKey;
         }
-
-        var schedulerGroup = SchedulerGroup.ToString();
-        if (schedulerGroup.Contains('.') || schedulerGroup.Contains('|'))
-        {
-            throw new ArgumentException("SchedulerGroup must not contain '.' nor '|'");
-        }
-
-        var jobInstance = Helpers.UniqueId();
-        if (jobInstance.Contains('.') || jobInstance.Contains('|'))
-        {
-            throw new ArgumentException("JobInstance must not contain '.' nor '|'");
-        }
-
-        var jobName = $"{jobInstance}|{schedulerGroup}";
-
-        return new JobKey(jobName, SchedulingKey);
     }
+    private readonly object _lock = new();
+    private JobKey? _jobKey;
 }
 
 
