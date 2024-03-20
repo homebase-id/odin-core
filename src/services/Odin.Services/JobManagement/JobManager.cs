@@ -96,11 +96,19 @@ public sealed class JobManager(
                 throw new JobManagerException($"Scheduler {jobSchedule.SchedulerGroup} does not exist");
             }
 
-            var jobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
-            if (jobKey != null)
+            var exists = await scheduler.CheckExists(jobSchedule.JobKey);
+            if (exists)
             {
-                logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
-                return jobKey;
+                // The JobKey is static per AbstractJobSchedule instance and has to be unique.
+                throw new JobManagerException(
+                    $"JobKey {jobSchedule.JobKey} already exists. An instance of AbstractJobSchedule cannot schedule more than one job.");
+            }
+
+            var scheduledJobKey = await scheduler.GetScheduledJobKey(jobSchedule.SchedulingKey);
+            if (scheduledJobKey != null)
+            {
+                logger.LogDebug("Already scheduled {JobType}: {JobKey}", typeof(TJob).Name, scheduledJobKey);
+                return scheduledJobKey;
             }
 
             var (jobBuilder, triggerBuilders) = await jobSchedule.Schedule<TJob>(JobBuilder.Create<TJob>());
@@ -110,8 +118,7 @@ public sealed class JobManager(
                 return new JobKey("non-scheduled-job");
             }
 
-            jobKey = jobSchedule.CreateJobKey();
-            jobBuilder.WithIdentity(jobKey);
+            jobBuilder.WithIdentity(jobSchedule.JobKey);
             jobBuilder.UsingJobData(JobConstants.StatusKey, JobConstants.StatusValueAdded);
             jobBuilder.UsingJobData(JobConstants.CorrelationIdKey, correlationContext.Id);
             jobBuilder.UsingJobData(JobConstants.JobTypeName, typeof(TJob).FullName);
@@ -123,9 +130,9 @@ public sealed class JobManager(
                 await scheduler.ScheduleJob(job, trigger);
             }
 
-            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobKey);
+            logger.LogDebug("Scheduled {JobType}: {JobKey}", typeof(TJob).Name, jobSchedule.JobKey);
 
-            return jobKey;
+            return jobSchedule.JobKey;
         }
     }
 

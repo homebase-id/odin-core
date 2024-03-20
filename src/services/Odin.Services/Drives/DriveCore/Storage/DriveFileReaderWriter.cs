@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
@@ -12,66 +13,90 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// Handles read/write access to drive files to ensure correct
 /// locking as well as apply system config for how files are written.
 /// </summary>
-public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, ConcurrentFileManager concurrentFileManager)
+public sealed class DriveFileReaderWriter(
+    OdinConfiguration odinConfiguration,
+    ConcurrentFileManager concurrentFileManager,
+    ILogger<DriveFileReaderWriter> logger)
 {
     public async Task WriteString(string filePath, string data)
     {
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    await concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
-                }
-                else
-                {
-                    await File.WriteAllTextAsync(filePath, data);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
+                    }
+                    else
+                    {
+                        await File.WriteAllTextAsync(filePath, data);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
     }
 
     public async Task WriteAllBytes(string filePath, byte[] bytes)
     {
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    await concurrentFileManager.WriteFile(filePath, path => File.WriteAllBytes(path, bytes));
-                }
-                else
-                {
-                    await File.WriteAllBytesAsync(filePath, bytes);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllBytes(path, bytes));
+                    }
+                    else
+                    {
+                        await File.WriteAllBytesAsync(filePath, bytes);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
     }
 
     public async Task<uint> WriteStream(string filePath, Stream stream)
     {
         uint bytesWritten = 0;
 
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    await concurrentFileManager.WriteFile(filePath,
-                        async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
-                }
-                else
-                {
-                    bytesWritten = await WriteStreamInternalAsync(filePath, stream);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        await concurrentFileManager.WriteFile(filePath,
+                            async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
+                    }
+                    else
+                    {
+                        bytesWritten = await WriteStreamInternalAsync(filePath, stream);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
 
         if (bytesWritten != stream.Length)
         {
@@ -87,15 +112,9 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
         try
         {
-            // await TryRetry.WithDelayAsync(
-            //     odinConfiguration.Host.FileOperationRetryAttempts,
-            //     TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            //     CancellationToken.None,
-            //     async () => await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytesAsync(path)));
-            //
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.FileOperationRetryAttempts,
-                TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
+                odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
                 async () =>
                 {
@@ -124,21 +143,34 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
     public async Task MoveFile(string sourceFilePath, string destinationFilePath)
     {
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    await concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) => File.Move(s, d, true));
-                }
-                else
-                {
-                    File.Move(sourceFilePath, destinationFilePath, true);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        await concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) => File.Move(s, d, true));
+                    }
+                    else
+                    {
+                        File.Move(sourceFilePath, destinationFilePath, true);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
+
+        if (!File.Exists(destinationFilePath))
+        {
+            throw new OdinSystemException(
+                $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
+        }
     }
 
     /// <summary>
@@ -148,22 +180,29 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     {
         Stream fileStream = Stream.Null;
 
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    // MS: The CFM opens in ReadOnly mode. 
-                    fileStream = await concurrentFileManager.ReadStream(filePath);
-                }
-                else
-                {
-                    fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        // MS: The CFM opens in ReadOnly mode. 
+                        fileStream = await concurrentFileManager.ReadStream(filePath);
+                    }
+                    else
+                    {
+                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
 
         return fileStream;
     }
@@ -192,22 +231,29 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
 
     public async Task DeleteFile(string path)
     {
-        //TODO: Consider if we need to do file.exists before deleting?
-        await TryRetry.WithDelayAsync(
-            odinConfiguration.Host.FileOperationRetryAttempts,
-            TimeSpan.FromMilliseconds(odinConfiguration.Host.FileOperationRetryDelayMs),
-            CancellationToken.None,
-            async () =>
-            {
-                if (odinConfiguration.Host.UseConcurrentFileManager)
+        try
+        {
+            //TODO: Consider if we need to do file.exists before deleting?
+            await TryRetry.WithDelayAsync(
+                odinConfiguration.Host.FileOperationRetryAttempts,
+                odinConfiguration.Host.FileOperationRetryDelayMs,
+                CancellationToken.None,
+                async () =>
                 {
-                    await concurrentFileManager.DeleteFile(path);
-                }
-                else
-                {
-                    File.Delete(path);
-                }
-            });
+                    if (odinConfiguration.Host.UseConcurrentFileManager)
+                    {
+                        await concurrentFileManager.DeleteFile(path);
+                    }
+                    else
+                    {
+                        File.Delete(path);
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
     }
 
     public async Task DeleteFiles(string[] paths)
@@ -245,6 +291,9 @@ public sealed class DriveFileReaderWriter(OdinConfiguration odinConfiguration, C
     public Task CreateDirectory(string dir)
     {
         Directory.CreateDirectory(dir);
+
+        logger.LogDebug("Created Directory [{dir}]", dir);
+
         return Task.CompletedTask;
     }
 }

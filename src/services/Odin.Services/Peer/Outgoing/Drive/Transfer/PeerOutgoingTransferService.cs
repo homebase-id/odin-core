@@ -117,7 +117,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
-                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
                     async () =>
                     {
@@ -370,7 +370,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
-                    TimeSpan.FromMilliseconds(odinConfiguration.Host.PeerOperationDelayMs),
+                    odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
                     async () => { (peerCode, transferResult) = MapPeerResponseCode(await TrySendFile()); });
 

@@ -12,9 +12,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerReactionContentV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerTransitReactionContentSenderController : TransitReactionContentSenderControllerBase
+    public class OwnerPeerReactionContentSenderController : PeerReactionContentSenderControllerBase
     {
-        public OwnerTransitReactionContentSenderController(PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
+        public OwnerPeerReactionContentSenderController(PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
         {
         }
     }

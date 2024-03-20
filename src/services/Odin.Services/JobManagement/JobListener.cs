@@ -14,7 +14,8 @@ public class JobListener(
     IServiceProvider serviceProvider,
     ILogger<JobListener> logger,
     ILoggerFactory loggerFactory,
-    ICorrelationContext correlationContext)
+    ICorrelationContext correlationContext,
+    IJobMemoryCache jobMemoryCache)
     : IJobListener
 {
     //
@@ -50,17 +51,23 @@ public class JobListener(
 
         if (jobException == null)
         {
-            logger.LogDebug("Job {JobKey} completed", job.Key);
-
-            if (job.Durable)
+            try
             {
-                jobData[JobConstants.StatusKey] = JobConstants.StatusValueCompleted;
-                await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
+                logger.LogDebug("Job {JobKey} completed", job.Key);
+
+                if (job.Durable)
+                {
+                    jobData[JobConstants.StatusKey] = JobConstants.StatusValueCompleted;
+                    await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
+                }
+
+                await ScheduleJobDeletion(context, JobConstants.CompletedRetentionSecondsKey);
+                await context.ExecuteJobEvent(serviceProvider, JobStatus.Completed);
             }
-
-            await ScheduleJobDeletion(context, JobConstants.CompletedRetentionSecondsKey);
-
-            await context.ExecuteJobEvent(serviceProvider, JobStatus.Completed);
+            finally
+            {
+                jobMemoryCache.Remove(job.Key);
+            }
         }
         else
         {
@@ -88,33 +95,36 @@ public class JobListener(
             }
             else
             {
-                Exception exception = jobException;
-                while (exception.InnerException != null)
+                try
                 {
-                    exception = exception.InnerException;
+                    Exception exception = jobException;
+                    while (exception.InnerException != null)
+                    {
+                        exception = exception.InnerException;
+                    }
+
+                    logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
+
+                    var errorMessage = exception is OdinClientException
+                        ? exception.Message
+                        : $"Internal server error. Check logs around job {job.Key}";
+
+                    if (job.Durable)
+                    {
+                        jobData[JobConstants.StatusKey] = JobConstants.StatusValueFailed;
+                        jobData[JobConstants.JobErrorMessageKey] = errorMessage;
+                        await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
+                    }
+
+                    await ScheduleJobDeletion(context, JobConstants.FailedRetentionSecondsKey);
+                    await context.ExecuteJobEvent(serviceProvider, JobStatus.Failed);
                 }
-                logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
-
-                var errorMessage = exception is OdinClientException
-                    ? exception.Message
-                    : $"Internal server error. Check logs around job {job.Key}";
-
-                if (job.Durable)
+                finally
                 {
-                    jobData[JobConstants.StatusKey] = JobConstants.StatusValueFailed;
-                    jobData[JobConstants.JobErrorMessageKey] = errorMessage;
-                    await context.Scheduler.AddJob(context.JobDetail, true, cancellationToken); // update JobDataMap
+                    jobMemoryCache.Remove(job.Key);
                 }
-
-                await ScheduleJobDeletion(context, JobConstants.FailedRetentionSecondsKey);
-
-                await context.ExecuteJobEvent(serviceProvider, JobStatus.Failed);
-
-                // SEB:TODO dead letter queue???
             }
-
         }
-
     }
 
     //

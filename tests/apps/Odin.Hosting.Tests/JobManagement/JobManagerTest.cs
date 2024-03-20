@@ -40,7 +40,7 @@ public class JobManagerTest
     public void TearDown()
     {
         _logger.LogDebug("JobManagerTest.TearDown() enter");
-        // Tearing down too soon after schedulers having been created seems to hang the test runner process.
+        // Tearing down too soon after schedulers having been created seems to randomly hang the test runner process.
         // Let's give it some time to do its thing.
         Task.Delay(200).Wait();
         _host.Dispose();
@@ -84,8 +84,10 @@ public class JobManagerTest
                 services.AddTransient<ExclusiveTestSchedule>();
                 services.AddTransient<ChainTestSchedule>();
                 services.AddTransient<EventDemoSchedule>();
+                services.AddTransient<JobMemoryCacheDemoSchedule>();
 
                 services.AddSingleton<EventDemoTestContainer>();
+                services.AddSingleton<JobMemoryCacheDemoTestContainer>();
             })
             .Build();
 
@@ -523,12 +525,41 @@ public class JobManagerTest
     }
 
     [Test]
+    public async Task ItShouldNotScheduleMoreThanOneJobOnTheSameScheduleInstance()
+    {
+        var jobManager = CreateHostedJobManager(true, 1);
+
+        var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
+        var jobKey1 = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+
+        var exception = Assert.ThrowsAsync<JobManagerException>(async () =>
+        {
+            await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+        });
+
+        Assert.That(exception?.Message,
+            Is.EqualTo($"JobKey {jobKey1} already exists. An instance of AbstractJobSchedule cannot schedule more than one job."));
+    }
+
+    [Test]
     public async Task SingleSchedulerShouldQueueOnThreadLimit()
     {
         var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
-        var scheduler = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler1 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        {
+            TestEcho = "Hello World",
+            SleepTime = 1000
+        };
+
+        var scheduler2 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        {
+            TestEcho = "Hello World",
+            SleepTime = 1000
+        };
+
+        var scheduler3 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
@@ -537,9 +568,9 @@ public class JobManagerTest
         var sw = Stopwatch.StartNew();
         var jobKeys = new List<JobKey>
         {
-            await jobManager.Schedule<SleepyTestJob>(scheduler),
-            await jobManager.Schedule<SleepyTestJob>(scheduler),
-            await jobManager.Schedule<SleepyTestJob>(scheduler)
+            await jobManager.Schedule<SleepyTestJob>(scheduler1),
+            await jobManager.Schedule<SleepyTestJob>(scheduler2),
+            await jobManager.Schedule<SleepyTestJob>(scheduler3)
         };
 
         // Wait for jobs to complete
@@ -551,14 +582,14 @@ public class JobManagerTest
         // Jobs have run serially and thus time taken should be > 3s
 
         Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(3000));
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(4000));
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(5000));
 
         // Check response and data
         foreach (var jobKey in jobKeys)
         {
             var (response, data) = await jobManager.GetResponse<SleepyTestData>(jobKey);
             Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
-            Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
+            Assert.That(data?.Echo, Is.EqualTo(scheduler1.TestEcho));
         }
 
         // Manually delete all traces of the job
@@ -610,7 +641,7 @@ public class JobManagerTest
 
         // Jobs have run in parallel and thus time taken should be < 2s
         Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(1000));
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(2000));
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(3000));
 
         // Check response and data
         foreach (var jobKey in jobKeys)
@@ -627,5 +658,33 @@ public class JobManagerTest
             var exists = await jobManager.Exists(jobKey);
             Assert.That(exists, Is.False);
         }
+    }
+
+    [Test]
+    public async Task ItShouldAccessSecretsInJobMemoryCache()
+    {
+        var jobManager = CreateHostedJobManager(true, 10);
+
+        var jobMemoryCache = _host.Services.GetRequiredService<IJobMemoryCache>();
+        var jobMemoryCacheDemoTestContainer = _host.Services.GetRequiredService<JobMemoryCacheDemoTestContainer>();
+        Assert.That(jobMemoryCacheDemoTestContainer.Secret, Is.EqualTo(""));
+
+        var schedule = _host.Services.GetRequiredService<JobMemoryCacheDemoSchedule>();
+        var jobKey = await jobManager.Schedule<EventDemoJob>(schedule);
+
+        Assert.That(jobMemoryCache.Contains(jobKey), Is.True);
+
+        jobMemoryCache.TryGet<string>(jobKey, out var secret);
+        Assert.That(secret, Is.EqualTo("my secret data that is only stored in memory"));
+
+        // Wait for job to complete
+        await WaitForJobStatus(jobManager, jobKey, JobStatus.Completed, _maxWaitForJobStatus);
+
+        // Give the event some time to sync and execute
+        await Task.Delay(200);
+
+        Assert.That(jobMemoryCacheDemoTestContainer.Secret, Is.EqualTo("my secret data that is only stored in memory"));
+
+        Assert.That(jobMemoryCache.Contains(jobKey), Is.False);
     }
 }

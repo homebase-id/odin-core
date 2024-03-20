@@ -30,18 +30,18 @@ namespace Odin.Services.AppNotifications.WebSocket
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly TransitInboxProcessor _transitInboxProcessor;
+        private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly DriveManager _driveManager;
         private readonly ILogger<AppNotificationHandler> _logger;
 
         public AppNotificationHandler(
             OdinContextAccessor contextAccessor,
-            TransitInboxProcessor transitInboxProcessor,
+            PeerInboxProcessor peerInboxProcessor,
             DriveManager driveManager,
             ILogger<AppNotificationHandler> logger)
         {
             _contextAccessor = contextAccessor;
-            _transitInboxProcessor = transitInboxProcessor;
+            _peerInboxProcessor = peerInboxProcessor;
             _driveManager = driveManager;
             _logger = logger;
             _deviceSocketCollection = new DeviceSocketCollection();
@@ -199,7 +199,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             var data = OdinSystemSerializer.Serialize(new
             {
-                TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
+                TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
                 Header = hasSharedSecret
                     ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, _contextAccessor)
                     : null
@@ -355,12 +355,12 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _transitInboxProcessor.ProcessInbox(d.TargetDrive);
+                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive);
                     break;
 
                 case SocketCommandType.ProcessInbox:
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                    await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
                     break;
 
                 case SocketCommandType.Ping:

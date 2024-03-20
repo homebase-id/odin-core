@@ -31,7 +31,6 @@ namespace Odin.Hosting._dev
             {
                 if (identityRegistry.Get(domain).GetAwaiter().GetResult() != null)
                 {
-                    // identityRegistry.DeleteRegistration(domain).GetAwaiter().GetResult();
                     continue;
                 }
 

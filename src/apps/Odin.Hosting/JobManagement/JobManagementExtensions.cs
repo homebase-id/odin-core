@@ -20,6 +20,7 @@ public static class JobManagementExtensions
 
         services.AddSingleton<IJobFactory, DiJobFactory>();
         services.AddSingleton<IJobListener, JobListener>();
+        services.AddSingleton<IJobMemoryCache, JobMemoryCache>();
         services.AddSingleton<IJobManager, JobManager>();
 
         return services;

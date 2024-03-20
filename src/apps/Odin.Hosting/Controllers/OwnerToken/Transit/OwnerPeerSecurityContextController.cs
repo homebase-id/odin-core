@@ -12,9 +12,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerTransitSecurityContextController : TransitSecurityContextControllerBase
+    public class OwnerPeerSecurityContextController : PeerSecurityContextControllerBase
     {
-        public OwnerTransitSecurityContextController(PeerDriveQueryService peerDriveQueryService):base(peerDriveQueryService)
+        public OwnerPeerSecurityContextController(PeerDriveQueryService peerDriveQueryService):base(peerDriveQueryService)
         {
         }
     }
