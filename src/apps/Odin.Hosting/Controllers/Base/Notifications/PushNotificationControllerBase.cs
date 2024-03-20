@@ -1,9 +1,12 @@
 ﻿#nullable enable
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.Notifications;
 using Odin.Services.AppNotifications.Push;
@@ -12,7 +15,10 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
-    public class PushNotificationControllerBase(PushNotificationService notificationService, OdinContextAccessor contextAccessor)
+    public class PushNotificationControllerBase(
+        PushNotificationService notificationService,
+        OdinContextAccessor contextAccessor,
+        ILoggerFactory loggerFactory)
         : Controller
     {
         /// <summary />
@@ -41,6 +47,32 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
         }
+
+        [HttpPost("subscribe-firebase")]
+        public async Task<IActionResult> SubscribeDevice([FromBody] PushNotificationSubscribeFirebaseRequest request)
+        {
+            var subscription = new PushNotificationSubscription
+            {
+                FriendlyName = request.FriendlyName,
+                Endpoint = request.Endpoint,
+                FirebaseDeviceToken = request.DeviceToken
+            };
+
+            // SEB:TODO don't create this here
+            var logger = loggerFactory.CreateLogger<PushNotificationControllerBase>();
+            logger.LogDebug("Adding {DeviceToken}", subscription.FirebaseDeviceToken);
+
+            if (string.IsNullOrWhiteSpace(subscription.FirebaseDeviceToken))
+            {
+                throw new OdinClientException("Invalid Push notification subscription request");
+            }
+
+            await notificationService.AddDevice(subscription);
+
+            HttpContext.Response.ContentType = "text/plain";
+            return Ok();
+        }
+
 
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()

@@ -155,13 +155,8 @@ public class PushNotificationService(
             {
                 tasks.Add(DevicePush(subscription, content));
             }
-
-            // SEB:TODO Delete me
-            subscription.FirebaseDeviceToken = "eFexvFVVQmeYfj33Hxayb9:APA91bFJzpFMxR6hN7jSwPLDwOrPG6Ajrcbm8kvfdGOihFw6iOeZiNzm4_HkV5K-d-ETNcwrmfJ7grcuxoA7_B373E1r4WUMXlCAQjiU1BNmcP17fafrOFpCYwQxCpGmnC8ngi3V_Mni";
-            await DevicePush(subscription, content);
         }
         await Task.WhenAll(tasks);
-
     }
 
     private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
@@ -212,6 +207,7 @@ public class PushNotificationService(
         }
         catch (Exception e)
         {
+            // SEB:TODO log the Refit.ValidationApiException body text if status is 4xx or 503
             logger.LogError(e, "Failed sending device push notification");
         }
     }
