@@ -40,7 +40,7 @@ public class JobManagerTest
     public void TearDown()
     {
         _logger.LogDebug("JobManagerTest.TearDown() enter");
-        // Tearing down too soon after schedulers having been created seems to hang the test runner process.
+        // Tearing down too soon after schedulers having been created seems to randomly hang the test runner process.
         // Let's give it some time to do its thing.
         Task.Delay(200).Wait();
         _host.Dispose();
