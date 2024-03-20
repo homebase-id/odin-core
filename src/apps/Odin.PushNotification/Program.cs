@@ -71,7 +71,7 @@ app.MapPost("/message", async (
         }
         catch (FirebaseException e)
         {
-            logger.LogError(e, "Error sending message: {error}", e.Message);
+            logger.LogError("Error sending message: {error}", e.Message);
             return Results.Problem(e.Message, statusCode: 502);
         }
         catch (Exception e)
