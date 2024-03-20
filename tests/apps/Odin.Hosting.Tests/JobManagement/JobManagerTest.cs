@@ -523,12 +523,41 @@ public class JobManagerTest
     }
 
     [Test]
+    public async Task AnInstanceOfAbstractJobScheduleCannotScheduleMoreThanOneJob()
+    {
+        var jobManager = CreateHostedJobManager(true, 1);
+
+        var scheduler = _host.Services.GetRequiredService<NonExclusiveTestSchedule>();
+        var jobKey1 = await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+
+        var exception = Assert.ThrowsAsync<JobManagerException>(async () =>
+        {
+            await jobManager.Schedule<NonExclusiveTestJob>(scheduler);
+        });
+
+        Assert.That(exception?.Message,
+            Is.EqualTo($"JobKey {jobKey1} already exists. An instance of AbstractJobSchedule cannot schedule more than one job."));
+    }
+
+    [Test]
     public async Task SingleSchedulerShouldQueueOnThreadLimit()
     {
         var jobManager = CreateHostedJobManager(true, 1);
         var logger = _host.Services.GetRequiredService<ILogger<SleepyTestSchedule>>();
 
-        var scheduler = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        var scheduler1 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        {
+            TestEcho = "Hello World",
+            SleepTime = 1000
+        };
+
+        var scheduler2 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
+        {
+            TestEcho = "Hello World",
+            SleepTime = 1000
+        };
+
+        var scheduler3 = new SleepyTestSchedule(logger, SchedulerGroup.Default)
         {
             TestEcho = "Hello World",
             SleepTime = 1000
@@ -537,9 +566,9 @@ public class JobManagerTest
         var sw = Stopwatch.StartNew();
         var jobKeys = new List<JobKey>
         {
-            await jobManager.Schedule<SleepyTestJob>(scheduler),
-            await jobManager.Schedule<SleepyTestJob>(scheduler),
-            await jobManager.Schedule<SleepyTestJob>(scheduler)
+            await jobManager.Schedule<SleepyTestJob>(scheduler1),
+            await jobManager.Schedule<SleepyTestJob>(scheduler2),
+            await jobManager.Schedule<SleepyTestJob>(scheduler3)
         };
 
         // Wait for jobs to complete
@@ -558,7 +587,7 @@ public class JobManagerTest
         {
             var (response, data) = await jobManager.GetResponse<SleepyTestData>(jobKey);
             Assert.That(response.Status, Is.EqualTo(JobStatus.Completed));
-            Assert.That(data?.Echo, Is.EqualTo(scheduler.TestEcho));
+            Assert.That(data?.Echo, Is.EqualTo(scheduler1.TestEcho));
         }
 
         // Manually delete all traces of the job
