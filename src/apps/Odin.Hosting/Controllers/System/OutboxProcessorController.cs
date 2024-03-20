@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.System
     public class OutboxProcessorController(IPeerOutgoingTransferService peerOutgoingTransfer) : ControllerBase
     {
         [HttpPost("process")]
-        public async Task<bool> ProcessOutbox(int batchSize)
+        public async Task<bool> ProcessOutbox()
         {
             //test
             await peerOutgoingTransfer.ProcessOutbox();

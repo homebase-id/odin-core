@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,10 +23,13 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
+using Odin.Services.JobManagement;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Jobs;
 using Odin.Services.Util;
+using Quartz;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
@@ -43,6 +45,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService,
+        JobManager jobManager,
         ILogger<PeerOutgoingOutgoingTransferService> logger)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
             contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
@@ -80,21 +83,23 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var batchSize = odinConfiguration.Transit.OutboxBatchSize;
 
             //Note: here we can prioritize outbox processing by drive if need be
-            var page = await driveManager.GetDrives(PageOptions.All);
+            var drives = await driveManager.GetDrives(PageOptions.All);
 
-            foreach (var drive in page.Results)
+            //TODO: prioritize by drive using job manager schedulePriority
+
+            foreach (var drive in drives.Results)
             {
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                var results = await SendOutboxItemsBatchToPeers(batch);
+                var schedulePriority = SchedulerGroup.Default;
 
-                // Results will be a set of outbox processing results
-                // these have not been converted to client codes we we have to decide what
-                // to report back to the job;
+                var jobKeys = new List<JobKey>();
 
-                // at this point, they are already back in the peer outbox; marked as failure
-                foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
+                //Schedule one job per outbox item
+                foreach (var item in batch)
                 {
-                    //todo: decide if we send failures back or just a code indicating - something went wrong
+                    var jobKey = await CreateJob(item, schedulePriority);
+                    jobKeys.Add(jobKey);
+                    //TODO: could store the jobKey in the outbox item so we know what job is running it
                 }
             }
         }
@@ -153,6 +158,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         // 
 
+        private async Task<JobKey> CreateJob(TransitOutboxItem item, SchedulerGroup schedulePriority)
+        {
+            var jobKey = await jobManager.Schedule<OutboxItemProcessorJob>(
+                new OutboxProcessingJob(_contextAccessor.GetCurrent().Tenant,
+                    item,
+                    odinConfiguration,
+                    schedulePriority));
+
+            return jobKey;
+        }
+
         private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
@@ -197,7 +213,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             sendFileTasks.AddRange(items.Select(SendOutboxItemAsync));
 
             await Task.WhenAll(sendFileTasks);
-            
+
             //check results
 
             List<TransitOutboxItem> filesForDeletion = new List<TransitOutboxItem>();
@@ -374,7 +390,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
-                    async () => { (peerCode, transferResult) = MapPeerResponseCode(await TrySendFile()); });
+                    async () => { (peerCode, transferResult) = OutboxProcessingUtils.MapPeerResponseCode(await TrySendFile()); });
 
                 return new OutboxProcessingResult()
                 {
@@ -403,28 +419,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     OutboxItem = outboxItem
                 };
             }
-        }
-
-        private (PeerResponseCode peerCode, TransferResult transferResult) MapPeerResponseCode(ApiResponse<PeerTransferResponse> response)
-        {
-            //TODO: needs more work to bring clarity to response code
-
-            if (response.IsSuccessStatusCode)
-            {
-                return (response!.Content!.Code, TransferResult.Success);
-            }
-
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                return (PeerResponseCode.Unknown, TransferResult.RecipientServerReturnedAccessDenied);
-            }
-
-            if (response.StatusCode == HttpStatusCode.InternalServerError)
-            {
-                return (PeerResponseCode.Unknown, TransferResult.RecipientServerError);
-            }
-
-            return (PeerResponseCode.Unknown, TransferResult.UnknownError);
         }
 
         private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
@@ -476,7 +470,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             fileTransferOptions.FileSystemType,
                             options)
                     });
-                    
+
                     status.Add(recipient, true);
                 }
                 catch (Exception ex)
@@ -507,10 +501,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
 
+            //TODO: we want to send these as but it means i have to while loop and wait for the job to inish
+            // foreach (var item in outboxItems)
+            // {
+            //     var jobKey = await CreateJob(item, SchedulerGroup.Default);
+            // }
+
+            // while (true)
+            // {
+            //     var response = await jobManager.GetResponse(jobKey);
+            //      ...?
+            // }
+
             // First map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
-
             var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);
+
             foreach (var result in sendResults)
             {
                 if (result.TransferResult == TransferResult.Success)

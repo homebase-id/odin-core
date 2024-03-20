@@ -230,6 +230,10 @@ namespace Odin.Services.Configuration
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
+
+                PeerTransferOperationRetryAttempts = config.GetOrDefault("Host:PeerTransferOperationRetryAttempts", 3);
+                PeerTransferRetryDelaySeconds = TimeSpan.FromSeconds(config.GetOrDefault("Host:PeerTransferRetryDelaySeconds", 3));
+                PeerTransferOperationRetentionMinutes = TimeSpan.FromMinutes(config.GetOrDefault("Host:PeerTransferOperationRetentionMinutes", 1));
             }
 
             public string ReportContentUrl { get; set; }
@@ -257,6 +261,21 @@ namespace Odin.Services.Configuration
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
             public TimeSpan PeerOperationDelayMs { get; init; }
+
+            /// <summary>
+            /// Number of times to retry a transfer job
+            /// </summary>
+            public int PeerTransferOperationRetryAttempts { get; init; }
+
+            /// <summary>
+            /// Mumber of minutes the JobManager keeps a job
+            /// </summary>
+            public TimeSpan PeerTransferOperationRetentionMinutes { get; init; }
+
+            /// <summary>
+            /// Number of seconds to delay between retrying a transfer job
+            /// </summary>
+            public TimeSpan PeerTransferRetryDelaySeconds { get; init; }
         }
 
         public class ListenEntry
