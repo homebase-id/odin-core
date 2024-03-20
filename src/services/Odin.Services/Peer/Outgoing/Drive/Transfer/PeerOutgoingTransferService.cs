@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -55,29 +56,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private readonly OdinContextAccessor _contextAccessor = contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
 
-        public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType)
-        {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
-
-            OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
-            OdinValidationUtils.AssertValidRecipientList(options.Recipients);
-
-            var sfo = new FileTransferOptions()
-            {
-                TransferFileType = transferFileType,
-                FileSystemType = fileSystemType
-            };
-
-            if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
-            {
-                //send now
-                return await SendFileNow(internalFile, options, sfo);
-            }
-
-            return await SendFileLater(internalFile, options, sfo);
-        }
-
         public async Task ProcessOutbox()
         {
             var batchSize = odinConfiguration.Transit.OutboxBatchSize;
@@ -102,6 +80,29 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     //TODO: could store the jobKey in the outbox item so we know what job is running it
                 }
             }
+        }
+
+        public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+
+            OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
+            OdinValidationUtils.AssertValidRecipientList(options.Recipients);
+
+            var sfo = new FileTransferOptions()
+            {
+                TransferFileType = transferFileType,
+                FileSystemType = fileSystemType
+            };
+
+            if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
+            {
+                //send now
+                return await SendFileNow(internalFile, options, sfo);
+            }
+
+            return await SendFileLater(internalFile, options, sfo);
         }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
@@ -205,222 +206,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items)
-        {
-            var sendFileTasks = new List<Task<OutboxProcessingResult>>();
-            var results = new List<OutboxProcessingResult>();
-
-            sendFileTasks.AddRange(items.Select(SendOutboxItemAsync));
-
-            await Task.WhenAll(sendFileTasks);
-
-            //check results
-
-            List<TransitOutboxItem> filesForDeletion = new List<TransitOutboxItem>();
-            sendFileTasks.ForEach(task =>
-            {
-                var sendResult = task.Result;
-                results.Add(sendResult);
-
-                if (sendResult.TransferResult == TransferResult.Success)
-                {
-                    if (sendResult.OutboxItem.IsTransientFile)
-                    {
-                        filesForDeletion.Add(sendResult.OutboxItem);
-                    }
-
-                    peerOutbox.MarkComplete(sendResult.OutboxItem.Marker);
-                }
-                else
-                {
-                    peerOutbox.MarkFailure(sendResult.OutboxItem.Marker, sendResult.TransferResult);
-                }
-            });
-
-            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
-            foreach (var item in filesForDeletion)
-            {
-                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(item.File);
-            }
-
-            return results;
-        }
-
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem)
-        {
-            IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
-
-            OdinId recipient = outboxItem.Recipient;
-            var file = outboxItem.File;
-            var options = outboxItem.OriginalTransitOptions;
-
-            var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
-
-            // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
-            {
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    Recipient = recipient,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    TransferResult = TransferResult.RecipientDoesNotHavePermissionToFileAcl,
-                    OutboxItem = outboxItem
-                };
-            }
-
-            //look up transfer key
-            var transferInstructionSet = outboxItem.TransferInstructionSet;
-            if (null == transferInstructionSet)
-            {
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    Recipient = recipient,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    TransferResult = TransferResult.EncryptedTransferInstructionSetNotAvailable,
-                    OutboxItem = outboxItem
-                };
-            }
-
-            var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-
-            var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
-            var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-            decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
-
-            if (options.UseAppNotification)
-            {
-                transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
-            }
-
-            var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
-            var transferKeyHeaderStream = new StreamPart(
-                new MemoryStream(transferInstructionSetBytes),
-                "transferInstructionSet.encrypted", "application/json",
-                Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
-            if (header.ServerMetadata.AllowDistribution == false)
-            {
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    Recipient = recipient,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    TransferResult = TransferResult.FileDoesNotAllowDistribution,
-                    OutboxItem = outboxItem
-                };
-            }
-
-            var sourceMetadata = header.FileMetadata;
-
-            //redact the info by explicitly stating what we will keep
-            //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
-            var redactedMetadata = new FileMetadata()
-            {
-                //TODO: here I am removing the file and drive id from the stream but we need
-                // to resolve this by moving the file information to the server header
-                File = InternalDriveFileId.Redacted(),
-                Created = sourceMetadata.Created,
-                Updated = sourceMetadata.Updated,
-                AppData = sourceMetadata.AppData,
-                IsEncrypted = sourceMetadata.IsEncrypted,
-                GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(sourceMetadata.GlobalTransitId.GetValueOrDefault()),
-                ReactionPreview = sourceMetadata.ReactionPreview,
-                SenderOdinId = sourceMetadata.SenderOdinId,
-                ReferencedFile = sourceMetadata.ReferencedFile,
-                VersionTag = sourceMetadata.VersionTag,
-                Payloads = sourceMetadata.Payloads,
-                FileState = sourceMetadata.FileState,
-            };
-
-            var json = OdinSystemSerializer.Serialize(redactedMetadata);
-            var stream = new MemoryStream(json.ToUtf8ByteArray());
-            var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
-
-            var additionalStreamParts = new List<StreamPart>();
-
-            if (shouldSendPayload)
-            {
-                foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
-                {
-                    var payloadKey = descriptor.Key;
-
-                    string contentType = "application/unknown";
-
-                    //TODO: consider what happens if the payload has been delete from disk
-                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
-                    var payloadStream = p.Stream;
-
-                    var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-                    additionalStreamParts.Add(payload);
-
-                    foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
-                    {
-                        var (thumbStream, thumbHeader) =
-                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
-
-                        var thumbnailKey =
-                            $"{payloadKey}" +
-                            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                            $"{thumb.PixelWidth}" +
-                            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
-                            $"{thumb.PixelHeight}";
-
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
-                            Enum.GetName(MultipartUploadParts.Thumbnail)));
-                    }
-                }
-            }
-
-            async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
-            {
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-                var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
-                return response;
-            }
-
-            try
-            {
-                PeerResponseCode peerCode = PeerResponseCode.Unknown;
-                TransferResult transferResult = TransferResult.UnknownError;
-
-                await TryRetry.WithDelayAsync(
-                    odinConfiguration.Host.PeerOperationMaxAttempts,
-                    odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () => { (peerCode, transferResult) = OutboxProcessingUtils.MapPeerResponseCode(await TrySendFile()); });
-
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    Recipient = recipient,
-                    RecipientPeerResponseCode = peerCode,
-                    TransferResult = transferResult,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    OutboxItem = outboxItem
-                };
-            }
-            catch (TryRetryException ex)
-            {
-                var e = ex.InnerException;
-                var tr = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
-                    ? TransferResult.RecipientServerNotResponding
-                    : TransferResult.UnknownError;
-
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    Recipient = recipient,
-                    RecipientPeerResponseCode = null,
-                    TransferResult = tr,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    OutboxItem = outboxItem
-                };
-            }
-        }
-
         private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
             InternalDriveFileId internalFile,
             TransitOptions options,
@@ -500,24 +285,45 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
         {
             var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
-
-            //TODO: we want to send these as but it means i have to while loop and wait for the job to inish
-            // foreach (var item in outboxItems)
-            // {
-            //     var jobKey = await CreateJob(item, SchedulerGroup.Default);
-            // }
-
-            // while (true)
-            // {
-            //     var response = await jobManager.GetResponse(jobKey);
-            //      ...?
-            // }
-
             // First map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
-            var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);
 
-            foreach (var result in sendResults)
+            var jobKeyList = new List<JobKey>();
+            foreach (var item in outboxItems)
+            {
+                var jobKey = await CreateJob(item, SchedulerGroup.Default);
+                jobKeyList.Add(jobKey);
+            }
+
+            //wait for the job results
+            var results = new List<OutboxProcessingResult>();
+            while (true)
+            {
+                foreach (var key in jobKeyList)
+                {
+                    // Scan the list
+                    var (response, processingResult) = await jobManager.GetResponse<OutboxProcessingResult>(key);
+
+                    switch (response.Status)
+                    {
+                        // case JobStatus.NotFound:
+                        // case JobStatus.Unknown:
+                            //TODO: how do i need to handle these ??
+                        // break;
+                        
+                        case JobStatus.Completed:
+                        case JobStatus.Failed:
+                            results.Add(processingResult);
+                            break;
+                        
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                }
+            }
+
+
+            foreach (var result in results)
             {
                 if (result.TransferResult == TransferResult.Success)
                 {
@@ -571,6 +377,25 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
 
             return transferStatus;
+        }
+        
+        private async Task WaitForJobStatus(JobKey jobKey, JobStatus status, TimeSpan maxWaitTime)
+        {
+            var sw = Stopwatch.StartNew();
+            while (true)
+            {
+                var response = await jobManager.GetResponse(jobKey);
+                if (response.Status == status)
+                {
+                    break;
+                }
+                if (sw.Elapsed > maxWaitTime)
+                {
+                    throw new TimeoutException(
+                        $"Job did not reach status {status} within {maxWaitTime}. Last status: {response.Status}");
+                }
+                await Task.Delay(100);
+            }
         }
 
         private Task<Dictionary<string, TransferStatus>> MapOutboxCreationResult(Dictionary<string, bool> outboxStatus)

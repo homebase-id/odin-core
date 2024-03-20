@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,9 +19,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.JobManagement;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -32,7 +29,7 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Jobs;
 #nullable enable
 
-internal static class Consts
+internal static class Keys
 {
     public const string OutboxJsonProcessingResultKey = "outboxProcessingResult";
     public const string OutboxJsonItemKey = "outboxItemJson";
@@ -55,7 +52,7 @@ public class OutboxProcessingJob(
             .WithRetry(configuration.Host.PeerTransferOperationRetryAttempts, configuration.Host.PeerTransferRetryDelaySeconds)
             .WithRetention(configuration.Host.PeerTransferOperationRetentionMinutes)
             .WithJobEvent<OutboxProcessingJobCompletedEvent>()
-            .UsingJobData(Consts.OutboxJsonItemKey, OdinSystemSerializer.Serialize(item));
+            .UsingJobData(Keys.OutboxJsonItemKey, OdinSystemSerializer.Serialize(item));
 
         var triggerBuilders = new List<TriggerBuilder>
         {
@@ -77,11 +74,14 @@ public class OutboxItemProcessorJob(
     protected sealed override async Task Run(IJobExecutionContext context)
     {
         var jobData = context.JobDetail.JobDataMap;
-        if (jobData.TryGetString(Consts.OutboxJsonItemKey, out var json) && json != null)
+        if (jobData.TryGetString(Keys.OutboxJsonItemKey, out var json) && json != null)
         {
             var item = OdinSystemSerializer.Deserialize<TransitOutboxItem>(json);
-            var result = await SendOutboxItemAsync(item!);
-            await context.UpdateJobMap(Consts.OutboxJsonProcessingResultKey, OdinSystemSerializer.Serialize(result));
+            
+            logger.LogDebug("OutboxItemProcessorJob running {x}", item!.File);
+            
+            var result = await SendOutboxItemAsync(item);
+            await context.UpdateJobMap(Keys.OutboxJsonProcessingResultKey, OdinSystemSerializer.Serialize(result));
         }
     }
 
@@ -108,20 +108,7 @@ public class OutboxItemProcessorJob(
             };
         }
 
-        //look up transfer key
         var transferInstructionSet = outboxItem.TransferInstructionSet;
-        if (null == transferInstructionSet)
-        {
-            return new OutboxProcessingResult()
-            {
-                File = file,
-                Recipient = recipient,
-                Timestamp = UnixTimeUtc.Now().milliseconds,
-                TransferResult = TransferResult.EncryptedTransferInstructionSetNotAvailable,
-                OutboxItem = outboxItem
-            };
-        }
-
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
 
         var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;

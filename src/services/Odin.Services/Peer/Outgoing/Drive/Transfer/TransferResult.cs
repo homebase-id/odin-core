@@ -10,11 +10,6 @@
         RecipientServerError = 500,
 
         /// <summary>
-        /// Indicates there was not an encrypted transfer key available in the cache.
-        /// </summary>
-        EncryptedTransferInstructionSetNotAvailable = 700,
-
-        /// <summary>
         /// Thrown we a transfer fails but the reason is not known :)
         /// </summary>
         UnknownError = 800,

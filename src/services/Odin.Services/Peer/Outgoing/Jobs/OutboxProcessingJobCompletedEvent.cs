@@ -15,7 +15,7 @@ public class OutboxProcessingJobCompletedEvent(ILogger<OutboxProcessingJobComple
     public async Task Execute(IJobExecutionContext context, JobStatus status)
     {
         var jobData = context.JobDetail.JobDataMap;
-        if (jobData.TryGetString(Consts.OutboxJsonProcessingResultKey, out var resultJson))
+        if (jobData.TryGetString(Keys.OutboxJsonProcessingResultKey, out var resultJson))
         {
             var result = OdinSystemSerializer.Deserialize<OutboxProcessingResult>(resultJson!);
 
@@ -31,21 +31,24 @@ public class OutboxProcessingJobCompletedEvent(ILogger<OutboxProcessingJobComple
 
             if (status == JobStatus.Completed)
             {
+                
+                //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now
+                //that we have the transient temp drive
+                // if (result.OutboxItem.IsTransientFile)
+                // {
+                //     var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
+                //     await fs.Storage.HardDeleteLongTermFile(item.File);
+                // }
+                
                 if (result.TransferResult != TransferResult.Success)
                 {
                     
                 }
                 
                 await peerOutbox.MarkComplete(result.OutboxItem.Marker);
+                await context.SetJobResponseData(result);
+
             }
-            
-            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now
-            //that we have the transient temp drive
-            // if (result.OutboxItem.IsTransientFile)
-            // {
-            //     var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
-            //     await fs.Storage.HardDeleteLongTermFile(item.File);
-            // }
 
             return;
         }
