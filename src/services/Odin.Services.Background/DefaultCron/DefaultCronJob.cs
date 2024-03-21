@@ -110,7 +110,7 @@ public class DefaultCronJob(
     {
         //if it's been 30 seconds since the last time we ran this item
         var t = DateTime.Now - record.lastRun.ToDateTime();
-        if (t.Seconds > config.Job.InboxOutboxReconciliationDelaySeconds)
+        if (t.TotalSeconds > config.Job.InboxOutboxReconciliationDelaySeconds)
         {
             var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
             var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
