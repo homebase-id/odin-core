@@ -24,14 +24,18 @@ public class OutboxProcessingJobCompletedEvent(ILogger<OutboxProcessingJobComple
                 throw new OdinSystemException("OutboxProcessingResult is null");
             }
 
+            var failed = status == JobStatus.Failed ||
+                         (status == JobStatus.Completed && (
+                             result.TransferResult != TransferResult.Success));
+
             if (status == JobStatus.Failed)
             {
                 await peerOutbox.MarkFailure(result.OutboxItem.Marker, TransferResult.UnknownError);
+                return;
             }
 
             if (status == JobStatus.Completed)
             {
-                
                 //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now
                 //that we have the transient temp drive
                 // if (result.OutboxItem.IsTransientFile)
@@ -39,15 +43,13 @@ public class OutboxProcessingJobCompletedEvent(ILogger<OutboxProcessingJobComple
                 //     var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
                 //     await fs.Storage.HardDeleteLongTermFile(item.File);
                 // }
-                
+
                 if (result.TransferResult != TransferResult.Success)
                 {
-                    
                 }
-                
+
                 await peerOutbox.MarkComplete(result.OutboxItem.Marker);
                 await context.SetJobResponseData(result);
-
             }
 
             return;
