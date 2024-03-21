@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Authentication.System;
+using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Hosting.Controllers.System
 {
@@ -13,14 +15,21 @@ namespace Odin.Hosting.Controllers.System
     [ApiController]
     [Route(OwnerApiPathConstants.PeerV1 + "/outbox/processor")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
-    public class OutboxProcessorController(IPeerOutgoingTransferService peerOutgoingTransfer) : ControllerBase
+    public class OutboxProcessorController(IPeerOutgoingTransferService peerOutgoingTransfer, IPeerOutbox outbox, TransitInboxBoxStorage inbox) : ControllerBase
     {
         [HttpPost("process")]
-        public async Task<bool> ProcessOutbox(int batchSize)
+        public async Task<bool> ProcessOutbox()
         {
-            //test
             await peerOutgoingTransfer.ProcessOutbox();
             return true;
+        }
+        
+        [HttpPost("reconcile")]
+        public async Task<IActionResult> ReconcileInboxOutbox()
+        {
+            await outbox.RecoverDead();
+            await inbox.RecoverDead();
+            return Ok();
         }
     }
 }

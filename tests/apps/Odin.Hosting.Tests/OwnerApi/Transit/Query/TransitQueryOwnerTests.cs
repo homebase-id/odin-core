@@ -46,7 +46,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            
+            var env = new Dictionary<string, string>
+            {
+                { "Job__BackgroundJobStartDelaySeconds", "0" },
+                { "Job__CronProcessingInterval", "1" },
+                {"Job__EnableJobBackgroundService", "true"},
+                {"Job__Enabled", "true"},
+            };
+        
+            _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
         [OneTimeTearDown]
@@ -453,7 +462,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             }
 
             await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
-
+            
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
             {
@@ -1323,7 +1332,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             instructionSet.Manifest.PayloadDescriptors.Single().Iv = ByteArrayUtil.GetRndByteArray(16);
-            
+
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId,
                 instructionSet, descriptor.FileMetadata, originalPayloadData, true,
                 new ThumbnailContent()

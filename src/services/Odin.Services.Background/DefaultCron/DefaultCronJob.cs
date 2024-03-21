@@ -10,6 +10,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Time;
 using Odin.Services.Background.FeedDistributionApp;
 using Odin.Services.JobManagement;
 using Quartz;
@@ -69,6 +70,10 @@ public class DefaultCronJob(
         serverSystemStorage.JobQueue.PopCommitList(tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
         serverSystemStorage.JobQueue.PopCancelList(tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
 
+        const int deadTimeoutSeconds = 60 * 60;
+        var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(deadTimeoutSeconds)));
+        serverSystemStorage.JobQueue.PopRecoverDead(time);
+
         return Task.CompletedTask;
     }
 
@@ -93,6 +98,19 @@ public class DefaultCronJob(
             success = await PushNotifications(identity);
         }
 
+        if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
+        {
+            //if it's been 30 seconds since the last time we ran this item
+            var t = DateTime.Now - record.lastRun.ToDateTime();
+            if (t.Seconds > 30)
+            {
+                var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
+                var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
+                var response = await svc.ReconcileInboxOutbox();
+                success = response.IsSuccessStatusCode;
+            }
+        }
+
         return (record, success);
     }
 
@@ -110,5 +128,3 @@ public class DefaultCronJob(
         return response.IsSuccessStatusCode;
     }
 }
-
-

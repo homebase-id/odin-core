@@ -26,6 +26,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         Task MarkFailure(Guid marker, TransferResult reason);
 
+        Task RecoverDead();
+
         Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize);
 
         /// <summary>

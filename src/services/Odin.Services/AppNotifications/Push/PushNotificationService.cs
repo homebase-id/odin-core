@@ -169,7 +169,7 @@ public class PushNotificationService(
     {
         contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         //TODO: validate expiration time
-        
+
         subscription.AccessRegistrationId = GetDeviceKey();
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
@@ -188,7 +188,7 @@ public class PushNotificationService(
     {
         return this.RemoveDevice(GetDeviceKey());
     }
-    
+
     public Task RemoveDevice(Guid deviceKey)
     {
         contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -196,7 +196,7 @@ public class PushNotificationService(
         _deviceSubscriptionStorage.Delete(deviceKey);
         return Task.CompletedTask;
     }
-    
+
     public async Task RemoveAllDevices()
     {
         contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -217,7 +217,7 @@ public class PushNotificationService(
     {
         //Transition code: we want to keep existing subscriptions so...
         var key = contextAccessor.GetCurrent().Caller.OdinClientContext.DevicePushNotificationKey;
-        
+
         if (null == key)
         {
             key = contextAccessor.GetCurrent().Caller.OdinClientContext?.AccessRegistrationId;
@@ -227,14 +227,14 @@ public class PushNotificationService(
         {
             return key.GetValueOrDefault();
         }
-        
+
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
     private void EnsureIdentityIsPending()
     {
         var tenant = contextAccessor.GetCurrent().Tenant;
-        serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray());
+        serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
     }
 
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)

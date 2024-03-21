@@ -26,6 +26,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 using Refit;
@@ -43,6 +44,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService,
+        ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingOutgoingTransferService> logger)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
             contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
@@ -66,6 +68,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 FileSystemType = fileSystemType
             };
 
+            var tenant = _contextAccessor.GetCurrent().Tenant;
+            serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
+
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
                 //send now
@@ -85,17 +90,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var drive in page.Results)
             {
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                var results = await SendOutboxItemsBatchToPeers(batch);
+                await SendOutboxItemsBatchToPeers(batch);
 
                 // Results will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
                 // to report back to the job;
 
                 // at this point, they are already back in the peer outbox; marked as failure
-                foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
-                {
-                    //todo: decide if we send failures back or just a code indicating - something went wrong
-                }
+                // foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
+                // {
+                //     //todo: decide if we send failures back or just a code indicating - something went wrong
+                // }
             }
         }
 
@@ -474,7 +479,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             fileTransferOptions.FileSystemType,
                             options)
                     });
-                    
+
                     status.Add(recipient, true);
                 }
                 catch (Exception ex)
