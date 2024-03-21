@@ -16,6 +16,7 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Serilog;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -37,13 +38,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
 
             var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+
+            if (bytes == null)
+            {
+                // this is bad error.
+                Log.Error("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
+                throw new OdinSystemException("Missing temp file while processing inbox");
+            }
+
             string json = bytes.ToStringFromUtf8Bytes();
 
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 
             if (null == metadata)
             {
-                throw new OdinClientException("Metadata could not be serialized", OdinClientErrorCode.MalformedMetadata);
+                Log.Error("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
+                throw new OdinSystemException("Metadata could not be deserialized");
             }
 
             // Files coming from other systems are only accessible to the owner so
@@ -56,7 +66,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
-                targetAcl = await ResetAclForComment(fileSystemType, metadata);
+                targetAcl = await ResetAclForComment(metadata);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -82,7 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        private async Task<AccessControlList> ResetAclForComment(FileSystemType fileSystemType, FileMetadata metadata)
+        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata)
         {
             AccessControlList targetAcl;
 

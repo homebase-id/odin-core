@@ -839,8 +839,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<TempStorageManager> GetTempStorageManager(Guid driveId)
         {
             var drive = await DriveManager.GetDrive(driveId, failIfInvalid: true);
-            // var logger = loggerFactory.CreateLogger<TempStorageManager>();
-            return new TempStorageManager(drive, driveFileReaderWriter);
+            var logger = loggerFactory.CreateLogger<TempStorageManager>();
+            return new TempStorageManager(drive, driveFileReaderWriter, logger);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)

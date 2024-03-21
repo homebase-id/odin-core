@@ -230,6 +230,8 @@ namespace Odin.Services.Configuration
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
+
+                InboxOutboxRecoveryAgeSeconds = config.GetOrDefault("Host:InboxOutboxRecoveryAgeSeconds", 24 * 60 * 60);
             }
 
             public string ReportContentUrl { get; set; }
@@ -257,6 +259,12 @@ namespace Odin.Services.Configuration
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
             public TimeSpan PeerOperationDelayMs { get; init; }
+
+            /// <summary>
+            /// The age in seconds of items that should be recovered which have been
+            /// popped (checked out) of the inbox/outbox queue w/o having been marked complete or failed
+            /// </summary>
+            public int InboxOutboxRecoveryAgeSeconds { get; init; }
         }
 
         public class ListenEntry
@@ -305,6 +313,7 @@ namespace Odin.Services.Configuration
             public int MaxSchedulerConcurrency { get; init; }
 
             public bool ConnectionPooling { get; init; }
+            public int InboxOutboxReconciliationDelaySeconds { get; init; }
 
             public JobSection()
             {
@@ -322,6 +331,7 @@ namespace Odin.Services.Configuration
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Job:ProcessPendingCertificateOrderIntervalInSeconds");
                 MaxSchedulerConcurrency = config.Required<int>("Job:MaxSchedulerConcurrency");
                 ConnectionPooling = config.GetOrDefault("Job:ConnectionPooling", true);
+                InboxOutboxReconciliationDelaySeconds = config.GetOrDefault("Job:InboxOutboxReconciliationDelaySeconds", 60 * 60);
             }
         }
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
@@ -26,7 +27,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         Task MarkFailure(Guid marker, TransferResult reason);
 
-        Task RecoverDead();
+        Task RecoverDead(UnixTimeUtc time);
 
         Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize);
 

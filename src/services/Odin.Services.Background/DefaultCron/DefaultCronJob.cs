@@ -100,18 +100,25 @@ public class DefaultCronJob(
 
         if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
         {
-            //if it's been 30 seconds since the last time we ran this item
-            var t = DateTime.Now - record.lastRun.ToDateTime();
-            if (t.Seconds > 30)
-            {
-                var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-                var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-                var response = await svc.ReconcileInboxOutbox();
-                success = response.IsSuccessStatusCode;
-            }
+            success = await ProcessInboxOutboxReconciliation(record);
         }
 
         return (record, success);
+    }
+
+    private async Task<bool> ProcessInboxOutboxReconciliation(CronRecord record)
+    {
+        //if it's been 30 seconds since the last time we ran this item
+        var t = DateTime.Now - record.lastRun.ToDateTime();
+        if (t.Seconds > config.Job.InboxOutboxReconciliationDelaySeconds)
+        {
+            var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
+            var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
+            var response = await svc.ReconcileInboxOutbox();
+            return response.IsSuccessStatusCode;
+        }
+
+        return false;
     }
 
     private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)

@@ -105,10 +105,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await Task.CompletedTask;
         }
 
-        public Task RecoverDead()
+        public Task RecoverDead(UnixTimeUtc time)
         {
-            const int deadTimeoutSeconds = 60 * 60;
-            var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(deadTimeoutSeconds)));
             tenantSystemStorage.Outbox.PopRecoverDead(time);
             return Task.CompletedTask;
         }
