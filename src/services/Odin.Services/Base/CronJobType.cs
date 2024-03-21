@@ -3,7 +3,7 @@ namespace Odin.Services.Base;
 public enum CronJobType
 {
     PendingTransitTransfer = 101,
-    GenerateCertificate = 202,
     FeedDistribution = 303,
-    PushNotification = 909
+    PushNotification = 909,
+    ReconcileInboxOutbox = 808
 }

@@ -6,6 +6,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Encryption;
@@ -60,8 +61,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             });
 
             var sender = tenantContext.HostOdinId;
-            serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
-           
+            serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
+
             return Task.CompletedTask;
         }
 
@@ -69,7 +70,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             foreach (var item in items)
             {
-                this.Add(item);
+                Add(item);
             }
 
             return Task.CompletedTask;
@@ -102,6 +103,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             // });
 
             await Task.CompletedTask;
+        }
+
+        public Task RecoverDead(UnixTimeUtc time)
+        {
+            tenantSystemStorage.Outbox.PopRecoverDead(time);
+            return Task.CompletedTask;
         }
 
         public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)

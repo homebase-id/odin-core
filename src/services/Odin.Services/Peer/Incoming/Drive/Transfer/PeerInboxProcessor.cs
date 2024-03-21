@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -18,7 +18,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,
-        CircleNetworkService circleNetworkService)
+        CircleNetworkService circleNetworkService,
+        ILogger<PeerInboxProcessor> logger)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         /// <summary>
@@ -28,12 +29,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, int batchSize = 1)
         {
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+            logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
             PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
+            logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
 
             foreach (var inboxItem in items)
             {
+                logger.LogDebug("Processing Inbox -> CreateCommitUnitOfWork");
                 using (tenantSystemStorage.CreateCommitUnitOfWork())
                 {
                     try
@@ -48,15 +52,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
+                            logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration");
+
                             var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
                             var sharedSecret = icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+                            logger.LogDebug("Processing Inbox -> DecryptAesToKeyHeader");
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
+                            logger.LogDebug("Processing Inbox -> handle file from sender:{sender}", inboxItem.Sender);
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
+                            logger.LogDebug("Processing Inbox -> handle file done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
+                            logger.LogDebug("Processing Inbox -> DeleteFile from sender:{sender}", inboxItem.Sender);
                             await writer.DeleteFile(fs, inboxItem);
+                            logger.LogDebug("Processing Inbox -> DeleteFile done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)
                         {
@@ -67,28 +78,32 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             throw new OdinClientException("Invalid transfer type", OdinClientErrorCode.InvalidTransferType);
                         }
 
+                        logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}", inboxItem.Marker, inboxItem.DriveId);
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    catch (OdinRemoteIdentityException)
+                    catch (OdinRemoteIdentityException oe)
                     {
+                        logger.LogDebug("Processing Inbox -> failed with remote identity exception: {message}", oe.Message);
+                        logger.LogDebug("Processing Inbox -> MarkFailure (remote identity exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
+                            inboxItem.DriveId);
                         await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         throw;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        logger.LogDebug("Processing Inbox -> failed with exception: {message}", e.Message);
+                        logger.LogDebug("Processing Inbox -> MarkFailure (general Exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
+                            inboxItem.DriveId);
                         await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                     }
                 }
             }
 
-            return transitInboxBoxStorage.GetPendingCount(driveId);
+            var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId);
+            logger.LogDebug("Processing Inbox -> returning pending count: {pendingCount}", pendingCount);
+            return pendingCount;
         }
-
-        public Task<PagedResult<TransferInboxItem>> GetQuarantinedItems(PageOptions pageOptions)
-        {
-            throw new NotImplementedException();
-        }
-
+        
         public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
