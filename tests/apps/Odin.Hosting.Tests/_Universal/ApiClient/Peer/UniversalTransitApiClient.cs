@@ -16,7 +16,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Peer;
 
-public class UniversalTransitApiClient(OdinId targetIdentity, IApiClientFactory factory, Guid ownerApiSystemProcessApiKey)
+public class UniversalTransitApiClient(OdinId targetIdentity, IApiClientFactory factory) //Guid ownerApiSystemProcessApiKey
 {
     public async Task<ApiResponse<HttpContent>> AddReaction(TestIdentity recipient, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
