@@ -4,17 +4,17 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
-using Odin.Hosting.Authentication.System;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Transit;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer;
 
 public class UniversalTransitApiClient(OdinId targetIdentity, IApiClientFactory factory, Guid ownerApiSystemProcessApiKey)
 {
