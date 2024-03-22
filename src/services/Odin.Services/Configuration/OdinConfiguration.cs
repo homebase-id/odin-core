@@ -221,7 +221,7 @@ namespace Odin.Services.Configuration
                 PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
                 PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
 
-                FileOperationRetryAttempts = config.GetOrDefault("Host:FileWriteRetryAttempts", 8);
+                FileOperationRetryAttempts = config.GetOrDefault("Host:FileOperationRetryAttempts", 8);
                 FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:FileOperationRetryDelayMs", 100));
 
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);

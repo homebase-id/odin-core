@@ -1,12 +1,11 @@
 ﻿using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
-using Odin.Services.Peer.Outgoing;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer
 {
     /// <summary>
     /// The interface for storing files

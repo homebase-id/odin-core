@@ -4,41 +4,20 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
-using Odin.Hosting.Authentication.System;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Transit;
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer;
 
-public class UniversalTransitApiClient(OdinId targetIdentity, IApiClientFactory factory, Guid ownerApiSystemProcessApiKey)
+public class UniversalTransitApiClient(OdinId targetIdentity, IApiClientFactory factory) //Guid ownerApiSystemProcessApiKey
 {
-    public async Task ProcessOutbox(int batchSize = 1)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out _);
-        {
-            var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, ownerApiSystemProcessApiKey.ToString());
-            var resp = await transitSvc.ProcessOutbox(batchSize);
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        }
-    }
-
-    public async Task ProcessInbox(TargetDrive drive)
-    {
-        var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);
-        {
-            var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        }
-    }
-
     public async Task<ApiResponse<HttpContent>> AddReaction(TestIdentity recipient, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var ownerSharedSecret);

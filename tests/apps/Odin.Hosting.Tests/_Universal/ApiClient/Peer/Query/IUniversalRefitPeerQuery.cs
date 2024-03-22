@@ -9,7 +9,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Transit.Query
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Query
 {
     public interface IUniversalRefitPeerQuery
     {

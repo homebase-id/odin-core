@@ -18,7 +18,11 @@ namespace Odin.Hosting.Controllers.System
     [ApiController]
     [Route(OwnerApiPathConstants.PeerV1 + "/outbox/processor")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
-    public class OutboxProcessorController(OdinConfiguration config,IPeerOutgoingTransferService peerOutgoingTransfer, IPeerOutbox outbox, TransitInboxBoxStorage inbox) : ControllerBase
+    public class OutboxProcessorController(
+        OdinConfiguration config,
+        IPeerOutgoingTransferService peerOutgoingTransfer,
+        IPeerOutbox outbox,
+        TransitInboxBoxStorage inbox) : ControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
@@ -26,7 +30,7 @@ namespace Odin.Hosting.Controllers.System
             await peerOutgoingTransfer.ProcessOutbox();
             return true;
         }
-        
+
         [HttpPost("reconcile")]
         public async Task<IActionResult> ReconcileInboxOutbox()
         {

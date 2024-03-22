@@ -7,7 +7,7 @@ using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Transit
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer
 {
     /// <summary>
     /// The interface for storing files

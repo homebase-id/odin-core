@@ -10,8 +10,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Cron;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
-using Odin.Hosting.Tests._Universal.ApiClient.Transit;
-using Odin.Hosting.Tests._Universal.ApiClient.Transit.Query;
+using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
