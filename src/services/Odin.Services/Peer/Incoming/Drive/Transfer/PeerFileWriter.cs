@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -37,24 +39,30 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
 
-            var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
-
-            if (bytes == null)
+            FileMetadata metadata = null;
+            var metadataMs = await Benchmark.MillisecondsAsync(async () =>
             {
-                // this is bad error.
-                Log.Error("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
-                throw new OdinSystemException("Missing temp file while processing inbox");
-            }
+                var bytes = await fs.Storage.GetAllFileBytesForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
 
-            string json = bytes.ToStringFromUtf8Bytes();
+                if (bytes == null)
+                {
+                    // this is bad error.
+                    Log.Error("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
+                    throw new OdinSystemException("Missing temp file while processing inbox");
+                }
 
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+                string json = bytes.ToStringFromUtf8Bytes();
 
-            if (null == metadata)
-            {
-                Log.Error("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
-                throw new OdinSystemException("Metadata could not be deserialized");
-            }
+                metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+
+                if (null == metadata)
+                {
+                    Log.Error("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
+                    throw new OdinSystemException("Metadata could not be deserialized");
+                }
+            });
+
+            Log.Information("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
 
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -170,9 +178,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
-                //
-                metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
+                var ms = await Benchmark.MillisecondsAsync(async () =>
+                {
+                    //
+                    metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads);
+                });
+                
+                Log.Information("Handle file->CommitNewFile: {ms} ms", ms);
                 return;
             }
 
@@ -267,6 +280,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //
             if (metadata.GlobalTransitId.HasValue)
             {
+                Log.Information("processing incoming file with global transit id");
+                
                 SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
                     await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 

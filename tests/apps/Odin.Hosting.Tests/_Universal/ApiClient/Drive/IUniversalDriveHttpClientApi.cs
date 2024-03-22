@@ -7,6 +7,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Refit;
 using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
@@ -17,6 +18,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         private const string RootStorageEndpoint = "/drive/files";
         private const string RootQueryEndpoint = "/drive/query";
 
+        [Post("/transit/outbox/processor/process")]
+        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
+
+        [Post("/transit/inbox/processor/process")]
+        Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
+        
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);

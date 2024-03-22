@@ -128,6 +128,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
 
+            Console.WriteLine($"Log file Path: [{LogFilePath}]");
+            
             Environment.SetEnvironmentVariable("Job__Enabled", "false");
             Environment.SetEnvironmentVariable("Job__ConnectionPooling", "false");
             Environment.SetEnvironmentVariable("Job__EnableJobBackgroundService", "false");

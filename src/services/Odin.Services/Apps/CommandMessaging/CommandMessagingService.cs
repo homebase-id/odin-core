@@ -66,7 +66,7 @@ public class CommandMessagingService
         };
 
         var serverFileHeader = await _standardFileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
-        await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
+        await _standardFileSystem.Storage.WriteNewFileHeader(internalFile, serverFileHeader);
 
         //TODO: with the introduction of file system type, we can probably make commands a file system type
         var transferResult = await _peerOutgoingTransferService.SendFile(

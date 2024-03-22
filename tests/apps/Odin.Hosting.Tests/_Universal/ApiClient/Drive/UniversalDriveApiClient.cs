@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
@@ -23,6 +24,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -144,9 +146,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     /// <summary>
     /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
         UploadFileMetadata fileMetadata,
-        bool useGlobalTransitId = false,
+        StorageOptions storageOptions,
+        TransitOptions transitOptions,
         KeyHeader keyHeader = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -161,14 +164,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = targetDrive,
-            },
-            TransitOptions = new TransitOptions()
-            {
-                UseGlobalTransitId = useGlobalTransitId
-            }
+            StorageOptions = storageOptions,
+            TransitOptions = transitOptions
         };
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -203,6 +200,27 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             return (response, encryptedJsonContent64);
         }
+    }
+
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
+        bool useGlobalTransitId = false,
+        KeyHeader keyHeader = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        keyHeader ??= KeyHeader.NewRandom16();
+
+        var s = new StorageOptions()
+        {
+            Drive = targetDrive,
+        };
+
+        var t = new TransitOptions()
+        {
+            UseGlobalTransitId = useGlobalTransitId
+        };
+
+        return await UploadNewEncryptedMetadata(fileMetadata, s, t, keyHeader, fileSystemType);
     }
 
     /// <summary>
@@ -581,6 +599,19 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await svc.GetBatchCollection(request);
+        return response;
+    }
+
+    public async Task<ApiResponse<InboxStatus>> ProcessInbox(TargetDrive drive, int batchSize = 1)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await transitSvc.ProcessInbox(new ProcessInboxRequest()
+        {
+            TargetDrive = drive,
+            BatchSize = batchSize
+        });
+
         return response;
     }
 }
