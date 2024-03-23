@@ -31,7 +31,7 @@ jobs:
           TOKEN=${{ secrets.GITHUB_TOKEN }}
           registry_token=$(curl -u $USERNAME:$TOKEN -s https://${{ env.REGISTRY }}/token\?scope\="repository:${{ env.REPO }}:pull" | jq -r .token)
           echo "registry_token: $registry_token"
-          latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n1)
+          latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list?n=999999999" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n1)
           echo "latest_version_tag: $latest_version_tag"
           echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
 
