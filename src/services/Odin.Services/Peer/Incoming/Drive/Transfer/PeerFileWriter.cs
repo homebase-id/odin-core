@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -48,7 +47,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     // this is bad error.
                     Log.Error("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
-                    throw new OdinSystemException("Missing temp file while processing inbox");
+                    throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
                 string json = bytes.ToStringFromUtf8Bytes();
@@ -58,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (null == metadata)
                 {
                     Log.Error("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
-                    throw new OdinSystemException("Metadata could not be deserialized");
+                    throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
 
@@ -96,7 +95,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     break;
 
                 default:
-                    throw new OdinClientException("Invalid TransferFileType", OdinClientErrorCode.InvalidTransferFileType);
+                    throw new OdinFileWriteException("Invalid TransferFileType");
             }
         }
 

@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -10,7 +9,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -65,13 +63,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                             // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration Complete;  Took {getIdentReg}", getIdentRegMs);
                             // logger.LogDebug("Processing Inbox -> handle file from sender:{sender}", inboxItem.Sender);
-                            
+
                             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                             {
                                 await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
                             });
 
-                            logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms}", handleFileMs);
+                            logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
@@ -95,9 +93,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         // logger.LogDebug("Processing Inbox -> failed with remote identity exception: {message}", oe.Message);
                         // logger.LogDebug("Processing Inbox -> MarkFailure (remote identity exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
-                            // inboxItem.DriveId);
+                        // inboxItem.DriveId);
                         await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         throw;
+                    }
+                    catch (OdinFileWriteException)
+                    {
+                        logger.LogError("File was missing for inbox item.  the inbox item will be removed");
+                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                     catch (Exception)
                     {
