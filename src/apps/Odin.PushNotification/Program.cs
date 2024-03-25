@@ -65,7 +65,7 @@ app.MapPost("/message", async (
 
         try
         {
-            var response = await pushNotification.Post(request);
+            var response = await pushNotification.PostAsNotifee(request);
             logger.LogInformation("Successfully sent message: {response}", response);
             return Results.Ok("Message sent successfully to Firebase.");
         }
@@ -90,6 +90,7 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
 {
     public PushNotificationRequestValidator()
     {
+        RuleFor(request => request.CorrelationId).NotEmpty();
         RuleFor(request => request.DeviceToken).NotEmpty();
         RuleFor(request => request.Title).NotEmpty();
         RuleFor(request => request.Body).NotEmpty();

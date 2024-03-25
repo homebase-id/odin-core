@@ -10,6 +10,7 @@ using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -31,6 +32,7 @@ namespace Odin.Services.AppNotifications.Push;
 
 public class PushNotificationService(
     ILogger<PushNotificationService> logger,
+    ICorrelationContext correlationContext,
     TenantSystemStorage storage,
     OdinContextAccessor contextAccessor,
     PublicPrivateKeyService keyService,
@@ -186,6 +188,7 @@ public class PushNotificationService(
         // SEB:TODO popluate the request
         var request = new DevicePushNotificationRequest()
         {
+            CorrelationId = correlationContext.Id,
             DeviceToken = subscription.FirebaseDeviceToken,
             Title = "The Title",
             Body = "The Body",
@@ -200,15 +203,18 @@ public class PushNotificationService(
             await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, () =>
             {
                 // SEB:TODO this should be a configuration value
-                var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("https://push.homebase.id"));
+                // var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("https://push.homebase.id"));
+                var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("http://localhost:5123"));
                 var push = RestService.For<IDevicePushNotificationApi>(httpClient);
                 return push.PostMessage(request);
             });
         }
-        catch (Exception e)
+        catch (Exception)
         {
+            // SEB:TODO remove the subscription if push services reports invalid device
             // SEB:TODO log the Refit.ValidationApiException body text if status is 4xx or 503
-            logger.LogError(e, "Failed sending device push notification");
+            logger.LogError(
+                "Failed sending device push notification (SEB:TODO log the Refit.ValidationApiException body text if status is 4xx or 503)");
         }
     }
 

@@ -2,12 +2,14 @@ using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
 using Odin.Core.Dto;
+using Odin.Core.Logging.CorrelationId;
 
 namespace Odin.PushNotification;
 
 public interface IPushNotification
 {
     Task<string> Post(DevicePushNotificationRequest request);
+    Task<string> PostAsNotifee(DevicePushNotificationRequest request);
 }
 
 public class PushNotification : IPushNotification
@@ -68,6 +70,25 @@ public class PushNotification : IPushNotification
                 }
             },
 
+            Token = request.DeviceToken,
+        };
+
+        var response = await _firebaseMessaging.SendAsync(message);
+        return response;
+    }
+
+    public async Task<string> PostAsNotifee(DevicePushNotificationRequest request)
+    {
+        var message = new Message
+        {
+            Data = new Dictionary<string, string>()
+            {
+                { "id", Guid.NewGuid().ToString() },
+                { "correlationId", request.CorrelationId },
+                { "timestamp", DateTime.UtcNow.ToString("o") },
+                { "type", "chat" },
+                { "message", "Hello, world!" },
+            },
             Token = request.DeviceToken,
         };
 
