@@ -79,6 +79,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
+            if (item.sender == null)
+                item.sender = "";
             return base.Insert(item);
         }
 
@@ -86,6 +88,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
+            if (item.sender == null)
+                item.sender = "";
             return base.Insert(item);
         }
 
@@ -95,11 +99,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Popstamp is used by the caller to release the items when they have been successfully processed, or
         /// to cancel the transaction and restore the items to the inbox.
         /// </summary
-        /// <param name="boxId">Is the box to pop from, e.g. Drive A, or App B</param>
+        /// <param name="driveId">Is the box to pop from, e.g. Drive A, or App B</param>
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns>List of records</returns>
-        public List<InboxRecord> PopSpecificBox(Guid boxId, int count)
+        public List<InboxRecord> PopSpecificBox(Guid driveId, int count)
         {
             lock (_popLock)
             {
@@ -107,8 +111,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE popstamp=$popstamp";
+                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE driveId=$driveId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
+                                              "SELECT rowId,driveId,fileId,sender,type,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -119,7 +123,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popCommand.Parameters.Add(_pparam2);
 
                     _pparam3 = _popCommand.CreateParameter();
-                    _pparam3.ParameterName = "$boxid";
+                    _pparam3.ParameterName = "$driveId";
                     _popCommand.Parameters.Add(_pparam3);
 
                     _popCommand.Prepare();
@@ -127,7 +131,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
-                _pparam3.Value = boxId.ToByteArray();
+                _pparam3.Value = driveId.ToByteArray();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -211,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int totalCount, int poppedCount, UnixTimeUtc oldestItemTime) PopStatusSpecificBox(Guid boxId)
+        public (int totalCount, int poppedCount, UnixTimeUtc oldestItemTime) PopStatusSpecificBox(Guid driveId)
         {
             lock (_popLock)
             {
@@ -220,17 +224,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _popStatusSpecificBoxCommand = _database.CreateCommand();
                     _popStatusSpecificBoxCommand.CommandText =
-                        "SELECT count(*) FROM inbox WHERE boxid=$boxid;" +
-                        "SELECT count(*) FROM inbox WHERE boxid=$boxid AND popstamp NOT NULL;" +
-                        "SELECT popstamp FROM inbox WHERE boxid=$boxid ORDER BY popstamp DESC LIMIT 1;";
+                        "SELECT count(*) FROM inbox WHERE driveId=$driveId;" +
+                        "SELECT count(*) FROM inbox WHERE driveId=$driveId AND popstamp NOT NULL;" +
+                        "SELECT popstamp FROM inbox WHERE driveId=$driveId ORDER BY popstamp DESC LIMIT 1;";
                     _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
-                    _pssbparam1.ParameterName = "$boxid";
+                    _pssbparam1.ParameterName = "$driveId";
                     _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
 
                     _popStatusSpecificBoxCommand.Prepare();
                 }
 
-                _pssbparam1.Value = boxId.ToByteArray();
+                _pssbparam1.Value = driveId.ToByteArray();
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                 {

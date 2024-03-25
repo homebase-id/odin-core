@@ -19,14 +19,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var v1 = SequentialGuid.CreateGuid().ToByteArray();
             var v2 = SequentialGuid.CreateGuid().ToByteArray();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
             var tshi = UnixTimeUtc.Now();
 
-            var r = db.tblOutbox.Get(f1, "frodo.baggins.me");
+            var r = db.tblOutbox.Get(driveId, f1, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             if (r.priority != 0)
                 Assert.Fail();
 
-            r = db.tblOutbox.Get(f2, "frodo.baggins.me");
+            r = db.tblOutbox.Get(driveId, f2, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
@@ -63,18 +63,18 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var v3 = SequentialGuid.CreateGuid().ToByteArray();
             var v4 = SequentialGuid.CreateGuid().ToByteArray();
             var v5 = SequentialGuid.CreateGuid().ToByteArray();
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
             var tshi = UnixTimeUtc.Now();
 
             // pop one item from the Outbox
-            var r = db.tblOutbox.PopSpecificBox(boxid, 1);
+            var r = db.tblOutbox.PopSpecificBox(driveId, 1);
             if (r.Count != 1)
                 Assert.Fail();
 
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Assert.IsTrue(r[0].recipient == "frodo.baggins.me");
 
             // pop all the remaining items from the Outbox
-            r = db.tblOutbox.PopSpecificBox(boxid, 10);
+            r = db.tblOutbox.PopSpecificBox(driveId, 10);
             if (r.Count != 4)
                 Assert.Fail();
 
@@ -134,7 +134,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Assert.IsTrue(r[3].recipient == "frodo.baggins.me");
 
             // pop to make sure there are no more items
-            r = db.tblOutbox.PopSpecificBox(boxid, 1);
+            r = db.tblOutbox.PopSpecificBox(driveId, 1);
             if (r.Count != 0)
                 Assert.Fail();
         }
@@ -150,20 +150,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f3 = SequentialGuid.CreateGuid();
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 3);
+            var r1 = db.tblOutbox.PopSpecificBox(driveId, 2);
+            var r2 = db.tblOutbox.PopSpecificBox(driveId, 3);
 
             db.tblOutbox.PopCancelAll((Guid)r1[0].popStamp);
 
-            var r3 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r3 = db.tblOutbox.PopSpecificBox(driveId, 10);
 
             if (r3.Count != 2)
                 Assert.Fail();
@@ -175,7 +175,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             db.tblOutbox.PopCancelAll((Guid)r3[0].popStamp);
             db.tblOutbox.PopCancelAll((Guid)r2[0].popStamp);
-            var r4 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r4 = db.tblOutbox.PopSpecificBox(driveId, 10);
 
             if (r4.Count != 5)
                 Assert.Fail();
@@ -194,18 +194,18 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
+            var r1 = db.tblOutbox.PopSpecificBox(driveId, 2);
             db.tblOutbox.PopCommitAll((Guid)r1[0].popStamp);
 
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r2 = db.tblOutbox.PopSpecificBox(driveId, 10);
             if (r2.Count != 3)
                 Assert.Fail();
         }
@@ -222,26 +222,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
+            var r1 = db.tblOutbox.PopSpecificBox(driveId, 2);
 
             // Recover all items older than the future (=all)
             db.tblOutbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(2));
 
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r2 = db.tblOutbox.PopSpecificBox(driveId, 10);
             if (r2.Count != 5)
                 Assert.Fail();
 
             // Recover items older than long ago (=none)
             db.tblOutbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(-2));
-            var r3 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r3 = db.tblOutbox.PopSpecificBox(driveId, 10);
             if (r3.Count != 0)
                 Assert.Fail();
         }
@@ -264,11 +264,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var b2 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b2, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b2, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b2, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
 
             // Pop the oldest record from the Outbox 1
             var r1 = db.tblOutbox.PopSpecificBox(b1, 1);
@@ -320,11 +320,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // An Outbox is simply a GUID. E.g. the DriveID.
             // A record has a fileId, priority and a custom value
             // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
 
             // A thread1 pops one record from Outbox1 (it'll get the oldest one)
             // Popping the record "reserves it" for your thread but doesn't remove
@@ -370,9 +370,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var b1 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             // Pop all records from the Outbox,be sure we get 3
             var r1 = db.tblOutbox.PopSpecificBox(b1, 5);
@@ -411,9 +411,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var b1 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             // Pop all records from the Outbox,be sure we get 3
             var r1 = db.tblOutbox.PopSpecificBox(b1, 5);
@@ -468,16 +468,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var box2id = SequentialGuid.CreateGuid();
             var box3id = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f6, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f7, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f8, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f9, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f10, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box3id, fileId = f6, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box3id, fileId = f7, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box3id, fileId = f8, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box3id, fileId = f9, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box3id, fileId = f10, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             var (tot, pop, poptime) = db.tblOutbox.PopStatus();
             Assert.AreEqual(10, tot);
@@ -515,19 +515,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             if (ByteArrayUtil.muidcmp(r[0].fileId, f1) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[0].boxId, box1id) != 0)
+            if (ByteArrayUtil.muidcmp(r[0].driveId, box1id) != 0)
                 Assert.Fail();
             Assert.IsTrue(r[0].recipient == "frodo.baggins.me");
 
             if (ByteArrayUtil.muidcmp(r[1].fileId, f2) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[1].boxId, box1id) != 0)
+            if (ByteArrayUtil.muidcmp(r[1].driveId, box1id) != 0)
                 Assert.Fail();
             Assert.IsTrue(r[1].recipient == "frodo.baggins.me");
 
             if (ByteArrayUtil.muidcmp(r[2].fileId, f3) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[2].boxId, box1id) != 0)
+            if (ByteArrayUtil.muidcmp(r[2].driveId, box1id) != 0)
                 Assert.Fail();
             Assert.IsTrue(r[2].recipient == "frodo.baggins.me");
 

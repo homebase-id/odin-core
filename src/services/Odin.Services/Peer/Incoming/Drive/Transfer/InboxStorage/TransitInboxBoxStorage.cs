@@ -20,7 +20,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            tenantSystemStorage.Inbox.Insert(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+            tenantSystemStorage.Inbox.Insert(new InboxRecord() { driveId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             return Task.CompletedTask;
         }
@@ -53,7 +53,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
                 item.Priority = (int)r.priority;
                 item.AddedTimestamp = r.timeStamp;
-                item.DriveId = r.boxId;
+                item.DriveId = r.driveId;
                 item.FileId = r.fileId;
                 item.Marker = r.popStamp.GetValueOrDefault();
 

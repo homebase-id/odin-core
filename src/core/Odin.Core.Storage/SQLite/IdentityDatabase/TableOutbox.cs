@@ -107,9 +107,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popAllCommand == null)
                 {
                     _popAllCommand = _database.CreateCommand();
-                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL ORDER BY timestamp ASC LIMIT $count); " +
-                                              "SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
-
+                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL ORDER BY rowId ASC LIMIT $count); " +
+                                                 "SELECT rowId,driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$popstamp";
                     _popAllCommand.Parameters.Add(_paparam1);
@@ -140,6 +139,64 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
         }
+
+
+        /// <summary>
+        /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
+        /// Popstamp is used by the caller to release the items when they have been successfully processed, or
+        /// to cancel the transaction and restore the items to the outbox.
+        /// </summary
+        /// <param name="driveId">Is the outbox to pop from, e.g. Drive A, or App B</param>
+        /// <param name="count">How many items to 'pop' (reserve)</param>
+        /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
+        /// <returns></returns>
+        public List<OutboxRecord> PopSpecificBox(Guid driveId, int count)
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popSpecificBoxCommand == null)
+                {
+                    _popSpecificBoxCommand = _database.CreateCommand();
+                    _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE driveId=$driveId AND popStamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
+                                              "SELECT rowId,driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
+
+                    _psbparam1 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam1.ParameterName = "$popstamp";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam1);
+
+                    _psbparam2 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam2.ParameterName = "$count";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam2);
+
+                    _psbparam3 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam3.ParameterName = "$driveId";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam3);
+
+                    _popSpecificBoxCommand.Prepare();
+                }
+
+                _psbparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
+                _psbparam2.Value = count;
+                _psbparam3.Value = driveId.ToByteArray();
+
+                List<OutboxRecord> result = new List<OutboxRecord>();
+
+                using (_database.CreateCommitUnitOfWork())
+                {
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                    {
+                        while (rdr.Read())
+                        {
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        }
+                    }
+
+                    return result;
+                }
+            }
+        }
+
 
 
         /// <summary>
@@ -208,7 +265,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) PopStatusSpecificBox(Guid boxId)
+        public (int, int, UnixTimeUtc) PopStatusSpecificBox(Guid driveId)
         {
             lock (_popLock)
             {
@@ -217,17 +274,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _popStatusSpecificBoxCommand = _database.CreateCommand();
                     _popStatusSpecificBoxCommand.CommandText =
-                        "SELECT count(*) FROM outbox WHERE boxid=$boxid;" +
-                        "SELECT count(*) FROM outbox WHERE boxid=$boxid AND popstamp NOT NULL;" +
-                        "SELECT popstamp FROM outbox WHERE boxid=$boxid ORDER BY popstamp DESC LIMIT 1;";
+                        "SELECT count(*) FROM outbox WHERE driveId=$driveId;" +
+                        "SELECT count(*) FROM outbox WHERE driveId=$driveId AND popstamp NOT NULL;" +
+                        "SELECT popstamp FROM outbox WHERE driveId=$driveId ORDER BY popstamp DESC LIMIT 1;";
                     _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
-                    _pssbparam1.ParameterName = "$boxid";
+                    _pssbparam1.ParameterName = "$driveId";
                     _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
 
                     _popStatusSpecificBoxCommand.Prepare();
                 }
 
-                _pssbparam1.Value = boxId.ToByteArray();
+                _pssbparam1.Value = driveId.ToByteArray();
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                 {
@@ -427,63 +484,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.ExecuteNonQuery(_popRecoverCommand);
-            }
-        }
-
-
-        /// <summary>
-        /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
-        /// Popstamp is used by the caller to release the items when they have been successfully processed, or
-        /// to cancel the transaction and restore the items to the outbox.
-        /// </summary
-        /// <param name="boxId">Is the outbox to pop from, e.g. Drive A, or App B</param>
-        /// <param name="count">How many items to 'pop' (reserve)</param>
-        /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
-        /// <returns></returns>
-        public List<OutboxRecord> PopSpecificBox(Guid boxId, int count)
-        {
-            lock (_popLock)
-            {
-                // Make sure we only prep once 
-                if (_popSpecificBoxCommand == null)
-                {
-                    _popSpecificBoxCommand = _database.CreateCommand();
-                    _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
-
-                    _psbparam1 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam1.ParameterName = "$popstamp";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam1);
-
-                    _psbparam2 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam2.ParameterName = "$count";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam2);
-
-                    _psbparam3 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam3.ParameterName = "$boxid";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam3);
-
-                    _popSpecificBoxCommand.Prepare();
-                }
-
-                _psbparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
-                _psbparam2.Value = count;
-                _psbparam3.Value = boxId.ToByteArray();
-
-                List<OutboxRecord> result = new List<OutboxRecord>();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
-                    {
-                        while (rdr.Read())
-                        {
-                            result.Add(ReadRecordFromReaderAll(rdr));
-                        }
-                    }
-
-                    return result;
-                }
             }
         }
     }
