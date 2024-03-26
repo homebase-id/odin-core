@@ -37,9 +37,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteParameter _pcommitparam1 = null;
 
         private SqliteCommand _popCommitListCommand = null;
-        private SqliteParameter _pcommitlistparam1 = null;
-        private SqliteParameter _pcommitlistparam2 = null;
-        private static Object _popCommitListLock = new Object();
+        //private SqliteParameter _pcommitlistparam1 = null;
+        //private SqliteParameter _pcommitlistparam2 = null;
+        //private static Object _popCommitListLock = new Object();
 
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
@@ -118,6 +118,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         "      FROM outbox "+
                         "      WHERE "+
                         "        checkOutStamp is NULL AND "+
+                        // "        nextRunTime <= $now AND "+
                         "        ((dependencyFileId IS NULL) OR " +
                         "         (NOT EXISTS (SELECT 1 FROM outbox AS ib WHERE ib.fileId = outbox.dependencyFileId AND ib.recipient = outbox.recipient)))" +
                         "      ORDER BY priority ASC, nextRunTime ASC LIMIT 1); " +
@@ -159,66 +160,99 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-/*
+
         /// <summary>
-        /// Pops 'count' items from the outbox. The items remain in the DB with the 'checkOutStamp' unique identifier.
-        /// checkOutStamp is used by the caller to release the items when they have been successfully processed, or
-        /// to cancel the transaction and restore the items to the outbox.
-        /// </summary
-        /// <param name="driveId">Is the outbox to pop from, e.g. Drive A, or App B</param>
-        /// <param name="count">How many items to 'pop' (reserve)</param>
-        /// <param name="checkOutStamp">The unique identifier for the items reserved for pop</param>
-        /// <returns></returns>
-        public List<OutboxRecord> CheckOutItemsForProcessingSpecificBox(Guid driveId, int count)
+        /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
+        /// </summary>
+        /// <param name="checkOutStamp"></param>
+        public void CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
             lock (_popLock)
             {
                 // Make sure we only prep once 
-                if (_popSpecificBoxCommand == null)
+                if (_popCancelCommand == null)
                 {
-                    _popSpecificBoxCommand = _database.CreateCommand();
-                    _popSpecificBoxCommand.CommandText =
-                        "UPDATE outbox SET checkOutStamp=$checkOutStamp "+
-                        "WHERE (checkOutStamp is NULL) AND "+
-                        "fileId IN (SELECT fileid FROM outbox WHERE driveId=$driveId AND checkOutStamp is NULL ORDER BY priority ASC, nextRunStamp ASC LIMIT $count);" +
-                        "SELECT rowid,driveId,fileId,recipient,type,priority,checkOutCount,timeStamp,nextRunStamp,value,checkOutStamp,created,modified FROM outbox WHERE checkOutStamp=$checkOutStamp";
+                    _popCancelCommand = _database.CreateCommand();
+                    _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE checkOutStamp=$checkOutStamp";
 
-                    _psbparam1 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam1.ParameterName = "$checkOutStamp";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam1);
+                    _pcancelparam1 = _popCancelCommand.CreateParameter();
+                    _pcancelparam2 = _popCancelCommand.CreateParameter();
 
-                    _psbparam2 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam2.ParameterName = "$count";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam2);
+                    _pcancelparam1.ParameterName = "$checkOutStamp";
+                    _popCancelCommand.Parameters.Add(_pcancelparam1);
+                    
+                    _pcancelparam2.ParameterName = "$nextRunTime";
+                    _popCancelCommand.Parameters.Add(_pcancelparam2);
 
-                    _psbparam3 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam3.ParameterName = "$driveId";
-                    _popSpecificBoxCommand.Parameters.Add(_psbparam3);
 
-                    _popSpecificBoxCommand.Prepare();
+                    _popCancelCommand.Prepare();
                 }
 
-                _psbparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
-                _psbparam2.Value = count;
-                _psbparam3.Value = driveId.ToByteArray();
+                _pcancelparam1.Value = checkOutStamp.ToByteArray();
+                _pcancelparam2.Value = nextRunTime.milliseconds;
 
-                List<OutboxRecord> result = new List<OutboxRecord>();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
-                    {
-                        while (rdr.Read())
-                        {
-                            result.Add(ReadRecordFromReaderAll(rdr));
-                        }
-                    }
-
-                    return result;
-                }
+                _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
-*/
+
+
+
+        /// <summary>
+        /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
+        /// </summary>
+        /// <param name="checkOutStamp"></param>
+        public void CompleteAndRemove(Guid checkOutStamp)
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popCommitCommand == null)
+                {
+                    _popCommitCommand = _database.CreateCommand();
+                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE checkOutStamp=$checkOutStamp";
+
+                    _pcommitparam1 = _popCommitCommand.CreateParameter();
+                    _pcommitparam1.ParameterName = "$checkOutStamp";
+                    _popCommitCommand.Parameters.Add(_pcommitparam1);
+
+                    _popCommitCommand.Prepare();
+                }
+
+                _pcommitparam1.Value = checkOutStamp.ToByteArray();
+
+                _database.ExecuteNonQuery(_popCommitCommand);
+            }
+        }
+
+
+
+        /// <summary>
+        /// Recover popped items older than the supplied UnixTime in seconds.
+        /// This is how to recover popped items that were never processed for example on a server crash.
+        /// Call with e.g. a time of more than 5 minutes ago.
+        /// </summary>
+        public void RecoverCheckedOutDeadItems(UnixTimeUtc UnixTimeSeconds)
+        {
+            lock (_popLock)
+            {
+                if (_popRecoverCommand == null)
+                {
+                    _popRecoverCommand = _database.CreateCommand();
+                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL WHERE checkOutStamp < $checkOutStamp";
+
+                    _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
+
+                    _pcrecoverparam1.ParameterName = "$checkOutStamp";
+                    _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
+
+                    _popRecoverCommand.Prepare();
+                }
+
+                _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
+
+                _database.ExecuteNonQuery(_popRecoverCommand);
+            }
+        }
 
 
         /// <summary>
@@ -330,83 +364,80 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     if (!rdr.Read() || rdr.IsDBNull(0))
                         return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
 
-                    var _guid = new byte[16];
-                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                    if (n != 16)
-                        throw new Exception("Invalid stamp");
-
-                    var guid = new Guid(_guid);
-                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                    Int64 t = rdr.GetInt64(0);
+                    var utc = new UnixTimeUtc(t);
                     return (totalCount, poppedCount, utc);
                 }
             }
         }
+    }
+}
 
 
+
+/*
         /// <summary>
-        /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
-        /// </summary>
-        /// <param name="checkOutStamp"></param>
-        public void CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+        /// Pops 'count' items from the outbox. The items remain in the DB with the 'checkOutStamp' unique identifier.
+        /// checkOutStamp is used by the caller to release the items when they have been successfully processed, or
+        /// to cancel the transaction and restore the items to the outbox.
+        /// </summary
+        /// <param name="driveId">Is the outbox to pop from, e.g. Drive A, or App B</param>
+        /// <param name="count">How many items to 'pop' (reserve)</param>
+        /// <param name="checkOutStamp">The unique identifier for the items reserved for pop</param>
+        /// <returns></returns>
+        public List<OutboxRecord> CheckOutItemsForProcessingSpecificBox(Guid driveId, int count)
         {
             lock (_popLock)
             {
                 // Make sure we only prep once 
-                if (_popCancelCommand == null)
+                if (_popSpecificBoxCommand == null)
                 {
-                    _popCancelCommand = _database.CreateCommand();
-                    _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE checkOutStamp=$checkOutStamp";
+                    _popSpecificBoxCommand = _database.CreateCommand();
+                    _popSpecificBoxCommand.CommandText =
+                        "UPDATE outbox SET checkOutStamp=$checkOutStamp "+
+                        "WHERE (checkOutStamp is NULL) AND "+
+                        "fileId IN (SELECT fileid FROM outbox WHERE driveId=$driveId AND checkOutStamp is NULL ORDER BY priority ASC, nextRunStamp ASC LIMIT $count);" +
+                        "SELECT rowid,driveId,fileId,recipient,type,priority,checkOutCount,timeStamp,nextRunStamp,value,checkOutStamp,created,modified FROM outbox WHERE checkOutStamp=$checkOutStamp";
 
-                    _pcancelparam1 = _popCancelCommand.CreateParameter();
-                    _pcancelparam2 = _popCancelCommand.CreateParameter();
+                    _psbparam1 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam1.ParameterName = "$checkOutStamp";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam1);
 
-                    _pcancelparam1.ParameterName = "$checkOutStamp";
-                    _popCancelCommand.Parameters.Add(_pcancelparam1);
-                    
-                    _pcancelparam2.ParameterName = "$nextRunTime";
-                    _popCancelCommand.Parameters.Add(_pcancelparam2);
+                    _psbparam2 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam2.ParameterName = "$count";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam2);
 
+                    _psbparam3 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam3.ParameterName = "$driveId";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam3);
 
-                    _popCancelCommand.Prepare();
+                    _popSpecificBoxCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = checkOutStamp.ToByteArray();
-                _pcancelparam2.Value = nextRunTime.milliseconds;
+                _psbparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
+                _psbparam2.Value = count;
+                _psbparam3.Value = driveId.ToByteArray();
 
-                _database.ExecuteNonQuery(_popCancelCommand);
-            }
-        }
+                List<OutboxRecord> result = new List<OutboxRecord>();
 
-
-
-        /// <summary>
-        /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
-        /// </summary>
-        /// <param name="checkOutStamp"></param>
-        public void CompleteAndRemove(Guid checkOutStamp)
-        {
-            lock (_popLock)
-            {
-                // Make sure we only prep once 
-                if (_popCommitCommand == null)
+                using (_database.CreateCommitUnitOfWork())
                 {
-                    _popCommitCommand = _database.CreateCommand();
-                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE checkOutStamp=$checkOutStamp";
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                    {
+                        while (rdr.Read())
+                        {
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        }
+                    }
 
-                    _pcommitparam1 = _popCommitCommand.CreateParameter();
-                    _pcommitparam1.ParameterName = "$checkOutStamp";
-                    _popCommitCommand.Parameters.Add(_pcommitparam1);
-
-                    _popCommitCommand.Prepare();
+                    return result;
                 }
-
-                _pcommitparam1.Value = checkOutStamp.ToByteArray();
-
-                _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
+*/
 
 
+/*
         /// <summary>
         /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
@@ -445,34 +476,4 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
         }
-
-
-        /// <summary>
-        /// Recover popped items older than the supplied UnixTime in seconds.
-        /// This is how to recover popped items that were never processed for example on a server crash.
-        /// Call with e.g. a time of more than 5 minutes ago.
-        /// </summary>
-        public void RecoverCheckedOutDeadItems(UnixTimeUtc UnixTimeSeconds)
-        {
-            lock (_popLock)
-            {
-                if (_popRecoverCommand == null)
-                {
-                    _popRecoverCommand = _database.CreateCommand();
-                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL WHERE checkOutStamp < $checkOutStamp";
-
-                    _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
-
-                    _pcrecoverparam1.ParameterName = "$checkOutStamp";
-                    _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
-
-                    _popRecoverCommand.Prepare();
-                }
-
-                _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
-
-                _database.ExecuteNonQuery(_popRecoverCommand);
-            }
-        }
-    }
-}
+*/

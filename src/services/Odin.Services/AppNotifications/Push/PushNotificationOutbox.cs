@@ -64,7 +64,8 @@ public class PushNotificationOutbox
     /// </summary>
     public async Task MarkFailure(Guid marker)
     {
-        _tenantSystemStorage.Outbox.CompleteAndRemoveList(marker, listFileId: new List<Guid>());
+        // XXX TODO MS : Can't both remove & cancel - it's one or the other
+        _tenantSystemStorage.Outbox.CompleteAndRemove(marker);
 
         //TODO: there is no way to keep information on why an item failed
         _tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(1));

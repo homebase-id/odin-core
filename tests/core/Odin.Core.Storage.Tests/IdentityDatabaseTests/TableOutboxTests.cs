@@ -91,6 +91,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var (ti,tp,nrt)  = db.tblOutbox.OutboxStatus();
             Debug.Assert(ti == 5);
             Debug.Assert(tp == 1);
+            var (ti1, tp1, nrt1) = db.tblOutbox.OutboxStatusSpecificBox(driveId);
+            Assert.IsTrue(ti == ti1);
+            Assert.IsTrue(tp == tp1);
+            Assert.IsTrue(nrt == nrt1);
 
             // pop all the remaining items from the Outbox
             r = db.tblOutbox.CheckOutItem();
@@ -279,7 +283,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
 
-        /*
         [TestCase()]
         public void PopCancelTest()
         {
@@ -300,25 +303,34 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
             var r1 = db.tblOutbox.CheckOutItem();
-            var r2 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
 
-            db.tblOutbox.CheckInAsCancelled((Guid)r1.checkOutStamp, UnixTimeUtc.Now().AddHours(1));
+            var r2 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r2.fileId, f2) == 0);
+
+            db.tblOutbox.CheckInAsCancelled((Guid)r1.checkOutStamp, UnixTimeUtc.Now().AddMinutes(2));
 
             var r3 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r3.fileId, f3) == 0);
 
-            if (ByteArrayUtil.muidcmp(r1.fileId, r3.fileId) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r1[1].fileId, r3[1].fileId) != 0)
-                Assert.Fail();
+            var r4 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r4.fileId, f4) == 0);
 
-            db.tblOutbox.CheckInAsCancelled((Guid)r3[0].checkOutStamp);
-            db.tblOutbox.CheckInAsCancelled((Guid)r2[0].checkOutStamp);
-            var r4 = db.tblOutbox.CheckOutItem(driveId, 10);
+            var r5 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r5.fileId, f5) == 0);
 
-            if (r4.Count != 5)
-                Assert.Fail();
+            r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
+
+            db.tblOutbox.CheckInAsCancelled((Guid)r3.checkOutStamp, UnixTimeUtc.Now().AddMinutes(1));
+            db.tblOutbox.CheckInAsCancelled((Guid)r2.checkOutStamp, UnixTimeUtc.Now().AddMinutes(3));
+
+            var r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
         }
-        
+        /*
 
         [TestCase()]
         public void PopCommitTest()
