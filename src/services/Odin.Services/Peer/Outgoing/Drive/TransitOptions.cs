@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// If specified, this item will not be sent before the id specified in OutboxDependencyId 
         /// </summary>
-        public Guid? OutboxDependencyId { get; set; }
+        public Guid? OutboxDependencyFileId { get; set; }
 
     }
 

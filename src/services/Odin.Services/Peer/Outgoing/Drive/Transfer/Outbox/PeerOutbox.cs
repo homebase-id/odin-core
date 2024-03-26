@@ -50,7 +50,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 OriginalTransitOptions = item.OriginalTransitOptions,
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken,
                 Attempts = { },
-
             }).ToUtf8ByteArray();
 
             tenantSystemStorage.Outbox.Insert(new OutboxRecord()
@@ -60,7 +59,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 fileId = item.File.FileId,
                 priority = item.Priority,
                 type = (int)item.Type,
-                // dependency = item.OriginalTransitOptions.OutboxDependencyId,
+                dependencyFileId = item.OriginalTransitOptions.OutboxDependencyFileId,
                 value = state
             });
 
