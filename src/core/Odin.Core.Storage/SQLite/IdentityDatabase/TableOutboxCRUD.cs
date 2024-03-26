@@ -71,14 +71,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                   _priority = value;
                }
         }
-        private UnixTimeUtc _timeStamp;
-        public UnixTimeUtc timeStamp
+        private Guid? _dependencyFileId;
+        public Guid? dependencyFileId
         {
            get {
-                   return _timeStamp;
+                   return _dependencyFileId;
                }
            set {
-                  _timeStamp = value;
+                  _dependencyFileId = value;
+               }
+        }
+        private Int32 _checkOutCount;
+        public Int32 checkOutCount
+        {
+           get {
+                   return _checkOutCount;
+               }
+           set {
+                  _checkOutCount = value;
+               }
+        }
+        private UnixTimeUtc _nextRunTime;
+        public UnixTimeUtc nextRunTime
+        {
+           get {
+                   return _nextRunTime;
+               }
+           set {
+                  _nextRunTime = value;
                }
         }
         private byte[] _value;
@@ -93,14 +113,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                   _value = value;
                }
         }
-        private Guid? _popStamp;
-        public Guid? popStamp
+        private Guid? _checkOutStamp;
+        public Guid? checkOutStamp
         {
            get {
-                   return _popStamp;
+                   return _checkOutStamp;
                }
            set {
-                  _popStamp = value;
+                  _checkOutStamp = value;
                }
         }
         private UnixTimeUtcUnique _created;
@@ -140,6 +160,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteParameter _insertParam8 = null;
         private SqliteParameter _insertParam9 = null;
         private SqliteParameter _insertParam10 = null;
+        private SqliteParameter _insertParam11 = null;
+        private SqliteParameter _insertParam12 = null;
         private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SqliteParameter _updateParam1 = null;
@@ -152,6 +174,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteParameter _updateParam8 = null;
         private SqliteParameter _updateParam9 = null;
         private SqliteParameter _updateParam10 = null;
+        private SqliteParameter _updateParam11 = null;
+        private SqliteParameter _updateParam12 = null;
         private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SqliteParameter _upsertParam1 = null;
@@ -164,6 +188,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteParameter _upsertParam8 = null;
         private SqliteParameter _upsertParam9 = null;
         private SqliteParameter _upsertParam10 = null;
+        private SqliteParameter _upsertParam11 = null;
+        private SqliteParameter _upsertParam12 = null;
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
@@ -215,15 +241,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"recipient STRING NOT NULL, "
                      +"type INT NOT NULL, "
                      +"priority INT NOT NULL, "
-                     +"timeStamp INT NOT NULL, "
+                     +"dependencyFileId BLOB , "
+                     +"checkOutCount INT NOT NULL, "
+                     +"nextRunTime INT NOT NULL, "
                      +"value BLOB , "
-                     +"popStamp BLOB , "
+                     +"checkOutStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT  "
                      +", PRIMARY KEY (driveId,fileId,recipient)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(timeStamp);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxCRUD ON outbox(popStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(nextRunTime);"
                      ;
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();
@@ -237,8 +264,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO outbox (driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO outbox (driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
+                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$driveId";
@@ -256,19 +283,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _insertParam5.ParameterName = "$priority";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    _insertParam6.ParameterName = "$timeStamp";
+                    _insertParam6.ParameterName = "$dependencyFileId";
                     _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
-                    _insertParam7.ParameterName = "$value";
+                    _insertParam7.ParameterName = "$checkOutCount";
                     _insertParam8 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam8);
-                    _insertParam8.ParameterName = "$popStamp";
+                    _insertParam8.ParameterName = "$nextRunTime";
                     _insertParam9 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam9);
-                    _insertParam9.ParameterName = "$created";
+                    _insertParam9.ParameterName = "$value";
                     _insertParam10 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam10);
-                    _insertParam10.ParameterName = "$modified";
+                    _insertParam10.ParameterName = "$checkOutStamp";
+                    _insertParam11 = _insertCommand.CreateParameter();
+                    _insertCommand.Parameters.Add(_insertParam11);
+                    _insertParam11.ParameterName = "$created";
+                    _insertParam12 = _insertCommand.CreateParameter();
+                    _insertCommand.Parameters.Add(_insertParam12);
+                    _insertParam12.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.driveId.ToByteArray();
@@ -276,13 +309,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam3.Value = item.recipient;
                 _insertParam4.Value = item.type;
                 _insertParam5.Value = item.priority;
-                _insertParam6.Value = item.timeStamp.milliseconds;
-                _insertParam7.Value = item.value ?? (object)DBNull.Value;
-                _insertParam8.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam6.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam7.Value = item.checkOutCount;
+                _insertParam8.Value = item.nextRunTime.milliseconds;
+                _insertParam9.Value = item.value ?? (object)DBNull.Value;
+                _insertParam10.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
                 var now = UnixTimeUtcUnique.Now();
-                _insertParam9.Value = now.uniqueTime;
+                _insertParam11.Value = now.uniqueTime;
                 item.modified = null;
-                _insertParam10.Value = DBNull.Value;
+                _insertParam12.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
@@ -299,10 +334,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO outbox (driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created) " +
-                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$timeStamp,$value,$popStamp,$created)"+
+                    _upsertCommand.CommandText = "INSERT INTO outbox (driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
+                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created)"+
                                                  "ON CONFLICT (driveId,fileId,recipient) DO UPDATE "+
-                                                 "SET type = $type,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
+                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
                                                  "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
@@ -321,19 +356,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam5.ParameterName = "$priority";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    _upsertParam6.ParameterName = "$timeStamp";
+                    _upsertParam6.ParameterName = "$dependencyFileId";
                     _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
-                    _upsertParam7.ParameterName = "$value";
+                    _upsertParam7.ParameterName = "$checkOutCount";
                     _upsertParam8 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam8);
-                    _upsertParam8.ParameterName = "$popStamp";
+                    _upsertParam8.ParameterName = "$nextRunTime";
                     _upsertParam9 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam9);
-                    _upsertParam9.ParameterName = "$created";
+                    _upsertParam9.ParameterName = "$value";
                     _upsertParam10 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam10);
-                    _upsertParam10.ParameterName = "$modified";
+                    _upsertParam10.ParameterName = "$checkOutStamp";
+                    _upsertParam11 = _upsertCommand.CreateParameter();
+                    _upsertCommand.Parameters.Add(_upsertParam11);
+                    _upsertParam11.ParameterName = "$created";
+                    _upsertParam12 = _upsertCommand.CreateParameter();
+                    _upsertCommand.Parameters.Add(_upsertParam12);
+                    _upsertParam12.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
                 var now = UnixTimeUtcUnique.Now();
@@ -342,11 +383,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam3.Value = item.recipient;
                 _upsertParam4.Value = item.type;
                 _upsertParam5.Value = item.priority;
-                _upsertParam6.Value = item.timeStamp.milliseconds;
-                _upsertParam7.Value = item.value ?? (object)DBNull.Value;
-                _upsertParam8.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam9.Value = now.uniqueTime;
-                _upsertParam10.Value = now.uniqueTime;
+                _upsertParam6.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam7.Value = item.checkOutCount;
+                _upsertParam8.Value = item.nextRunTime.milliseconds;
+                _upsertParam9.Value = item.value ?? (object)DBNull.Value;
+                _upsertParam10.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam11.Value = now.uniqueTime;
+                _upsertParam12.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
@@ -373,7 +416,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE outbox " +
-                                                 "SET type = $type,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
+                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
                                                  "WHERE (driveId = $driveId,fileId = $fileId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -392,19 +435,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _updateParam5.ParameterName = "$priority";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    _updateParam6.ParameterName = "$timeStamp";
+                    _updateParam6.ParameterName = "$dependencyFileId";
                     _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
-                    _updateParam7.ParameterName = "$value";
+                    _updateParam7.ParameterName = "$checkOutCount";
                     _updateParam8 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam8);
-                    _updateParam8.ParameterName = "$popStamp";
+                    _updateParam8.ParameterName = "$nextRunTime";
                     _updateParam9 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam9);
-                    _updateParam9.ParameterName = "$created";
+                    _updateParam9.ParameterName = "$value";
                     _updateParam10 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam10);
-                    _updateParam10.ParameterName = "$modified";
+                    _updateParam10.ParameterName = "$checkOutStamp";
+                    _updateParam11 = _updateCommand.CreateParameter();
+                    _updateCommand.Parameters.Add(_updateParam11);
+                    _updateParam11.ParameterName = "$created";
+                    _updateParam12 = _updateCommand.CreateParameter();
+                    _updateCommand.Parameters.Add(_updateParam12);
+                    _updateParam12.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
                 var now = UnixTimeUtcUnique.Now();
@@ -413,11 +462,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam3.Value = item.recipient;
                 _updateParam4.Value = item.type;
                 _updateParam5.Value = item.priority;
-                _updateParam6.Value = item.timeStamp.milliseconds;
-                _updateParam7.Value = item.value ?? (object)DBNull.Value;
-                _updateParam8.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam9.Value = now.uniqueTime;
-                _updateParam10.Value = now.uniqueTime;
+                _updateParam6.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                _updateParam7.Value = item.checkOutCount;
+                _updateParam8.Value = item.nextRunTime.milliseconds;
+                _updateParam9.Value = item.value ?? (object)DBNull.Value;
+                _updateParam10.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                _updateParam11.Value = now.uniqueTime;
+                _updateParam12.Value = now.uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
@@ -427,7 +478,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        // SELECT rowid,driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified
+        // SELECT rowid,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
         public OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<OutboxRecord>();
@@ -487,17 +538,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.dependencyFileId = null;
             else
             {
-                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(6));
+                bytesRead = rdr.GetBytes(6, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in dependencyFileId...");
+                item.dependencyFileId = new Guid(_guid);
             }
 
             if (rdr.IsDBNull(7))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.checkOutCount = rdr.GetInt32(7);
+            }
+
+            if (rdr.IsDBNull(8))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(8));
+            }
+
+            if (rdr.IsDBNull(9))
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(7, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(9, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
@@ -506,28 +574,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(8))
-                item.popStamp = null;
+            if (rdr.IsDBNull(10))
+                item.checkOutStamp = null;
             else
             {
-                bytesRead = rdr.GetBytes(8, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(10, 0, _guid, 0, 16);
                 if (bytesRead != 16)
-                    throw new Exception("Not a GUID in popStamp...");
-                item.popStamp = new Guid(_guid);
+                    throw new Exception("Not a GUID in checkOutStamp...");
+                item.checkOutStamp = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(9))
+            if (rdr.IsDBNull(11))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(9));
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(11));
             }
 
-            if (rdr.IsDBNull(10))
+            if (rdr.IsDBNull(12))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(10));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(12));
             }
             return item;
        }
@@ -594,17 +662,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
 
             if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                item.dependencyFileId = null;
             else
             {
-                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in dependencyFileId...");
+                item.dependencyFileId = new Guid(_guid);
             }
 
             if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.checkOutCount = rdr.GetInt32(3);
+            }
+
+            if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(4));
+            }
+
+            if (rdr.IsDBNull(5))
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
@@ -613,28 +698,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(4))
-                item.popStamp = null;
+            if (rdr.IsDBNull(6))
+                item.checkOutStamp = null;
             else
             {
-                bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(6, 0, _guid, 0, 16);
                 if (bytesRead != 16)
-                    throw new Exception("Not a GUID in popStamp...");
-                item.popStamp = new Guid(_guid);
+                    throw new Exception("Not a GUID in checkOutStamp...");
+                item.checkOutStamp = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(5))
+            if (rdr.IsDBNull(7))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));
             }
 
-            if (rdr.IsDBNull(6))
+            if (rdr.IsDBNull(8))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
             }
             return item;
        }
@@ -649,7 +734,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT type,priority,timeStamp,value,popStamp,created,modified FROM outbox " +
+                    _get0Command.CommandText = "SELECT type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND recipient = $recipient LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

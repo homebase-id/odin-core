@@ -10,6 +10,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Core.Time;
 
 namespace Odin.Services.AppNotifications.Push;
 
@@ -54,7 +55,7 @@ public class PushNotificationOutbox
 
     public Task MarkComplete(Guid marker)
     {
-        _tenantSystemStorage.Outbox.PopCommitAll(marker);
+        _tenantSystemStorage.Outbox.CompleteAndRemove(marker);
         return Task.CompletedTask;
     }
 
@@ -63,23 +64,23 @@ public class PushNotificationOutbox
     /// </summary>
     public async Task MarkFailure(Guid marker)
     {
-        _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
+        _tenantSystemStorage.Outbox.CompleteAndRemoveList(marker, listFileId: new List<Guid>());
 
         //TODO: there is no way to keep information on why an item failed
-        _tenantSystemStorage.Outbox.PopCancelAll(marker);
+        _tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(1));
 
         await Task.CompletedTask;
     }
 
     public async Task<List<PushNotificationOutboxRecord>> GetBatchForProcessing(int batchSize)
     {
-        var records = _tenantSystemStorage.Outbox.PopSpecificBox(_notificationBoxId, batchSize);
+        var records = new List<OutboxRecord> { _tenantSystemStorage.Outbox.CheckOutItem() };
 
         var items = records.Select(r =>
         {
             var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(r.value.ToStringFromUtf8Bytes());
-            record.Timestamp = r.timeStamp.milliseconds;
-            record.Marker = r.popStamp.GetValueOrDefault();
+            // OBSOLETE record.Timestamp = r.timeStamp.milliseconds;
+            record.Marker = r.checkOutStamp.GetValueOrDefault();
             return record;
         });
 

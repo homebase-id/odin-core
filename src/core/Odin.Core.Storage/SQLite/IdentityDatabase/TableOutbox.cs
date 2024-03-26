@@ -8,14 +8,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableOutbox: TableOutboxCRUD
     {
         private SqliteCommand _popSpecificBoxCommand = null;
-        private SqliteParameter _psbparam1 = null;
-        private SqliteParameter _psbparam2 = null;
-        private SqliteParameter _psbparam3 = null;
+        //private SqliteParameter _psbparam1 = null;
+        //private SqliteParameter _psbparam2 = null;
+        //private SqliteParameter _psbparam3 = null;
         private static Object _popLock = new Object();
 
         private SqliteCommand _popAllCommand = null;
         private SqliteParameter _paparam1 = null;
         private SqliteParameter _paparam2 = null;
+        private SqliteParameter _paparam3 = null;
         private static Object _popAllLock = new Object();
 
         private SqliteCommand _popStatusCommand = null;
@@ -25,11 +26,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
+        private SqliteParameter _pcancelparam2 = null;
 
         private SqliteCommand _popCancelListCommand = null;
-        private SqliteParameter _pcancellistparam1 = null;
-        private SqliteParameter _pcancellistparam2 = null;
-        private static Object _popCancelListLock = new Object();
+        //private SqliteParameter _pcancellistparam1 = null;
+        //private SqliteParameter _pcancellistparam2 = null;
+        //private static Object _popCancelListLock = new Object();
 
         private SqliteCommand _popCommitCommand = null;
         private SqliteParameter _pcommitparam1 = null;
@@ -85,21 +87,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override int Insert(OutboxRecord item)
         {
-            if (item.timeStamp.milliseconds == 0)
-                item.timeStamp = UnixTimeUtc.Now();
+            item.checkOutCount = 0;
+            if (item.nextRunTime.milliseconds == 0)
+                item.nextRunTime = UnixTimeUtc.Now().AddSeconds(-5);
             return base.Insert(item);
         }
 
 
         public override int Upsert(OutboxRecord item)
         {
-            if (item.timeStamp.milliseconds == 0)
-                item.timeStamp = UnixTimeUtc.Now();
+            if (item.nextRunTime.milliseconds == 0)
+                item.nextRunTime = UnixTimeUtc.Now().AddSeconds(-5);
             return base.Upsert(item);
         }
 
-
-        public List<OutboxRecord> Pop(int count)
+        public OutboxRecord CheckOutItem()
         {
             lock (_popAllLock)
             {
@@ -107,50 +109,67 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popAllCommand == null)
                 {
                     _popAllCommand = _database.CreateCommand();
-                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL ORDER BY rowId ASC LIMIT $count); " +
-                                                 "SELECT rowId,driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
+                    _popAllCommand.CommandText = 
+                        "UPDATE outbox "+
+                        "SET checkOutStamp=$checkOutStamp "+
+                        "WHERE (checkOutStamp is NULL) AND "+
+                        "   fileId IN ("+
+                        "      SELECT fileid "+
+                        "      FROM outbox "+
+                        "      WHERE "+
+                        "        checkOutStamp is NULL AND "+
+                        "        ((dependencyFileId IS NULL) OR " +
+                        "         (NOT EXISTS (SELECT 1 FROM outbox AS ib WHERE ib.fileId = outbox.dependencyFileId AND ib.recipient = outbox.recipient)))" +
+                        "      ORDER BY priority ASC, nextRunTime ASC LIMIT 1); " +
+                        "SELECT rowid,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified " +
+                        "FROM outbox "+
+                        "WHERE checkOutStamp=$checkOutStamp";
                     _paparam1 = _popAllCommand.CreateParameter();
-                    _paparam1.ParameterName = "$popstamp";
+                    _paparam1.ParameterName = "$checkOutStamp";
                     _popAllCommand.Parameters.Add(_paparam1);
 
+                    // 2 & 3 ARE OBSOLETE - DELETE LATER
                     _paparam2 = _popAllCommand.CreateParameter();
                     _paparam2.ParameterName = "$count";
                     _popAllCommand.Parameters.Add(_paparam2);
+
+                    _paparam3 = _popAllCommand.CreateParameter();
+                    _paparam3.ParameterName = "$now";
+                    _popAllCommand.Parameters.Add(_paparam3);
 
                     _popAllCommand.Prepare();
                 }
 
                 _paparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
-                _paparam2.Value = count;
+                _paparam2.Value = 1;
+                _paparam3.Value = UnixTimeUtc.Now().milliseconds;
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
-                using (_database.CreateCommitUnitOfWork())
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
+                    if (rdr.Read())
                     {
-                        while (rdr.Read())
-                        {
-                            result.Add(ReadRecordFromReaderAll(rdr));
-                        }
+                        return ReadRecordFromReaderAll(rdr);
                     }
-
-                    return result;
+                    else
+                        return null;
                 }
             }
         }
 
 
+/*
         /// <summary>
-        /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
-        /// Popstamp is used by the caller to release the items when they have been successfully processed, or
+        /// Pops 'count' items from the outbox. The items remain in the DB with the 'checkOutStamp' unique identifier.
+        /// checkOutStamp is used by the caller to release the items when they have been successfully processed, or
         /// to cancel the transaction and restore the items to the outbox.
         /// </summary
         /// <param name="driveId">Is the outbox to pop from, e.g. Drive A, or App B</param>
         /// <param name="count">How many items to 'pop' (reserve)</param>
-        /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
+        /// <param name="checkOutStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<OutboxRecord> PopSpecificBox(Guid driveId, int count)
+        public List<OutboxRecord> CheckOutItemsForProcessingSpecificBox(Guid driveId, int count)
         {
             lock (_popLock)
             {
@@ -158,11 +177,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popSpecificBoxCommand == null)
                 {
                     _popSpecificBoxCommand = _database.CreateCommand();
-                    _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE driveId=$driveId AND popStamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
-                                              "SELECT rowId,driveId,fileId,recipient,type,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
+                    _popSpecificBoxCommand.CommandText =
+                        "UPDATE outbox SET checkOutStamp=$checkOutStamp "+
+                        "WHERE (checkOutStamp is NULL) AND "+
+                        "fileId IN (SELECT fileid FROM outbox WHERE driveId=$driveId AND checkOutStamp is NULL ORDER BY priority ASC, nextRunStamp ASC LIMIT $count);" +
+                        "SELECT rowid,driveId,fileId,recipient,type,priority,checkOutCount,timeStamp,nextRunStamp,value,checkOutStamp,created,modified FROM outbox WHERE checkOutStamp=$checkOutStamp";
 
                     _psbparam1 = _popSpecificBoxCommand.CreateParameter();
-                    _psbparam1.ParameterName = "$popstamp";
+                    _psbparam1.ParameterName = "$checkOutStamp";
                     _popSpecificBoxCommand.Parameters.Add(_psbparam1);
 
                     _psbparam2 = _popSpecificBoxCommand.CreateParameter();
@@ -196,15 +218,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
         }
-
+*/
 
 
         /// <summary>
         /// Status on the box
         /// </summary>
-        /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
+        /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) PopStatus()
+        public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus()
         {
             lock (_popLock)
             {
@@ -214,8 +236,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popStatusCommand = _database.CreateCommand();
                     _popStatusCommand.CommandText =
                         "SELECT count(*) FROM outbox;" +
-                        "SELECT count(*) FROM outbox WHERE popstamp NOT NULL;" +
-                        "SELECT popstamp FROM outbox ORDER BY popstamp DESC LIMIT 1;";
+                        "SELECT count(*) FROM outbox WHERE checkOutStamp NOT NULL;" +
+                        "SELECT nextRunTime FROM outbox ORDER BY nextRunTime ASC LIMIT 1;";
                     _popStatusCommand.Prepare();
                 }
 
@@ -246,13 +268,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     if (!rdr.Read() || rdr.IsDBNull(0))
                         return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
 
-                    var _guid = new byte[16];
-                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                    if (n != 16)
-                        throw new Exception("Invalid stamp");
-
-                    var guid = new Guid(_guid);
-                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                    Int64 t = rdr.GetInt64(0);
+                    var utc = new UnixTimeUtc(t);
                     return (totalCount, poppedCount, utc);
                 }
             }
@@ -263,9 +280,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Status on the box
         /// </summary>
-        /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
+        /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) PopStatusSpecificBox(Guid driveId)
+        public (int, int, UnixTimeUtc) OutboxStatusSpecificBox(Guid driveId)
         {
             lock (_popLock)
             {
@@ -275,8 +292,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popStatusSpecificBoxCommand = _database.CreateCommand();
                     _popStatusSpecificBoxCommand.CommandText =
                         "SELECT count(*) FROM outbox WHERE driveId=$driveId;" +
-                        "SELECT count(*) FROM outbox WHERE driveId=$driveId AND popstamp NOT NULL;" +
-                        "SELECT popstamp FROM outbox WHERE driveId=$driveId ORDER BY popstamp DESC LIMIT 1;";
+                        "SELECT count(*) FROM outbox WHERE driveId=$driveId AND checkOutStamp NOT NULL;" +
+                        "SELECT nextRunTime FROM outbox WHERE driveId=$driveId ORDER BY nextRunTime ASC LIMIT 1;";
                     _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
                     _pssbparam1.ParameterName = "$driveId";
                     _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
@@ -326,12 +343,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-
         /// <summary>
-        /// Cancels the pop of items with the 'popstamp' from a previous pop operation
+        /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
         /// </summary>
-        /// <param name="popstamp"></param>
-        public void PopCancelAll(Guid popstamp)
+        /// <param name="checkOutStamp"></param>
+        public void CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
             lock (_popLock)
             {
@@ -339,63 +355,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popCancelCommand == null)
                 {
                     _popCancelCommand = _database.CreateCommand();
-                    _popCancelCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp=$popstamp";
+                    _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE checkOutStamp=$checkOutStamp";
 
                     _pcancelparam1 = _popCancelCommand.CreateParameter();
+                    _pcancelparam2 = _popCancelCommand.CreateParameter();
 
-                    _pcancelparam1.ParameterName = "$popstamp";
+                    _pcancelparam1.ParameterName = "$checkOutStamp";
                     _popCancelCommand.Parameters.Add(_pcancelparam1);
+                    
+                    _pcancelparam2.ParameterName = "$nextRunTime";
+                    _popCancelCommand.Parameters.Add(_pcancelparam2);
+
 
                     _popCancelCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = popstamp.ToByteArray();
+                _pcancelparam1.Value = checkOutStamp.ToByteArray();
+                _pcancelparam2.Value = nextRunTime.milliseconds;
 
                 _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
-        public void PopCancelList(Guid popstamp, List<Guid> listFileId)
-        {
-            lock (_popCancelListLock)
-            {
-                // Make sure we only prep once 
-                if (_popCancelListCommand == null)
-                {
-                    _popCancelListCommand = _database.CreateCommand();
-                    _popCancelListCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
-
-                    _pcancellistparam1 = _popCancelListCommand.CreateParameter();
-                    _pcancellistparam1.ParameterName = "$popstamp";
-                    _popCancelListCommand.Parameters.Add(_pcancellistparam1);
-
-                    _pcancellistparam2 = _popCancelListCommand.CreateParameter();
-                    _pcancellistparam2.ParameterName = "$fileid";
-                    _popCancelListCommand.Parameters.Add(_pcancellistparam2);
-
-                    _popCancelListCommand.Prepare();
-                }
-
-                _pcancellistparam1.Value = popstamp.ToByteArray();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
-                    for (int i = 0; i < listFileId.Count; i++)
-                    {
-                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
-                        _database.ExecuteNonQuery(_popCancelListCommand);
-                    }
-                }
-            }
-        }
 
 
         /// <summary>
-        /// Commits (removes) the items previously popped with the supplied 'popstamp'
+        /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
-        /// <param name="popstamp"></param>
-        public void PopCommitAll(Guid popstamp)
+        /// <param name="checkOutStamp"></param>
+        public void CompleteAndRemove(Guid checkOutStamp)
         {
             lock (_popLock)
             {
@@ -403,16 +391,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommitCommand == null)
                 {
                     _popCommitCommand = _database.CreateCommand();
-                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE popstamp=$popstamp";
+                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE checkOutStamp=$checkOutStamp";
 
                     _pcommitparam1 = _popCommitCommand.CreateParameter();
-                    _pcommitparam1.ParameterName = "$popstamp";
+                    _pcommitparam1.ParameterName = "$checkOutStamp";
                     _popCommitCommand.Parameters.Add(_pcommitparam1);
 
                     _popCommitCommand.Prepare();
                 }
 
-                _pcommitparam1.Value = popstamp.ToByteArray();
+                _pcommitparam1.Value = checkOutStamp.ToByteArray();
 
                 _database.ExecuteNonQuery(_popCommitCommand);
             }
@@ -420,10 +408,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
 
         /// <summary>
-        /// Commits (removes) the items previously popped with the supplied 'popstamp'
+        /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
-        /// <param name="popstamp"></param>
-        public void PopCommitList(Guid popstamp, List<Guid> listFileId)
+        /// <param name="checkOutStamp"></param>
+        public void CompleteAndRemoveList(Guid checkOutStamp, List<Guid> listFileId)
         {
             lock (_popCommitListLock)
             {
@@ -431,10 +419,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommitListCommand == null)
                 {
                     _popCommitListCommand = _database.CreateCommand();
-                    _popCommitListCommand.CommandText = "DELETE FROM outbox WHERE fileid=$fileid AND popstamp=$popstamp";
+                    _popCommitListCommand.CommandText = "DELETE FROM outbox WHERE fileid=$fileid AND checkOutStamp=$checkOutStamp";
 
                     _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
-                    _pcommitlistparam1.ParameterName = "$popstamp";
+                    _pcommitlistparam1.ParameterName = "$checkOutStamp";
                     _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
 
                     _pcommitlistparam2 = _popCommitListCommand.CreateParameter();
@@ -444,7 +432,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popCommitListCommand.Prepare();
                 }
 
-                _pcommitlistparam1.Value = popstamp.ToByteArray();
+                _pcommitlistparam1.Value = checkOutStamp.ToByteArray();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -464,18 +452,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void PopRecoverDead(UnixTimeUtc UnixTimeSeconds)
+        public void RecoverCheckedOutDeadItems(UnixTimeUtc UnixTimeSeconds)
         {
             lock (_popLock)
             {
                 if (_popRecoverCommand == null)
                 {
                     _popRecoverCommand = _database.CreateCommand();
-                    _popRecoverCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp < $popstamp";
+                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL WHERE checkOutStamp < $checkOutStamp";
 
                     _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
 
-                    _pcrecoverparam1.ParameterName = "$popstamp";
+                    _pcrecoverparam1.ParameterName = "$checkOutStamp";
                     _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
 
                     _popRecoverCommand.Prepare();
