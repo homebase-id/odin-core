@@ -35,6 +35,10 @@ public class YouAuthAppParameters
     [JsonPropertyName(CircleDrivesParamName)]
     public string CircleDrivesParam { get; set; } = "";
 
+    public const string CircleParamName = "c";
+    [JsonPropertyName(CircleParamName)]
+    public string CircleParam { get; set; } = "";
+
     public const string PermissionParamName = "p";
     [JsonPropertyName(PermissionParamName)]
     public string PermissionParam { get; set; } = "";
@@ -63,6 +67,7 @@ public class YouAuthAppParameters
         string clientFriendly,
         string drivesParam,
         string circleDrivesParam,
+        string circleParam,
         string permissionParam,
         string @return,
         string cancel)
@@ -73,6 +78,7 @@ public class YouAuthAppParameters
         ClientFriendly = clientFriendly;
         DrivesParam = drivesParam;
         CircleDrivesParam = circleDrivesParam;
+        CircleParam = circleParam;
         PermissionParam = permissionParam;
         Return = @return;
         Cancel = cancel;
@@ -89,6 +95,7 @@ public class YouAuthAppParameters
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
         qs[CircleDrivesParamName] = CircleDrivesParam;
+        qs[CircleParamName] = CircleParam;
         qs[PermissionParamName] = PermissionParam;
         qs[ReturnName] = Return;
         qs[CancelName] = Cancel;
@@ -109,6 +116,7 @@ public class YouAuthAppParameters
             clientFriendly: qs[ClientFriendlyName] ?? string.Empty,
             drivesParam: qs[DrivesParamName] ?? string.Empty,
             circleDrivesParam: qs[CircleDrivesParamName] ?? string.Empty,
+            circleParam: qs[CircleParamName] ?? string.Empty,
             permissionParam: qs[PermissionParamName] ?? string.Empty,
             @return: qs[ReturnName] ?? string.Empty,
             cancel: qs[CancelName] ?? string.Empty);
