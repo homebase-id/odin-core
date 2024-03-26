@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -30,13 +32,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
     public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
-        : IPeerOutbox
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
         /// <param name="item"></param>
-        public Task Add(TransitOutboxItem item)
+        public Task Add(OutboxItem item)
         {
             //TODO: change to use batching inserts
 
@@ -45,10 +46,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 Recipient = item.Recipient,
                 IsTransientFile = item.IsTransientFile,
-                Attempts = { },
                 TransferInstructionSet = item.TransferInstructionSet,
                 OriginalTransitOptions = item.OriginalTransitOptions,
-                EncryptedClientAuthToken = item.EncryptedClientAuthToken
+                EncryptedClientAuthToken = item.EncryptedClientAuthToken,
+                Attempts = { },
+
             }).ToUtf8ByteArray();
 
             tenantSystemStorage.Outbox.Insert(new OutboxRecord()
@@ -57,21 +59,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
                 priority = item.Priority,
+                type = (int)item.Type,
                 value = state
             });
 
             var sender = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-
-            return Task.CompletedTask;
-        }
-
-        public Task Add(IEnumerable<TransitOutboxItem> items)
-        {
-            foreach (var item in items)
-            {
-                Add(item);
-            }
 
             return Task.CompletedTask;
         }
@@ -85,24 +78,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(Guid marker, TransferResult reason)
+        public Task MarkFailure(Guid marker, TransferResult reason)
         {
             tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
             //TODO: there is no way to keep information on why an item failed
             tenantSystemStorage.Outbox.PopCancelAll(marker);
-
-            // if (null == item)
-            // {
-            //     return;
-            // }
-
-            // item.Attempts.Add(new TransferAttempt()
-            // {
-            //     TransferFailureReason = reason,
-            //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            // });
-
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public Task RecoverDead(UnixTimeUtc time)
@@ -111,7 +92,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
+        public async Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
             var records = tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize);
@@ -119,12 +100,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var items = records.Select(r =>
             {
                 var state = OdinSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
-                return new TransitOutboxItem()
+                return new OutboxItem()
                 {
                     Recipient = (OdinId)state!.Recipient,
                     IsTransientFile = state!.IsTransientFile,
-                    Priority = (int)r.priority,
+                    Priority = r.priority,
                     AddedTimestamp = r.timeStamp.seconds,
+                    Type = (OutboxItemType)r.type,
                     TransferInstructionSet = state.TransferInstructionSet,
                     File = new InternalDriveFileId()
                     {

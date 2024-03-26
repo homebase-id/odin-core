@@ -20,6 +20,8 @@ public enum ClientNotificationType
     ReactionContentAdded = 2003,
     ReactionContentDeleted = 2004,
     AllReactionsByFileDeleted = 2005,
-
+    
+    OutboxItemProcessed = 5005,
+    
     Error = 0xBADBEEF
 }
