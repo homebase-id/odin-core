@@ -78,6 +78,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             // note: if this fires in a background thread, i lose access to context so i need t pass it all in
             // var _ = ProcessDriveOutbox(internalFile.DriveId);
+            //TODO: need to send these in parallel threads now
             await ProcessDriveOutbox(internalFile.DriveId); //TODO work with seb to sort out how to multi-thread this
 
             return await MapOutboxCreationResult(outboxStatus);
