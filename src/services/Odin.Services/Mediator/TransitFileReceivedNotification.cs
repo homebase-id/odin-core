@@ -16,3 +16,6 @@ public class TransitFileReceivedNotification : EventArgs, INotification
     public FileSystemType FileSystemType { get; set; }
     public TransferFileType TransferFileType { get; set; }
 }
+
+
+

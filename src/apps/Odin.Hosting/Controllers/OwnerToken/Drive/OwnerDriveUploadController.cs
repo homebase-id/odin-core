@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary/>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
-        public async Task<UploadResult> Upload()
+        public async Task<IActionResult> Upload()
         {
             return await base.ReceiveFileStream();
         }

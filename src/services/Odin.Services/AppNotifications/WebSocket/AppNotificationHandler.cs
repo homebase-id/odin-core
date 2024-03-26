@@ -11,14 +11,13 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
+using Odin.Services.Mediator.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Services.AppNotifications.WebSocket
@@ -26,7 +25,8 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class AppNotificationHandler :
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>,
-        INotificationHandler<TransitFileReceivedNotification>
+        INotificationHandler<TransitFileReceivedNotification>,
+        INotificationHandler<OutboxItemProcessedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly OdinContextAccessor _contextAccessor;
@@ -180,7 +180,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             var json = OdinSystemSerializer.Serialize(new
             {
-                NotificationType = notification.NotificationType,
+                notification.NotificationType,
                 Data = notification.GetClientData()
             });
 
@@ -218,11 +218,30 @@ namespace Odin.Services.AppNotifications.WebSocket
                 OdinSystemSerializer.Serialize(new
                 {
                     ExternalFileIdentifier = notification.TempFile,
-                    TransferFileType = notification.TransferFileType,
-                    FileSystemType = notification.FileSystemType
+                    notification.TransferFileType,
+                    notification.FileSystemType
                 }));
 
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
+        }
+
+        //
+
+        public async Task Handle(OutboxItemProcessedNotification notification, CancellationToken cancellationToken)
+        {
+            var translated = new TranslatedClientNotification(notification.NotificationType,
+                OdinSystemSerializer.Serialize(new
+                {
+                    ExternalFileIdentifier = new ExternalFileIdentifier()
+                    {
+                        FileId = notification.File.FileId,
+                        TargetDrive = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(notification.File.DriveId)
+                    },
+                    notification.TransferStatus,
+                    notification.FileSystemType
+                }));
+
+            await SerializeSendToAllDevicesForDrive(notification.File.DriveId, translated, cancellationToken, false);
         }
 
         //
@@ -235,7 +254,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var json = OdinSystemSerializer.Serialize(new
             {
-                NotificationType = notification.NotificationType,
+                notification.NotificationType,
                 Data = notification.GetClientData()
             });
 
@@ -394,7 +413,5 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             return flags;
         }
-
-        //
     }
 }

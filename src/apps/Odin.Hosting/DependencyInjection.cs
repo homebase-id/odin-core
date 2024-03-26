@@ -44,6 +44,7 @@ using Odin.Services.Registry;
 using Odin.Services.Tenant;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Mediator.Outbox;
 
 namespace Odin.Hosting
 {
@@ -83,6 +84,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                .As<INotificationHandler<OutboxItemProcessedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -119,7 +121,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-
+            cb.RegisterType<TransferHistoryFileUpdater>()
+                .As<INotificationHandler<OutboxItemProcessedNotification>>()
+                .SingleInstance();
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
 
@@ -171,7 +175,7 @@ namespace Odin.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<PeerOutbox>().As<IPeerOutbox>().SingleInstance();
+            cb.RegisterType<PeerOutbox>().SingleInstance();
 
             cb.RegisterType<PeerInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()

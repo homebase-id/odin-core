@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.System
     public class OutboxProcessorController(
         OdinConfiguration config,
         IPeerOutgoingTransferService peerOutgoingTransfer,
-        IPeerOutbox outbox,
+        PeerOutbox outbox,
         TransitInboxBoxStorage inbox) : ControllerBase
     {
         [HttpPost("process")]

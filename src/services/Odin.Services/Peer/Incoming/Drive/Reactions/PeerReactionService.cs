@@ -24,7 +24,7 @@ public class PeerReactionService(
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
         var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload);
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -37,7 +37,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
 
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -50,7 +50,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
 
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -63,7 +63,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload);
 
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -76,7 +76,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
 
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");
@@ -89,7 +89,7 @@ public class PeerReactionService(
     {
         var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
 
-        var fileId = await ResolveInternalFile(request.File);
+        var fileId = await ResolveInternalFileByGlobalTransitId(request.File);
         if (null == fileId)
         {
             throw new OdinRemoteIdentityException("Invalid global transit id");

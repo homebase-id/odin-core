@@ -102,7 +102,7 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
+        protected async Task<InternalDriveFileId?> ResolveInternalFileByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
             var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file);
             return fileId;
