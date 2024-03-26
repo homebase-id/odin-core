@@ -121,7 +121,9 @@ namespace Odin.Hosting
 
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-            cb.RegisterType<TransferHistoryFileUpdater>().SingleInstance();
+            cb.RegisterType<TransferHistoryFileUpdater>()
+                .As<INotificationHandler<OutboxItemProcessedNotification>>()
+                .SingleInstance();
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
 

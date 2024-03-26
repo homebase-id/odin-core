@@ -1,14 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
 namespace Odin.Hosting.Controllers.Base.Drive
@@ -21,7 +20,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveFileStream()
+        protected async Task<IActionResult> ReceiveFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -47,7 +46,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             await driveUploadService.AddMetadata(section!.Body);
-            
+
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
@@ -68,7 +67,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var status = await driveUploadService.FinalizeUpload();
-            return status;
+            //TODO: drop in url; but which?
+            return Accepted("", status);
         }
 
         /// <summary>

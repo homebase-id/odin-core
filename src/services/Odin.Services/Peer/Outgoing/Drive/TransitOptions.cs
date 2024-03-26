@@ -48,6 +48,12 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// </summary>
         //TODO: hack - This is a hack in place for alpha to support transit direct send
         public Guid? OverrideRemoteGlobalTransitId { get; set; }
+        
+        /// <summary>
+        /// If specified, this item will not be sent before the id specified in OutboxDependencyId 
+        /// </summary>
+        public Guid? OutboxDependencyId { get; set; }
+
     }
 
     [Flags]

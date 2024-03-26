@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/send")]
-        public async Task<TransitResult> SendFile()
+        public async Task<IActionResult> SendFile()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -86,9 +86,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             var uploadResult = await fileSystemWriter.FinalizeUpload();
 
+
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
-            return new TransitResult()
+            var result = new TransitResult()
             {
                 RemoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
                 {
@@ -97,6 +98,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 },
                 RecipientStatus = uploadResult.RecipientStatus
             };
+
+            //TODO: drop in url; but which?
+            return Accepted("", result);
         }
 
 

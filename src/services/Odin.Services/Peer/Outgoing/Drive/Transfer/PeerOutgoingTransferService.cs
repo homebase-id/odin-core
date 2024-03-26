@@ -31,6 +31,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 using Refit;
+using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -75,9 +76,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var priority = options.Schedule == ScheduleOptions.SendNowAwaitResponse ? 100 : 200;
             var outboxStatus = await EnqueueOutboxItems(internalFile, options, sfo, priority, OutboxItemType.File);
 
-#pragma warning disable CS4014 // let this fire in the background
-            Task.Run(async () => await ProcessOutbox()); //TODO: should this we while(true)? or use jobmanager?
-#pragma warning restore CS4014
+            // note: if this fires in a background thread, i lose access to context so i need t pass it all in
+            // var _ = ProcessDriveOutbox(internalFile.DriveId);
+            await ProcessDriveOutbox(internalFile.DriveId); //TODO work with seb to sort out how to multi-thread this
 
             return await MapOutboxCreationResult(outboxStatus);
         }
@@ -148,16 +149,23 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task ProcessDriveOutbox(Guid driveId)
         {
-            var batchSize = odinConfiguration.Transit.OutboxBatchSize;
-            var batch = await peerOutbox.GetBatchForProcessing(driveId, batchSize);
+            try
+            {
+                var batchSize = odinConfiguration.Transit.OutboxBatchSize;
+                var batch = await peerOutbox.GetBatchForProcessing(driveId, batchSize);
 
-            //
-            // Send by recipient in parallel
-            //
-            var recipientSendTasks = new List<Task>();
-            var groups = batch.GroupBy(b => b.Recipient);
-            recipientSendTasks.AddRange(groups.Select(SendOutboxItemsBatchToRecipient));
-            await Task.WhenAll(recipientSendTasks);
+                //
+                // Send by recipient in parallel
+                //
+                var recipientSendTasks = new List<Task>();
+                var groups = batch.GroupBy(b => b.Recipient);
+                recipientSendTasks.AddRange(groups.Select(SendOutboxItemsBatchToRecipient));
+                await Task.WhenAll(recipientSendTasks);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Unhandled Exception occured while processing the drive outbox for drive {driveId}", driveId);
+            }
         }
 
         private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
@@ -229,7 +237,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         case TransferResult.UnknownError:
                             await peerOutbox.MarkComplete(result.OutboxItem.Marker);
                             break;
-                        
+
                         default:
                             await peerOutbox.MarkComplete(result.OutboxItem.Marker);
                             logger.LogError("Unhandled transfer result was found {tr}", result.TransferResult);
@@ -241,8 +249,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 {
                     Recipient = result.Recipient,
                     File = result.File,
+                    VersionTag = result.VersionTag,
                     FileSystemType = result.OutboxItem.TransferInstructionSet.FileSystemType,
-                    TransferStatus = MapTransferResultToStatus(result.TransferResult) //TODO: i think i can drop this transfer status
+                    TransferStatus =
+                        MapTransferResultToStatus(result.TransferResult, result.RecipientPeerResponseCode) //TODO: i think i can drop this transfer status
                 });
             }
 
@@ -252,13 +262,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
                 await fs.Storage.HardDeleteLongTermFile(item.File);
             }
-
         }
 
-        private TransferStatus MapTransferResultToStatus(TransferResult transferResult)
+        private TransferStatus MapTransferResultToStatus(TransferResult transferResult, PeerResponseCode? responseCode)
         {
             switch (transferResult)
             {
+                case TransferResult.Success:
+                    return responseCode == PeerResponseCode.AcceptedDirectWrite ? TransferStatus.DeliveredToTargetDrive : TransferStatus.DeliveredToInbox;
+
                 case TransferResult.EncryptedTransferInstructionSetNotAvailable:
                     return TransferStatus.PendingRetry;
 
@@ -290,6 +302,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var options = outboxItem.OriginalTransitOptions;
 
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
+            var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
             if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
@@ -297,6 +310,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new OutboxProcessingResult()
                 {
                     File = file,
+                    VersionTag = versionTag,
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     TransferResult = TransferResult.RecipientDoesNotHavePermissionToFileAcl,
@@ -311,6 +325,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new OutboxProcessingResult()
                 {
                     File = file,
+                    VersionTag = versionTag,
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     TransferResult = TransferResult.EncryptedTransferInstructionSetNotAvailable,
@@ -340,6 +355,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new OutboxProcessingResult()
                 {
                     File = file,
+                    VersionTag = versionTag,
                     Recipient = recipient,
                     Timestamp = UnixTimeUtc.Now().milliseconds,
                     TransferResult = TransferResult.FileDoesNotAllowDistribution,
@@ -364,7 +380,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 ReactionPreview = sourceMetadata.ReactionPreview,
                 SenderOdinId = sourceMetadata.SenderOdinId,
                 ReferencedFile = sourceMetadata.ReferencedFile,
-                VersionTag = sourceMetadata.VersionTag,
+                VersionTag = versionTag,
                 Payloads = sourceMetadata.Payloads,
                 FileState = sourceMetadata.FileState,
             };
@@ -429,6 +445,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new OutboxProcessingResult()
                 {
                     File = file,
+                    VersionTag = versionTag,
                     Recipient = recipient,
                     RecipientPeerResponseCode = peerCode,
                     TransferResult = transferResult,
@@ -446,6 +463,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return new OutboxProcessingResult()
                 {
                     File = file,
+                    VersionTag = versionTag,
                     Recipient = recipient,
                     RecipientPeerResponseCode = null,
                     TransferResult = tr,

@@ -1,32 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Util;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 {
-    internal class FileSendResponse
-    {
-        public UploadResult UploadResult { get; set; }
-        public string DecryptedContent { get; set; }
-        public string EncryptedContent64 { get; set; }
-    }
-
-    public class OutboxProcessingTests
+    public class OutboxProcessingSingleRecipientTests
     {
         private WebScaffold _scaffold;
 
@@ -45,7 +38,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
         }
 
         [Test]
-        public async Task OutboxSendNowAwaitResponse()
+        public async Task SenderCanReceiveHttpAcceptedStatusCodeWhenTransferringFile()
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -56,7 +49,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
 
             const string uploadedContent = "pie";
-            
+
             var fileMetadata = new UploadFileMetadata()
             {
                 AllowDistribution = true,
@@ -91,11 +84,245 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
 
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
             var uploadResult = uploadResponse.Content;
-
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.DeliveredToInbox);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.TransferKeyCreated);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        public async Task RecipientTransferHistoryOnSenderIsUpdatedWhenTransferringFileToSingleRecipient()
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            const string uploadedContent = "pie";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = true,
+                IsEncrypted = true,
+                AppData = new()
+                {
+                    Content = uploadedContent,
+                    FileType = default,
+                    GroupId = default,
+                    Tags = default
+                },
+                AccessControlList = AccessControlList.Connected
+            };
+
+            var storageOptions = new StorageOptions()
+            {
+                Drive = targetDrive
+            };
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId],
+                IsTransient = false,
+                UseGlobalTransitId = true,
+                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                RemoteTargetDrive = default
+            };
+
+            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+                fileMetadata,
+                storageOptions,
+                transitOptions
+            );
+
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
+            var uploadResult = uploadResponse.Content;
+            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.TransferKeyCreated);
+
+            // Assert: file that was sent has peer transfer status updated
+            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content;
+
+            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+            Assert.IsNull(recipientStatus.LatestProblemStatus);
+            Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+
+            //TODO: revisit when michael's outbox code is present
+            // Process the outbox
+
+            // senderOwnerClient.DriveRedux.ProcessOutbox()
+            // check the file again
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        public async Task GetModifiedOfSenderFilesIncludesFilesWithUpdatedPeerTransferStatusAndCanExcludeRecipientTransferHistory()
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            const string uploadedContent = "pie";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = true,
+                IsEncrypted = true,
+                AppData = new()
+                {
+                    Content = uploadedContent,
+                    FileType = 1011,
+                    GroupId = default,
+                    Tags = default
+                },
+                AccessControlList = AccessControlList.Connected
+            };
+
+            var storageOptions = new StorageOptions()
+            {
+                Drive = targetDrive
+            };
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId],
+                IsTransient = false,
+                UseGlobalTransitId = true,
+                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                RemoteTargetDrive = default
+            };
+
+            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+                fileMetadata,
+                storageOptions,
+                transitOptions
+            );
+
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
+            var uploadResult = uploadResponse.Content;
+            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.TransferKeyCreated);
             
+            //Get modified to results ensure it will show up after a transfer
+            var queryModifiedResponse = await senderOwnerClient.DriveRedux.QueryModified(new QueryModifiedRequest()
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = targetDrive,
+                    FileType = [fileMetadata.AppData.FileType]
+                },
+                ResultOptions = new QueryModifiedResultOptions()
+                {
+                    MaxDate = UnixTimeUtc.Now().AddSeconds(-100).milliseconds
+                }
+            });
+
+            Assert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
+            var modifiedResults = queryModifiedResponse.Content;
+            var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
+            Assert.IsNotNull(fileInResults);
+            
+            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var statusFromGetModifiedResults));
+            Assert.IsNotNull(statusFromGetModifiedResults, "There should be a status update for the recipient");
+            Assert.IsNull(statusFromGetModifiedResults.LatestProblemStatus);
+            Assert.IsTrue(statusFromGetModifiedResults.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+            
+            //TODO: revisit when michael's outbox code is present
+            // Process the outbox
+
+            // senderOwnerClient.DriveRedux.ProcessOutbox()
+            // check the file again
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        
+        [Test]
+        public async Task GetBatchOnSenderCanExcludeRecipientTransferHistory()
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            const string uploadedContent = "pie";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = true,
+                IsEncrypted = true,
+                AppData = new()
+                {
+                    Content = uploadedContent,
+                    FileType = default,
+                    GroupId = default,
+                    Tags = default
+                },
+                AccessControlList = AccessControlList.Connected
+            };
+
+            var storageOptions = new StorageOptions()
+            {
+                Drive = targetDrive
+            };
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId],
+                IsTransient = false,
+                UseGlobalTransitId = true,
+                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                RemoteTargetDrive = default
+            };
+
+            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+                fileMetadata,
+                storageOptions,
+                transitOptions
+            );
+
+            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
+            var uploadResult = uploadResponse.Content;
+            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.TransferKeyCreated);
+
+            // Assert: file that was sent has peer transfer status updated
+            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content;
+
+            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+            Assert.IsNull(recipientStatus.LatestProblemStatus);
+            Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+
+            //TODO: revisit when michael's outbox code is present
+            // Process the outbox
+
+            Assert.Fail("WIP");
+
+            // senderOwnerClient.DriveRedux.ProcessOutbox()
+            // check the file again
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 

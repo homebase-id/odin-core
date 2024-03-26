@@ -1,10 +1,9 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -39,19 +38,57 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return;
             }
 
-            // update the file for the outbox item with the latest status for all recipients
-
             //TODO: consider the structure here, should i use a dictionary instead?
-            var recipient = notification.Recipient;
-            var history = header.FileMetadata.TransferHistory ?? new RecipientTransferHistory();
-            var items = history.Items ?? new List<RecipientTransferHistoryItem>();
+            var recipient = notification.Recipient.ToString().ToLower();
+            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+            if (history.Items == null)
+            {
+                history.Items = new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
+            }
 
-            var recipientItem = items.SingleOrDefault(item => item.Recipient == recipient) ?? new RecipientTransferHistoryItem();
-            recipientItem.Recipient = recipient;
-            recipientItem.Status = notification.TransferStatus;
+            if (!history.Items.TryGetValue(recipient, out var recipientItem))
+            {
+                recipientItem = new RecipientTransferHistoryItem();
+                history.Items.Add(recipient, recipientItem);
+            }
+
+            var problemStatus = MapStatus(notification.TransferStatus);
             recipientItem.LastUpdated = UnixTimeUtc.Now();
+            recipientItem.LatestProblemStatus = problemStatus;
+            if (problemStatus == null)
+            {
+                recipientItem.LatestSuccessfullyDeliveredVersionTag = notification.VersionTag;
+            }
 
-            await fs.Storage.UpdateActiveFileHeader(notification.File, header);
+            header.ServerMetadata.TransferHistory = history;
+            await fs.Storage.UpdateActiveFileHeader(notification.File, header, true);
+        }
+
+        private LatestProblemStatus? MapStatus(TransferStatus status)
+        {
+            switch (status)
+            {
+                case TransferStatus.PendingRetry:
+                    return LatestProblemStatus.ServerPendingRetry;
+
+                case TransferStatus.TotalRejectionClientShouldRetry:
+                    return LatestProblemStatus.ClientMustRetry;
+
+                case TransferStatus.FileDoesNotAllowDistribution:
+                case TransferStatus.RecipientDoesNotHavePermissionToFileAcl:
+                    return LatestProblemStatus.LocalFileDistributionDenied;
+
+                case TransferStatus.RecipientReturnedAccessDenied:
+                    return LatestProblemStatus.AccessDenied;
+
+                case TransferStatus.AwaitingTransferKey:
+                case TransferStatus.TransferKeyCreated:
+                case TransferStatus.DeliveredToInbox:
+                case TransferStatus.DeliveredToTargetDrive:
+                    return null;
+            }
+
+            return null;
         }
     }
 }

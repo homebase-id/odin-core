@@ -60,8 +60,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Int64 TransitUpdated { get; set; }
 
-        public RecipientTransferHistory TransferHistory { get; set; }
-
         public ReactionSummary ReactionPreview { get; set; }
 
         /// <summary>
@@ -92,14 +90,45 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class RecipientTransferHistory
     {
-        public List<RecipientTransferHistoryItem> Items { get; set; }
+        public Dictionary<string, RecipientTransferHistoryItem> Items { get; set; } = 
+            new (StringComparer.InvariantCultureIgnoreCase);
     }
 
     public class RecipientTransferHistoryItem
     {
-        public OdinId Recipient { get; set; }
         public UnixTimeUtc LastUpdated { get; set; }
-        public TransferStatus Status { get; set; }
+
+        /// <summary>
+        /// Indicates the latest known status of a transfer as of the LastUpdated timestmp.  If null
+        /// </summary>
+        public LatestProblemStatus? LatestProblemStatus { get; set; }
+
+        /// <summary>
+        /// If set, indicates the last version tag of this file that was sent to this recipient
+        /// </summary>
+        public Guid? LatestSuccessfullyDeliveredVersionTag { get; set; }
     }
 
+    public enum LatestProblemStatus
+    {
+        /// <summary>
+        /// Indicates something failed on the server and the client should retry sending 
+        /// </summary>
+        ClientMustRetry = 1,
+
+        /// <summary>
+        /// The server is attempting recover from the previous send
+        /// </summary>
+        ServerPendingRetry = 12,
+
+        /// <summary>
+        /// Caller does not have access to the recipient server
+        /// </summary>
+        AccessDenied = 403,
+
+        /// <summary>
+        /// The local file cannot be sent due to it's settings or recipient's permissions
+        /// </summary>
+        LocalFileDistributionDenied = 505
+    }
 }

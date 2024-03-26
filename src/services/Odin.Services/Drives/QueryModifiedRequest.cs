@@ -50,10 +50,14 @@ public class GetQueryModifiedRequest
     public bool IncludeHeaderContent { get; set; }
     public bool ExcludePreviewThumbnail { get; set; }
 
-     public QueryModifiedRequest ToQueryModifiedRequest () {
-        return new QueryModifiedRequest() {
-            QueryParams = new FileQueryParams() {
-                TargetDrive = new TargetDrive() {
+    public QueryModifiedRequest ToQueryModifiedRequest()
+    {
+        return new QueryModifiedRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = new TargetDrive()
+                {
                     Alias = this.Alias,
                     Type = this.Type,
                 },
@@ -62,13 +66,16 @@ public class GetQueryModifiedRequest
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,
-                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc) this.UserDateStart.Value,(UnixTimeUtc) this.UserDateEnd.Value) : null,
+                UserDate = this.UserDateStart != null && this.UserDateEnd != null
+                    ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value)
+                    : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
                 GlobalTransitId = this.GlobalTransitId,
             },
-            ResultOptions = new QueryModifiedResultOptions() {
+            ResultOptions = new QueryModifiedResultOptions()
+            {
                 MaxDate = this.MaxDate,
                 Cursor = this.Cursor,
                 MaxRecords = this.MaxRecords,
@@ -76,5 +83,5 @@ public class GetQueryModifiedRequest
                 ExcludePreviewThumbnail = this.ExcludePreviewThumbnail,
             }
         };
-     }
+    }
 }

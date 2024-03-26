@@ -14,7 +14,14 @@ public class OutboxItemProcessedNotification : EventArgs, INotification
 
     public OdinId Recipient { get; set; }
     public InternalDriveFileId File { get; set; }
+
+    /// <summary>
+    /// The version tag of the File that was processed
+    /// </summary>
+    public Guid VersionTag { get; set; }
+
     public FileSystemType FileSystemType { get; set; }
     
     public TransferStatus TransferStatus { get; set; }
+    
 }

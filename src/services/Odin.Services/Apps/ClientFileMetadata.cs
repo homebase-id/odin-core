@@ -42,7 +42,7 @@ public class ClientFileMetadata
     public Guid VersionTag { get; set; }
     
     public List<PayloadDescriptor> Payloads { get; set; }
-
+    
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {
         return Payloads?.SingleOrDefault(p => string.Equals(p.Key, key, StringComparison.InvariantCultureIgnoreCase));

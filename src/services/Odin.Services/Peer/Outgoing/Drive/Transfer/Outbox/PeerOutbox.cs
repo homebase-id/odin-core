@@ -60,6 +60,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 fileId = item.File.FileId,
                 priority = item.Priority,
                 type = (int)item.Type,
+                // dependency = item.OriginalTransitOptions.OutboxDependencyId,
                 value = state
             });
 
