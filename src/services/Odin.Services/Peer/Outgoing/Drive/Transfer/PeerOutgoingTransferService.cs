@@ -246,6 +246,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     }
                 }
 
+                //TODO: perhaps this calls to the PeerTransferHistoryUpdater to update the file, and then the PeerTransferHistoryUpdater raises an event?
+                
                 await mediator.Publish(new OutboxItemProcessedNotification
                 {
                     Recipient = result.Recipient,
