@@ -6,7 +6,7 @@ namespace Odin.Services.AppNotifications.Push;
 
 public interface IDevicePushNotificationApi
 {
-    [Post("/message")]
-    Task<string> PostMessage([Body] DevicePushNotificationRequest request);
+    [Post("/message/v1")]
+    Task<string> PostMessage([Body] DevicePushNotificationRequestV1 request);
 }
 

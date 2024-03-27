@@ -155,7 +155,10 @@ public class PushNotificationService(
             }
             else
             {
-                tasks.Add(DevicePush(subscription, content));
+                foreach (var payload in content.Payloads)
+                {
+                    tasks.Add(DevicePush(subscription, payload));
+                }
             }
         }
         await Task.WhenAll(tasks);
@@ -181,19 +184,18 @@ public class PushNotificationService(
         }
     }
 
-    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationContent content)
+    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload)
     {
         contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         // SEB:TODO popluate the request
-        var request = new DevicePushNotificationRequest()
+        var request = new DevicePushNotificationRequestV1
         {
-            CorrelationId = correlationContext.Id,
             DeviceToken = subscription.FirebaseDeviceToken,
-            Title = "The Title",
-            Body = "The Body",
-            OriginDomain = "The Origin Domain",
-            Signature = "The Signature"
+            OriginDomain = "SEB:TODO",
+            Signature = "SEB:TODO",
+            CorrelationId = correlationContext.Id,
+            Data = OdinSystemSerializer.Serialize(payload)
         };
 
         logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);

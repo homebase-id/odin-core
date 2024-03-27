@@ -51,11 +51,11 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/ping", () => "pong");
 
-app.MapPost("/message", async (
+app.MapPost("/message/v1", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
-        IValidator<DevicePushNotificationRequest> validator,
-        [FromBody] DevicePushNotificationRequest request) =>
+        IValidator<DevicePushNotificationRequestV1> validator,
+        [FromBody] DevicePushNotificationRequestV1 request) =>
     {
         var validationResult = validator.Validate(request);
         if (!validationResult.IsValid)
@@ -65,7 +65,7 @@ app.MapPost("/message", async (
 
         try
         {
-            var response = await pushNotification.PostAsNotifee(request);
+            var response = await pushNotification.Post(request);
             logger.LogInformation("Successfully sent message: {response}", response);
             return Results.Ok("Message sent successfully to Firebase.");
         }
@@ -86,14 +86,17 @@ app.Run();
 
 //
 
-public class PushNotificationRequestValidator : AbstractValidator<DevicePushNotificationRequest>
+public class PushNotificationRequestValidator : AbstractValidator<DevicePushNotificationRequestV1>
 {
     public PushNotificationRequestValidator()
     {
-        RuleFor(request => request.CorrelationId).NotEmpty();
+        RuleFor(request => request.Version).Equal(1);
         RuleFor(request => request.DeviceToken).NotEmpty();
-        RuleFor(request => request.Title).NotEmpty();
-        RuleFor(request => request.Body).NotEmpty();
+        RuleFor(request => request.OriginDomain).NotEmpty();
+        RuleFor(request => request.Signature).NotEmpty();
+        RuleFor(request => request.Id).NotEmpty();
+        RuleFor(request => request.CorrelationId).NotEmpty();
+        RuleFor(request => request.Data).NotEmpty();
 
         // SEB:TODO the sender signs the message using his private key from his SSL certificate.
         // The recipient then uses OriginDomain to look up the public key from the sender's SSL certificate
