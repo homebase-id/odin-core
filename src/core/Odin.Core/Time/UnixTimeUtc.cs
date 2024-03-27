@@ -44,14 +44,16 @@ namespace Odin.Core.Time
     }
 
     /// <summary>
-    /// UnixTimeUtc: Keeps track of UNIX time in milliseconds since UTC January 1, year 1970 gregorian.
-    /// Immutable. Once set, cannot be altered. Negative are in the past
+    /// UnixTimeUtc: Keeps track of UNIX time in milliseconds since UTC January 1, year 1970 gregorian (0 = Unix epoch)
+    /// comptabile with Nodatime
+    /// Immutable. Once set, cannot be altered. Negative are in the past, aka before the Unix epoch
     /// Simply a Int64 in a fancy class.
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
     public struct UnixTimeUtc
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
+        public static readonly UnixTimeUtc MaxTime  = new UnixTimeUtc((long) 0xFFF_FFFF_FFFF_FFFF); // TODO - find the max
 
         public UnixTimeUtc()
         {

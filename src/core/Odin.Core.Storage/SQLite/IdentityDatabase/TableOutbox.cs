@@ -19,10 +19,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteParameter _paparam3 = null;
         private static Object _popAllLock = new Object();
 
+        private SqliteCommand _nextScheduleCommand = null;
+        private SqliteParameter _nextScheduleParam1 = null;
+        private static Object _nextScheduleLock = new Object();
+
+
         private SqliteCommand _popStatusCommand = null;
+        private SqliteParameter _pscParam1 = null;
 
         private SqliteCommand _popStatusSpecificBoxCommand = null;
-        private SqliteParameter _pssbparam1 = null;
+        private SqliteParameter _pssbParam1 = null;
+        private SqliteParameter _pssbParam2 = null;
 
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
@@ -43,6 +50,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
+
+        private const string whereClause = 
+            "WHERE (checkOutStamp is NULL) AND " +
+                        "   fileId IN (" +
+                        "      SELECT fileid " +
+                        "      FROM outbox " +
+                        "      WHERE " +
+                        "        checkOutStamp is NULL AND " +
+                        "        nextRunTime <= $now AND " +
+                        "        ((dependencyFileId IS NULL) OR " +
+                        "         (NOT EXISTS (SELECT 1 FROM outbox AS ib WHERE ib.fileId = outbox.dependencyFileId AND ib.recipient = outbox.recipient)))" +
+                        "      ORDER BY priority ASC, nextRunTime ASC LIMIT 1) ";
 
         public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
@@ -89,7 +108,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             item.checkOutCount = 0;
             if (item.nextRunTime.milliseconds == 0)
-                item.nextRunTime = UnixTimeUtc.Now().AddSeconds(-5);
+                item.nextRunTime = UnixTimeUtc.Now();
+            if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
+                throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
             return base.Insert(item);
         }
 
@@ -97,10 +118,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public override int Upsert(OutboxRecord item)
         {
             if (item.nextRunTime.milliseconds == 0)
-                item.nextRunTime = UnixTimeUtc.Now().AddSeconds(-5);
+                item.nextRunTime = UnixTimeUtc.Now();
+            if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
+                throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
             return base.Upsert(item);
         }
 
+
+        /// <summary>
+        /// Will check out the next item to process. Will not check out items scheduled for the future
+        /// or items that have unresolved dependencies.
+        /// </summary>
+        /// <returns></returns>
         public OutboxRecord CheckOutItem()
         {
             lock (_popAllLock)
@@ -109,21 +138,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popAllCommand == null)
                 {
                     _popAllCommand = _database.CreateCommand();
-                    _popAllCommand.CommandText = 
-                        "UPDATE outbox "+
-                        "SET checkOutStamp=$checkOutStamp "+
-                        "WHERE (checkOutStamp is NULL) AND "+
-                        "   fileId IN ("+
-                        "      SELECT fileid "+
-                        "      FROM outbox "+
-                        "      WHERE "+
-                        "        checkOutStamp is NULL AND "+
-                        // "        nextRunTime <= $now AND "+
-                        "        ((dependencyFileId IS NULL) OR " +
-                        "         (NOT EXISTS (SELECT 1 FROM outbox AS ib WHERE ib.fileId = outbox.dependencyFileId AND ib.recipient = outbox.recipient)))" +
-                        "      ORDER BY priority ASC, nextRunTime ASC LIMIT 1); " +
+                    _popAllCommand.CommandText =
+                        "UPDATE outbox " +
+                        "SET checkOutStamp=$checkOutStamp " +
+                        whereClause +
+                        " ; " +
                         "SELECT rowid,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified " +
-                        "FROM outbox "+
+                        "FROM outbox " +
                         "WHERE checkOutStamp=$checkOutStamp";
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$checkOutStamp";
@@ -159,6 +180,47 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
+
+        /// <summary>
+        /// Returns when the next outbox item ís scheduled to be sent. If the returned time is larger than UnixTimeUtc.Now()
+        /// it is in the future and you should schedule a job to activate at that time. If null there is nothing in the outbox 
+        /// to be sent.
+        /// Remember to cancel any pending outbox jobs, also if you're setting a schedule.
+        /// </summary>
+        /// <returns>UnixTimeUtc of when the next item should be sent, null if none.</returns>
+        /// <exception cref="Exception"></exception>
+        public UnixTimeUtc? NextScheduledItem()
+        {
+            lock (_nextScheduleLock)
+            {
+                if (_nextScheduleCommand == null)
+                {
+                    _nextScheduleCommand = _database.CreateCommand();
+                    _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox " + whereClause + ";";
+
+                    _nextScheduleParam1 = _nextScheduleCommand.CreateParameter();
+
+                    _nextScheduleParam1.ParameterName = "$now";
+                    _nextScheduleCommand.Parameters.Add(_nextScheduleParam1);
+
+                    _nextScheduleCommand.Prepare();
+                }
+
+                _nextScheduleParam1.Value = UnixTimeUtc.MaxTime.milliseconds;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_nextScheduleCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        return null;
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    long nextRunTime = rdr.GetInt64(0);
+                    return new UnixTimeUtc(nextRunTime);
+                }
+            }
+        }
 
 
         /// <summary>
@@ -238,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_popRecoverCommand == null)
                 {
                     _popRecoverCommand = _database.CreateCommand();
-                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL WHERE checkOutStamp < $checkOutStamp";
+                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE checkOutStamp < $checkOutStamp";
 
                     _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
 
@@ -271,9 +333,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popStatusCommand.CommandText =
                         "SELECT count(*) FROM outbox;" +
                         "SELECT count(*) FROM outbox WHERE checkOutStamp NOT NULL;" +
-                        "SELECT nextRunTime FROM outbox ORDER BY nextRunTime ASC LIMIT 1;";
+                        "SELECT nextRunTime FROM outbox "+whereClause+";";
+
+                    _pscParam1 = _popStatusCommand.CreateParameter();
+                    _pscParam1.ParameterName = "$now";
+                    _popStatusCommand.Parameters.Add(_pscParam1);
+
                     _popStatusCommand.Prepare();
                 }
+
+                _pscParam1.Value = UnixTimeUtc.MaxTime.milliseconds;
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
                 {
@@ -327,15 +396,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popStatusSpecificBoxCommand.CommandText =
                         "SELECT count(*) FROM outbox WHERE driveId=$driveId;" +
                         "SELECT count(*) FROM outbox WHERE driveId=$driveId AND checkOutStamp NOT NULL;" +
-                        "SELECT nextRunTime FROM outbox WHERE driveId=$driveId ORDER BY nextRunTime ASC LIMIT 1;";
-                    _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
-                    _pssbparam1.ParameterName = "$driveId";
-                    _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
+                        "SELECT nextRunTime FROM outbox "+whereClause+";";
+
+                    _pssbParam1 = _popStatusSpecificBoxCommand.CreateParameter();
+                    _pssbParam1.ParameterName = "$driveId";
+                    _popStatusSpecificBoxCommand.Parameters.Add(_pssbParam1);
+
+                    _pssbParam2 = _popStatusSpecificBoxCommand.CreateParameter();
+                    _pssbParam2.ParameterName = "$now";
+                    _popStatusSpecificBoxCommand.Parameters.Add(_pssbParam2);
 
                     _popStatusSpecificBoxCommand.Prepare();
                 }
 
-                _pssbparam1.Value = driveId.ToByteArray();
+                _pssbParam1.Value = driveId.ToByteArray();
+                _pssbParam2.Value = UnixTimeUtc.MaxTime.milliseconds;
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                 {
