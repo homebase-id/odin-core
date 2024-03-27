@@ -324,7 +324,7 @@ TaskPerformanceTest_Transit
                 {
                     var wasDeliveredToAll =
                         instructionSet.TransitOptions.Recipients.All(r =>
-                            uploadResult.RecipientStatus[r] == TransferStatus.DeliveredToTargetDrive);
+                            uploadResult.RecipientStatus[r] == TransferStatus.Delivered);
 
                     Assert.IsTrue(wasDeliveredToAll);
                 }

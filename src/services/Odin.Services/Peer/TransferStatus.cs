@@ -22,7 +22,7 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Indicates the transfer was successfully delivered and directly written to the target drive
         /// </summary>
-        DeliveredToTargetDrive = 7,
+        Delivered = 7,
         
         /// <summary>
         /// Specifies there was a failure to send the transfer and it will be retried.

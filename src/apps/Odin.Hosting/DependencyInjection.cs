@@ -84,7 +84,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
-                .As<INotificationHandler<OutboxItemProcessedNotification>>()
+                .As<INotificationHandler<OutboxItemDeliverySuccessNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -121,9 +121,6 @@ namespace Odin.Hosting
 
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-            cb.RegisterType<PeerTransferHistoryFileUpdater>()
-                .As<INotificationHandler<OutboxItemProcessedNotification>>()
-                .SingleInstance();
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
 
@@ -198,7 +195,8 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
-
+            cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
+            
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
@@ -225,7 +223,7 @@ namespace Odin.Hosting
 
             var registry = scope.Resolve<IIdentityRegistry>();
             var tenantContext = scope.Resolve<TenantContext>();
-            
+
             var tc = registry.CreateTenantContext(tenant.Name);
             tenantContext.Update(tc);
         }

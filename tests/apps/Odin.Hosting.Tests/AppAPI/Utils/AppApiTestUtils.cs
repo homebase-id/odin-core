@@ -231,7 +231,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                         if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
                         {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToTargetDrive,
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Delivered,
                                 $"file was not delivered to {recipient}");
                         }
 

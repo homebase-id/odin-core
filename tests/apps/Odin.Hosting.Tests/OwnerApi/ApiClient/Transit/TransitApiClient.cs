@@ -298,7 +298,7 @@ public class TransitApiClient
             foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
-                bool wasDelivered = status == TransferStatus.DeliveredToInbox || status == TransferStatus.DeliveredToTargetDrive;
+                bool wasDelivered = status == TransferStatus.DeliveredToInbox || status == TransferStatus.Delivered;
                 Assert.IsTrue(wasDelivered, $"failed to deliver to {recipient}; status was {status}");
             }
 

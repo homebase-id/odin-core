@@ -115,7 +115,7 @@ public class TransitNotificationTests
         var uploadFileResponse = await samDriveClient.UploadNewMetadata(targetDrive, fileMetadata, transitOptions);
         Assert.IsTrue(uploadFileResponse.IsSuccessStatusCode, $"Failed with status code {uploadFileResponse.StatusCode}");
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
-        Assert.IsTrue(frodoTransferStatus == TransferStatus.DeliveredToTargetDrive, $"transfer status: {frodoTransferStatus}");
+        Assert.IsTrue(frodoTransferStatus == TransferStatus.Delivered, $"transfer status: {frodoTransferStatus}");
 
         var processPushResponse = await ownerFrodo.Cron.ProcessIncomingPushNotifications();
         Assert.IsTrue(processPushResponse.IsSuccessStatusCode,
