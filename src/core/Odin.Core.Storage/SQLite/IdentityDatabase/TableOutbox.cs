@@ -241,11 +241,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _pcancelparam2 = _popCancelCommand.CreateParameter();
 
                     _pcancelparam1.ParameterName = "$checkOutStamp";
-                    _popCancelCommand.Parameters.Add(_pcancelparam1);
-                    
                     _pcancelparam2.ParameterName = "$nextRunTime";
-                    _popCancelCommand.Parameters.Add(_pcancelparam2);
 
+                    _popCancelCommand.Parameters.Add(_pcancelparam1);                    
+                    _popCancelCommand.Parameters.Add(_pcancelparam2);
 
                     _popCancelCommand.Prepare();
                 }

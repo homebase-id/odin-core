@@ -45,7 +45,7 @@ namespace Odin.Core.Time
 
     /// <summary>
     /// UnixTimeUtc: Keeps track of UNIX time in milliseconds since UTC January 1, year 1970 gregorian (0 = Unix epoch)
-    /// comptabile with Nodatime
+    /// Comptabile with Nodatime
     /// Immutable. Once set, cannot be altered. Negative are in the past, aka before the Unix epoch
     /// Simply a Int64 in a fancy class.
     /// </summary>
@@ -53,7 +53,8 @@ namespace Odin.Core.Time
     public struct UnixTimeUtc
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
-        public static readonly UnixTimeUtc MaxTime  = new UnixTimeUtc((long) 0xFFF_FFFF_FFFF_FFFF); // TODO - find the max
+        public static readonly UnixTimeUtc MaxTime = Int64.MaxValue;
+        public static readonly UnixTimeUtc MinTime = Int64.MinValue;
 
         public UnixTimeUtc()
         {
@@ -94,6 +95,15 @@ namespace Odin.Core.Time
 
 
         /// <summary>
+        /// Returns a new UnixTimeUtc object with the milliseconds added.
+        /// </summary>
+        /// <param name="ms"></param>
+        public UnixTimeUtc AddMilliseconds(Int64 ms)
+        {
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + ms));
+        }
+
+        /// <summary>
         /// Returns a new UnixTimeUtc object with the seconds added.
         /// </summary>
         /// <param name="s">Seconds</param>
@@ -128,15 +138,6 @@ namespace Odin.Core.Time
         public UnixTimeUtc AddDays(Int64 d)
         {
             return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (d * 24 * 60 * 60 * 1000)));
-        }
-
-        /// <summary>
-        /// Returns a new UnixTimeUtc object with the milliseconds added.
-        /// </summary>
-        /// <param name="ms"></param>
-        public UnixTimeUtc AddMilliseconds(Int64 ms)
-        {
-            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + ms));
         }
 
         public static UnixTimeUtc Now()
@@ -210,10 +211,16 @@ namespace Odin.Core.Time
 
         public override bool Equals(object value)
         {
-            if (!(value is UnixTimeUtc))
-                return false;
+            if (value is Instant)
+                return (((Instant)value).ToUnixTimeMilliseconds() == this.milliseconds);
 
-            return ((UnixTimeUtc)value).milliseconds == this.milliseconds;
+            if (value is Int64)
+                return (((Int64) value) == this.milliseconds);
+
+            if (value is UnixTimeUtc)
+                return ((UnixTimeUtc)value).milliseconds == this.milliseconds;
+
+            return false;
         }
 
         public override int GetHashCode()

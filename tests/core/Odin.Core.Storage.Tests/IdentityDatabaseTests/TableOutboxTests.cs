@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -321,7 +323,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             r1 = db.tblOutbox.CheckOutItem();
             Assert.IsTrue(r1 == null);
 
-            Task.Delay(3000); // Wait until it's available again
+            Thread.Sleep(3000); // Wait until it's available again
 
             r1 = db.tblOutbox.CheckOutItem();
             Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
