@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         //private SqliteParameter _psbparam1 = null;
         //private SqliteParameter _psbparam2 = null;
         //private SqliteParameter _psbparam3 = null;
-        private static Object _popLock = new Object();
+        private static Object _outboxLock = new Object();
 
         private SqliteCommand _popAllCommand = null;
         private SqliteParameter _paparam1 = null;
@@ -229,7 +229,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="checkOutStamp"></param>
         public void CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
-            lock (_popLock)
+            lock (_outboxLock)
             {
                 // Make sure we only prep once 
                 if (_popCancelCommand == null)
@@ -265,7 +265,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="checkOutStamp"></param>
         public void CompleteAndRemove(Guid checkOutStamp)
         {
-            lock (_popLock)
+            lock (_outboxLock)
             {
                 // Make sure we only prep once 
                 if (_popCommitCommand == null)
@@ -295,7 +295,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         public void RecoverCheckedOutDeadItems(UnixTimeUtc UnixTimeSeconds)
         {
-            lock (_popLock)
+            lock (_outboxLock)
             {
                 if (_popRecoverCommand == null)
                 {
@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus()
         {
-            lock (_popLock)
+            lock (_outboxLock)
             {
                 // Make sure we only prep once 
                 if (_popStatusCommand == null)
@@ -385,9 +385,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) OutboxStatusSpecificBox(Guid driveId)
+        public (int, int, UnixTimeUtc) OutboxStatusDrive(Guid driveId)
         {
-            lock (_popLock)
+            lock (_outboxLock)
             {
                 // Make sure we only prep once 
                 if (_popStatusSpecificBoxCommand == null)
@@ -448,7 +448,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     }
 }
 
-
+//
+// Any checks for circular dependencies?
+// Any method for removing outbox items that are circular?
+//    Perhaps remove any item with a popCount of 0 and nextRunTime older than X.
+//    Maybe just build that into RecoverDead.
+//
 
 /*
         /// <summary>

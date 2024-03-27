@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -91,7 +90,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var (ti,tp,nrt)  = db.tblOutbox.OutboxStatus();
             Debug.Assert(ti == 5);
             Debug.Assert(tp == 1);
-            var (ti1, tp1, nrt1) = db.tblOutbox.OutboxStatusSpecificBox(driveId);
+            var (ti1, tp1, nrt1) = db.tblOutbox.OutboxStatusDrive(driveId);
             Assert.IsTrue(ti == ti1);
             Assert.IsTrue(tp == tp1);
             Assert.IsTrue(nrt == nrt1);
