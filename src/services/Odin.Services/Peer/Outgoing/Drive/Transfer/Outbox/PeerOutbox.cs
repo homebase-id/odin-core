@@ -80,8 +80,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         public Task MarkFailure(Guid marker, TransferResult reason)
         {
-            // XXX TODO MS : Can't both remove & cancel - it's one or the other
-            tenantSystemStorage.Outbox.CompleteAndRemove(marker);
             //TODO: there is no way to keep information on why an item failed
             tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(5));
             return Task.CompletedTask;
