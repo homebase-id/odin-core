@@ -1,3 +1,4 @@
+using System;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer
@@ -10,43 +11,25 @@ namespace Odin.Services.Peer
         AwaitingTransferKey = 1,
         
         /// <summary>
-        /// Item is enqueued in the outbox and will be send with the next call to ProcessOutbox
+        /// Item is queued in the outbox and will be send with the next call to ProcessOutbox
         /// </summary>
-        TransferKeyCreated = 3, //todo: rename to EnqueuedOutbox
-
-        /// <summary>
-        /// Indicates the transfer was successfully delivered to the inbox.
-        /// </summary>
-        DeliveredToInbox = 5,
+        Queued = 3,
         
         /// <summary>
-        /// Indicates the transfer was successfully delivered and directly written to the target drive
+        /// Indicates the transfer was successfully delivered and directly written to the target drive or delivered to the inbox
         /// </summary>
         Delivered = 7,
         
         /// <summary>
-        /// Specifies there was a failure to send the transfer and it will be retried.
-        /// </summary>
-        PendingRetry = 8,
-        
-        /// <summary>
         /// Recipient server rejected the transfer, client should retry 
         /// </summary>
+        [Obsolete("removing wip")]
         TotalRejectionClientShouldRetry = 9,
-        
-        /// <summary>
-        /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
-        /// </summary>
-        FileDoesNotAllowDistribution = 11,
         
         /// <summary>
         /// Indicates the recipient server returned a security error
         /// </summary>
-        RecipientReturnedAccessDenied = 13,
-        
-        /// <summary>
-        /// The recipient cannot read the file due to the file's ACL configuration
-        /// </summary>
-        RecipientDoesNotHavePermissionToFileAcl = 15
+        [Obsolete("removing wip")]
+        RecipientReturnedAccessDenied = 13
     }
 }

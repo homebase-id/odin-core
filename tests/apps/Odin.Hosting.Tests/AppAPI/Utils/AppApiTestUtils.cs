@@ -237,7 +237,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                         if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
                         {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Queued,
                                 $"transfer key not created for {recipient}");
                         }
                     }
@@ -357,7 +357,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Queued,
                             $"transfer key not created for {recipient}");
                     }
 

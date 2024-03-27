@@ -123,7 +123,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToInbox, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Delivered, $"Should have been delivered, actual status was {recipientStatus}");
 
             //
             //  Assert recipient does not have the file when it is first sent

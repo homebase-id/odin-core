@@ -85,6 +85,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .As<INotificationHandler<OutboxItemDeliverySuccessNotification>>()
+                .As<INotificationHandler<OutboxItemDeliveryFailedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -196,7 +197,7 @@ namespace Odin.Hosting
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<PeerOutgoingOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
             cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
-            
+
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();

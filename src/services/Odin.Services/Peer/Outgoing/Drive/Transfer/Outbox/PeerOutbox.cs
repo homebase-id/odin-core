@@ -78,7 +78,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public Task MarkFailure(Guid marker, TransferResult reason)
+        public Task MarkFailure(Guid marker)
         {
             //TODO: there is no way to keep information on why an item failed
             tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(5));

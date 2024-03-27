@@ -41,8 +41,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         IDriveAclAuthorizationService driveAclAuthorizationService,
         ILogger<PeerOutboxProcessor> logger,
         IMediator mediator)
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
-            contextAccessor, fileSystemResolver)
+        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
@@ -71,6 +70,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 var groups = batch.GroupBy(b => b.Recipient);
                 recipientSendTasks.AddRange(groups.Select(SendOutboxItemsBatchToRecipient));
                 await Task.WhenAll(recipientSendTasks);
+                
             }
             catch (Exception e)
             {
@@ -87,46 +87,50 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             // Executed one at a time so we respect FIFO for this recipient
             foreach (var item in items)
             {
-                OutboxProcessingResult result;
                 try
                 {
-                    result = await SendOutboxItemAsync(item);
-                }
-                catch (Exception e)
-                {
-                    //TODO: ensure we continue processing other items
-                    throw;
-                }
+                    var versionTag = await SendOutboxItemAsync(item);
 
-                if (result.TransferResult == TransferResult.Success)
-                {
-                    if (result.OutboxItem.IsTransientFile)
+                    if (item.IsTransientFile)
                     {
-                        filesForDeletion.Add(result.OutboxItem);
+                        filesForDeletion.Add(item);
                     }
 
-                    await this.MarkSuccess(result);
-                }
-                else
-                {
-                    switch (result.TransferResult)
+                    await UpdateTransferHistory(item, versionTag, null);
+                    await peerOutbox.MarkComplete(item.Marker);
+                    await mediator.Publish(new OutboxItemDeliverySuccessNotification
                     {
-                        case TransferResult.RecipientServerNotResponding:
-                        case TransferResult.RecipientDoesNotHavePermissionToFileAcl:
-                        case TransferResult.RecipientServerError:
-                            await this.MarkFailure(result);
-                            break;
+                        Recipient = item.Recipient,
+                        File = item.File,
+                        VersionTag = versionTag,
+                        FileSystemType = item.TransferInstructionSet.FileSystemType
+                    });
+                }
+                catch (OdinOutboxProcessingException e)
+                {
+                    await UpdateTransferHistory(item, null, e.ProblemStatus);
 
-                        case TransferResult.FileDoesNotAllowDistribution:
-                        case TransferResult.RecipientServerReturnedAccessDenied:
-                        case TransferResult.UnknownError:
-                            await this.MarkSuccess(result);
-                            break;
+                    await peerOutbox.MarkFailure(item.Marker);
 
-                        default:
-                            await MarkProcessingError(result);
-                            break;
-                    }
+                    await mediator.Publish(new OutboxItemDeliveryFailedNotification
+                    {
+                        Recipient = item.Recipient,
+                        File = item.File,
+                        FileSystemType = item.TransferInstructionSet.FileSystemType,
+                        ProblemStatus = e.ProblemStatus
+                    });
+                }
+                catch
+                {
+                    await peerOutbox.MarkComplete(item.Marker);
+
+                    await mediator.Publish(new OutboxItemDeliveryFailedNotification
+                    {
+                        Recipient = item.Recipient,
+                        File = item.File,
+                        FileSystemType = item.TransferInstructionSet.FileSystemType,
+                        ProblemStatus = LatestProblemStatus.UnknownServerError
+                    });
                 }
             }
 
@@ -138,7 +142,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
         }
 
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(OutboxItem outboxItem)
+        private async Task<Guid> SendOutboxItemAsync(OutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -152,19 +156,27 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
             if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
             {
-                return new OutboxProcessingResult()
+                throw new OdinOutboxProcessingException($"Recipient does not have permission to file ACL during send process")
                 {
-                    File = file,
+                    ProblemStatus = LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile,
                     VersionTag = versionTag,
                     Recipient = recipient,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    TransferResult = TransferResult.RecipientDoesNotHavePermissionToFileAcl,
-                    OutboxItem = outboxItem
+                    File = file
+                };
+            }
+
+            if (header.ServerMetadata.AllowDistribution == false)
+            {
+                throw new OdinOutboxProcessingException("File does not allow distribution")
+                {
+                    ProblemStatus = LatestProblemStatus.SourceFileDoesNotAllowDistribution,
+                    VersionTag = versionTag,
+                    Recipient = recipient,
+                    File = file
                 };
             }
 
             var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-
             var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
             var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
             decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
@@ -180,23 +192,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 "transferInstructionSet.encrypted", "application/json",
                 Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-            if (header.ServerMetadata.AllowDistribution == false)
-            {
-                return new OutboxProcessingResult()
-                {
-                    File = file,
-                    VersionTag = versionTag,
-                    Recipient = recipient,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    TransferResult = TransferResult.FileDoesNotAllowDistribution,
-                    OutboxItem = outboxItem
-                };
-            }
-
             var sourceMetadata = header.FileMetadata;
 
-            //redact the info by explicitly stating what we will keep
-            //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
+            // redact the info by explicitly stating what we will keep
+            // therefore, if a new attribute is added, it must be considered
+            // if it should be sent to the recipient
+            // DO NOT randomly add attributes here
             var redactedMetadata = new FileMetadata()
             {
                 //TODO: here I am removing the file and drive id from the stream but we need
@@ -263,128 +264,51 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             try
             {
-                PeerResponseCode peerCode = PeerResponseCode.Unknown;
-                TransferResult transferResult = TransferResult.UnknownError;
+                ApiResponse<PeerTransferResponse> response = null;
 
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
-                    async () => { (peerCode, transferResult) = MapPeerResponseHttpStatus(await TrySendFile()); });
+                    async () => { response = await TrySendFile(); });
 
-                return new OutboxProcessingResult()
+                if (response.IsSuccessStatusCode)
                 {
-                    File = file,
+                    return versionTag;
+                }
+
+                throw new OdinOutboxProcessingException("Failed while sending the request")
+                {
+                    ProblemStatus = MapPeerResponseHttpStatus(response),
                     VersionTag = versionTag,
                     Recipient = recipient,
-                    RecipientPeerResponseCode = peerCode,
-                    TransferResult = transferResult,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    OutboxItem = outboxItem
+                    File = file
                 };
             }
             catch (TryRetryException ex)
             {
                 var e = ex.InnerException;
-                var tr = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
-                    ? TransferResult.RecipientServerNotResponding
-                    : TransferResult.UnknownError;
+                var problemStatus = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
+                    ? LatestProblemStatus.RecipientServerNotResponding
+                    : LatestProblemStatus.UnknownServerError;
 
-                return new OutboxProcessingResult()
+                throw new OdinOutboxProcessingException("Failed sending to recipient")
                 {
-                    File = file,
+                    ProblemStatus = problemStatus,
                     VersionTag = versionTag,
                     Recipient = recipient,
-                    RecipientPeerResponseCode = null,
-                    TransferResult = tr,
-                    Timestamp = UnixTimeUtc.Now().milliseconds,
-                    OutboxItem = outboxItem
+                    File = file
                 };
             }
         }
 
-        private async Task MarkSuccess(OutboxProcessingResult result)
+        private async Task UpdateTransferHistory(OutboxItem item, Guid? versionTag, LatestProblemStatus? problemStatus)
         {
-            await UpdateTransferHistory(result);
+            var file = item.File;
+            var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+            var header = await fs.Storage.GetServerFileHeader(file);
 
-            await peerOutbox.MarkComplete(result.OutboxItem.Marker);
-
-            await mediator.Publish(new OutboxItemDeliverySuccessNotification
-            {
-                Recipient = result.Recipient,
-                File = result.File,
-                VersionTag = result.VersionTag,
-                FileSystemType = result.OutboxItem.TransferInstructionSet.FileSystemType,
-                TransferStatus =
-                    MapTransferResultToStatus(result.TransferResult, result.RecipientPeerResponseCode)
-            });
-        }
-
-        private async Task MarkFailure(OutboxProcessingResult result)
-        {
-            await UpdateTransferHistory(result);
-
-            await peerOutbox.MarkFailure(result.OutboxItem.Marker, result.TransferResult);
-
-            await mediator.Publish(new OutboxItemDeliveryFailedNotification
-            {
-                Recipient = result.Recipient,
-                File = result.File,
-                VersionTag = result.VersionTag,
-                FileSystemType = result.OutboxItem.TransferInstructionSet.FileSystemType,
-                TransferStatus =
-                    MapTransferResultToStatus(result.TransferResult, result.RecipientPeerResponseCode) //TODO: i think i can drop this transfer status
-            });
-        }
-
-        private async Task MarkProcessingError(OutboxProcessingResult result)
-        {
-            await peerOutbox.MarkComplete(result.OutboxItem.Marker);
-            logger.LogError("Unhandled transfer result was found {tr}", result.TransferResult);
-        }
-
-        private TransferStatus MapTransferResultToStatus(TransferResult transferResult, PeerResponseCode? responseCode)
-        {
-            switch (transferResult)
-            {
-                case TransferResult.Success:
-                    return responseCode == PeerResponseCode.AcceptedDirectWrite ? TransferStatus.Delivered : TransferStatus.DeliveredToInbox;
-
-                case TransferResult.RecipientServerError:
-                case TransferResult.RecipientServerNotResponding:
-                case TransferResult.UnknownError:
-                    return TransferStatus.TotalRejectionClientShouldRetry;
-
-                case TransferResult.RecipientDoesNotHavePermissionToFileAcl:
-                    return TransferStatus.RecipientDoesNotHavePermissionToFileAcl;
-
-                case TransferResult.FileDoesNotAllowDistribution:
-                    return TransferStatus.FileDoesNotAllowDistribution;
-
-                case TransferResult.RecipientServerReturnedAccessDenied:
-                    return TransferStatus.RecipientReturnedAccessDenied;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
-        private async Task UpdateTransferHistory(OutboxProcessingResult result)
-        {
-            var fs = _fileSystemResolver.ResolveFileSystem(result.OutboxItem.TransferInstructionSet.FileSystemType);
-            var header = await fs.Storage.GetServerFileHeader(result.File);
-
-            if (null == header)
-            {
-                logger.LogWarning("OutboxItemProcessedNotification raised for a file that " +
-                                  "does not exist (File [{file}] on drive [{driveId}])",
-                    result.File.FileId,
-                    result.File.DriveId);
-                return;
-            }
-
-            //TODO: consider the structure here, should i use a dictionary instead?
-            var recipient = result.Recipient.ToString().ToLower();
+            var recipient = item.Recipient.ToString().ToLower();
             var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
             history.Items ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
@@ -394,65 +318,28 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 history.Items.Add(recipient, recipientItem);
             }
 
-            var problemStatus = MapProblemStatus(MapTransferResultToStatus(result.TransferResult, PeerResponseCode.Unknown));
             recipientItem.LastUpdated = UnixTimeUtc.Now();
             recipientItem.LatestProblemStatus = problemStatus;
             if (problemStatus == null)
             {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = result.VersionTag;
+                recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
             }
 
             header.ServerMetadata.TransferHistory = history;
-            await fs.Storage.UpdateActiveFileHeader(result.File, header, true);
+            await fs.Storage.UpdateActiveFileHeader(item.File, header, true);
         }
 
-        private LatestProblemStatus? MapProblemStatus(TransferStatus status)
+        private LatestProblemStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
         {
-            switch (status)
-            {
-                case TransferStatus.PendingRetry:
-                    return LatestProblemStatus.ServerPendingRetry;
-
-                case TransferStatus.TotalRejectionClientShouldRetry:
-                    return LatestProblemStatus.ClientMustRetry;
-
-                case TransferStatus.FileDoesNotAllowDistribution:
-                case TransferStatus.RecipientDoesNotHavePermissionToFileAcl:
-                    return LatestProblemStatus.LocalFileDistributionDenied;
-
-                case TransferStatus.RecipientReturnedAccessDenied:
-                    return LatestProblemStatus.AccessDenied;
-
-                case TransferStatus.AwaitingTransferKey:
-                case TransferStatus.TransferKeyCreated:
-                case TransferStatus.DeliveredToInbox:
-                case TransferStatus.Delivered:
-                    return null;
-            }
-
-            return null;
-        }
-
-        private (PeerResponseCode peerCode, TransferResult transferResult) MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)
-        {
-            //TODO: needs more work to bring clarity to response code
-
-            if (response.IsSuccessStatusCode)
-            {
-                return (response!.Content!.Code, TransferResult.Success);
-            }
-
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return (PeerResponseCode.Unknown, TransferResult.RecipientServerReturnedAccessDenied);
+                return LatestProblemStatus.RecipientIdentityReturnedAccessDenied;
             }
 
-            if (response.StatusCode == HttpStatusCode.InternalServerError)
+            // if (response.StatusCode == HttpStatusCode.InternalServerError)
             {
-                return (PeerResponseCode.Unknown, TransferResult.RecipientServerError);
+                return LatestProblemStatus.RecipientIdentityReturnedServerError;
             }
-
-            return (PeerResponseCode.Unknown, TransferResult.UnknownError);
         }
     }
 }

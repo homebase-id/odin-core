@@ -243,7 +243,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             foreach (var s in outboxStatus)
             {
-                transferStatus.Add(s.Key, s.Value ? TransferStatus.TransferKeyCreated : TransferStatus.AwaitingTransferKey);
+                transferStatus.Add(s.Key, s.Value ? TransferStatus.Queued : TransferStatus.AwaitingTransferKey);
             }
 
             return Task.FromResult(transferStatus);
