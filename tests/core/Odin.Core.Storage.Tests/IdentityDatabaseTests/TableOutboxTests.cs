@@ -196,13 +196,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var driveId = SequentialGuid.CreateGuid();
 
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "2frodo.baggins.me", priority = 0, value = v2 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "3frodo.baggins.me", priority = 0, value = v3 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "4frodo.baggins.me", priority = 0, value = v4 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "5frodo.baggins.me", priority = 0, value = v5 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "1frodo.baggins.me", priority = 0, value = v1 });
 
             var r = db.tblOutbox.CheckOutItem();
@@ -238,13 +238,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var driveId = SequentialGuid.CreateGuid();
 
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", dependencyFileId = f3,  priority = 0, value = v2 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", dependencyFileId = null, priority = 0, value = v3 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", dependencyFileId = f2, priority = 0, value = v4 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", dependencyFileId = f4, priority = 0, value = v5 });
-            Task.Delay(2);
+            Thread.Sleep(2);
             db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", dependencyFileId = f5, priority = 0, value = v1 });
 
             var r = db.tblOutbox.CheckOutItem();
@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Assert.IsTrue(r1 == null);
 
             Thread.Sleep(3000); // Wait until it's available again
-
+            
             r1 = db.tblOutbox.CheckOutItem();
             Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
         }
