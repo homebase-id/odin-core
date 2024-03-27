@@ -317,9 +317,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             //TODO: revisit when michael's outbox code is present
             // Process the outbox
-
-            Assert.Fail("WIP");
-
+            
             // senderOwnerClient.DriveRedux.ProcessOutbox()
             // check the file again
 

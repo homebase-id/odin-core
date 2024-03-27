@@ -35,7 +35,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
-        DriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService,
@@ -48,14 +47,40 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         public async Task ProcessOutbox()
         {
-            //Note: here we can prioritize outbox processing by drive if need be
-            var page = await driveManager.GetDrives(PageOptions.All);
-            foreach (var drive in page.Results)
+            var item = await peerOutbox.GetNextItem();
+
+            //Temporary method until i talk with @Seb about threading, etc
+            while (item != null)
             {
-                await ProcessDriveOutbox(drive.Id);
+                switch (item.Type)
+                {
+                    case OutboxItemType.File:
+                        await SendFileOutboxItems([item]);
+                        break;
+
+                    case OutboxItemType.Reaction:
+                        //TODO
+                        break;
+
+                    case OutboxItemType.PushNotification:
+                        await SendPushNotification(item); //TODO: send in separate thread?
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                item = await peerOutbox.GetNextItem();
             }
         }
 
+        private async Task SendPushNotification(OutboxItem item)
+        {
+            //TODO: 
+            await peerOutbox.MarkComplete(item.Marker);
+        }
+
+        [Obsolete("switching the way we process the outbox")]
         public async Task ProcessDriveOutbox(Guid driveId)
         {
             try
@@ -68,9 +93,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 //
                 var recipientSendTasks = new List<Task>();
                 var groups = batch.GroupBy(b => b.Recipient);
-                recipientSendTasks.AddRange(groups.Select(SendOutboxItemsBatchToRecipient));
+                recipientSendTasks.AddRange(groups.Select(SendFileOutboxItems));
                 await Task.WhenAll(recipientSendTasks);
-                
             }
             catch (Exception e)
             {
@@ -80,7 +104,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         //
 
-        private async Task SendOutboxItemsBatchToRecipient(IEnumerable<OutboxItem> items)
+        private async Task SendFileOutboxItems(IEnumerable<OutboxItem> items)
         {
             List<OutboxItem> filesForDeletion = new List<OutboxItem>();
 
@@ -98,7 +122,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                     await UpdateTransferHistory(item, versionTag, null);
                     await peerOutbox.MarkComplete(item.Marker);
-                    await mediator.Publish(new OutboxItemDeliverySuccessNotification
+                    await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
                     {
                         Recipient = item.Recipient,
                         File = item.File,
@@ -112,7 +136,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                     await peerOutbox.MarkFailure(item.Marker);
 
-                    await mediator.Publish(new OutboxItemDeliveryFailedNotification
+                    await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                     {
                         Recipient = item.Recipient,
                         File = item.File,
@@ -123,8 +147,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 catch
                 {
                     await peerOutbox.MarkComplete(item.Marker);
-
-                    await mediator.Publish(new OutboxItemDeliveryFailedNotification
+                    await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                     {
                         Recipient = item.Recipient,
                         File = item.File,
@@ -308,6 +331,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
             var header = await fs.Storage.GetServerFileHeader(file);
 
+            //TODO: consider the structure here, should i use a dictionary instead?
             var recipient = item.Recipient.ToString().ToLower();
             var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
             history.Items ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);

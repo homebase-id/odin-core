@@ -8,9 +8,9 @@ using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Mediator.Outbox;
 
-public class OutboxItemDeliverySuccessNotification : EventArgs, INotification
+public class OutboxFileItemDeliverySuccessNotification : EventArgs, INotification
 {
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.OutboxItemDeliverySuccess;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.OutboxFileItemDeliverySuccess;
 
     public OdinId Recipient { get; set; }
     public InternalDriveFileId File { get; set; }
@@ -24,11 +24,12 @@ public class OutboxItemDeliverySuccessNotification : EventArgs, INotification
     
 }
 
-public class OutboxItemDeliveryFailedNotification : EventArgs, INotification
+public class OutboxFileItemDeliveryFailedNotification : EventArgs, INotification
 {
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.OutboxItemDeliveryFailed;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.OutboxFileItemDeliveryFailed;
 
     public OdinId Recipient { get; set; }
+    
     public InternalDriveFileId File { get; set; }
     
     public FileSystemType FileSystemType { get; set; }

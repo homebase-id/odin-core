@@ -31,8 +31,8 @@ namespace Odin.Services.AppNotifications.WebSocket
             INotificationHandler<IClientNotification>,
             INotificationHandler<IDriveNotification>,
             INotificationHandler<TransitFileReceivedNotification>,
-            INotificationHandler<OutboxItemDeliverySuccessNotification>,
-            INotificationHandler<OutboxItemDeliveryFailedNotification>
+            INotificationHandler<OutboxFileItemDeliverySuccessNotification>,
+            INotificationHandler<OutboxFileItemDeliveryFailedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection = new();
 
@@ -216,7 +216,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        public async Task Handle(OutboxItemDeliverySuccessNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(OutboxFileItemDeliverySuccessNotification notification, CancellationToken cancellationToken)
         {
             var translated = new TranslatedClientNotification(
                 notification.NotificationType,
@@ -237,7 +237,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        public async Task Handle(OutboxItemDeliveryFailedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(OutboxFileItemDeliveryFailedNotification notification, CancellationToken cancellationToken)
         {
             var translated = new TranslatedClientNotification(
                 notification.NotificationType,

@@ -11,6 +11,7 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Time;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Services.AppNotifications.Push;
 
@@ -38,7 +39,7 @@ public class PushNotificationOutbox
 
         //TODO: do i need to capture the sender as part of the outbox structure is the state alone ok?
         var fileId = record.Options.TagId;
-        
+
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
 
         _tenantSystemStorage.Outbox.Upsert(new OutboxRecord()
@@ -47,6 +48,7 @@ public class PushNotificationOutbox
             recipient = recipient,
             fileId = fileId,
             priority = 10,
+            type = (int)OutboxItemType.PushNotification,
             value = state
         });
 

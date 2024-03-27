@@ -1,29 +1,19 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
@@ -76,7 +66,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             // note: if this fires in a background thread, i lose access to context so i need t pass it all in
             // var _ = ProcessDriveOutbox(internalFile.DriveId);
             //TODO: need to send these in parallel threads now
-            await outboxProcessor.ProcessDriveOutbox(internalFile.DriveId); //TODO work with seb to sort out how to multi-thread this
+            await outboxProcessor.ProcessOutbox();
 
             return await MapOutboxCreationResult(outboxStatus);
         }

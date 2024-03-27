@@ -91,6 +91,38 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
+        public async Task<OutboxItem> GetNextItem()
+        {
+            var record = tenantSystemStorage.Outbox.CheckOutItem();
+
+            if (null == record)
+            {
+                return await Task.FromResult<OutboxItem>(null);
+            }
+
+            var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+            var item = new OutboxItem()
+            {
+                Recipient = (OdinId)record.recipient,
+                IsTransientFile = state!.IsTransientFile,
+                Priority = record.priority,
+                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
+                Type = (OutboxItemType)record.type,
+                TransferInstructionSet = state.TransferInstructionSet,
+                File = new InternalDriveFileId()
+                {
+                    DriveId = record.driveId,
+                    FileId = record.fileId
+                },
+                OriginalTransitOptions = state.OriginalTransitOptions,
+                EncryptedClientAuthToken = state.EncryptedClientAuthToken,
+                Marker = record.checkOutStamp.GetValueOrDefault()
+            };
+
+            return await Task.FromResult(item);
+        }
+
+        [Obsolete("switching the way we process the outbox")]
         public async Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
@@ -119,12 +151,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             });
 
             return await Task.FromResult(items.ToList());
-        }
-
-        public Task Remove(OdinId recipient, InternalDriveFileId file)
-        {
-            //TODO: need to make a better queue here
-            throw new NotImplementedException("Sqllite outbox needs ability to query by recipient");
         }
     }
 }
