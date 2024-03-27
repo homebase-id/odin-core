@@ -12,12 +12,12 @@ using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
-    public class TransferHistoryFileUpdater(
+    public class PeerTransferHistoryFileUpdater(
         OdinContextAccessor contextAccessor,
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver,
-        ILogger<TransferHistoryFileUpdater> logger)
+        ILogger<PeerTransferHistoryFileUpdater> logger)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver),
             INotificationHandler<OutboxItemProcessedNotification>
     {
