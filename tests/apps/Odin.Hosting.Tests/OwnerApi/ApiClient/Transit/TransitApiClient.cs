@@ -294,11 +294,13 @@ public class TransitApiClient
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
             var transitResult = response.Content;
+            
+            //Note: you might need to wait for the outbox to finish processing
 
             foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
-                Assert.IsTrue(status == TransferStatus.Delivered, $"failed to deliver to {recipient}; status was {status}");
+                Assert.IsTrue(status == TransferStatus.Queued);
             }
 
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);

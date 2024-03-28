@@ -108,7 +108,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (null == referencedFs)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                // throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                throw new OdinClientException("Referenced file is missing");
             }
 
             //
@@ -122,14 +123,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (null == referencedFile)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
-                throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                // throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
+                
+                throw new OdinClientException("Referenced file is missing");
             }
 
 
             //S2040
             if (referencedFile.FileMetadata.IsEncrypted != metadata.IsEncrypted)
             {
-                throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
+                // throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
+                throw new OdinClientException("Referenced file is missing");
             }
 
             targetAcl = referencedFile.ServerMetadata.AccessControlList;

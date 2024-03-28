@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Drive.Specialized;
 using Odin.Hosting.Controllers.ClientToken.App;
@@ -16,11 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive.Specialized
     [AuthorizeValidGuestOrAppToken]
 
     public class ClientTokenDriveQueryByUniqueIdController(
-        ILogger<ClientTokenDriveQueryByUniqueIdController> logger,
         FileSystemResolver fileSystemResolver,
         IPeerOutgoingTransferService peerOutgoingTransferService)
-        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerOutgoingTransferService)
-    {
-        private readonly ILogger<ClientTokenDriveQueryByUniqueIdController> _logger = logger;
-    }
+        : DriveQueryByUniqueIdControllerBase(fileSystemResolver, peerOutgoingTransferService);
 }

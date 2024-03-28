@@ -183,17 +183,26 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued, $"Should have been delivered, actual status was {recipientStatus}");
 
+            //Note: if this is failing, you need to consider when the outbox is processed
+            
             //
             // Test results
             //
+
+            //the source file should have a transfer history item of RecipientReturnedAccessDenied
+
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
             // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
             //
 
-            // File should be on recipient server and accessible by global transit id
+            // File should NOT be on recipient server and accessible by global transit id
             var qp = new FileQueryParams()
             {
                 TargetDrive = uploadResult.GlobalTransitIdFileIdentifier.TargetDrive,

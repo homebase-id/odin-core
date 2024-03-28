@@ -47,15 +47,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
+
             var env = new Dictionary<string, string>
             {
                 { "Job__BackgroundJobStartDelaySeconds", "0" },
                 { "Job__CronProcessingInterval", "1" },
-                {"Job__EnableJobBackgroundService", "true"},
-                {"Job__Enabled", "true"},
+                { "Job__EnableJobBackgroundService", "true" },
+                { "Job__Enabled", "true" },
             };
-        
+
             _scaffold.RunBeforeAnyTests(envOverrides: env);
         }
 
@@ -463,7 +463,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             }
 
             await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
-            
+
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
             {
@@ -802,8 +802,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
+                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
@@ -816,10 +816,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
+                var driveSvc2 = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, senderContext.SharedSecret);
+
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Queued, $"transfer key not created for {r}");
+
+                    //Note: if this fails, you need to consider when the outbox is being processed
+                    var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
+                    Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+                    Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                                  LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
                 }
             }
         }
@@ -1526,7 +1534,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 TransitOptions = new TransitOptions()
                 {
                     Schedule = ScheduleOptions.SendNowAwaitResponse,
-                    Recipients = new List<string>() { recipient.OdinId },
+                    Recipients = [recipient.OdinId],
                     UseGlobalTransitId = true
                 },
                 Manifest = new UploadManifest()
@@ -1551,7 +1559,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     AllowDistribution = true,
                     AppData = new()
                     {
-                        Tags = new List<Guid>() { fileTag },
+                        Tags = [fileTag],
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = true,
@@ -1569,8 +1577,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
+                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                
+                var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
@@ -1583,10 +1592,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
+                var driveSvc2 = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, senderContext.SharedSecret);
+
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Queued, $"transfer key not created for {r}");
+
+                    //Note: if this fails, you need to consider when the outbox is being processed
+                    var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
+                    Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+                    Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                                  LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
                 }
             }
 
@@ -1725,8 +1742,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment);
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
+                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(originalPayloadCipherBytes, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
@@ -1741,11 +1758,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
+                var driveSvc2 = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, senderContext.SharedSecret);
+
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TotalRejectionClientShouldRetry,
-                        $"message should have been delivered to {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Queued);
+                    
+                    //Note: if this fails, you need to consider when the outbox is being processed
+                    var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(transferResult.File);
+                    Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+                    Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                                  LatestProblemStatus.RecipientIdentityReturnedBadRequest);
                 }
             }
 

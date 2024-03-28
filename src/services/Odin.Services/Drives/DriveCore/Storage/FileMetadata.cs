@@ -90,7 +90,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class RecipientTransferHistory
     {
-        public Dictionary<string, RecipientTransferHistoryItem> Items { get; set; } = 
+        public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } = 
             new (StringComparer.InvariantCultureIgnoreCase);
     }
 
@@ -135,6 +135,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Indicates the recipient server returned an http status 500
         /// </summary>
         RecipientIdentityReturnedServerError = 80,
+
+        /// <summary>
+        /// Indicates the recipient server detected a bad request from the sending server
+        /// </summary>
+        RecipientIdentityReturnedBadRequest = 90,
 
         /// <summary>
         /// Something bad happened on the server

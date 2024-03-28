@@ -6,9 +6,9 @@ namespace Odin.Services.Peer
     public enum TransferStatus
     {
         /// <summary>
-        /// Indicates the transfer is waiting to have an <see cref="EncryptedKeyHeader"/> created
+        /// Indicates we failed to enqueue the item into the outbox.  the client must retry
         /// </summary>
-        AwaitingTransferKey = 1,
+        FailedToEnqueueOutbox = 1,
         
         /// <summary>
         /// Item is queued in the outbox and will be send with the next call to ProcessOutbox
@@ -19,17 +19,6 @@ namespace Odin.Services.Peer
         /// Indicates the transfer was successfully delivered and directly written to the target drive or delivered to the inbox
         /// </summary>
         Delivered = 7,
-        
-        /// <summary>
-        /// Recipient server rejected the transfer, client should retry 
-        /// </summary>
-        [Obsolete("removing wip")]
-        TotalRejectionClientShouldRetry = 9,
-        
-        /// <summary>
-        /// Indicates the recipient server returned a security error
-        /// </summary>
-        [Obsolete("removing wip")]
-        RecipientReturnedAccessDenied = 13
+
     }
 }

@@ -95,9 +95,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
+            //Note: You might need to process the outbox or wait for a bit 
+            
             //
             // Test results
             //
@@ -180,8 +181,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
 
             //
             // Test results
@@ -267,8 +269,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
 
             //
             // Test results
@@ -381,8 +384,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 recipient: recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
 
             //
             // Test results
@@ -471,8 +475,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
+
 
             //
             // Test results

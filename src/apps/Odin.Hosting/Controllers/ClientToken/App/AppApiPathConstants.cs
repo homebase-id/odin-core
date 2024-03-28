@@ -23,6 +23,8 @@
         public const string FollowersV1 = BasePathV1 + "/followers";
 
         public const string DriveV1 = BasePathV1 + "/drive";
+        
+        public const string DriveOutboxV1 = DriveV1 + "/outbox";
 
         public const string DriveQueryV1 = DriveV1 + "/query";
         

@@ -184,6 +184,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
 
+            var list = new List<OutboxItem>();
             foreach (var r in options.Recipients!)
             {
                 var recipient = (OdinId)r;
@@ -213,16 +214,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                             options)
                     };
 
-                    await peerOutbox.Add(item);
+                    list.Add(item);
                     status.Add(recipient, true);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
-                    AddToTransferKeyEncryptionQueue(recipient, internalFile);
+                    logger.LogError(ex, "Failed while creating outbox item for recipient {recipient}", recipient);
+                    // AddToTransferKeyEncryptionQueue(recipient, internalFile);
                     status.Add(recipient, false);
                 }
             }
+
+            await peerOutbox.Add(list);
 
             return status;
         }
@@ -233,7 +236,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             foreach (var s in outboxStatus)
             {
-                transferStatus.Add(s.Key, s.Value ? TransferStatus.Queued : TransferStatus.AwaitingTransferKey);
+                transferStatus.Add(s.Key, s.Value ? TransferStatus.Queued : TransferStatus.FailedToEnqueueOutbox);
             }
 
             return Task.FromResult(transferStatus);

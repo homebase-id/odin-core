@@ -59,6 +59,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             var fileSendResults = await SendFiles(senderOwnerClient, recipientOwnerClient, targetDrive, totalFileCount);
             Assert.IsTrue(fileSendResults.Count == totalFileCount);
 
+            //Note: you might need to wait on the outbox to process
             // await AssertFilesAreNotOnRecipientIdentity(recipientOwnerClient, fileSendResults);
             
             var ms = await Benchmark.MillisecondsAsync(async () =>
@@ -88,7 +89,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 var (uploadResult, encryptedJsonContent64) = await SendStandardFile(senderOwnerClient, targetDrive, fileContent, recipientOwnerClient.Identity);
 
                 Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsTrue(recipientStatus == TransferStatus.Delivered, $"Should have been delivered, actual status was {recipientStatus}");
+                Assert.IsTrue(recipientStatus == TransferStatus.Queued, $"Should have been delivered, actual status was {recipientStatus}");
 
                 results.Add(new FileSendResponse()
                 {

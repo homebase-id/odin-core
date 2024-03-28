@@ -78,7 +78,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 RemoteTargetDrive = default
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
@@ -134,7 +134,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 RemoteTargetDrive = default
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
@@ -151,7 +151,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
-            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsNull(recipientStatus.LatestProblemStatus);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
@@ -206,7 +206,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 RemoteTargetDrive = default
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
@@ -237,7 +237,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
             Assert.IsNotNull(fileInResults);
             
-            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var statusFromGetModifiedResults));
+            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var statusFromGetModifiedResults));
             Assert.IsNotNull(statusFromGetModifiedResults, "There should be a status update for the recipient");
             Assert.IsNull(statusFromGetModifiedResults.LatestProblemStatus);
             Assert.IsTrue(statusFromGetModifiedResults.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
@@ -250,7 +250,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
-
         
         [Test]
         public async Task GetBatchOnSenderCanExcludeRecipientTransferHistory()
@@ -293,7 +292,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 RemoteTargetDrive = default
             };
 
-            var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
+            var (uploadResponse, _) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
                 transitOptions
@@ -310,7 +309,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
-            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Items.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsNull(recipientStatus.LatestProblemStatus);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
@@ -379,7 +378,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, new List<GuidId>() { });
+            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, new List<GuidId>());
 
             //
             // Recipient accepts; grants access to circle

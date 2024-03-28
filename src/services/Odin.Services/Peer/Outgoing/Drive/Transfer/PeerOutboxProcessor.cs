@@ -45,10 +45,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
-
+            
             //Temporary method until i talk with @Seb about threading, etc
             while (item != null)
             {
+                logger.LogDebug("Processing outbox item type: {type}", item.Type);
+
+                //TODO: add benchmark
                 switch (item.Type)
                 {
                     case OutboxItemType.File:
@@ -56,7 +59,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         break;
 
                     case OutboxItemType.Reaction:
-                        //TODO
+                        await SendReactionItem(item);
                         break;
 
                     case OutboxItemType.PushNotification:
@@ -71,22 +74,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
         }
 
+        //
+
+        private async Task SendReactionItem(OutboxItem item)
+        {
+            //TODO:
+            await peerOutbox.MarkComplete(item.Marker);
+        }
+
         private async Task SendPushNotification(OutboxItem item)
         {
             //TODO: 
             await peerOutbox.MarkComplete(item.Marker);
         }
 
-        //
-
         private async Task SendFileOutboxItem(OutboxItem item)
         {
             List<OutboxItem> filesForDeletion = new List<OutboxItem>();
-
-            // Executed one at a time so we respect FIFO for this recipient
             try
             {
-                var versionTag = await SendOutboxItemAsync(item);
+                var versionTag = await SendOutboxFileItemAsync(item);
 
                 if (item.IsTransientFile)
                 {
@@ -106,9 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             catch (OdinOutboxProcessingException e)
             {
                 await UpdateTransferHistory(item, null, e.ProblemStatus);
-
-                await peerOutbox.MarkFailure(item.Marker);
-
+                await peerOutbox.MarkFailure(item.Marker, GetNextRunTime(item));
                 await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                 {
                     Recipient = item.Recipient,
@@ -137,7 +142,27 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
         }
 
-        private async Task<Guid> SendOutboxItemAsync(OutboxItem outboxItem)
+        private UnixTimeUtc GetNextRunTime(OutboxItem item)
+        {
+            //TODO: expand logic as needed
+            // item.AddedTimestamp
+            // item.AttemptCount > someValueInConfig
+            switch (item.Type)
+            {
+                case OutboxItemType.File:
+                    return UnixTimeUtc.Now().AddMinutes(5);
+                
+                case OutboxItemType.Reaction:
+                    return UnixTimeUtc.Now().AddMinutes(5);
+
+                case OutboxItemType.PushNotification:
+                    return UnixTimeUtc.Now().AddMinutes(5);
+            }
+
+            return UnixTimeUtc.Now().AddMinutes(5);
+        }
+
+        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -306,12 +331,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //TODO: consider the structure here, should i use a dictionary instead?
             var recipient = item.Recipient.ToString().ToLower();
             var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-            history.Items ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
+            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
-            if (!history.Items.TryGetValue(recipient, out var recipientItem))
+            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
             {
                 recipientItem = new RecipientTransferHistoryItem();
-                history.Items.Add(recipient, recipientItem);
+                history.Recipients.Add(recipient, recipientItem);
             }
 
             recipientItem.LastUpdated = UnixTimeUtc.Now();
@@ -332,7 +357,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 return LatestProblemStatus.RecipientIdentityReturnedAccessDenied;
             }
 
-            // if (response.StatusCode == HttpStatusCode.InternalServerError)
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                return LatestProblemStatus.RecipientIdentityReturnedBadRequest;
+            }
+            
+            // if (response.StatusCode == HttpStatusCode.InternalServerError) // or HttpStatusCode.ServiceUnavailable
             {
                 return LatestProblemStatus.RecipientIdentityReturnedServerError;
             }

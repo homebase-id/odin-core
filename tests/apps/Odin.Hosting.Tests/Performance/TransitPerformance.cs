@@ -117,6 +117,7 @@ TaskPerformanceTest_Transit
                 Bandwidth : 130,000 bytes / second
           */
         [Test]
+        [Ignore("Need to re-evaluate given the changes in the outbox processing")]
         public async Task TaskPerformanceTest_Transit()
         {
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
@@ -235,7 +236,7 @@ TaskPerformanceTest_Transit
                         Schedule = ScheduleOptions.SendNowAwaitResponse
                     }
                 };
-                
+
 
                 var thumbnail1 = new ThumbnailDescriptor()
                 {
@@ -292,17 +293,17 @@ TaskPerformanceTest_Transit
                 {
                     Iv = payloadIv,
                     PayloadKey = WebScaffold.PAYLOAD_KEY,
-                    Thumbnails =( new []{thumbnail1, thumbnail2}).Select(t=>new UploadedManifestThumbnailDescriptor()
+                    Thumbnails = (new[] { thumbnail1, thumbnail2 }).Select(t => new UploadedManifestThumbnailDescriptor()
                     {
                         ThumbnailKey = t.GetFilename(WebScaffold.PAYLOAD_KEY),
                         PixelWidth = t.PixelWidth,
                         PixelHeight = t.PixelHeight
                     })
                 });
-                
+
                 var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
-                
+
                 var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
@@ -322,13 +323,21 @@ TaskPerformanceTest_Transit
 
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    var wasDeliveredToAll =
+                    var wasQueuedForAll =
                         instructionSet.TransitOptions.Recipients.All(r =>
-                            uploadResult.RecipientStatus[r] == TransferStatus.Delivered);
+                            uploadResult.RecipientStatus[r] == TransferStatus.Queued);
 
-                    Assert.IsTrue(wasDeliveredToAll);
+                    Assert.IsTrue(wasQueuedForAll);
                 }
 
+                //Note: You might need to wait on the outbox to process
+                // var driveSvc2 = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, senderAppContext.SharedSecret);
+                // var getSourceFileResponse = await driveSvc2.GetFileHeaderAsPost(uploadResult.File);
+                // var sourceFile = getSourceFileResponse.Content;
+                // Assert.IsTrue(sourceFile.ServerMetadata.TransferHistory.Recipients.Count == instructionSet.TransitOptions.Recipients.Count);
+                // Assert.IsTrue(
+                //     sourceFile.ServerMetadata.TransferHistory.Recipients.Values.All(v =>
+                //         v.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag));
 
                 //TODO: since we added the indexer changes of batch commits, we need a way to test it is working and no files are lost
                 return null;

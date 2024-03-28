@@ -13,7 +13,6 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -93,8 +92,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
+            
 
             //
             // Test results
@@ -178,13 +179,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered,
-                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: You might need to process the outbox or wait for a bit 
 
             //
             // Test results
             //
 
+            
             //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
             // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
             //
@@ -255,14 +258,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
-            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied,
-                $"Should have been RecipientReturnedAccessDenied, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: if this fails, you need to consider when the outbox is being processed
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -296,8 +304,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
 
-            var (standardFileUploadResult, encryptedJsonContent64) =
-                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+            await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
 
             var invalidReferencedFile = new GlobalTransitIdFileIdentifier()
             {
@@ -312,8 +319,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
-                $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+            
+            //Note: if this fails, you need to consider when the outbox is being processed
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -364,15 +376,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
-            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
-                $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+            
+            
+            //Note: if this fails, you need to consider when the outbox is being processed
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -408,7 +426,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
 
-            var (standardFileUploadResult, encryptedJsonContent64) =
+            var (standardFileUploadResult, _) =
                 await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
 
             //
@@ -423,15 +441,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
-            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
-                $"Should have been delivered, actual status was {recipientStatus}");
-
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+            
+            //Note: if this fails, you need to consider when the outbox is being processed
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedBadRequest);
+            
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -481,14 +504,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
-            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied,
-                $"Should have been RecipientReturnedAccessDenied, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued);
+
+            //Note: if this fails, you need to consider when the outbox is being processed
+            var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
+            Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
+                          LatestProblemStatus.RecipientIdentityReturnedAccessDenied, "File status should have been access denied");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -555,7 +583,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             }
 
             var uploadResult = uploadResponse.Content;
-            
+
             //
             // Basic tests first which apply to all calls
             //
@@ -584,7 +612,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             // Sender needs this same drive in order to send across files
             //
-            var senderTargetDrive = await senderOwnerClient.Drive.CreateDrive(
+            await senderOwnerClient.Drive.CreateDrive(
                 targetDrive: recipientTargetDrive.TargetDriveInfo,
                 name: "Target drive on sender",
                 metadata: "",
@@ -616,7 +644,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             // Sender sends connection request
             //
-            await senderOwnerClient.Network.SendConnectionRequestTo(recipientOwnerClient.Identity, new List<GuidId>() { });
+            await senderOwnerClient.Network.SendConnectionRequestTo(recipientOwnerClient.Identity, new List<GuidId>());
 
             //
             // Recipient accepts; grants access to circle

@@ -25,6 +25,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -612,6 +613,14 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             BatchSize = batchSize
         });
 
+        return response;
+    }
+
+    public async Task<ApiResponse<OutboxStatus>> GetOutboxStatus(TargetDrive drive)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await driveSvc.GetOutboxStatus(drive.Alias, drive.Type);
         return response;
     }
 }

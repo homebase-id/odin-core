@@ -13,7 +13,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public OutboxItem()
         {
             this.AddedTimestamp = UnixTimeUtc.Now().seconds;
-            this.Attempts = new List<TransferAttempt>();
             this.File = new InternalDriveFileId();
         }
 
@@ -29,8 +28,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public OutboxItemType Type { get; set; } = OutboxItemType.File;
         
-        public List<TransferAttempt> Attempts { get; }
-
         public Int64 AddedTimestamp { get; set; }
 
         public Guid Marker { get; set; }
@@ -51,5 +48,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> or Follower used to send the file to the recipient
         /// </summary>
         public byte[] EncryptedClientAuthToken { get; set; }
+
+        public int AttemptCount { get; set; }
     }
 }

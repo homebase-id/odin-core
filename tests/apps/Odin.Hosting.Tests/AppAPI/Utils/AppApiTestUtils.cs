@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -224,22 +223,14 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
                         "expected recipient count does not match");
+                    
+                    //Note:You might need to wait for the outbox to process
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-
-                        if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Delivered,
-                                $"file was not delivered to {recipient}");
-                        }
-
-                        if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
-                        {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Queued,
-                                $"transfer key not created for {recipient}");
-                        }
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Queued,
+                            $"file was not delivered to {recipient}");
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
