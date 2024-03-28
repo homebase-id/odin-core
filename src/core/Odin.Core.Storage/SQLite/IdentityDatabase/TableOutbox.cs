@@ -292,7 +292,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void RecoverCheckedOutDeadItems(UnixTimeUtc UnixTimeSeconds)
+        public void RecoverCheckedOutDeadItems(UnixTimeUtc pastThreshold)
         {
             lock (_outboxLock)
             {
@@ -300,6 +300,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _popRecoverCommand = _database.CreateCommand();
                     _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE checkOutStamp < $checkOutStamp";
+
+                    // Should we also reset nextRunTime =$nextRunTime to "now()" or 0?
+                    //
+                    // Consider removing any items with checkOutCount == 0 older than X
+                    // since they are probably circular dependencies
 
                     _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
 
@@ -309,7 +314,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _popRecoverCommand.Prepare();
                 }
 
-                _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
+                _pcrecoverparam1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.ExecuteNonQuery(_popRecoverCommand);
             }
