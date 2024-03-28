@@ -18,36 +18,27 @@ namespace Odin.Services.AppNotifications.Push;
 /// <summary>
 /// The outbox of notifications that need to be pushed to all subscribed devices
 /// </summary>
-public class PushNotificationOutbox
+public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
 {
     const string NotificationBoxId = "21a409e0-7cc2-4e97-b28d-93ef04c94a9c";
     private readonly Guid _notificationBoxId = Guid.Parse(NotificationBoxId);
 
-    private readonly TenantSystemStorage _tenantSystemStorage;
-    private readonly OdinContextAccessor _contextAccessor;
-
-    public PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
-    {
-        _tenantSystemStorage = tenantSystemStorage;
-        _contextAccessor = contextAccessor;
-    }
-
     public Task Add(PushNotificationOutboxRecord record)
     {
         //PRIMARY KEY (fileId,recipient)
-        var recipient = _contextAccessor.GetCurrent().Tenant;
+        var recipient = contextAccessor.GetCurrent().Tenant;
 
         //TODO: do i need to capture the sender as part of the outbox structure is the state alone ok?
         var fileId = record.Options.TagId;
 
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
 
-        _tenantSystemStorage.Outbox.Upsert(new OutboxRecord()
+        tenantSystemStorage.Outbox.Upsert(new OutboxRecord()
         {
             driveId = _notificationBoxId,
             recipient = recipient,
             fileId = fileId,
-            priority = 10,
+            priority = 0, //super high priority to ensure these are sent quickly
             type = (int)OutboxItemType.PushNotification,
             value = state
         });
@@ -57,7 +48,7 @@ public class PushNotificationOutbox
 
     public Task MarkComplete(Guid marker)
     {
-        _tenantSystemStorage.Outbox.CompleteAndRemove(marker);
+        tenantSystemStorage.Outbox.CompleteAndRemove(marker);
         return Task.CompletedTask;
     }
 
@@ -67,17 +58,17 @@ public class PushNotificationOutbox
     public async Task MarkFailure(Guid marker)
     {
         // XXX TODO MS : Can't both remove & cancel - it's one or the other
-        _tenantSystemStorage.Outbox.CompleteAndRemove(marker);
+        tenantSystemStorage.Outbox.CompleteAndRemove(marker);
 
         //TODO: there is no way to keep information on why an item failed
-        _tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(1));
+        tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(1));
 
         await Task.CompletedTask;
     }
 
     public async Task<List<PushNotificationOutboxRecord>> GetBatchForProcessing(int batchSize)
     {
-        var records = new List<OutboxRecord> { _tenantSystemStorage.Outbox.CheckOutItem() };
+        var records = new List<OutboxRecord> { tenantSystemStorage.Outbox.CheckOutItem() };
 
         var items = records.Select(r =>
         {

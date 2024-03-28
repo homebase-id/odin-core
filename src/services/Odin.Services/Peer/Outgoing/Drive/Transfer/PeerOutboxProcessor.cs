@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -21,12 +20,10 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.Mediator.Outbox;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
-using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -55,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 switch (item.Type)
                 {
                     case OutboxItemType.File:
-                        await SendFileOutboxItems([item]);
+                        await SendFileOutboxItem(item);
                         break;
 
                     case OutboxItemType.Reaction:
@@ -80,88 +77,63 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             await peerOutbox.MarkComplete(item.Marker);
         }
 
-        [Obsolete("switching the way we process the outbox")]
-        public async Task ProcessDriveOutbox(Guid driveId)
-        {
-            try
-            {
-                var batchSize = odinConfiguration.Transit.OutboxBatchSize;
-                var batch = await peerOutbox.GetBatchForProcessing(driveId, batchSize);
-
-                //
-                // Send by recipient in parallel
-                //
-                var recipientSendTasks = new List<Task>();
-                var groups = batch.GroupBy(b => b.Recipient);
-                recipientSendTasks.AddRange(groups.Select(SendFileOutboxItems));
-                await Task.WhenAll(recipientSendTasks);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Unhandled Exception occured while processing the drive outbox for drive {driveId}", driveId);
-            }
-        }
-
         //
 
-        private async Task SendFileOutboxItems(IEnumerable<OutboxItem> items)
+        private async Task SendFileOutboxItem(OutboxItem item)
         {
             List<OutboxItem> filesForDeletion = new List<OutboxItem>();
 
             // Executed one at a time so we respect FIFO for this recipient
-            foreach (var item in items)
+            try
             {
-                try
+                var versionTag = await SendOutboxItemAsync(item);
+
+                if (item.IsTransientFile)
                 {
-                    var versionTag = await SendOutboxItemAsync(item);
-
-                    if (item.IsTransientFile)
-                    {
-                        filesForDeletion.Add(item);
-                    }
-
-                    await UpdateTransferHistory(item, versionTag, null);
-                    await peerOutbox.MarkComplete(item.Marker);
-                    await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
-                    {
-                        Recipient = item.Recipient,
-                        File = item.File,
-                        VersionTag = versionTag,
-                        FileSystemType = item.TransferInstructionSet.FileSystemType
-                    });
+                    filesForDeletion.Add(item);
                 }
-                catch (OdinOutboxProcessingException e)
+
+                await UpdateTransferHistory(item, versionTag, null);
+                await peerOutbox.MarkComplete(item.Marker);
+                await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
                 {
-                    await UpdateTransferHistory(item, null, e.ProblemStatus);
+                    Recipient = item.Recipient,
+                    File = item.File,
+                    VersionTag = versionTag,
+                    FileSystemType = item.TransferInstructionSet.FileSystemType
+                });
+            }
+            catch (OdinOutboxProcessingException e)
+            {
+                await UpdateTransferHistory(item, null, e.ProblemStatus);
 
-                    await peerOutbox.MarkFailure(item.Marker);
+                await peerOutbox.MarkFailure(item.Marker);
 
-                    await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
-                    {
-                        Recipient = item.Recipient,
-                        File = item.File,
-                        FileSystemType = item.TransferInstructionSet.FileSystemType,
-                        ProblemStatus = e.ProblemStatus
-                    });
-                }
-                catch
+                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                 {
-                    await peerOutbox.MarkComplete(item.Marker);
-                    await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
-                    {
-                        Recipient = item.Recipient,
-                        File = item.File,
-                        FileSystemType = item.TransferInstructionSet.FileSystemType,
-                        ProblemStatus = LatestProblemStatus.UnknownServerError
-                    });
-                }
+                    Recipient = item.Recipient,
+                    File = item.File,
+                    FileSystemType = item.TransferInstructionSet.FileSystemType,
+                    ProblemStatus = e.ProblemStatus
+                });
+            }
+            catch
+            {
+                await peerOutbox.MarkComplete(item.Marker);
+                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
+                {
+                    Recipient = item.Recipient,
+                    File = item.File,
+                    FileSystemType = item.TransferInstructionSet.FileSystemType,
+                    ProblemStatus = LatestProblemStatus.UnknownServerError
+                });
             }
 
             //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
-            foreach (var item in filesForDeletion)
+            foreach (var itemToDelete in filesForDeletion)
             {
-                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(item.File);
+                var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
+                await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
             }
         }
 

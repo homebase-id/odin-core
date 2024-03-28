@@ -33,11 +33,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// </summary>
     public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
     {
+        public async Task Add(List<OutboxItem> items)
+        {
+            using (tenantSystemStorage.CreateCommitUnitOfWork())
+            {
+                foreach (var item in items)
+                {
+                    await this.Add(item);
+                }
+            }
+        }
+
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
         /// <param name="item"></param>
-        public Task Add(OutboxItem item)
+        public async Task Add(OutboxItem item)
         {
             //TODO: change to use batching inserts
 
@@ -66,7 +77,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var sender = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
-            return Task.CompletedTask;
+            await Task.CompletedTask;
         }
 
         public Task MarkComplete(Guid marker)
