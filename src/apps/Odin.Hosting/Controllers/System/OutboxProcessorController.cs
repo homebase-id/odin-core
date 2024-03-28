@@ -20,14 +20,14 @@ namespace Odin.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(
         OdinConfiguration config,
-        IPeerOutgoingTransferService peerOutgoingTransfer,
+        PeerOutboxProcessor outboxProcessor,
         PeerOutbox outbox,
         TransitInboxBoxStorage inbox) : ControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
         {
-            await peerOutgoingTransfer.ProcessOutbox();
+            await outboxProcessor.ProcessOutbox();
             return true;
         }
 

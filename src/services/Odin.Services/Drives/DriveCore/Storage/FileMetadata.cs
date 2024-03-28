@@ -112,23 +112,33 @@ namespace Odin.Services.Drives.DriveCore.Storage
     public enum LatestProblemStatus
     {
         /// <summary>
-        /// Indicates something failed on the server and the client should retry sending 
-        /// </summary>
-        ClientMustRetry = 1,
-
-        /// <summary>
-        /// The server is attempting recover from the previous send
-        /// </summary>
-        ServerPendingRetry = 12,
-
-        /// <summary>
         /// Caller does not have access to the recipient server
         /// </summary>
-        AccessDenied = 403,
+        RecipientIdentityReturnedAccessDenied = 40,
 
         /// <summary>
         /// The local file cannot be sent due to it's settings or recipient's permissions
         /// </summary>
-        LocalFileDistributionDenied = 505
+        SourceFileDoesNotAllowDistribution = 50,
+        
+        /// <summary>
+        /// Indicates the target recipient does not match the ACL requirements on the file 
+        /// </summary>
+        RecipientDoesNotHavePermissionToSourceFile = 60,
+        
+        /// <summary>
+        /// The recipient server did not respond
+        /// </summary>
+        RecipientServerNotResponding = 70,
+
+        /// <summary>
+        /// Indicates the recipient server returned an http status 500
+        /// </summary>
+        RecipientIdentityReturnedServerError = 80,
+
+        /// <summary>
+        /// Something bad happened on the server
+        /// </summary>
+        UnknownServerError = 9999,
     }
 }

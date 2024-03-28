@@ -324,7 +324,7 @@ TaskPerformanceTest_Transit
                 {
                     var wasDeliveredToAll =
                         instructionSet.TransitOptions.Recipients.All(r =>
-                            uploadResult.RecipientStatus[r] == TransferStatus.DeliveredToTargetDrive);
+                            uploadResult.RecipientStatus[r] == TransferStatus.Delivered);
 
                     Assert.IsTrue(wasDeliveredToAll);
                 }
@@ -564,7 +564,7 @@ TaskPerformanceTest_Transit
                 foreach (var recipient in recipients)
                 {
                     Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
-                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.DeliveredToInbox, $"Message was not delivered to ${recipient}");
+                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
                 }
 
                 var uploadedFile = uploadResult.File;
