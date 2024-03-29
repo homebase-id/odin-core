@@ -573,7 +573,7 @@ TaskPerformanceTest_Transit
                 foreach (var recipient in recipients)
                 {
                     Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
-                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
+                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Queued, $"Message was not queued for ${recipient}");
                 }
 
                 var uploadedFile = uploadResult.File;

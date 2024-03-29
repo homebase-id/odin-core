@@ -66,7 +66,7 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, Odi
         await Task.CompletedTask;
     }
 
-    public async Task<List<PushNotificationOutboxRecord>> GetBatchForProcessing(int batchSize)
+    public async Task<List<PushNotificationOutboxRecord>> GetBatchForProcessing()
     {
         var records = new List<OutboxRecord> { tenantSystemStorage.Outbox.CheckOutItem() };
 

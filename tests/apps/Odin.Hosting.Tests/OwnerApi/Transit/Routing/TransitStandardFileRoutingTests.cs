@@ -66,7 +66,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued, $"Should have been Queued, actual status was {recipientStatus}");
 
             //
             // Test results
@@ -123,7 +123,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                 targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Delivered, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.Queued, $"Should have been queued, actual status was {recipientStatus}");
 
             //
             //  Assert recipient does not have the file when it is first sent

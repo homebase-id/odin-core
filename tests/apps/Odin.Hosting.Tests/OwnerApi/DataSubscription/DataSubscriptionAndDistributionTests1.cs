@@ -590,7 +590,7 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.Delivered, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == TransferStatus.Queued);
 
         var commentFileQueryParams = new FileQueryParams()
         {
@@ -729,7 +729,7 @@ public class DataSubscriptionAndDistributionTests1
         //comment should have made it directly to the recipient's server
         Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
         var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
-        Assert.IsTrue(s == TransferStatus.Delivered, $"Status should be DeliveredToTargetDrive but was {s}");
+        Assert.IsTrue(s == TransferStatus.Queued);
 
         var commentFileQueryParams = new FileQueryParams()
         {

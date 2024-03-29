@@ -20,6 +20,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Serilog;
 using WebPush;
 
@@ -51,6 +52,7 @@ public class PushNotificationService(
     {
         //TODO: which security to check?
         //app permissions? I.e does the calling app on the recipient server have access to send notifications?
+        // contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var item = new PushNotificationOutboxRecord()
         {
@@ -65,11 +67,8 @@ public class PushNotificationService(
         return Task.FromResult(true);
     }
 
-    public async Task ProcessBatch()
+    public async Task ProcessBatch(List<PushNotificationOutboxRecord> list)
     {
-        int batchSize = configuration.Host.PushNotificationBatchSize;
-        var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
-
         //TODO: add throttling
         //group by appId + typeId
         var groupings = list.GroupBy(r => new Guid(ByteArrayUtil.EquiByteArrayXor(r.Options.AppId.ToByteArray(), r.Options.TypeId.ToByteArray())));
@@ -112,6 +111,12 @@ public class PushNotificationService(
 
             await this.Push(pushContent);
         }
+    }
+
+    public async Task ProcessBatch()
+    {
+        var list = await _pushNotificationOutbox.GetBatchForProcessing();
+        await this.ProcessBatch(list);
     }
 
     private async Task<(bool success, string appName)> TryResolveAppName(Guid appId)
@@ -241,6 +246,7 @@ public class PushNotificationService(
             TagId = notification.Recipient.ToHashId(),
             Silent = false
         });
+
         return Task.CompletedTask;
     }
 

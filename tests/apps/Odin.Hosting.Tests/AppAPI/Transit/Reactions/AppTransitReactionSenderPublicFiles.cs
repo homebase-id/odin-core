@@ -270,7 +270,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
             var transitResult = response.Content;
             Assert.IsNotNull(transitResult);
-            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Delivered);
+            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Queued);
 
             //
             // Merry uses transit query to get all files of that file type

@@ -122,7 +122,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 AttemptCount = record.checkOutCount,
                 OriginalTransitOptions = state.OriginalTransitOptions,
                 EncryptedClientAuthToken = state.EncryptedClientAuthToken,
-                Marker = record.checkOutStamp.GetValueOrDefault()
+                Marker = record.checkOutStamp.GetValueOrDefault(),
+                RawValue = record.value
             };
 
             return await Task.FromResult(item);

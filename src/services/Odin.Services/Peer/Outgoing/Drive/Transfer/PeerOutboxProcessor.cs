@@ -12,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -36,7 +37,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         ILogger<PeerOutboxProcessor> logger,
-        IMediator mediator)
+        IMediator mediator,
+        PushNotificationService pushNotificationService)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
@@ -45,7 +47,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
-            
+
             //Temporary method until i talk with @Seb about threading, etc
             while (item != null)
             {
@@ -84,7 +86,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task SendPushNotification(OutboxItem item)
         {
-            //TODO: 
+            //HACK as I refactor stuff
+            var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
+            record.Marker = item.Marker;
+
+            //TODO: need to refactor locations of these services
+            await pushNotificationService.ProcessBatch([record]);
             await peerOutbox.MarkComplete(item.Marker);
         }
 
@@ -151,7 +158,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 case OutboxItemType.File:
                     return UnixTimeUtc.Now().AddMinutes(5);
-                
+
                 case OutboxItemType.Reaction:
                     return UnixTimeUtc.Now().AddMinutes(5);
 
@@ -361,7 +368,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 return LatestProblemStatus.RecipientIdentityReturnedBadRequest;
             }
-            
+
             // if (response.StatusCode == HttpStatusCode.InternalServerError) // or HttpStatusCode.ServiceUnavailable
             {
                 return LatestProblemStatus.RecipientIdentityReturnedServerError;

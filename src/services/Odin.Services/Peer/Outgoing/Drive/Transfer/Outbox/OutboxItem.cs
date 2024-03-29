@@ -50,5 +50,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public byte[] EncryptedClientAuthToken { get; set; }
 
         public int AttemptCount { get; set; }
+
+        public byte[] RawValue { get; set; }
     }
 }
