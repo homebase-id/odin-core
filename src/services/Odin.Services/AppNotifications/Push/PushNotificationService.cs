@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
@@ -186,37 +187,51 @@ public class PushNotificationService(
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload)
     {
-        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        var context = contextAccessor.GetCurrent();
+        context.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         // SEB:TODO popluate the request
         var request = new DevicePushNotificationRequestV1
         {
-            DeviceToken = subscription.FirebaseDeviceToken,
-            OriginDomain = "SEB:TODO",
-            Signature = "SEB:TODO",
             CorrelationId = correlationContext.Id,
-            Data = OdinSystemSerializer.Serialize(payload)
+            Data = OdinSystemSerializer.Serialize(payload),
+            DeviceToken = subscription.FirebaseDeviceToken,
+            OriginDomain = context.Tenant,
+            Signature = "SEB:TODO",
         };
 
         logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);
 
         try
         {
-            await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, () =>
+            var baseUri = new Uri(configuration.PushNotification.BaseUrl);
+            var httpClient = httpClientFactory.CreateClient<PushNotificationService>(baseUri);
+            var push = RestService.For<IDevicePushNotificationApi>(httpClient);
+
+            await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, async () =>
             {
-                // SEB:TODO this should be a configuration value
-                // var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("https://push.homebase.id"));
-                var httpClient = httpClientFactory.CreateClient<PushNotificationService>(new Uri("http://localhost:5123"));
-                var push = RestService.For<IDevicePushNotificationApi>(httpClient);
-                return push.PostMessage(request);
+                try
+                {
+                    await push.PostMessage(request);
+                }
+                catch (ApiException apiEx)
+                {
+                    var problem = await apiEx.GetContentAsAsync<ProblemDetails>();
+                    if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
+                    {
+                        logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
+                        await RemoveDevice(subscription.AccessRegistrationId);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             });
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // SEB:TODO remove the subscription if push services reports invalid device
-            // SEB:TODO log the Refit.ValidationApiException body text if status is 4xx or 503
-            logger.LogError(
-                "Failed sending device push notification (SEB:TODO log the Refit.ValidationApiException body text if status is 4xx or 503)");
+            logger.LogError(e, "Failed sending device push notification");
         }
     }
 

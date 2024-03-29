@@ -42,7 +42,7 @@ builder.Services.AddFluentValidationAutoValidation()
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -63,6 +63,21 @@ app.MapPost("/message/v1", async (
             return Results.BadRequest(validationResult.Errors);
         }
 
+        // SEB:TODO the sender signs the message using his private key from his SSL certificate.
+
+        // homebase host:
+        // request.Signature = encrypt(private_key_of(request.OriginDomain), request.Timestamp)
+
+        // push service (this service):
+        // cache public key of request.OriginDomain
+        // timestamp = decrypt(public_key_of(request.OriginDomain), request.Signature)
+        // test that timestamp equals request.Timestamp
+
+        // The recipient then uses OriginDomain to look up the public key from the sender's SSL certificate
+        // and verifies the signature.
+        // public key: request.OriginDomain
+        // signature: request.Signature
+
         try
         {
             var response = await pushNotification.Post(request);
@@ -71,8 +86,8 @@ app.MapPost("/message/v1", async (
         }
         catch (FirebaseException e)
         {
-            logger.LogError("Error sending message: {error}", e.Message);
-            return Results.Problem(e.Message, statusCode: 502);
+            logger.LogError("Error sending message: {code} - {error}", e.ErrorCode, e.Message);
+            return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
         }
         catch (Exception e)
         {
@@ -97,10 +112,6 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
         RuleFor(request => request.Id).NotEmpty();
         RuleFor(request => request.CorrelationId).NotEmpty();
         RuleFor(request => request.Data).NotEmpty();
-
-        // SEB:TODO the sender signs the message using his private key from his SSL certificate.
-        // The recipient then uses OriginDomain to look up the public key from the sender's SSL certificate
-        // and verifies the signature.
     }
 }
 

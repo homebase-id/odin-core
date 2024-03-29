@@ -21,6 +21,9 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         ILoggerFactory loggerFactory)
         : Controller
     {
+        private readonly ILogger<PushNotificationControllerBase> _logger =
+            loggerFactory.CreateLogger<PushNotificationControllerBase>();
+
         /// <summary />
         [HttpPost("subscribe")]
         public async Task<IActionResult> SubscribeDevice([FromBody] PushNotificationSubscribeDeviceRequest request)
@@ -58,9 +61,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 FirebaseDeviceToken = request.DeviceToken
             };
 
-            // SEB:TODO don't create this here
-            var logger = loggerFactory.CreateLogger<PushNotificationControllerBase>();
-            logger.LogDebug("Adding {DeviceToken}", subscription.FirebaseDeviceToken);
+            _logger.LogDebug("SubscribeDevice: adding {DeviceToken}", subscription.FirebaseDeviceToken);
 
             if (string.IsNullOrWhiteSpace(subscription.FirebaseDeviceToken))
             {
