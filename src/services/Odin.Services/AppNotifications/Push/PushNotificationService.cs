@@ -206,6 +206,7 @@ public class PushNotificationService(
         {
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
             var httpClient = httpClientFactory.CreateClient<PushNotificationService>(baseUri);
+            httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, correlationContext.Id);
             var push = RestService.For<IDevicePushNotificationApi>(httpClient);
 
             await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, async () =>

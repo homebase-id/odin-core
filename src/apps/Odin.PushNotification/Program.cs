@@ -1,5 +1,4 @@
 using FirebaseAdmin;
-using FirebaseAdmin.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
@@ -32,11 +31,19 @@ builder.Host.UseSerilog((context, configuration) => configuration
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//
 // Firebase Messaging
+//
 
 var firebaseCredentialsFile = builder.Configuration["Firebase:CredentialsFileName"] ?? "";
 builder.Services.AddSingleton<IPushNotification>(new PushNotification(firebaseCredentialsFile));
 
+//
+// Misc
+//
+
+builder.Services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
+builder.Services.AddSingleton<ICorrelationContext, CorrelationContext>();
 builder.Services.AddFluentValidationAutoValidation()
     .AddValidatorsFromAssemblyContaining<PushNotificationRequestValidator>();
 
@@ -49,8 +56,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapGet("/ping", () => "pong");
-
 app.MapPost("/message/v1", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
