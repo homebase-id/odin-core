@@ -37,6 +37,21 @@ public class PushNotification : IPushNotification
         {
             Token = request.DeviceToken,
             Data = request.ToClientDictionary(),
+            Android = new AndroidConfig // magic stuff to increase reliability on android
+            {
+                Priority = Priority.High,
+            },
+            Apns = new ApnsConfig // magic stuff to increase reliability on ios
+            {
+                Headers = new Dictionary<string, string>()
+                {
+                    { "apns-priority", "10" }
+                },
+                Aps = new Aps
+                {
+                    ContentAvailable = true,
+                },
+            },
         };
 
         var response = await _firebaseMessaging.SendAsync(message);
