@@ -11,10 +11,7 @@ using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.App.Commands;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
@@ -128,7 +125,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 Assert.That(commandResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(commandResult.RecipientStatus.Count == 3);
 
-                await _scaffold.OldOwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
+                // await _scaffold.OldOwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
             await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.OdinId], command, originalFileSendResult, senderTestContext.Identity);

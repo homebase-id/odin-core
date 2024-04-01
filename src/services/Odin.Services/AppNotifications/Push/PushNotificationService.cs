@@ -114,10 +114,8 @@ public class PushNotificationService(
         return (appReg != null, appReg?.Name);
     }
 
-    public async Task Push(PushNotificationContent content)
+    private async Task Push(PushNotificationContent content)
     {
-        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
         var subscriptions = await GetAllSubscriptions();
         var keys = keyService.GetNotificationsKeys();
 

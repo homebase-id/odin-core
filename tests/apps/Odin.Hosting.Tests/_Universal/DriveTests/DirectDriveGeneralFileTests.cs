@@ -94,7 +94,7 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Let's test more
-        if (expectedStatusCode == HttpStatusCode.OK)
+        if (expectedStatusCode == HttpStatusCode.Accepted)
         {
             var uploadResult = response.Content;
             Assert.IsNotNull(uploadResult);
@@ -181,7 +181,7 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can
-        if (expectedStatusCode == HttpStatusCode.OK)
+        if (expectedStatusCode == HttpStatusCode.Accepted)
         {
             var result = deleteFileResponse.Content;
             Assert.IsNotNull(result);
@@ -249,7 +249,7 @@ public class DirectDriveGeneralFileTests
         var deleteListResponse = await callerDriveClient.DeleteFileList(deleteList);
         Assert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteListResponse.StatusCode}");
-        if (expectedStatusCode == HttpStatusCode.OK)
+        if (expectedStatusCode == HttpStatusCode.Accepted)
         {
             var deleteBatchResult = deleteListResponse.Content;
             Assert.IsNotNull(deleteBatchResult);
@@ -325,7 +325,7 @@ public class DirectDriveGeneralFileTests
         Assert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteFilesByGroupIdListResponse.StatusCode}");
 
-        if (expectedStatusCode == HttpStatusCode.OK)
+        if (expectedStatusCode == HttpStatusCode.Accepted)
         {
             var deleteBatchResult = deleteFilesByGroupIdListResponse.Content;
             Assert.IsNotNull(deleteBatchResult);

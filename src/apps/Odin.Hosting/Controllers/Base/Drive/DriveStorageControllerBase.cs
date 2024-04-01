@@ -223,7 +223,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 });
             }
 
-            return new JsonResult(deleteBatchFinalResult);
+            return Accepted("", deleteBatchFinalResult);
         }
 
         protected async Task<IActionResult> DeleteFileIdBatch(DeleteFileIdBatchRequest batchRequest)
@@ -236,7 +236,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var batchResult = await PerformDeleteFileIdBatch(batchRequest);
-            return new JsonResult(batchResult);
+            return Accepted("", batchResult);
         }
 
         protected async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)

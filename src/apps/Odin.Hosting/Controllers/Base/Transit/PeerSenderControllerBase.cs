@@ -127,7 +127,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 },
                 request.Recipients);
 
-            return new JsonResult(map);
+            return Accepted("", map);
         }
 
 
