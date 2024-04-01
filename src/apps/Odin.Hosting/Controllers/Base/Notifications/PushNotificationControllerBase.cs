@@ -58,14 +58,20 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             {
                 FriendlyName = request.FriendlyName,
                 Endpoint = request.Endpoint,
-                FirebaseDeviceToken = request.DeviceToken
+                FirebaseDeviceToken = request.DeviceToken,
+                FirebaseDevicePlatform = request.DevicePlatform,
             };
 
             _logger.LogDebug("SubscribeDevice: adding {DeviceToken}", subscription.FirebaseDeviceToken);
 
             if (string.IsNullOrWhiteSpace(subscription.FirebaseDeviceToken))
             {
-                throw new OdinClientException("Invalid Push notification subscription request");
+                throw new OdinClientException("Invalid Push notification subscription request: missing device token");
+            }
+
+            if (string.IsNullOrWhiteSpace(subscription.FirebaseDevicePlatform))
+            {
+                throw new OdinClientException("Invalid Push notification subscription request: missing device platform");
             }
 
             await notificationService.AddDevice(subscription);

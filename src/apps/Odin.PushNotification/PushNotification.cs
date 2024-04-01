@@ -37,6 +37,11 @@ public class PushNotification : IPushNotification
         {
             Token = request.DeviceToken,
             Data = request.ToClientDictionary(),
+            Notification = new Notification
+            {
+                Title = request.Title,
+                Body = request.Body,
+            },
             Android = new AndroidConfig // magic stuff to increase reliability on android
             {
                 Priority = Priority.High,
@@ -51,7 +56,7 @@ public class PushNotification : IPushNotification
                 {
                     ContentAvailable = true,
                 },
-            },
+            }
         };
 
         var response = await _firebaseMessaging.SendAsync(message);
@@ -59,49 +64,5 @@ public class PushNotification : IPushNotification
     }
 
     //
-
-    // public async Task<string> Post(DevicePushNotificationRequest request)
-    // {
-    //     var message = new Message
-    //     {
-    //         Notification = new Notification
-    //         {
-    //             Title = request.Title,
-    //             Body = request.Body,
-    //         },
-    //         Android = new AndroidConfig
-    //         {
-    //             Priority = Priority.High,
-    //         },
-    //         Apns = new ApnsConfig
-    //         {
-    //             Headers = new Dictionary<string, string>()
-    //             {
-    //                 { "apns-priority", "10" },
-    //             },
-    //             Aps = new Aps
-    //             {
-    //                 Alert = new ApsAlert
-    //                 {
-    //                     Title = request.Title,
-    //                     Body = request.Body,
-    //                 },
-    //                 Badge = 99,
-    //                 ContentAvailable = true,
-    //                 // Custom data for the APNs payload can also be added here
-    //             },
-    //             // Optionally, add custom data outside Aps
-    //             CustomData = new Dictionary<string, object>()
-    //             {
-    //                 { "customKey", "customValue" }
-    //             }
-    //         },
-    //
-    //         Token = request.DeviceToken,
-    //     };
-    //
-    //     var response = await _firebaseMessaging.SendAsync(message);
-    //     return response;
-    // }
 
 }

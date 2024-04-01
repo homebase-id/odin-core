@@ -190,14 +190,25 @@ public class PushNotificationService(
         var context = contextAccessor.GetCurrent();
         context.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        // SEB:TODO popluate the request
+        var title = string.IsNullOrWhiteSpace(payload.AppDisplayName)
+            ? "Homebase Notification"
+            : payload.AppDisplayName;
+
+        var body = string.IsNullOrWhiteSpace(payload.Options.UnEncryptedMessage)
+            ? $"Received from {context.Tenant}"
+            : payload.Options.UnEncryptedMessage;
+
+        // SEB:TODO signature
         var request = new DevicePushNotificationRequestV1
         {
+            Body = body,
             CorrelationId = correlationContext.Id,
             Data = OdinSystemSerializer.Serialize(payload),
+            DevicePlatform = subscription.FirebaseDevicePlatform,
             DeviceToken = subscription.FirebaseDeviceToken,
             OriginDomain = context.Tenant,
             Signature = "SEB:TODO",
+            Title = title,
         };
 
         logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);
@@ -217,16 +228,17 @@ public class PushNotificationService(
                 }
                 catch (ApiException apiEx)
                 {
-                    var problem = await apiEx.GetContentAsAsync<ProblemDetails>();
-                    if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
-                    {
-                        logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        await RemoveDevice(subscription.AccessRegistrationId);
-                    }
-                    else
+                    if (apiEx.StatusCode != HttpStatusCode.BadGateway)
                     {
                         throw;
                     }
+                    var problem = await apiEx.GetContentAsAsync<ProblemDetails>();
+                    if (problem.Type != "NotFound")
+                    {
+                        throw;
+                    }
+                    logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
+                    await RemoveDevice(subscription.AccessRegistrationId);
                 }
             });
         }

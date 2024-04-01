@@ -88,17 +88,21 @@ app.MapPost("/message/v1", async (
         try
         {
             var response = await pushNotification.Post(request);
-            logger.LogInformation("Successfully sent message: {response}", response);
+            logger.LogInformation("Successfully sent {platform} message with id {id} to device {device}: {response}",
+                request.DevicePlatform, request.Id, request.DeviceToken, response);
             return Results.Ok("Message sent successfully to Firebase.");
         }
         catch (FirebaseException e)
         {
-            logger.LogError("Error sending message: {code} - {error}", e.ErrorCode, e.Message);
+            logger.LogError("Error sending {platform} message with id {id} to device {device}: {code} - {error}",
+                request.DevicePlatform, request.Id, request.DeviceToken, e.ErrorCode, e.Message);
             return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error sending message: {error}", e.Message);
+            logger.LogError(e, "Error sending {platform} message with id {id} to device {device}: {error}",
+                request.DevicePlatform, request.Id, request.DeviceToken, e.Message);
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
     })
@@ -113,12 +117,16 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
     public PushNotificationRequestValidator()
     {
         RuleFor(request => request.Version).Equal(1);
-        RuleFor(request => request.DeviceToken).NotEmpty();
+        RuleFor(request => request.DevicePlatform)
+            .Must(platform => platform is "ios" or "android")
+            .WithMessage("DevicePlatform must be either 'ios' or 'android'.");
         RuleFor(request => request.OriginDomain).NotEmpty();
         RuleFor(request => request.Signature).NotEmpty();
         RuleFor(request => request.Id).NotEmpty();
         RuleFor(request => request.CorrelationId).NotEmpty();
         RuleFor(request => request.Data).NotEmpty();
+        RuleFor(request => request.Title).NotEmpty();
+        RuleFor(request => request.Body).NotEmpty();
     }
 }
 

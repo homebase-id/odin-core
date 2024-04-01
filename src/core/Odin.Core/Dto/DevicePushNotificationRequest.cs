@@ -11,6 +11,9 @@ public class DevicePushNotificationRequestV1
     public int Version { get; } = 1;
 
     [Required]
+    public string DevicePlatform { get; set; } = "";
+
+    [Required]
     public string DeviceToken { get; set; } = "";
 
     [Required]
@@ -30,6 +33,12 @@ public class DevicePushNotificationRequestV1
 
     [Required]
     public string Data { get; set; } = "";
+
+    [Required]
+    public string Title { get; set; } = "";
+
+    [Required]
+    public string Body { get; set; } = "";
 
     //
 
