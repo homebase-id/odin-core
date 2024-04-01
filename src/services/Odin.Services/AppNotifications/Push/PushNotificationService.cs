@@ -48,7 +48,7 @@ public class PushNotificationService(
     /// </summary>
     public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
     {
-        //validate the calling app on the recipient server have access to send notifications?
+        //validate the calling app on the recipient server have access to send notifications
         contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         return await EnqueueNotificationInternal(senderId, options, fileId);
     }

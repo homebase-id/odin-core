@@ -12,20 +12,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.System
     [ApiController]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     [Route(OwnerApiPathConstants.PushNotificationsV1)]
-    public class OwnerSystemPushNotificationController : Controller
+    public class OwnerSystemPushNotificationController(PushNotificationService notificationService) : Controller
     {
-        private readonly PushNotificationService _notificationService;
-
-        public OwnerSystemPushNotificationController(PushNotificationService notificationService)
-        {
-            _notificationService = notificationService;
-        }
-
         /// <summary />
         [HttpPost("process")]
         public async Task<IActionResult> ProcessBatch()
         {
-            await _notificationService.ProcessBatch();
+            await notificationService.ProcessBatch();
             return Ok();
         }
     }

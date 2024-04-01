@@ -5,40 +5,32 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 
-namespace Odin.Services.DataSubscription.ReceivingHost;
+namespace Odin.Services.Peer.Incoming.Drive.Transfer;
 
-public class FeedDriveDistributionSecurityContext : IDisposable
+public class PeerTransferSecurityContext : IDisposable
 {
-    private readonly SecurityGroupType _prevSecurityGroupType;
     private readonly OdinContextAccessor _odinContextAccessor;
 
-    private const string GroupName = "read_followers_only_for_distribution";
+    private const string GroupName = "send_notifications_for_peer_transfer";
 
-    // private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-
-    public FeedDriveDistributionSecurityContext(OdinContextAccessor odinContextAccessor)
+    public PeerTransferSecurityContext(OdinContextAccessor odinContextAccessor)
     {
         _odinContextAccessor = odinContextAccessor;
         var ctx = odinContextAccessor.GetCurrent();
 
-        _prevSecurityGroupType = ctx.Caller.SecurityLevel;
-
         //
         // Upgrade access briefly to perform functions
         //
-        ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
 
         //Note TryAdd because this might have already been added when multiple files are coming in
-
         ctx.PermissionsContext.PermissionGroups.TryAdd(GroupName,
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.ReadMyFollowers }),
+                new PermissionSet(new[] { PermissionKeys.SendPushNotifications }),
                 new List<DriveGrant>() { }, null, null));
     }
 
     public void Dispose()
     {
-        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         _odinContextAccessor.GetCurrent().PermissionsContext.PermissionGroups.Remove(GroupName);
     }
 }
