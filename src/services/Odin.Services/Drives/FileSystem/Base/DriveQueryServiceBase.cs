@@ -13,28 +13,34 @@ using Serilog;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
-    public abstract class DriveQueryServiceBase : RequirePermissionsBase
+    public abstract class DriveQueryServiceBase(
+        OdinContextAccessor contextAccessor,
+        DriveDatabaseHost driveDatabaseHost,
+        DriveManager driveManager,
+        DriveStorageServiceBase storage)
+        : RequirePermissionsBase
     {
-        private readonly DriveStorageServiceBase _storage;
-        private readonly DriveDatabaseHost _driveDatabaseHost;
+        protected override DriveManager DriveManager { get; } = driveManager;
 
-        protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
-            DriveManager driveManager, DriveStorageServiceBase storage)
-        {
-            ContextAccessor = contextAccessor;
-            DriveManager = driveManager;
-            _driveDatabaseHost = driveDatabaseHost;
-            _storage = storage;
-        }
-
-        protected override DriveManager DriveManager { get; }
-
-        protected override OdinContextAccessor ContextAccessor { get; }
+        protected override OdinContextAccessor ContextAccessor { get; } = contextAccessor;
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
+
+        public async Task<DriveSizeInfo> GetDriveSize(Guid driveId)
+        {
+            await AssertCanReadOrWriteToDrive(driveId);
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo();
+
+            return new DriveSizeInfo()
+            {
+                FileCount = fileCount,
+                Size = bytes
+            };
+        }
 
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
@@ -207,7 +213,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     FileId = fileId
                 };
 
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
+                var hasPermissionToFile = await storage.CallerHasPermissionToFile(file);
                 if (!hasPermissionToFile)
                 {
                     // throw new OdinSystemException($"Caller with OdinId [{ContextAccessor.GetCurrent().Caller.OdinId}] received the file from the drive" +
@@ -217,7 +223,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    var serverFileHeader = await _storage.GetServerFileHeader(file);
+                    var serverFileHeader = await storage.GetServerFileHeader(file);
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = ContextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
 
@@ -274,7 +280,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
-            return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
+            return await driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
         }
 
         /// <summary>

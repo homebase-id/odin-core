@@ -8,17 +8,13 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Standard
 {
-    public class StandardFileDriveQueryService : DriveQueryServiceBase
+    public class StandardFileDriveQueryService(
+        OdinContextAccessor contextAccessor,
+        DriveDatabaseHost driveDatabaseHost,
+        DriveManager driveManager,
+        StandardFileDriveStorageService storage)
+        : DriveQueryServiceBase(contextAccessor, driveDatabaseHost, driveManager, storage)
     {
-        public StandardFileDriveQueryService(
-            OdinContextAccessor contextAccessor,
-            DriveDatabaseHost driveDatabaseHost,
-            DriveManager driveManager,
-            StandardFileDriveStorageService storage) :
-            base(contextAccessor, driveDatabaseHost, driveManager, storage)
-        {
-        }
-
         public override async Task AssertCanReadDrive(Guid driveId)
         {
             var drive = await DriveManager.GetDrive(driveId, true);

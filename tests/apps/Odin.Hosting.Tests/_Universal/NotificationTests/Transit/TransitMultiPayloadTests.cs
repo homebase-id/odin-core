@@ -13,7 +13,6 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
@@ -151,7 +150,8 @@ public class TransitNotificationTests
 
         // Both need the same app
         //  The app must have write access to the drive
-        //  the app must have the circle
+        //  the app must have the circle 
+        //  the app must b e allowed to use transit and send push notifications
 
         var appPermissions = new PermissionSetGrantRequest()
         {
@@ -166,12 +166,11 @@ public class TransitNotificationTests
                     }
                 }
             },
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite) //TODO: add permissions for sending notifications?
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.SendPushNotifications)
         };
 
         // Register a 'chat' app that has readwrite access to the chat drive
         // and allows the chat-circle to use it via transit
-        var circles = new List<Guid>() { circleId };
         var circlePermissions = new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
@@ -187,7 +186,7 @@ public class TransitNotificationTests
             }
         };
 
-        var response = await ownerClient.AppManager.RegisterApp(appId, appPermissions, circles, circlePermissions);
+        var response = await ownerClient.AppManager.RegisterApp(appId, appPermissions, [circleId], circlePermissions);
         Assert.IsTrue(response.IsSuccessStatusCode, $"Failed with status code {response.StatusCode}");
 
         return circleId;

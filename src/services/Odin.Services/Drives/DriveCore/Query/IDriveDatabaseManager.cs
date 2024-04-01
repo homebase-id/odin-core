@@ -71,5 +71,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         int GetReactionCountByIdentity(OdinId odinId, Guid fileId);
 
         (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId);
+        
+        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo();
     }
 }

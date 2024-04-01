@@ -9,7 +9,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
@@ -439,7 +438,7 @@ namespace Odin.Services.Membership.Connections
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            var allApps = await _appRegistrationService.GetRegisteredApps();
+            var allApps = (await _appRegistrationService.GetRegisteredApps()).ToList();
             var appGrants = new Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>();
 
             foreach (var circleId in circleIds)
@@ -549,13 +548,13 @@ namespace Odin.Services.Membership.Connections
 
         //
 
-        private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey,
+        private async Task<AppCircleGrant> CreateAppCircleGrant(AppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey,
             SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
             var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey,
-                appReg.CircleMemberPermissionSetGrantRequest.PermissionSet,
-                appReg.CircleMemberPermissionSetGrantRequest.Drives,
+                appReg.CircleMemberPermissionGrant.PermissionSet,
+                appReg.CircleMemberPermissionGrant.Drives,
                 masterKey);
 
             return new AppCircleGrant()
@@ -814,7 +813,7 @@ namespace Odin.Services.Membership.Connections
                     var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
 
-                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration.Redacted(), circleId, keyStoreKey, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration, circleId, keyStoreKey, masterKey);
 
                     if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {

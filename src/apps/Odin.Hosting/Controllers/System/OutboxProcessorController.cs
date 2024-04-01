@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.System
         OdinConfiguration config,
         PeerOutboxProcessor outboxProcessor,
         PeerOutbox outbox,
-        TransitInboxBoxStorage inbox) : ControllerBase
+        PeerInbox inbox) : ControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()

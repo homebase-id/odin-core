@@ -22,8 +22,6 @@
 
         public const string DriveQueryV1 = DriveV1 + "/query";
         
-        public const string DriveOutboxV1 = DriveV1 + "/outbox";
-        
         public const string DriveQuerySpecializedV1 = DriveQueryV1 + "/specialized";
         
         public const string DriveQuerySpecializedClientUniqueId = DriveQuerySpecializedV1 + "/cuid";

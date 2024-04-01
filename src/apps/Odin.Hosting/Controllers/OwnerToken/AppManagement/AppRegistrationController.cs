@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -31,7 +32,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
             var apps = await _appRegistrationService.GetRegisteredApps();
-            return apps;
+            var redactedList = apps.Select(app => app.Redacted()).ToList();
+            return await Task.FromResult(redactedList);
         }
 
         /// <summary>

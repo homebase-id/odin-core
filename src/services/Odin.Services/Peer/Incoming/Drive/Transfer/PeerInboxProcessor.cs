@@ -16,7 +16,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerInboxProcessor(
         OdinContextAccessor contextAccessor,
-        TransitInboxBoxStorage transitInboxBoxStorage,
+        PeerInbox peerInbox,
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,
         CircleNetworkService circleNetworkService,
@@ -31,7 +31,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
-            var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
+            var items = await peerInbox.GetPendingItems(driveId, batchSize);
 
             PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
             logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
@@ -87,32 +87,32 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         }
 
                         // logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}", inboxItem.Marker, inboxItem.DriveId);
-                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
+                        await peerInbox.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                     catch (OdinRemoteIdentityException)
                     {
                         // logger.LogDebug("Processing Inbox -> failed with remote identity exception: {message}", oe.Message);
                         // logger.LogDebug("Processing Inbox -> MarkFailure (remote identity exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
                         // inboxItem.DriveId);
-                        await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        await peerInbox.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         throw;
                     }
                     catch (OdinFileWriteException)
                     {
                         logger.LogError("File was missing for inbox item.  the inbox item will be removed");
-                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
+                        await peerInbox.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                     catch (Exception)
                     {
                         // logger.LogDebug("Processing Inbox -> failed with exception: {message}", e.Message);
                         // logger.LogDebug("Processing Inbox -> MarkFailure (general Exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
                         //     inboxItem.DriveId);
-                        await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        await peerInbox.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                     }
                 }
             }
 
-            var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId);
+            var pendingCount = await peerInbox.GetStatus(driveId);
             logger.LogDebug("Processing Inbox -> returning pending count.  total items: {pendingCount}, popped items: {popped}", pendingCount.TotalItems,
                 pendingCount.PoppedCount);
             return pendingCount;

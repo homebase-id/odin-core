@@ -194,7 +194,7 @@ namespace Odin.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
+            cb.RegisterType<PeerInbox>().SingleInstance();
             cb.RegisterType<PeerOutgoingOutgoingTransferService>().As<IPeerOutgoingTransferService>().SingleInstance();
             cb.RegisterType<PeerOutboxProcessor>().SingleInstance();
 

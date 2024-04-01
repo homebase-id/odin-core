@@ -14,16 +14,10 @@ using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authentication.Transit;
 
-public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+public class TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
+    : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
 {
-    private readonly OdinContextCache _cache;
-    private readonly CircleNetworkService _circleNetworkService;
-
-    public TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
-    {
-        _circleNetworkService = circleNetworkService;
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
-    }
+    private readonly OdinContextCache _cache = new(config.Host.CacheSlidingExpirationSeconds);
 
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
@@ -51,7 +45,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token);
+        var (permissionContext, circleIds) = await circleNetworkService.CreateTransitPermissionContext(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

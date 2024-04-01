@@ -143,7 +143,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
             ? Array.Empty<byte>()
             : ((OdinId)metadata.SenderOdinId).ToByteArray();
-        
+
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
@@ -322,6 +322,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         ).ToList();
 
         return (results, nextCursor);
+    }
+
+    public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo()
+    {
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(Drive.Id);
+        return Task.FromResult((count, size));
     }
 
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,

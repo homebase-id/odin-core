@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveQueryV1)]
     [Route(GuestApiPathConstants.DriveQueryV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class DriveQueryController : DriveQueryControllerBase
+    public class ClientTokenDriveQueryController : DriveQueryControllerBase
     {
         /// <summary>
         /// Returns modified files (their last modified property must be set).

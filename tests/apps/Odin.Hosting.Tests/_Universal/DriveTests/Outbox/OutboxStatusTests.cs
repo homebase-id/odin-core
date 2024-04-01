@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -104,13 +103,13 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             //
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
-            var getStatusResponse = await driveClient.GetOutboxStatus(targetDrive);
+            var getStatusResponse = await driveClient.GetDriveStatus(targetDrive);
             Assert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode);
             if (expectedStatusCode == HttpStatusCode.OK)
             {
                 var status = getStatusResponse.Content;
-                Assert.IsTrue(status.TotalItems == 0, "Note: review this test since the outbox processing is meant to run in the background");
-                Assert.IsTrue(status.CheckedOutCount == 0, "Note: review this test since the outbox processing is meant to run in the background");
+                Assert.IsTrue(status.Outbox.TotalItems == 0, "Note: review this test since the outbox processing is meant to run in the background");
+                Assert.IsTrue(status.Outbox.CheckedOutCount == 0, "Note: review this test since the outbox processing is meant to run in the background");
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);

@@ -15,39 +15,29 @@ namespace Odin.Services.Base;
 /// <summary>
 /// Specifies a set of permissions.  This allows an identity's permissions to come from multiple sources such as circles.
 /// </summary>
-public class PermissionGroup
+public class PermissionGroup(
+    PermissionSet permissionSet,
+    IEnumerable<DriveGrant>? driveGrants,
+    SensitiveByteArray? keyStoreKey,
+    SymmetricKeyEncryptedAes? encryptedIcrKey)
 {
-    private readonly PermissionSet _permissionSet;
-    private readonly IEnumerable<DriveGrant>? _driveGrants;
-    private readonly SensitiveByteArray? _keyStoreKey;
-    private readonly SymmetricKeyEncryptedAes? _encryptedIcrKey;
-
-    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant>? driveGrants, SensitiveByteArray? keyStoreKey,
-        SymmetricKeyEncryptedAes? encryptedIcrKey)
-    {
-        _permissionSet = permissionSet;
-        _driveGrants = driveGrants;
-        _keyStoreKey = keyStoreKey;
-        _encryptedIcrKey = encryptedIcrKey;
-    }
-
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
         // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
         // return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
 
-        if (null == _driveGrants)
+        if (null == driveGrants)
         {
             return false;
         }
 
-        var hasPermission = _driveGrants.Any(g => g.DriveId == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
+        var hasPermission = driveGrants.Any(g => g.DriveId == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
         return hasPermission;
     }
 
     public bool HasPermission(int permission)
     {
-        return this._permissionSet?.HasKey(permission) ?? false;
+        return permissionSet?.HasKey(permission) ?? false;
     }
 
     /// <summary>
@@ -57,7 +47,7 @@ public class PermissionGroup
     /// <returns></returns>
     public Guid? GetDriveId(TargetDrive drive)
     {
-        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
+        var grant = driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
         return grant?.DriveId;
     }
 
@@ -69,7 +59,7 @@ public class PermissionGroup
     public SensitiveByteArray? GetDriveStorageKey(Guid driveId, out int grantsCount)
     {
         grantsCount = 0;
-        var grants = _driveGrants?.Where(g => g.DriveId == driveId).ToList();
+        var grants = driveGrants?.Where(g => g.DriveId == driveId).ToList();
 
         if (grants == null)
         {
@@ -89,17 +79,17 @@ public class PermissionGroup
         {
             //If we cannot decrypt the storage key BUT the caller has access to the drive,
             //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
-            if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+            if (keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
                 Log.Debug(
                     "Grant for drive {permissionDrive} with permission value ({permission}) has null key store key:{kskNull} and null key store key encrypted storage key: {kskstoragekey}",
-                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, this._keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
+                    grant.PermissionedDrive.Drive, grant.PermissionedDrive.Permission, keyStoreKey == null, grant.KeyStoreKeyEncryptedStorageKey == null);
 
                 // return null;
                 continue;
             }
 
-            var key = this._keyStoreKey;
+            var key = keyStoreKey;
             try
             {
                 var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(key);
@@ -121,19 +111,19 @@ public class PermissionGroup
 
     public TargetDrive? GetTargetDrive(Guid driveId)
     {
-        var grant = _driveGrants?.FirstOrDefault(g => g.DriveId == driveId);
+        var grant = driveGrants?.FirstOrDefault(g => g.DriveId == driveId);
         return grant?.PermissionedDrive.Drive;
     }
 
     public SensitiveByteArray? GetIcrKey()
     {
-        var key = this._keyStoreKey;
-        return _encryptedIcrKey?.DecryptKeyClone(key);
+        var key = keyStoreKey;
+        return encryptedIcrKey?.DecryptKeyClone(key);
     }
 
     public RedactedPermissionGroup Redacted()
     {
-        if (null == _permissionSet)
+        if (null == permissionSet)
         {
             return new RedactedPermissionGroup()
             {
@@ -144,8 +134,8 @@ public class PermissionGroup
 
         return new RedactedPermissionGroup()
         {
-            PermissionSet = _permissionSet == null ? new PermissionSet().Redacted() : _permissionSet.Redacted(),
-            DriveGrants = _driveGrants?.Select(r => r.Redacted()) ?? new List<RedactedDriveGrant>()
+            PermissionSet = permissionSet == null ? new PermissionSet().Redacted() : permissionSet.Redacted(),
+            DriveGrants = driveGrants?.Select(r => r.Redacted()) ?? new List<RedactedDriveGrant>()
         };
     }
 }

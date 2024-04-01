@@ -20,7 +20,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Serilog;
 using WebPush;
 
@@ -31,7 +30,6 @@ public class PushNotificationService(
     OdinContextAccessor contextAccessor,
     PublicPrivateKeyService keyService,
     TenantSystemStorage tenantSystemStorage,
-    ServerSystemStorage serverSystemStorage,
     NotificationListService notificationListService,
     IAppRegistrationService appRegistrationService,
     OdinConfiguration configuration)
@@ -48,23 +46,11 @@ public class PushNotificationService(
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
+    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
     {
-        //TODO: which security to check?
-        //app permissions? I.e does the calling app on the recipient server have access to send notifications?
-        // contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        var item = new PushNotificationOutboxRecord()
-        {
-            SenderId = senderId,
-            Options = options
-        };
-
-        _pushNotificationOutbox.Add(item);
-
-        this.EnsureIdentityIsPending();
-
-        return Task.FromResult(true);
+        //validate the calling app on the recipient server have access to send notifications?
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        return await EnqueueNotificationInternal(senderId, options, fileId);
     }
 
     public async Task ProcessBatch(List<PushNotificationOutboxRecord> list)
@@ -92,13 +78,6 @@ public class PushNotificationService(
                         Options = record.Options,
                         SenderId = record.SenderId,
                         Timestamp = record.Timestamp,
-                    });
-
-                    //add to system list
-                    await notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
-                    {
-                        Timestamp = record.Timestamp,
-                        AppNotificationOptions = record.Options,
                     });
 
                     await _pushNotificationOutbox.MarkComplete(record.Marker);
@@ -231,35 +210,46 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private void EnsureIdentityIsPending()
+    public async Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
     {
-        var tenant = contextAccessor.GetCurrent().Tenant;
-        serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-    }
-
-    public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
-    {
-        this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
+        await this.EnqueueNotificationInternal(notification.Recipient, new AppNotificationOptions()
         {
             AppId = SystemAppConstants.OwnerAppId,
             TypeId = notification.NotificationTypeId,
             TagId = notification.Recipient.ToHashId(),
             Silent = false
         });
-
-        return Task.CompletedTask;
     }
 
-    public Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+        await this.EnqueueNotificationInternal(notification.Sender, new AppNotificationOptions()
         {
             AppId = SystemAppConstants.OwnerAppId,
             TypeId = notification.NotificationTypeId,
             TagId = notification.Sender.ToHashId(),
             Silent = false
         });
+    }
 
-        return Task.CompletedTask;
+    //
+
+    private async Task<bool> EnqueueNotificationInternal(OdinId senderId, AppNotificationOptions options, InternalDriveFileId? fileId = null)
+    {
+        var item = new PushNotificationOutboxRecord()
+        {
+            SenderId = senderId,
+            Options = options
+        };
+
+        //add to system list
+        await notificationListService.AddNotificationInternal(senderId, new AddNotificationRequest()
+        {
+            Timestamp = UnixTimeUtc.Now().milliseconds,
+            AppNotificationOptions = options,
+        });
+
+        await _pushNotificationOutbox.Add(item);
+        return true;
     }
 }

@@ -36,7 +36,7 @@ namespace Odin.Services.Authorization.Apps
         /// Gets all registered apps
         /// </summary>
         /// <returns></returns>
-        Task<List<RedactedAppRegistration>> GetRegisteredApps();
+        Task<IEnumerable<AppRegistration>> GetRegisteredApps();
 
         /// <summary>
         /// Removes access for a given application across all devices

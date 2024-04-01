@@ -13,7 +13,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TenantSystemStorage tenantSystemStorage)
+    public class PeerInbox(TenantSystemStorage tenantSystemStorage)
     {
         public Task Add(TransferInboxItem item)
         {
@@ -25,16 +25,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
-        public InboxStatus GetPendingCount(Guid driveId)
+        public async Task<InboxStatus> GetStatus(Guid driveId)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
 
-            return new InboxStatus()
+            return await Task.FromResult(new InboxStatus()
             {
                 TotalItems = p.totalCount,
                 PoppedCount = p.poppedCount,
                 OldestItemTimestamp = p.oldestItemTime,
-            };
+            });
         }
 
         public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize)

@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -17,6 +16,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Serilog;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
-        private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
+        private readonly PeerInbox _peerInbox;
         private readonly IDriveFileSystem _fileSystem;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IMediator _mediator;
@@ -42,7 +42,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             _contextAccessor = contextAccessor;
             _driveManager = driveManager;
             _fileSystem = fileSystem;
-            _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
+            _peerInbox = new PeerInbox(tenantSystemStorage);
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;
@@ -64,9 +64,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-
             var responseCode = await FinalizeTransferInternal(item, fileMetadata);
+            await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
 
+            // At this point, we're totally complete with storing the file.  now let's send out some notifications, etc.
+            
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
                 //Feed hack (again)
@@ -83,15 +85,21 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else
                 {
-                    var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
-                    if (null != notificationOptions)
+                    try
                     {
-                        var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        var notificationOptions = item.TransferInstructionSet.AppNotificationOptions;
+                        if (null != notificationOptions)
+                        {
+                            var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                            await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
+                        }
+                    }
+                    catch (OdinSecurityException)
+                    {
+                        Log.Information("File received with AppNotificationOptions set but recipient's app does not have permissions");
                     }
                 }
 
-                await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new PeerTransferResponse() { Code = responseCode };
             }
 
@@ -148,7 +156,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _peerInbox.Add(item);
 
             return new PeerTransferResponse()
             {
@@ -252,7 +260,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _peerInbox.Add(item);
             await _mediator.Publish(new TransitFileReceivedNotification()
             {
                 TempFile = new ExternalFileIdentifier()

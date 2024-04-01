@@ -436,13 +436,11 @@ namespace Odin.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
+        public async Task<IEnumerable<AppRegistration>> GetRegisteredApps()
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
             var apps = _appRegistrationValueStorage.GetByCategory<AppRegistration>(_appRegistrationDataType);
-            var redactedList = apps.Select(app => app.Redacted()).ToList();
-            return await Task.FromResult(redactedList);
+            return await Task.FromResult(apps);
         }
 
         private void SaveClient(AppClient appClient)

@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -16,23 +14,18 @@ namespace Odin.Services.AppNotifications.Data;
 /// <summary>
 /// Storage for notifications
 /// </summary>
-public class NotificationListService
+public class NotificationListService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
 {
-    private readonly OdinContextAccessor _contextAccessor;
-    private readonly TableAppNotifications _storage;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+    private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
 
-    public NotificationListService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+    public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request)
     {
-        _contextAccessor = contextAccessor;
-        _storage = tenantSystemStorage.AppNotifications;
-        _tenantSystemStorage = tenantSystemStorage;
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        return await AddNotificationInternal(senderId, request);
     }
 
-    public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request)
+    internal Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
         {
@@ -53,7 +46,7 @@ public class NotificationListService
 
     public Task<NotificationsListResult> GetList(GetNotificationListRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
 
@@ -75,7 +68,7 @@ public class NotificationListService
 
     public Task Delete(DeleteNotificationsRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var id in request.IdList)
         {
@@ -88,7 +81,7 @@ public class NotificationListService
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         foreach (var update in request.Updates)
         {

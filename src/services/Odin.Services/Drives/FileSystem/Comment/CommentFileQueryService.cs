@@ -8,14 +8,13 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Comment
 {
-    public class CommentFileQueryService : DriveQueryServiceBase
+    public class CommentFileQueryService(
+        OdinContextAccessor contextAccessor,
+        DriveDatabaseHost driveDatabaseHost,
+        DriveManager driveManager,
+        CommentFileStorageService commentStorage)
+        : DriveQueryServiceBase(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
     {
-        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
-            CommentFileStorageService commentStorage) :
-            base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
-        {
-        }
-
         public override async Task AssertCanReadDrive(Guid driveId)
         {
             var drive = await DriveManager.GetDrive(driveId, true);
