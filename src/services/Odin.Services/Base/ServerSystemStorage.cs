@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 
@@ -40,7 +41,7 @@ public class ServerSystemStorage : IDisposable
         return _db.CreateCommitUnitOfWork();
     }
 
-    public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data)
+    public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data, UnixTimeUtc nextRun)
     {
         try
         {
@@ -48,7 +49,8 @@ public class ServerSystemStorage : IDisposable
             {
                 identityId = odinId,
                 type = (Int32)jobType,
-                data = data
+                data = data,
+                nextRun = nextRun
             });
         }
         catch (Microsoft.Data.Sqlite.SqliteException ex)
@@ -62,14 +64,27 @@ public class ServerSystemStorage : IDisposable
         }
     }
 
-    public void EnqueueJob<T>(OdinId odinId, CronJobType jobType, T data)
+    public void EnqueueJob<T>(OdinId odinId, CronJobType jobType, T data, UnixTimeUtc nextRun)
     {
-        this.JobQueue.Insert(new CronRecord()
+        try
         {
-            identityId = odinId,
-            type = (Int32)jobType,
-            data = OdinSystemSerializer.Serialize(data).ToUtf8ByteArray()
-        });
+            this.JobQueue.Insert(new CronRecord()
+            {
+                identityId = odinId,
+                type = (Int32)jobType,
+                data = OdinSystemSerializer.Serialize(data).ToUtf8ByteArray(),
+                nextRun = nextRun
+            });
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex)
+        {
+            //ignore constraint error code as it just means we tried to insert the sender twice.
+            //it's only needed once
+            if (ex.ErrorCode != 19) //constraint
+            {
+                throw;
+            }
+        }
     }
 
     public void Dispose()

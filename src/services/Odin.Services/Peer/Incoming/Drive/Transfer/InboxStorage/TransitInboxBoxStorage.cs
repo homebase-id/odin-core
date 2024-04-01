@@ -28,6 +28,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public InboxStatus GetPendingCount(Guid driveId)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
+
             return new InboxStatus()
             {
                 TotalItems = p.totalCount,
@@ -40,7 +41,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
             var records = tenantSystemStorage.Inbox.PopSpecificBox(driveId, batchSize == 0 ? 1 : batchSize);
-            
+
             if (null == records)
             {
                 return new List<TransferInboxItem>();
@@ -71,6 +72,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public Task MarkFailure(Guid driveId, Guid marker)
         {
             tenantSystemStorage.Inbox.PopCancelAll(marker);
+            return Task.CompletedTask;
+        }
+
+        public Task RecoverDead(UnixTimeUtc time)
+        {
+            tenantSystemStorage.Inbox.PopRecoverDead(time);
             return Task.CompletedTask;
         }
     }

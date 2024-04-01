@@ -12,14 +12,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
     public class TempStorageManager
     {
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
+        private readonly ILogger<TempStorageManager> _logger;
 
         private readonly StorageDrive _drive;
 
-        public TempStorageManager(StorageDrive drive, DriveFileReaderWriter driveFileReaderWriter)
+        public TempStorageManager(StorageDrive drive, DriveFileReaderWriter driveFileReaderWriter, ILogger<TempStorageManager> logger)
         {
             drive.EnsureDirectories();
 
             _driveFileReaderWriter = driveFileReaderWriter;
+            _logger = logger;
             _drive = drive;
         }
 
@@ -31,6 +33,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<byte[]> GetAllFileBytes(Guid fileId, string extension)
         {
             string path = GetTempFilenameAndPath(fileId, extension);
+            _logger.LogDebug("Getting temp file bytes for [{path}]", path);
             var bytes = await _driveFileReaderWriter.GetAllFileBytes(path);
             return bytes;
         }

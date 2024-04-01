@@ -10,6 +10,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -365,7 +366,8 @@ namespace Odin.Services.DataSubscription
                 new FeedDistributionInfo()
                 {
                     OdinId = _tenantContext.HostOdinId,
-                });
+                },
+                UnixTimeUtc.Now());
         }
 
         private async Task<bool> SupportsSubscription(Guid driveId)
