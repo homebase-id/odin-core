@@ -23,7 +23,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     {
         public string Recipient { get; set; }
 
-        public bool IsTransientFile { get; set; }
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
 
         public TransitOptions OriginalTransitOptions { get; set; }
@@ -50,7 +49,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     var state = OdinSystemSerializer.Serialize(new OutboxItemState()
                     {
                         Recipient = item.Recipient,
-                        IsTransientFile = item.IsTransientFile,
                         TransferInstructionSet = item.TransferInstructionSet,
                         OriginalTransitOptions = item.OriginalTransitOptions,
                         EncryptedClientAuthToken = item.EncryptedClientAuthToken
@@ -109,7 +107,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var item = new OutboxItem()
             {
                 Recipient = (OdinId)record.recipient,
-                IsTransientFile = state!.IsTransientFile,
                 Priority = record.priority,
                 AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
                 Type = (OutboxItemType)record.type,

@@ -200,7 +200,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     {
                         Priority = priority,
                         Type = outboxItemType,
-                        IsTransientFile = options.IsTransient,
                         File = internalFile,
                         Recipient = recipient,
                         OriginalTransitOptions = options,

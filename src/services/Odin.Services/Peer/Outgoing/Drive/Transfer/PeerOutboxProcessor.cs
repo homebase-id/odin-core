@@ -47,7 +47,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
-            List<OutboxItem> filesForDeletion = new List<OutboxItem>();
 
             //Temporary method until i talk with @Seb about threading, etc
             while (item != null)
@@ -73,19 +72,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         throw new ArgumentOutOfRangeException();
                 }
                 
-                if (item.IsTransientFile)
-                {
-                    filesForDeletion.Add(item);
-                }
-                
                 item = await peerOutbox.GetNextItem();
-            }
-            
-            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
-            foreach (var itemToDelete in filesForDeletion)
-            {
-                // var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
-                // await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
             }
         }
 
