@@ -38,6 +38,8 @@
         
         public const string OptimizationV1 = BasePathV1 + "/optimization";
 
+        public const string PushNotificationsV1 = BasePathV1 + "/notify/push";
+        
         public const string CdnV1 = OptimizationV1 + "/cdn";
     }
 }

@@ -38,6 +38,10 @@ public class YouAuthAppParameters
     [JsonPropertyName(CircleDrivesParamName)]
     public string CircleDrivesParam { get; set; } = "";
 
+    public const string CircleParamName = "c";
+    [JsonPropertyName(CircleParamName)]
+    public string CircleParam { get; set; } = "";
+
     public const string PermissionParamName = "p";
     [JsonPropertyName(PermissionParamName)]
     public string PermissionParam { get; set; } = "";
@@ -70,6 +74,7 @@ public class YouAuthAppParameters
         qs[ClientFriendlyName] = ClientFriendly;
         qs[DrivesParamName] = DrivesParam;
         qs[CircleDrivesParamName] = CircleDrivesParam;
+        qs[CircleParamName] = CircleParam;
         qs[PermissionParamName] = PermissionParam;
         qs[ReturnName] = Return;
         qs[CancelName] = Cancel;

@@ -31,6 +31,8 @@ namespace Odin.Services.Configuration
         public FeedSection Feed { get; init; }
         public TransitSection Transit { get; init; }
 
+        public PushNotificationSection PushNotification { get; init; }
+
         public OdinConfiguration()
         {
             // Mockable support
@@ -54,6 +56,7 @@ namespace Odin.Services.Configuration
             }
 
             CertificateRenewal = new CertificateRenewalSection(config);
+            PushNotification = new PushNotificationSection(config);
         }
 
         //
@@ -442,5 +445,20 @@ namespace Odin.Services.Configuration
         }
 
         //
+
+        public class PushNotificationSection
+        {
+            public string BaseUrl { get; init; }
+
+            public PushNotificationSection()
+            {
+                // Mockable support
+            }
+
+            public PushNotificationSection(IConfiguration config)
+            {
+                BaseUrl = config.Required<string>("PushNotification:BaseUrl");
+            }
+        }
     }
 }

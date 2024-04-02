@@ -9,9 +9,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     [ApiController]
     [Route(OwnerApiPathConstants.NotificationsV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerNotificationListController : NotificationControllerBase
+    public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
-        public OwnerNotificationListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
+        public OwnerNotificationListDataListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
             contextAccessor)
         {
         }
