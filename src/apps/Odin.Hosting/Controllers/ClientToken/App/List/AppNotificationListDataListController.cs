@@ -8,9 +8,9 @@ namespace Odin.Hosting.Controllers.ClientToken.App.List
     [ApiController]
     [Route(AppApiPathConstants.NotificationsV1)]
     [AuthorizeValidAppToken]
-    public class AppNotificationListController : NotificationControllerBase
+    public class AppNotificationListDataListController : NotificationListDataControllerBase
     {
-        public AppNotificationListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
+        public AppNotificationListDataListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
             contextAccessor)
         {
         }
