@@ -72,7 +72,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                IsTransient = false,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
@@ -128,7 +127,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                IsTransient = false,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
@@ -200,7 +198,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                IsTransient = false,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default
@@ -286,7 +283,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var transitOptions = new TransitOptions()
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
-                IsTransient = false,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default

@@ -65,8 +65,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
                 TransitOptions = new()
                 {
                     Recipients = recipientContexts.Keys.Select(k => k.ToString()).ToList(),
-                    UseGlobalTransitId = true,
-                    IsTransient = false
+                    UseGlobalTransitId = true
                 }
             };
 

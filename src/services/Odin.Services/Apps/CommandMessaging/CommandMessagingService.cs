@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -23,11 +24,19 @@ namespace Odin.Services.Apps.CommandMessaging;
 /// <remarks>
 /// Uses transit to send commands as special files
 /// </remarks>
-public class CommandMessagingService(IPeerOutgoingTransferService peerOutgoingTransferService, StandardFileSystem standardFileSystem)
+public class CommandMessagingService(
+    IPeerOutgoingTransferService peerOutgoingTransferService,
+    StandardFileSystem standardFileSystem,
+    OdinContextAccessor contextAccessor,
+    DriveManager driveManager)
 {
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
-        var internalFile = await standardFileSystem.Storage.CreateInternalFileId(driveId);
+        // var internalFile = await standardFileSystem.Storage.CreateInternalFileId(driveId);
+        
+        // Write the file to the transient temp drive
+        var tempDriveId = await driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive);
+        var internalFile = await standardFileSystem.Storage.CreateInternalFileId(tempDriveId.GetValueOrDefault());
 
         var msg = new CommandTransferMessage()
         {
@@ -64,9 +73,9 @@ public class CommandMessagingService(IPeerOutgoingTransferService peerOutgoingTr
             internalFile: internalFile,
             options: new TransitOptions()
             {
-                IsTransient = true,
                 Recipients = command.Recipients,
                 UseGlobalTransitId = false,
+                RemoteTargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId),
                 Schedule = ScheduleOptions.SendNowAwaitResponse //TODO: let the caller specify this
             },
             transferFileType: TransferFileType.CommandMessage,

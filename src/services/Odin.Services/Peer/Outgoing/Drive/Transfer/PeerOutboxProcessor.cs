@@ -84,8 +84,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
             foreach (var itemToDelete in filesForDeletion)
             {
-                var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
+                // var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
+                // await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
             }
         }
 

@@ -95,7 +95,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
             //Note: You might need to process the outbox or wait for a bit 
-            
+
 
             //
             // Test results
@@ -187,7 +187,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             // Test results
             //
 
-            
+
             //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
             // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
             //
@@ -320,7 +320,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
-            
+
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
@@ -384,8 +384,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
-            
-            
+
+
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
@@ -448,13 +448,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
-            
+
             //Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
             Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==
                           LatestProblemStatus.RecipientIdentityReturnedBadRequest);
-            
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
@@ -512,7 +512,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: if this fails, you need to consider when the outbox is being processed
+            // so the issue here - 
+            // 
+// Assert.Inconclusive("TODO: the file is transient so it gets deleted, therefore i8 dont have a way to get back the status");
+
+//Note: if this fails, you need to consider when the outbox is being processed
             var getSourceFileResponse = await senderOwnerClient.DriveRedux.GetFileHeader(commentUploadResult.File, FileSystemType.Comment);
             Assert.IsTrue(getSourceFileResponse.IsSuccessStatusCode);
             Assert.IsTrue(getSourceFileResponse.Content.ServerMetadata.TransferHistory.Recipients[recipient.OdinId].LatestProblemStatus ==

@@ -244,7 +244,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var transitOptions = new TransitOptions()
             {
                 Recipients = new List<string>() { recipient.OdinId },
-                IsTransient = false,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
                 RemoteTargetDrive = default

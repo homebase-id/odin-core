@@ -225,10 +225,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return true;
                 }
 
-                //S2210 - comments cannot fall back to inbox
+                //S2210 - comments cannot fall back to inbox so this is a 403
                 if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
                 {
-                    throw new OdinSecurityException("Sender cannot write the comment");
+                    throw new OdinSecurityException("Sender cannot write the encrypted comment");
                 }
             }
 
