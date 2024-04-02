@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Cms;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -51,17 +53,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
 
-        private const string whereClause = 
+        private const string whereClause =
             "WHERE (checkOutStamp is NULL) AND " +
-                        "   fileId IN (" +
-                        "      SELECT fileid " +
-                        "      FROM outbox " +
-                        "      WHERE " +
-                        "        checkOutStamp is NULL AND " +
-                        "        nextRunTime <= $now AND " +
-                        "        ((dependencyFileId IS NULL) OR " +
-                        "         (NOT EXISTS (SELECT 1 FROM outbox AS ib WHERE ib.fileId = outbox.dependencyFileId AND ib.recipient = outbox.recipient)))" +
-                        "      ORDER BY priority ASC, nextRunTime ASC LIMIT 1) ";
+            "   rowId = (" +
+            "      SELECT rowId " +
+            "      FROM outbox " +
+            "      WHERE checkOutStamp IS NULL " +
+            "      AND nextRunTime <= $now " +
+            "      AND ( " +
+            "        (dependencyFileId IS NULL) " +
+            "        OR (NOT EXISTS ( " +
+            "              SELECT 1 " +
+            "              FROM outbox AS ib " +
+            "              WHERE ib.fileId = outbox.dependencyFileId " +
+            "              AND ib.recipient = outbox.recipient " +
+            "      )) " +
+            ") " +
+            " ORDER BY priority ASC, nextRunTime ASC " +
+            "LIMIT 1 " +
+            ");";
 
         public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
