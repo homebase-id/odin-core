@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -108,11 +109,6 @@ public sealed class DriveFileReaderWriter(
     public async Task<byte[]> GetAllFileBytes(string filePath)
     {
         byte[] bytes = null;
-
-        if (!File.Exists(filePath))
-        {
-            return null;
-        }
 
         try
         {
