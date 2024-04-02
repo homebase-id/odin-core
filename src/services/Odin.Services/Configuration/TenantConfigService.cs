@@ -409,6 +409,7 @@ public class TenantConfigService
             PermissionSet = new PermissionSet(
                 PermissionKeys.ReadConnections,
                 PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadConnectionRequests,
                 // PermissionKeys.UseTransitRead,
                 PermissionKeys.UseTransitWrite)
         };
