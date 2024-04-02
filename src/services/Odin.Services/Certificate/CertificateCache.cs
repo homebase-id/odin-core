@@ -38,7 +38,7 @@ public class CertificateCache : ICertificateCache
         }
         
         // Expired?
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow;
         if (now >= x509.NotBefore && now <= x509.NotAfter)
         {
             return x509;
