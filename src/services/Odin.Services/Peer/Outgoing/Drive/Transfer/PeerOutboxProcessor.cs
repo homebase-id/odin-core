@@ -47,6 +47,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
+            List<OutboxItem> filesForDeletion = new List<OutboxItem>();
 
             //Temporary method until i talk with @Seb about threading, etc
             while (item != null)
@@ -65,14 +66,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         break;
 
                     case OutboxItemType.PushNotification:
-                        await SendPushNotification(item); //TODO: send in separate thread?
+                        await SendPushNotification(item);
                         break;
 
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-
+                
+                if (item.IsTransientFile)
+                {
+                    filesForDeletion.Add(item);
+                }
+                
                 item = await peerOutbox.GetNextItem();
+            }
+            
+            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
+            foreach (var itemToDelete in filesForDeletion)
+            {
+                var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
+                await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
             }
         }
 
@@ -97,16 +110,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task SendFileOutboxItem(OutboxItem item)
         {
-            List<OutboxItem> filesForDeletion = new List<OutboxItem>();
             try
             {
                 var versionTag = await SendOutboxFileItemAsync(item);
-
-                if (item.IsTransientFile)
-                {
-                    filesForDeletion.Add(item);
-                }
-
                 await UpdateTransferHistory(item, versionTag, null);
                 await peerOutbox.MarkComplete(item.Marker);
                 await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
@@ -139,13 +145,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     FileSystemType = item.TransferInstructionSet.FileSystemType,
                     ProblemStatus = LatestProblemStatus.UnknownServerError
                 });
-            }
-
-            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
-            foreach (var itemToDelete in filesForDeletion)
-            {
-                var fs = _fileSystemResolver.ResolveFileSystem(itemToDelete.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(itemToDelete.File);
             }
         }
 

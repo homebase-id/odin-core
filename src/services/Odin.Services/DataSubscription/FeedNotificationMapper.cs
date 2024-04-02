@@ -13,6 +13,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Serilog;
 
@@ -24,13 +25,17 @@ namespace Odin.Services.DataSubscription
     ///
     /// Yes, this is more Feed hack'ish stuff that indicates we need to build a feed subsystem in the core
     /// </summary>
-    public class FeedNotificationMapper(DriveManager driveManager, PushNotificationService pushNotificationService, TenantContext tenantContext)
+    public class FeedNotificationMapper(
+        DriveManager driveManager,
+        PushNotificationService pushNotificationService,
+        TenantContext tenantContext,
+        OdinContextAccessor contextAccessor)
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
         private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
         private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");
-        
+
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
             var driveId = notification.Reaction.FileId.DriveId;
@@ -39,13 +44,16 @@ namespace Odin.Services.DataSubscription
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
                 {
-                    await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                    using (new PeerTransferSecurityContext(contextAccessor))
                     {
-                        AppId = SystemAppConstants.FeedAppId,
-                        TypeId = notification.NotificationTypeId,
-                        TagId = sender.ToHashId(),
-                        Silent = false,
-                    });
+                        await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                        {
+                            AppId = SystemAppConstants.FeedAppId,
+                            TypeId = notification.NotificationTypeId,
+                            TagId = sender.ToHashId(),
+                            Silent = false,
+                        });
+                    }
                 }
             }
         }
@@ -54,13 +62,16 @@ namespace Odin.Services.DataSubscription
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
 
-            await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+            using (new PeerTransferSecurityContext(contextAccessor))
             {
-                AppId = SystemAppConstants.FeedAppId,
-                TypeId = typeId,
-                TagId = notification.Sender.ToHashId(),
-                Silent = false,
-            });
+                await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+                {
+                    AppId = SystemAppConstants.FeedAppId,
+                    TypeId = typeId,
+                    TagId = notification.Sender.ToHashId(),
+                    Silent = false,
+                });
+            }
         }
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
@@ -77,25 +88,31 @@ namespace Odin.Services.DataSubscription
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
                 && sender != tenantContext.HostOdinId)
             {
-                await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                using (new PeerTransferSecurityContext(contextAccessor))
                 {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = CommentNotificationTypeId,
-                    TagId = sender.ToHashId(),
-                    Silent = false,
-                });
+                    await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = sender.ToHashId(),
+                        Silent = false,
+                    });
+                }
             }
         }
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
-            await pushNotificationService.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
+            using (new PeerTransferSecurityContext(contextAccessor))
             {
-                AppId = SystemAppConstants.OwnerAppId,
-                TypeId = notification.NotificationTypeId,
-                TagId = notification.OdinId.ToHashId(),
-                Silent = false
-            });
+                await pushNotificationService.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
+                {
+                    AppId = SystemAppConstants.OwnerAppId,
+                    TypeId = notification.NotificationTypeId,
+                    TagId = notification.OdinId.ToHashId(),
+                    Silent = false
+                });
+            }
         }
 
         private async Task<bool> IsFeedDriveRelated(Guid driveId)

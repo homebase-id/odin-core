@@ -21,7 +21,7 @@ namespace Odin.Hosting._dev
             {
                 foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
                 {
-                    Log.Information($"Preconfigured domain added:[]{domain}");
+                    Log.Information($"Preconfigured domain added:[{domain}");
                     
                     certificates.Add(ByteArrayUtil.ReduceSHA256Hash(domain), domain);
                 }

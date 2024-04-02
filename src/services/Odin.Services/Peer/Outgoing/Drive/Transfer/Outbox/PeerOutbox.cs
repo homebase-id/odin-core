@@ -104,7 +104,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 return await Task.FromResult<OutboxItem>(null);
             }
-
+            
             var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
             var item = new OutboxItem()
             {

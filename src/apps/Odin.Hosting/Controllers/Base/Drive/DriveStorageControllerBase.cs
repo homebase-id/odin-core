@@ -160,7 +160,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<IActionResult> DeleteFile(DeleteFileRequest request)
         {
             var result = await PerformFileDelete(request);
-            return new JsonResult(result);
+            return Accepted("", result);
         }
 
         protected async Task<IActionResult> DeleteFilesByGroupIdBatch(DeleteFilesByGroupIdBatchRequest batchRequest)
