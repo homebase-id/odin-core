@@ -203,28 +203,36 @@ public class PushNotificationService(
             : payload.Options.UnEncryptedMessage;
 
         var originDomain = context.Tenant.DomainName;
-        var messageId = Guid.NewGuid().ToString();
         var certificate = certificateCache.LookupCertificate(originDomain);
-        var signature = certificate.CreateSignature(messageId);
 
-        var request = new DevicePushNotificationRequestV1
+        // Sanity check
+        if (certificate == null)
         {
-            Body = body,
-            CorrelationId = correlationContext.Id,
-            Data = OdinSystemSerializer.Serialize(payload),
-            DevicePlatform = subscription.FirebaseDevicePlatform,
-            DeviceToken = subscription.FirebaseDeviceToken,
-            Id = messageId,
-            OriginDomain = originDomain,
-            Signature = signature,
-            Timestamp = DateTimeOffset.UtcNow.ToString("O"),
-            Title = title,
-        };
+            logger.LogError("No certificate found for {originDomain}. This should never happen.", originDomain);
+            return;
+        }
 
         logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);
 
         try
         {
+            var messageId = Guid.NewGuid().ToString();
+            var signature = certificate.CreateSignature(messageId);
+
+            var request = new DevicePushNotificationRequestV1
+            {
+                Body = body,
+                CorrelationId = correlationContext.Id,
+                Data = OdinSystemSerializer.Serialize(payload),
+                DevicePlatform = subscription.FirebaseDevicePlatform,
+                DeviceToken = subscription.FirebaseDeviceToken,
+                Id = messageId,
+                OriginDomain = originDomain,
+                Signature = signature,
+                Timestamp = DateTimeOffset.UtcNow.ToString("O"),
+                Title = title,
+            };
+
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
             var httpClient = httpClientFactory.CreateClient<PushNotificationService>(baseUri);
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, correlationContext.Id);
