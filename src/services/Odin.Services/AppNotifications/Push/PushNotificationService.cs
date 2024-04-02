@@ -12,16 +12,19 @@ using Odin.Core.Dto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Refit;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Core.X509;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
@@ -42,6 +45,7 @@ public class PushNotificationService(
     NotificationListService notificationListService,
     IAppRegistrationService appRegistrationService,
     IHttpClientFactory httpClientFactory,
+    ICertificateCache certificateCache,
     OdinConfiguration configuration)
     : INotificationHandler<ConnectionRequestAccepted>,
         INotificationHandler<ConnectionRequestReceived>
@@ -198,7 +202,11 @@ public class PushNotificationService(
             ? $"Received from {context.Tenant}"
             : payload.Options.UnEncryptedMessage;
 
-        // SEB:TODO signature
+        var originDomain = context.Tenant.DomainName;
+        var messageId = Guid.NewGuid().ToString();
+        var certificate = certificateCache.LookupCertificate(originDomain);
+        var signature = certificate.CreateSignature(messageId);
+
         var request = new DevicePushNotificationRequestV1
         {
             Body = body,
@@ -206,8 +214,10 @@ public class PushNotificationService(
             Data = OdinSystemSerializer.Serialize(payload),
             DevicePlatform = subscription.FirebaseDevicePlatform,
             DeviceToken = subscription.FirebaseDeviceToken,
-            OriginDomain = context.Tenant,
-            Signature = "SEB:TODO",
+            Id = messageId,
+            OriginDomain = originDomain,
+            Signature = signature,
+            Timestamp = DateTimeOffset.UtcNow.ToString("O"),
             Title = title,
         };
 
@@ -228,17 +238,21 @@ public class PushNotificationService(
                 }
                 catch (ApiException apiEx)
                 {
-                    if (apiEx.StatusCode != HttpStatusCode.BadGateway)
+                    var problem = await apiEx.TryGetContentAsAsync<ProblemDetails>();
+                    if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
+                    {
+                        logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
+                        await RemoveDevice(subscription.AccessRegistrationId);
+                    }
+                    else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
+                    {
+                        logger.LogError("Failed sending device push notification: {status} - {error}",
+                            apiEx.StatusCode, apiEx.Content);
+                    }
+                    else
                     {
                         throw;
                     }
-                    var problem = await apiEx.GetContentAsAsync<ProblemDetails>();
-                    if (problem.Type != "NotFound")
-                    {
-                        throw;
-                    }
-                    logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                    await RemoveDevice(subscription.AccessRegistrationId);
                 }
             });
         }

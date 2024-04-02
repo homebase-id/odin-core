@@ -20,13 +20,12 @@ public class DevicePushNotificationRequestV1
     public string OriginDomain { get; set; } = "";
 
     [Required]
-    public string Signature { get; set; } = "";
+    public byte[] Signature { get; set; } = Array.Empty<byte>();
+
+    [Required] public string Id { get; set; } = "";
 
     [Required]
-    public string Id { get; } = Guid.NewGuid().ToString();
-
-    [Required]
-    public string Timestamp { get; } = DateTimeOffset.UtcNow.ToString("O");
+    public string Timestamp { get; set; } = "";
 
     [Required]
     public string CorrelationId { get; set; } = "";

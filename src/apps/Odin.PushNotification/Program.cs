@@ -44,6 +44,7 @@ builder.Services.AddSingleton<IPushNotification>(new PushNotification(firebaseCr
 
 builder.Services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
 builder.Services.AddSingleton<ICorrelationContext, CorrelationContext>();
+builder.Services.AddSingleton<ISignatureCheck, SignatureCheck>();
 builder.Services.AddFluentValidationAutoValidation()
     .AddValidatorsFromAssemblyContaining<PushNotificationRequestValidator>();
 
@@ -58,9 +59,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.MapGet("/ping", () => "pong");
+
 app.MapPost("/message/v1", async (
         ILogger<PushNotification> logger,
         IPushNotification pushNotification,
+        ISignatureCheck signatureCheck,
         IValidator<DevicePushNotificationRequestV1> validator,
         [FromBody] DevicePushNotificationRequestV1 request) =>
     {
@@ -70,21 +73,24 @@ app.MapPost("/message/v1", async (
             return Results.BadRequest(validationResult.Errors);
         }
 
-        // SEB:TODO the sender signs the message using his private key from his SSL certificate.
+        //
+        // Check signature (unless it's from *.dotyou.cloud in development mode)
+        //
+        // SEB:TODO enable this when we're sure everything is okidoki
+        //
+        // var skipSignatureCheck = app.Environment.IsDevelopment() && request.OriginDomain.EndsWith(".dotyou.cloud");
+        // if (!skipSignatureCheck)
+        // {
+        //     var isValidSignature = await signatureCheck.Validate(request.OriginDomain, request.Signature, request.Id);
+        //     if (!isValidSignature)
+        //     {
+        //         return Results.BadRequest("Invalid message signature");
+        //     }
+        // }
 
-        // homebase host:
-        // request.Signature = encrypt(private_key_of(request.OriginDomain), request.Timestamp)
-
-        // push service (this service):
-        // cache public key of request.OriginDomain
-        // timestamp = decrypt(public_key_of(request.OriginDomain), request.Signature)
-        // test that timestamp equals request.Timestamp
-
-        // The recipient then uses OriginDomain to look up the public key from the sender's SSL certificate
-        // and verifies the signature.
-        // public key: request.OriginDomain
-        // signature: request.Signature
-
+        //
+        // Send the message
+        //
         try
         {
             var response = await pushNotification.Post(request);
@@ -131,3 +137,4 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
 }
 
 //
+

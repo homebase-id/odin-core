@@ -69,6 +69,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChainTests", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.PushNotification", "src\apps\Odin.PushNotification\Odin.PushNotification.csproj", "{1640966F-E7C2-4ED0-BC65-7E595057A2E6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.PushNotification.Tests", "tests\apps\Odin.PushNotification.Tests\Odin.PushNotification.Tests.csproj", "{EE9428D3-1BBD-4E81-9EB2-0CC75716D630}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -159,6 +161,10 @@ Global
 		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1640966F-E7C2-4ED0-BC65-7E595057A2E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -192,6 +198,7 @@ Global
 		{998C3929-8234-42BE-BCB1-D7A6F7283525} = {49702A0E-286C-4700-AC99-C5841C224E00}
 		{6E47B9D2-3926-4A2C-B0B1-A0298BB1D0D0} = {49702A0E-286C-4700-AC99-C5841C224E00}
 		{1640966F-E7C2-4ED0-BC65-7E595057A2E6} = {6FA858C3-D738-476B-B5ED-475D83CF5ECB}
+		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630} = {49702A0E-286C-4700-AC99-C5841C224E00}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}
