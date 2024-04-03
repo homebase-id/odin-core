@@ -58,6 +58,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 //TODO: add benchmark
                 switch (item.Type)
                 {
+                    case OutboxItemType.PushNotification:
+                        await SendPushNotification(item);
+                        break;
+
                     case OutboxItemType.File:
                         await SendFileOutboxItem(item);
                         break;
@@ -65,11 +69,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     case OutboxItemType.Reaction:
                         await SendReactionItem(item);
                         break;
-
-                    case OutboxItemType.PushNotification:
-                        await SendPushNotification(item);
-                        break;
-
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -82,8 +82,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task SendReactionItem(OutboxItem item)
         {
+            await Task.CompletedTask;
+            throw new NotImplementedException("todo - support reactions in the outbox");
             //TODO:
-            await peerOutbox.MarkComplete(item.Marker);
+            // await peerOutbox.MarkComplete(item.Marker);
         }
 
         private async Task SendPushNotification(OutboxItem item)
