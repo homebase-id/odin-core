@@ -319,6 +319,13 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
+
+        [Test]
+        public async Task CanSetDependencyFileIdOnTransitOptionsAndOutboxSendsInOrder()
+        {
+            Assert.Inconclusive("todo - no idea how to test this");
+        }
+        
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient, TargetDrive targetDrive,
             DrivePermission drivePermissions)
         {

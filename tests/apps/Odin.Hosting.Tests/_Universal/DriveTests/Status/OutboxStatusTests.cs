@@ -17,7 +17,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 
-namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
+namespace Odin.Hosting.Tests._Universal.DriveTests.Status
 {
     public class OutboxStatusTests
     {
@@ -46,7 +46,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
         [Test]
         [TestCaseSource(nameof(TestCases))]
-        public async Task OutboxStatusReportsResult(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+        public async Task DriveStatusReportsResult(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);

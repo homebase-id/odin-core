@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class PeerOutbox(ServerSystemStorage serverSystemStorage, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
+    public class PeerOutbox(TenantSystemStorage tenantSystemStorage)
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
@@ -65,9 +65,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         value = state
                     });
                 }
-
-                var sender = tenantContext.HostOdinId;
-                serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
             }
 
             await Task.CompletedTask;
@@ -102,7 +99,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 return await Task.FromResult<OutboxItem>(null);
             }
-            
+
             var state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
             var item = new OutboxItem()
             {

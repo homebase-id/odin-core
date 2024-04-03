@@ -80,7 +80,6 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             return Ok();
         }
 
-
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()
         {

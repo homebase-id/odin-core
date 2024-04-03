@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
@@ -15,9 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Membership.Circles;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.DriveTests;
 
 namespace Odin.Hosting.Tests._Universal.Feed;
