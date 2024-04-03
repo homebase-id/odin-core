@@ -1,3 +1,5 @@
+name: "Host: Deploy specific release to production"
+
 on:
   workflow_dispatch:
     inputs:
