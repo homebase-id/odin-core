@@ -8,11 +8,11 @@ on:
         required: true
       choice:
         type: choice
-        description: Make a choice
+        description: Environment
         options:
-        - foo
-        - bar
-        - baz        
+        - bleeding_edge
+        - sandbox
+        - production
 
 jobs:
   deploy:
@@ -30,7 +30,7 @@ jobs:
           fi
           echo "Deploying: ${{ env.IMAGE_NAME_WITH_TAG }}"
 
-      - name: Deploy to production servers
+      - name: Deploy to selected environment
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ANSIBLE_HOST }}
@@ -45,6 +45,6 @@ jobs:
             cd $ANSIBLE_WORK_FOLDER
             git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
             cd $ANSIBLE_WORK_FOLDER/ansible
-            ansible-playbook deploy-identity-hosts.yml --limit sandbox --extra-vars "docker_force_image_update=true identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+            ansible-playbook deploy-identity-hosts.yml --limit ${{ github.event.inputs.choice }} --extra-vars "docker_force_image_update=true identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
             cd /tmp
             rm -rf $ANSIBLE_WORK_FOLDER
