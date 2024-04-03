@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -97,55 +98,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, bool raiseEvent = false)
         {
-            if (!header.IsValid())
-            {
-                throw new OdinSystemException("An invalid header was passed to the update header method.  You need more checks in place before getting here");
-            }
-
-            await AssertCanWriteToDrive(targetFile.DriveId);
-
-            //short circuit
-            var fileExists = await FileExists(targetFile);
-            if (!fileExists)
-            {
-                await WriteNewFileHeader(targetFile, header, raiseEvent);
-                return;
-            }
-            
-            var metadata = header.FileMetadata;
-
-            //TODO: need to encrypt the metadata parts
-            metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
-            
-            if (metadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
-
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile);
-            metadata.Created = existingHeader.FileMetadata.Created;
-            metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
-            metadata.FileState = existingHeader.FileMetadata.FileState;
-            metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
-
-            await WriteFileHeaderInternal(header);
-
-            //clean up temp storage
-            var tsm = await GetTempStorageManager(targetFile.DriveId);
-            await tsm.EnsureDeleted(targetFile.FileId);
-
-            //HACKed in for Feed drive
-            if (raiseEvent)
-            {
-                if (await ShouldRaiseDriveEvent(targetFile))
-                {
-                    await mediator.Publish(new DriveFileChangedNotification()
-                    {
-                        File = targetFile,
-                        ServerFileHeader = header,
-                    });
-                }
-            }
+            await UpdateActiveFileHeaderInternal(targetFile, header, false, raiseEvent);
         }
 
         /// <summary>
@@ -185,6 +138,32 @@ namespace Odin.Services.Drives.FileSystem.Base
                     });
                 }
             }
+        }
+
+        /// <summary>
+        /// Updates the transfer history for this file for the given recipient
+        /// </summary>
+        public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestProblemStatus? problemStatus)
+        {
+            var header = await this.GetServerFileHeader(file);
+            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
+
+            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+            {
+                recipientItem = new RecipientTransferHistoryItem();
+                history.Recipients.Add(recipient, recipientItem);
+            }
+
+            recipientItem.LastUpdated = UnixTimeUtc.Now();
+            recipientItem.LatestProblemStatus = problemStatus;
+            if (problemStatus == null)
+            {
+                recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
+            }
+
+            header.ServerMetadata.TransferHistory = history;
+            await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, raiseEvent: true);
         }
 
         public async Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
@@ -744,11 +723,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor) });
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor)
+                });
             }
         }
 
-        // Feed drive hacks
+        // Start Feed drive hacks
 
         public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata)
         {
@@ -851,6 +831,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        // End feed drive hacks
+
         private async Task<LongTermStorageManager> GetLongTermStorageManager(Guid driveId)
         {
             var logger = loggerFactory.CreateLogger<LongTermStorageManager>();
@@ -866,9 +848,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             return new TempStorageManager(drive, driveFileReaderWriter, logger);
         }
 
-        private async Task WriteFileHeaderInternal(ServerFileHeader header)
+        private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
         {
-            header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            if (!keepSameVersionTag)
+            {
+                header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            }
+
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var file = header.FileMetadata.File;
@@ -985,6 +971,60 @@ namespace Odin.Services.Drives.FileSystem.Base
             await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
 
             return header;
+        }
+
+        private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
+            bool raiseEvent = false)
+        {
+            if (!header.IsValid())
+            {
+                throw new OdinSystemException("An invalid header was passed to the update header method.  You need more checks in place before getting here");
+            }
+
+            await AssertCanWriteToDrive(targetFile.DriveId);
+
+            //short circuit
+            var fileExists = await FileExists(targetFile);
+            if (!fileExists)
+            {
+                await WriteNewFileHeader(targetFile, header, raiseEvent);
+                return;
+            }
+
+            var metadata = header.FileMetadata;
+
+            //TODO: need to encrypt the metadata parts
+            metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
+
+            if (metadata.FileState != FileState.Active)
+            {
+                throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile);
+            metadata.Created = existingHeader.FileMetadata.Created;
+            metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
+            metadata.FileState = existingHeader.FileMetadata.FileState;
+            metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
+
+            await WriteFileHeaderInternal(header, keepSameVersionTag);
+
+            //clean up temp storage
+            var tsm = await GetTempStorageManager(targetFile.DriveId);
+            await tsm.EnsureDeleted(targetFile.FileId);
+
+            //HACKed in for Feed drive
+            if (raiseEvent)
+            {
+                if (await ShouldRaiseDriveEvent(targetFile))
+                {
+                    await mediator.Publish(new DriveFileChangedNotification()
+                    {
+                        File = targetFile,
+                        ServerFileHeader = header,
+                    });
+                }
+            }
         }
     }
 }

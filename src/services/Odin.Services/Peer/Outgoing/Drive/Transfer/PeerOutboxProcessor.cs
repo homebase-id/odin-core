@@ -69,7 +69,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     case OutboxItemType.Reaction:
                         await SendReactionItem(item);
                         break;
-                    
+
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -320,30 +320,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task UpdateTransferHistory(OutboxItem item, Guid? versionTag, LatestProblemStatus? problemStatus)
         {
-            var file = item.File;
             var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-            var header = await fs.Storage.GetServerFileHeader(file);
-
-            //TODO: consider the structure here, should i use a dictionary instead?
-            var recipient = item.Recipient.ToString().ToLower();
-            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
-            {
-                recipientItem = new RecipientTransferHistoryItem();
-                history.Recipients.Add(recipient, recipientItem);
-            }
-
-            recipientItem.LastUpdated = UnixTimeUtc.Now();
-            recipientItem.LatestProblemStatus = problemStatus;
-            if (problemStatus == null)
-            {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
-            }
-
-            header.ServerMetadata.TransferHistory = history;
-            await fs.Storage.UpdateActiveFileHeader(item.File, header, true);
+            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);
         }
 
         private LatestProblemStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)

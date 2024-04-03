@@ -92,7 +92,7 @@ namespace Odin.Core.Identity
 
         public override string ToString()
         {
-            return _domainName.DomainName;
+            return _domainName.DomainName?.ToLower();
         }
 
         /// <summary>

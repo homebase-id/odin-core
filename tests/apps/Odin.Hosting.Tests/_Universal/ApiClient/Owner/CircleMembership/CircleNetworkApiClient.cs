@@ -45,7 +45,7 @@ public class CircleNetworkApiClient
             return createCircleResponse;
         }
     }
-    
+
     public async Task<ApiResponse<CircleDefinition>> GetCircleDefinition(GuidId circleId)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -65,7 +65,7 @@ public class CircleNetworkApiClient
             return response;
         }
     }
-    
+
     public async Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, TestIdentity recipient)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -108,13 +108,15 @@ public class CircleNetworkApiClient
 
     public async Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo(TestIdentity recipient)
     {
+        return await this.GetConnectionInfo(recipient.OdinId);
+    }
+
+    public async Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo(OdinId recipient)
+    {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var connectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
-            var apiResponse = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient.OdinId });
-
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.OdinId}.  Status code was {apiResponse.StatusCode}");
-            Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.OdinId} found");
+            var apiResponse = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
             return apiResponse;
         }
     }
