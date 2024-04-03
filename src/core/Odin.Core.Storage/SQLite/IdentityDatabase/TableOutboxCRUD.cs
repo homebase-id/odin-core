@@ -243,7 +243,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS outbox("
                      +"driveId BLOB NOT NULL, "
-                     +"fileId BLOB NOT NULL UNIQUE, "
+                     +"fileId BLOB NOT NULL, "
                      +"recipient STRING NOT NULL, "
                      +"type INT NOT NULL, "
                      +"priority INT NOT NULL, "
