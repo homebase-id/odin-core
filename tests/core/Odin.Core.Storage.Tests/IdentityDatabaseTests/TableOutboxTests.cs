@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,28 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Assert.Fail();
             if (r.priority != 10)
                 Assert.Fail();
+        }
+
+        [TestCase()]
+        public void GetByTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+            
+            var r = db.tblOutbox.Get(driveId, f1);
+
+            Assert.IsTrue(r.Count == 1);
         }
 
         [TestCase()]

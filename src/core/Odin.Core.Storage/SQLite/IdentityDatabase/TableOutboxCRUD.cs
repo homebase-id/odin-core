@@ -199,7 +199,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
         private SqliteParameter _get0Param2 = null;
-        private SqliteParameter _get0Param3 = null;
+        private SqliteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SqliteParameter _get1Param1 = null;
+        private SqliteParameter _get1Param2 = null;
+        private SqliteParameter _get1Param3 = null;
 
         public TableOutboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -222,6 +226,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
         }
 
@@ -237,7 +243,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS outbox("
                      +"driveId BLOB NOT NULL, "
-                     +"fileId BLOB NOT NULL, "
+                     +"fileId BLOB NOT NULL UNIQUE, "
                      +"recipient STRING NOT NULL, "
                      +"type INT NOT NULL, "
                      +"priority INT NOT NULL, "
@@ -631,7 +637,140 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId,string recipient)
+        public OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId)
+        {
+            var result = new List<OutboxRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new OutboxRecord();
+            item.driveId = driveId;
+            item.fileId = fileId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.recipient = rdr.GetString(0);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.type = rdr.GetInt32(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.priority = rdr.GetInt32(2);
+            }
+
+            if (rdr.IsDBNull(3))
+                item.dependencyFileId = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(3, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in dependencyFileId...");
+                item.dependencyFileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.checkOutCount = rdr.GetInt32(4);
+            }
+
+            if (rdr.IsDBNull(5))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.nextRunTime = new UnixTimeUtc(rdr.GetInt64(5));
+            }
+
+            if (rdr.IsDBNull(6))
+                item.value = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(6, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in value...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in value...");
+                item.value = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(7))
+                item.checkOutStamp = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(7, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in checkOutStamp...");
+                item.checkOutStamp = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(8))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(8));
+            }
+
+            if (rdr.IsDBNull(9))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(9));
+            }
+            return item;
+        }
+
+        public List<OutboxRecord> Get(Guid driveId,Guid fileId)
+        {
+            lock (_get0Lock)
+            {
+                if (_get0Command == null)
+                {
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
+                                                 "WHERE driveId = $driveId AND fileId = $fileId;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$driveId";
+                    _get0Param2 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Param2.ParameterName = "$fileId";
+                    _get0Command.Prepare();
+                }
+                _get0Param1.Value = driveId.ToByteArray();
+                _get0Param2.Value = fileId.ToByteArray();
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
+                {
+                    if (!rdr.Read())
+                    {
+                        return null;
+                    }
+                    var result = new List<OutboxRecord>();
+                    while (true)
+                    {
+                        result.Add(ReadRecordFromReader0(rdr, driveId,fileId));
+                        if (!rdr.Read())
+                            break;
+                    }
+                    return result;
+                } // using
+            } // lock
+        }
+
+        public OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -729,34 +868,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
-            lock (_get0Lock)
+            lock (_get1Lock)
             {
-                if (_get0Command == null)
+                if (_get1Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified FROM outbox " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND recipient = $recipient LIMIT 1;";
-                    _get0Param1 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param1);
-                    _get0Param1.ParameterName = "$driveId";
-                    _get0Param2 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param2);
-                    _get0Param2.ParameterName = "$fileId";
-                    _get0Param3 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param3);
-                    _get0Param3.ParameterName = "$recipient";
-                    _get0Command.Prepare();
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$driveId";
+                    _get1Param2 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param2);
+                    _get1Param2.ParameterName = "$fileId";
+                    _get1Param3 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param3);
+                    _get1Param3.ParameterName = "$recipient";
+                    _get1Command.Prepare();
                 }
-                _get0Param1.Value = driveId.ToByteArray();
-                _get0Param2.Value = fileId.ToByteArray();
-                _get0Param3.Value = recipient;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                _get1Param1.Value = driveId.ToByteArray();
+                _get1Param2.Value = fileId.ToByteArray();
+                _get1Param3.Value = recipient;
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
                         return null;
                     }
-                    var r = ReadRecordFromReader0(rdr, driveId,fileId,recipient);
+                    var r = ReadRecordFromReader1(rdr, driveId,fileId,recipient);
                     return r;
                 } // using
             } // lock

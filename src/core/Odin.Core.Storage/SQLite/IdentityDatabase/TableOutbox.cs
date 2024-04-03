@@ -67,11 +67,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             "              FROM outbox AS ib " +
             "              WHERE ib.fileId = outbox.dependencyFileId " +
             "              AND ib.recipient = outbox.recipient " +
-            "      )) " +
-            ") " +
-            " ORDER BY priority ASC, nextRunTime ASC " +
-            "LIMIT 1 " +
-            ");";
+            "           )) " +
+            "          ) " +
+            "      ORDER BY priority ASC, nextRunTime ASC " +
+            "      LIMIT 1 " +
+            "    ); ";
 
         public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
@@ -206,7 +206,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (_nextScheduleCommand == null)
                 {
                     _nextScheduleCommand = _database.CreateCommand();
-                    _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox " + whereClause + ";";
+                    _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox WHERE checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
                     _nextScheduleParam1 = _nextScheduleCommand.CreateParameter();
 
