@@ -199,16 +199,16 @@ public class PushNotificationService(
             : payload.AppDisplayName;
 
         var body = string.IsNullOrWhiteSpace(payload.Options.UnEncryptedMessage)
-            ? $"Received from {context.Tenant}"
+            ? $"Received from {payload.SenderId.DomainName}"
             : payload.Options.UnEncryptedMessage;
 
-        var originDomain = context.Tenant.DomainName;
-        var certificate = certificateCache.LookupCertificate(originDomain);
+        var thisDomain = context.Tenant.DomainName;
+        var certificate = certificateCache.LookupCertificate(thisDomain);
 
         // Sanity check
         if (certificate == null)
         {
-            logger.LogError("No certificate found for {originDomain}. This should never happen.", originDomain);
+            logger.LogError("No certificate found for {originDomain}. This should never happen.", thisDomain);
             return;
         }
 
@@ -227,7 +227,7 @@ public class PushNotificationService(
                 DevicePlatform = subscription.FirebaseDevicePlatform,
                 DeviceToken = subscription.FirebaseDeviceToken,
                 Id = messageId,
-                OriginDomain = originDomain,
+                OriginDomain = thisDomain,
                 Signature = signature,
                 Timestamp = DateTimeOffset.UtcNow.ToString("O"),
                 Title = title,
