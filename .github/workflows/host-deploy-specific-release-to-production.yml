@@ -6,6 +6,13 @@ on:
       image_tag:
         description: "Docker image tag (e.g., v0.1.96)"
         required: true
+      choice:
+        type: choice
+        description: Make a choice
+        options:
+        - foo
+        - bar
+        - baz        
 
 jobs:
   deploy:
