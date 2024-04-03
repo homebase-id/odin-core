@@ -1,4 +1,4 @@
-name: Deploy latest release tag to production
+name: "Host: Deploy latest release tag to production"
 
 on:
   workflow_dispatch:
