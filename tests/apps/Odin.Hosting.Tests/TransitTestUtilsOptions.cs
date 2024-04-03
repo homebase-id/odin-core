@@ -4,7 +4,6 @@
     {
         public static TransitTestUtilsOptions Default = new TransitTestUtilsOptions()
         {
-            ProcessOutbox = false,
             ProcessTransitBox = false,
             DisconnectIdentitiesAfterTransfer = true
         };

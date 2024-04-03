@@ -128,39 +128,5 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             return (uploadResult, uploadFileMetadata);
         }
 
-
-        private async Task<UploadTestUtilsContext> UploadFilexx(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
-        {
-            List<Guid> tags = new List<Guid>() { tag };
-
-            var uploadFileMetadata = new UploadFileMetadata()
-            {
-                IsEncrypted = false,
-                AllowDistribution = false,
-                AppData = new()
-                {
-                    Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
-                    FileType = 100,
-                    DataType = 202,
-                    UserDate = new UnixTimeUtc(0),
-                    Tags = tags
-                },
-                AccessControlList = new AccessControlList()
-                {
-                    RequiredSecurityGroup = requiredSecurityGroup
-                }
-            };
-
-            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
-            {
-                PayloadData = "some payload data for good measure",
-                ProcessOutbox = false,
-                ProcessTransitBox = false,
-                DisconnectIdentitiesAfterTransfer = false,
-                DriveAllowAnonymousReads = true
-            };
-
-            return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
-        }
     }
 }

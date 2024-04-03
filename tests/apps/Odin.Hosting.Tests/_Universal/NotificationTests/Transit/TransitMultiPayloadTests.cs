@@ -116,9 +116,11 @@ public class TransitNotificationTests
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
         Assert.IsTrue(frodoTransferStatus == TransferStatus.Queued, $"transfer status: {frodoTransferStatus}");
 
-        var processPushResponse = await ownerFrodo.Cron.ProcessIncomingPushNotifications();
-        Assert.IsTrue(processPushResponse.IsSuccessStatusCode,
-            $"failed ProcessIncomingPushNotifications with status code {processPushResponse.StatusCode}");
+        //
+        //
+        // TODO: if this fails you need to await outbox to do it's thing .. perhaps a function awaitOutbox or something
+        //
+        //
 
         // Frodo should have the notification in his list
 

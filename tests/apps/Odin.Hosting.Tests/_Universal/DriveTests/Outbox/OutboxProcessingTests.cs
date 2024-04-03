@@ -214,7 +214,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var uploadResult = uploadResponse.Content;
             Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
             Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Queued);
-            
+
             //Get modified to results ensure it will show up after a transfer
             var queryModifiedResponse = await senderOwnerClient.DriveRedux.QueryModified(new QueryModifiedRequest()
             {
@@ -233,12 +233,13 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var modifiedResults = queryModifiedResponse.Content;
             var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
             Assert.IsNotNull(fileInResults);
-            
-            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var statusFromGetModifiedResults));
+
+            Assert.IsTrue(fileInResults.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId,
+                out var statusFromGetModifiedResults));
             Assert.IsNotNull(statusFromGetModifiedResults, "There should be a status update for the recipient");
             Assert.IsNull(statusFromGetModifiedResults.LatestProblemStatus);
             Assert.IsTrue(statusFromGetModifiedResults.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
-            
+
             //TODO: revisit when michael's outbox code is present
             // Process the outbox
 
@@ -247,7 +248,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
-        
+
         [Test]
         public async Task GetBatchOnSenderCanExcludeRecipientTransferHistory()
         {
@@ -312,7 +313,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
 
             //TODO: revisit when michael's outbox code is present
             // Process the outbox
-            
+
             // senderOwnerClient.DriveRedux.ProcessOutbox()
             // check the file again
 
@@ -324,8 +325,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
         public async Task CanSetDependencyFileIdOnTransitOptionsAndOutboxSendsInOrder()
         {
             Assert.Inconclusive("todo - no idea how to test this");
+            await Task.CompletedTask;
         }
-        
+
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient, TargetDrive targetDrive,
             DrivePermission drivePermissions)
         {

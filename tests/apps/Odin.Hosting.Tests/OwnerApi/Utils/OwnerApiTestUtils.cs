@@ -61,6 +61,7 @@ using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
+using Serilog;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -601,13 +602,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public async Task ProcessOutbox(OdinId sender, int batchSize = 1)
         {
-            var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
-                var resp = await transitSvc.ProcessOutbox(batchSize);
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-            }
+            Log.Warning("process outbox called in unit tests; need to consider if we add a fucntion to wait for it to be emptied for the test running for tests");
+            await Task.CompletedTask;
         }
 
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)

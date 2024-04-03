@@ -13,24 +13,16 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 namespace Odin.Hosting.Controllers.System
 {
     /// <summary>
-    /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
+    /// Controller to enable kickoff of background tasks. 
     /// </summary>
     [ApiController]
     [Route(OwnerApiPathConstants.PeerV1 + "/outbox/processor")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(
         OdinConfiguration config,
-        PeerOutboxProcessor outboxProcessor,
         PeerOutbox outbox,
         PeerInbox inbox) : ControllerBase
     {
-        [HttpPost("process")]
-        public async Task<bool> ProcessOutbox()
-        {
-            await outboxProcessor.ProcessOutbox();
-            return true;
-        }
-
         [HttpPost("reconcile")]
         public async Task<IActionResult> ReconcileInboxOutbox()
         {

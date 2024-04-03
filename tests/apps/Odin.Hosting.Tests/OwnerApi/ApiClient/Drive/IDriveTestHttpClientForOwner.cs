@@ -73,12 +73,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
         
-        
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
-
-        [Post(OwnerApiPathConstants.PeerV1 + "/outbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
         [Post(OwnerApiPathConstants.PeerV1 + "/inbox/processor/process")]
         Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
