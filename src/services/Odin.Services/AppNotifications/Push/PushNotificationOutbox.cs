@@ -46,40 +46,6 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, Odi
         return Task.CompletedTask;
     }
 
-    public Task MarkComplete(Guid marker)
-    {
-        tenantSystemStorage.Outbox.CompleteAndRemove(marker);
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Add and item back the queue due to a failure
-    /// </summary>
-    public async Task MarkFailure(Guid marker)
-    {
-        // XXX TODO MS : Can't both remove & cancel - it's one or the other
-        tenantSystemStorage.Outbox.CompleteAndRemove(marker);
-
-        //TODO: there is no way to keep information on why an item failed
-        tenantSystemStorage.Outbox.CheckInAsCancelled(marker, UnixTimeUtc.Now().AddMinutes(1));
-
-        await Task.CompletedTask;
-    }
-
-    public async Task<List<PushNotificationOutboxRecord>> GetBatchForProcessing()
-    {
-        var records = new List<OutboxRecord> { tenantSystemStorage.Outbox.CheckOutItem() };
-
-        var items = records.Select(r =>
-        {
-            var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(r.value.ToStringFromUtf8Bytes());
-            // OBSOLETE record.Timestamp = r.timeStamp.milliseconds;
-            record.Marker = r.checkOutStamp.GetValueOrDefault();
-            return record;
-        });
-
-        return await Task.FromResult(items.ToList());
-    }
 }
 
 public class PushNotificationOutboxRecord

@@ -44,7 +44,7 @@ namespace Odin.Services.DataSubscription
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
                 {
-                    using (new PeerTransferSecurityContext(contextAccessor))
+                    using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
                     {
                         await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                         {
@@ -62,7 +62,7 @@ namespace Odin.Services.DataSubscription
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
 
-            using (new PeerTransferSecurityContext(contextAccessor))
+            using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
             {
                 await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
                 {
@@ -88,7 +88,7 @@ namespace Odin.Services.DataSubscription
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
                 && sender != tenantContext.HostOdinId)
             {
-                using (new PeerTransferSecurityContext(contextAccessor))
+                using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
                 {
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                     {
@@ -103,7 +103,7 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
-            using (new PeerTransferSecurityContext(contextAccessor))
+            using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
             {
                 await pushNotificationService.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
                 {

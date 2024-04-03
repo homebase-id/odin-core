@@ -92,7 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         {
                             var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
 
-                            using (new PeerTransferSecurityContext(_contextAccessor))
+                            using (new UpgradeToPeerTransferSecurityContext(_contextAccessor))
                             {
                                 await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
                             }

@@ -23,6 +23,7 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Mediator.Outbox;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
@@ -43,6 +44,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
+        private readonly OdinContextAccessor _contextAccessor = contextAccessor;
 
         public async Task ProcessOutbox()
         {
@@ -71,7 +73,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-                
+
                 item = await peerOutbox.GetNextItem();
             }
         }
@@ -86,12 +88,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task SendPushNotification(OutboxItem item)
         {
-            //HACK as I refactor stuff
-            var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
-            record.Marker = item.Marker;
+            using (new UpgradeToPeerTransferSecurityContext(_contextAccessor))
+            {
+                await pushNotificationService.ProcessBatch([item]);
+            }
 
-            //TODO: need to refactor locations of these services
-            await pushNotificationService.ProcessBatch([record]);
             await peerOutbox.MarkComplete(item.Marker);
         }
 
@@ -113,7 +114,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             catch (OdinOutboxProcessingException e)
             {
                 await UpdateTransferHistory(item, null, e.ProblemStatus);
-                await peerOutbox.MarkFailure(item.Marker, GetNextRunTime(item));
+                await peerOutbox.MarkFailure(item.Marker, CalculateNextRunTime(item));
                 await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                 {
                     Recipient = item.Recipient,
@@ -135,7 +136,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             }
         }
 
-        private UnixTimeUtc GetNextRunTime(OutboxItem item)
+        private UnixTimeUtc CalculateNextRunTime(OutboxItem item)
         {
             //TODO: expand logic as needed
             // item.AddedTimestamp

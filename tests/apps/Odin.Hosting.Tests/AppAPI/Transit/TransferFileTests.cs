@@ -181,7 +181,6 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
         {
             int someFiletype = 3892;
             var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
-            instructionSet.TransitOptions.IsTransient = true;
             instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()

@@ -92,12 +92,6 @@ public class DefaultCronJob(
             success = await job.Execute(record);
         }
 
-        if (record.type == (Int32)CronJobType.PushNotification)
-        {
-            var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-            success = await PushNotifications(identity);
-        }
-
         if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
         {
             success = await ProcessInboxOutboxReconciliation(record);
@@ -127,11 +121,5 @@ public class DefaultCronJob(
         var response = await svc.ProcessOutbox();
         return response.IsSuccessStatusCode;
     }
-
-    private async Task<bool> PushNotifications(OdinId identity)
-    {
-        var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        var response = await svc.ProcessPushNotifications();
-        return response.IsSuccessStatusCode;
-    }
+    
 }

@@ -7,13 +7,13 @@ using Odin.Services.Base;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer;
 
-public class PeerTransferSecurityContext : IDisposable
+public class UpgradeToPeerTransferSecurityContext : IDisposable
 {
     private readonly OdinContextAccessor _odinContextAccessor;
 
     private const string GroupName = "send_notifications_for_peer_transfer";
 
-    public PeerTransferSecurityContext(OdinContextAccessor odinContextAccessor)
+    public UpgradeToPeerTransferSecurityContext(OdinContextAccessor odinContextAccessor)
     {
         _odinContextAccessor = odinContextAccessor;
         var ctx = odinContextAccessor.GetCurrent();

@@ -9,10 +9,6 @@ namespace Odin.Services.Peer.Outgoing.Drive
     /// </summary>
     public class TransitOptions
     {
-        /// <summary>
-        /// If true, the file is hard-deleted when all recipients have received the file.
-        /// </summary>
-        public bool IsTransient { get; set; }
 
         /// <summary>
         /// Specifies if a CrossReferenceId should be added to the file when sending to other Identities
