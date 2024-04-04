@@ -325,7 +325,8 @@ namespace Odin.Services.Configuration
 
             public JobSection(IConfiguration config)
             {
-                Enabled = config.Required<bool>("Job:Enabled");
+                // Enabled = config.Required<bool>("Job:Enabled");
+                Enabled = true;
                 BackgroundJobStartDelaySeconds = config.Required<int>("Job:BackgroundJobStartDelaySeconds");
                 EnableJobBackgroundService = config.Required<bool>("Job:EnableJobBackgroundService");
                 CronProcessingInterval = config.Required<int>("Job:CronProcessingInterval");

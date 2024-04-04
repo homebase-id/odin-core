@@ -9,7 +9,9 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -21,13 +23,15 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.JobManagement;
 using Odin.Services.Mediator.Outbox;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
+using Odin.Services.Registry.Registration;
 using Refit;
 
-namespace Odin.Services.Peer.Outgoing.Drive.Transfer
+namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessor(
         OdinContextAccessor contextAccessor,
@@ -39,7 +43,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         IDriveAclAuthorizationService driveAclAuthorizationService,
         ILogger<PeerOutboxProcessor> logger,
         IMediator mediator,
-        PushNotificationService pushNotificationService)
+        PushNotificationService pushNotificationService,
+        IJobManager jobManager)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
@@ -49,32 +54,39 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
-
-            //Temporary method until i talk with @Seb about threading, etc
+            var wtfIsHappeningWithHttpContext = new List<Task>();
+            
             while (item != null)
             {
-                logger.LogDebug("Processing outbox item type: {type}", item.Type);
-
-                //TODO: add benchmark
-                switch (item.Type)
-                {
-                    case OutboxItemType.PushNotification:
-                        await SendPushNotification(item);
-                        break;
-
-                    case OutboxItemType.File:
-                        await SendFileOutboxItem(item);
-                        break;
-
-                    case OutboxItemType.Reaction:
-                        await SendReactionItem(item);
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-
+                wtfIsHappeningWithHttpContext.Add(ProcessOutboxItem(item));
+                // await ProcessOutboxItem(item);
                 item = await peerOutbox.GetNextItem();
+            }
+
+            await Task.WhenAll(wtfIsHappeningWithHttpContext);
+        }
+
+        private async Task ProcessOutboxItem(OutboxItem item)
+        {
+            //TODO: add benchmark
+            logger.LogDebug("Processing outbox item type: {type}", item.Type);
+
+            switch (item.Type)
+            {
+                case OutboxItemType.PushNotification:
+                    await SendPushNotification(item);
+                    break;
+
+                case OutboxItemType.File:
+                    await SendFileOutboxItem(item);
+                    break;
+
+                case OutboxItemType.Reaction:
+                    await SendReactionItem(item);
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
 
@@ -94,6 +106,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 await pushNotificationService.ProcessBatch([item]);
             }
+
+            //   await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(_contextAccessor.GetCurrent().Tenant,
+            //                  nextRunTime));
+
+            //TODO: Consider how to fall back for push notifications; i.e. do we really care?
 
             await peerOutbox.MarkComplete(item.Marker);
         }
@@ -116,7 +133,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             catch (OdinOutboxProcessingException e)
             {
                 await UpdateTransferHistory(item, null, e.ProblemStatus);
-                await peerOutbox.MarkFailure(item.Marker, CalculateNextRunTime(item));
+                var nextRunTime = CalculateNextRunTime(item);
+
+                await peerOutbox.MarkFailure(item.Marker, nextRunTime);
+
+                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(_contextAccessor.GetCurrent().Tenant, nextRunTime));
+
                 await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                 {
                     Recipient = item.Recipient,
@@ -146,7 +168,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             switch (item.Type)
             {
                 case OutboxItemType.File:
-                    return UnixTimeUtc.Now().AddMinutes(5);
+                    return UnixTimeUtc.Now().AddSeconds(5);
+                // return UnixTimeUtc.Now().AddMinutes(5);
 
                 case OutboxItemType.Reaction:
                     return UnixTimeUtc.Now().AddMinutes(5);
@@ -282,11 +305,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 ApiResponse<PeerTransferResponse> response = null;
 
-                await TryRetry.WithDelayAsync(
-                    odinConfiguration.Host.PeerOperationMaxAttempts,
-                    odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () => { response = await TrySendFile(); });
+                // await TryRetry.WithDelayAsync(
+                //     odinConfiguration.Host.PeerOperationMaxAttempts,
+                //     odinConfiguration.Host.PeerOperationDelayMs,
+                //     CancellationToken.None,
+                //     async () => { response = await TrySendFile(); });
+
+                var c1 = _contextAccessor.GetCurrent();
+
+                var httpClient = new HttpClient();
+                httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = "www.google.com" }.Uri;
+                var r = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/"));
+
+                // response = await TrySendFile();
+                var c2 = _contextAccessor.GetCurrent();
 
                 if (response.IsSuccessStatusCode)
                 {

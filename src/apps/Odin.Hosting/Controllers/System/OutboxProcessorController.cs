@@ -20,9 +20,17 @@ namespace Odin.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController(
         OdinConfiguration config,
+        PeerOutboxProcessor outboxProcessor,
         PeerOutbox outbox,
         PeerInbox inbox) : ControllerBase
     {
+        [HttpPost("initiate")]
+        public async Task<IActionResult> InitiateOutboxProcessing()
+        {
+            await outboxProcessor.ProcessOutbox();
+            return Ok();
+        }
+
         [HttpPost("reconcile")]
         public async Task<IActionResult> ReconcileInboxOutbox()
         {

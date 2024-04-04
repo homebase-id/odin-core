@@ -64,6 +64,7 @@ public class PushNotificationService(
         //validate the calling app on the recipient server have access to send notifications
         contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         return await EnqueueNotificationInternal(senderId, options);
+        
     }
 
     public async Task ProcessBatch(List<OutboxItem> list)

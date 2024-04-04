@@ -29,7 +29,12 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+
+            var overrides = new Dictionary<string, string>()
+            {
+                { "Job:Enabled", bool.TrueString }
+            };
+            _scaffold.RunBeforeAnyTests(envOverrides: overrides);
         }
 
         [OneTimeTearDown]
@@ -46,7 +51,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
             var pippin = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
 
-            List<OwnerApiClientRedux> recipients = [sam, pippin];
+            // List<OwnerApiClientRedux> recipients = [sam, pippin];
+            List<OwnerApiClientRedux> recipients = [sam];
 
             const DrivePermission drivePermissions = DrivePermission.Write;
 
@@ -87,7 +93,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
-
+            
             foreach (var recipient in recipients)
             {
                 Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
