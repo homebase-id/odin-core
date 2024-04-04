@@ -38,7 +38,7 @@ public class CertificateCache : ICertificateCache
         }
         
         // Expired?
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now; // NO UTC HERE, ChatGPT!
         if (now >= x509.NotBefore && now <= x509.NotAfter)
         {
             return x509;
