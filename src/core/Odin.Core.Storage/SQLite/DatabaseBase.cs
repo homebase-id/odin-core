@@ -50,8 +50,6 @@ namespace Odin.Core.Storage.SQLite
             if (commitFrequencyMs < 250)
                 throw new ArgumentOutOfRangeException("Minimum 250ms for now");
 
-            commitFrequencyMs = 1;
-
             _connectionString = connectionString;
             _commitFrequency = commitFrequencyMs;
 

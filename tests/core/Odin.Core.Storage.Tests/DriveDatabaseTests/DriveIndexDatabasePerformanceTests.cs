@@ -15,9 +15,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     {
         // For the performance test
         private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
+        private const int MAXITERATIONS = 10000; // A number high enough to get warmed up and reliable
 
-        private const int _performanceIterations = 5000; // Set to 5,000 when testing
+        private const int _performanceIterations = 50000; // Set to 5,000 when testing
 
 
 
@@ -51,6 +51,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             for (int i = 1; i < _performanceIterations; i++)
             {
                 _testDatabase.AddEntry(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                _testDatabase.Commit();
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -93,11 +94,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             for (int i = 1; i < _performanceIterations; i++)
             {
                 _testDatabase.AddEntry(driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
-                if (i % 100 == 0)
-                {
-                    _testDatabase.Commit();
-                    // _testDatabase.BeginTransaction();
-                }
+                _testDatabase.Commit();
             }
             _testDatabase.Commit();
             stopWatch.Stop();
