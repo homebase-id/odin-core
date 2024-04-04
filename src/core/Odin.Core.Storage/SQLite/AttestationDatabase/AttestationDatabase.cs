@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         private readonly string _file;
         private readonly int _line;
 
-        public AttestationDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public AttestationDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             tblAttestationRequest = new TableAttestationRequest(this, _cache);
             tblAttestationStatus = new TableAttestationStatus(this, _cache);

@@ -20,7 +20,7 @@ namespace WaitingListApi.Data.Database
     {
         public readonly WaitingListTable? WaitingListTable = null;
 
-        public WaitingListDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public WaitingListDatabase(string connectionString, long commitFrequencyMs = 50) : base(connectionString, commitFrequencyMs)
         {
             WaitingListTable = new WaitingListTable(this);
         }
