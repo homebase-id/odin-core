@@ -50,6 +50,8 @@ namespace Odin.Core.Storage.SQLite
             if (commitFrequencyMs < 250)
                 throw new ArgumentOutOfRangeException("Minimum 250ms for now");
 
+            commitFrequencyMs = 1;
+
             _connectionString = connectionString;
             _commitFrequency = commitFrequencyMs;
 
@@ -59,6 +61,15 @@ namespace Odin.Core.Storage.SQLite
 
             _connection = new SqliteConnection(_connectionString);
             _connection.Open();
+
+            using (var pragmaJournalModeCommand = _connection.CreateCommand())
+            {
+                pragmaJournalModeCommand.CommandText = "PRAGMA journal_mode=WAL;";
+                pragmaJournalModeCommand.ExecuteNonQuery();
+                pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
+                pragmaJournalModeCommand.ExecuteNonQuery();
+            }
+
             _transaction = _connection.BeginTransaction();
             _lastCommit = new UnixTimeUtc();
 
