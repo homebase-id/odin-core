@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         private readonly CacheHelper _cache = new CacheHelper("notarychain");
         private readonly string _file;
         private readonly int _line;
-        public NotaryDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public NotaryDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             tblNotaryChain = new TableNotaryChain(this, _cache);
             CN = connectionString;

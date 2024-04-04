@@ -96,7 +96,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
-                    // _testDatabase.BeginTransaction();
                 }
             }
             _testDatabase.Commit();
