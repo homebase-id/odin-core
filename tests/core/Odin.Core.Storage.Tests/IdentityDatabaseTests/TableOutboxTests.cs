@@ -53,6 +53,56 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         }
 
         [TestCase()]
+        public void InsertCannotInsertDuplicateIdForSameRecipient()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            try
+            {
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+                Assert.Fail();
+            }
+            catch
+            {
+                // Pass
+            }
+        }
+
+        [TestCase()]
+        public void InsertCanInsertDuplicateIdForTwoRecipients()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            try
+            {
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "sam.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+                // Pass
+            }
+            catch
+            {
+                Assert.Fail();
+            }
+        }
+
+        [TestCase()]
         public void GetByTest()
         {
             using var db = new IdentityDatabase("");
