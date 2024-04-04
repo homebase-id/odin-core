@@ -45,10 +45,10 @@ namespace Odin.Core.Storage.SQLite
         private bool _overdue = false;
         private bool _dataToCommit = false;
 
-        public DatabaseBase(string connectionString, long commitFrequencyMs = 5000)
+        public DatabaseBase(string connectionString, long commitFrequencyMs = 50)
         {
-            if (commitFrequencyMs < 250)
-                throw new ArgumentOutOfRangeException("Minimum 250ms for now");
+            if (commitFrequencyMs < 10)
+                throw new ArgumentOutOfRangeException("Minimum 10ms for now");
 
             _connectionString = connectionString;
             _commitFrequency = commitFrequencyMs;
