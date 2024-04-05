@@ -18,6 +18,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
@@ -87,6 +88,7 @@ namespace Odin.Hosting
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
+            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             //
             // Job stuff
@@ -480,6 +482,9 @@ namespace Odin.Hosting
                 {
                     services.UnscheduleCronJobs().Wait();
                 }
+
+                // Wait for any registered fire-and-forget tasks to complete
+                services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
             });
         }
 
