@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -14,6 +15,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// <summary />
         public FileUploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet, bool isUpdateOperation)
         {
+            this.TempMetadataFile = new InternalDriveFileId()
+            {
+                FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
+                DriveId = internalFile.DriveId
+            };
+            
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
@@ -22,10 +29,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         }
 
         /// <summary>
-        /// A temp file name for use while storing the temporary file being uploaded
+        /// A temp file name for use while storing the temporary metadata file being uploaded
         /// This is not the same as the final target file.
         /// </summary>
-        // public InternalDriveFileId TempFile { get; set; }
+        public InternalDriveFileId TempMetadataFile { get; init; }
 
         public UploadInstructionSet InstructionSet { get; init; }
 
