@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Data;
-using System.Numerics;
-using System.Timers;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Time;
 
 
 /*
@@ -19,14 +18,15 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 */
 
+// Enable testing
+[assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
 namespace Odin.Core.Storage.SQLite
 {
     public partial class DatabaseBase : IDisposable
     {
-        public readonly IntCounter _counter = new IntCounter();
+        internal readonly IntCounter _counter = new IntCounter();
 
-        private long _commitFrequency; // ms
         private string _connectionString;
 
         private SqliteConnection _connection = null;
@@ -34,28 +34,13 @@ namespace Odin.Core.Storage.SQLite
 
         private readonly Object _transactionLock = new Object();
 
-        private UnixTimeUtc _lastCommit;
         protected bool _wasDisposed = false;
-        private Timer _commitTimer = new Timer();
 
-        private int _timerTriggerCount = 0;
-        private int _timerCommitTriggerCount = 0;
-        private int _commitCallCount = 0;
-        private int _commitFlushCount = 0;
-        private bool _overdue = false;
-        private bool _dataToCommit = false;
+        private int _commitsCount = 0;
 
-        public DatabaseBase(string connectionString, long commitFrequencyMs = 50)
+        public DatabaseBase(string connectionString)
         {
-            if (commitFrequencyMs < 10)
-                throw new ArgumentOutOfRangeException("Minimum 10ms for now");
-
             _connectionString = connectionString;
-            _commitFrequency = commitFrequencyMs;
-
-            _commitTimer.Interval = _commitFrequency;
-            _commitTimer.AutoReset = false;
-            _commitTimer.Elapsed += OnCommitTimerEvent;
 
             _connection = new SqliteConnection(_connectionString);
             _connection.Open();
@@ -67,9 +52,6 @@ namespace Odin.Core.Storage.SQLite
                 pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
                 pragmaJournalModeCommand.ExecuteNonQuery();
             }
-
-            _transaction = _connection.BeginTransaction();
-            _lastCommit = new UnixTimeUtc();
 
             RsaKeyManagement.noDBOpened++;
         }
@@ -91,8 +73,6 @@ namespace Odin.Core.Storage.SQLite
 
         public virtual void Dispose()
         {
-            _commitTimer.Dispose();
-
             _transaction?.Commit(); // Flush any pending data
             _transaction?.Dispose();
             _transaction = null;
@@ -119,7 +99,7 @@ namespace Odin.Core.Storage.SQLite
 
         public void Vacuum()
         {
-            _transaction.Commit();
+            _transaction?.Commit();
             _transaction = null;
 
             using (var cmd = CreateCommand())
@@ -127,9 +107,6 @@ namespace Odin.Core.Storage.SQLite
                 cmd.CommandText = "VACUUM;";
                 cmd.ExecuteNonQuery();
             }
-
-            _transaction = _connection.BeginTransaction();
-            _lastCommit = new UnixTimeUtc();
         }
 
         public int ExecuteNonQuery(SqliteCommand command)
@@ -139,8 +116,6 @@ namespace Odin.Core.Storage.SQLite
                 command.Transaction = _transaction;
                 var r = command.ExecuteNonQuery();
                 command.Transaction = null;
-                _dataToCommit = true;
-                BeginTransaction();
                 return r;
             }
         }
@@ -152,8 +127,6 @@ namespace Odin.Core.Storage.SQLite
                 command.Transaction = _transaction;
                 var r = command.ExecuteReader();
                 command.Transaction = null;
-                _dataToCommit = true;
-                BeginTransaction();
                 return r;
             }
         }
@@ -185,7 +158,13 @@ namespace Odin.Core.Storage.SQLite
         /// <returns>LogicCommitUnit disposable object</returns>
         public LogicCommitUnit CreateCommitUnitOfWork()
         {
-            return new LogicCommitUnit(_counter);
+            lock (_transactionLock)
+            {
+                if (_counter.Count() == 0)
+                    BeginTransaction();
+                var lcu = new LogicCommitUnit(_counter, this);
+                return lcu;
+            }
         }
 
 
@@ -195,23 +174,14 @@ namespace Odin.Core.Storage.SQLite
         /// </summary>
         private void BeginTransaction()
         {
-            if (_overdue && _counter.ReadyToCommit())
-                Commit();
-
             lock (_transactionLock)
             {
-                // Let's check if we should commit
-/*                if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _commitFrequency)
+                if (_counter.ReadyToCommit())
                 {
-                    if (Commit() == true)
-                    {
-                        _transaction = _connection.BeginTransaction();
-                        _lastCommit = new UnixTimeUtc();
-                    }
-                }*/
-
-                if (_commitTimer.Enabled == false)
-                    _commitTimer.Start();
+                    Commit();
+                    Debug.Assert(_transaction == null);
+                    _transaction = _connection.BeginTransaction();
+                }
             }
         }
 
@@ -225,66 +195,26 @@ namespace Odin.Core.Storage.SQLite
         {
             lock (_transactionLock)
             {
-                _commitCallCount++;
-
-                if (!_counter.ReadyToCommit())
+                if (_counter.ReadyToCommit())
                 {
-                    _overdue = true;
-                    return false;
+                    if (_transaction != null)
+                    {
+                        _commitsCount++;
+                        _transaction.Commit(); // Flush the data
+                        _transaction.Dispose();
+                        _transaction = null;
+                        return true;
+                    }
                 }
-
-                _overdue = false;
-
-                if (_dataToCommit == false)
-                    return false;
-
-
-                // Flush the data
-                _commitTimer.Stop();
-                _commitFlushCount++;
-                _transaction.Commit(); // Flush the data
-                _dataToCommit = false;
-                _transaction.Dispose(); // I believe these objects need to be disposed
-                _transaction = _connection.BeginTransaction();
-                _lastCommit = new UnixTimeUtc();
-
-                return true;
-            }
-        }
-
-
-        public int TimerCount()
-        {
-            return _timerTriggerCount;
-        }
-
-        public int TimerCommitCount()
-        {
-            return _timerCommitTriggerCount;
-        }
-
-        public int CommitFlushCount()
-        {
-            return _commitFlushCount;
-        }
-
-        public int CommitCallCount()
-        {
-            return _commitCallCount;
-        }
-
-        private void OnCommitTimerEvent(Object source, ElapsedEventArgs e)
-        {
-            _timerTriggerCount++;
-            if (!_counter.ReadyToCommit())
-            {
-                _overdue = true;
-                _commitTimer.Start(); // It doesn't auto-restart, kick it back to action
-                return;
             }
 
-            _timerCommitTriggerCount++;
-            Commit();
+            return false;
+        }
+
+
+        public int CommitsCount()
+        {
+            return _commitsCount;
         }
     }
 }

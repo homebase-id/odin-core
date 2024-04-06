@@ -70,8 +70,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private readonly string _file;
         private readonly int _line;
 
-        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) :
-            base(connectionString, commitFrequencyMs)
+        public IdentityDatabase(string connectionString, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString)
         {
             // Drive
             tblDriveMainIndex = new TableDriveMainIndex(this, _cache);

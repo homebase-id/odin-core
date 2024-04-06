@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     db.tblKeyValue.Get(Rows[i]);
             }
 
-            using var db = new IdentityDatabase("", 250); // 1ms commit frequency
+            using var db = new IdentityDatabase(""); // 1ms commit frequency
             db.CreateDatabase();
 
             for (int i = 0; i < 10000; i++)
@@ -113,7 +113,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 }
             }
 
-            using var db = new IdentityDatabase("", 250); // 1ms commit frequency
+            using var db = new IdentityDatabase(""); // 1ms commit frequency
             db.CreateDatabase();
 
             for (int i = 0; i < 10000; i++)

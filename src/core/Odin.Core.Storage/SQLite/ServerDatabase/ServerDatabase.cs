@@ -21,7 +21,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public readonly TableCron tblCron = null;
         private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
 
-        public ServerDatabase(string connectionString, long commitFrequencyMs = 50) : base(connectionString, commitFrequencyMs)
+        public ServerDatabase(string connectionString) : base(connectionString)
         {
             tblCron = new TableCron(this, _cache);
         }
