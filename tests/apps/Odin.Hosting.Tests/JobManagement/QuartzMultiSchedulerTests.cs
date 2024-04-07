@@ -54,7 +54,7 @@ public class QuartzMultiScheduler(ServiceProvider serviceProvider)
 
         const string databaseProvider = "SQLite-Microsoft";
 
-        var connectionString = $"Data Source=/Users/seb/tmp/xxx/{name}.db";
+        var connectionString = $"/Users/seb/tmp/xxx/{name}.db";
 
         QuartzSqlite.CreateSchema(connectionString);
 

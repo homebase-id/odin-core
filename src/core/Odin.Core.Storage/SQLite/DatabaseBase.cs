@@ -38,9 +38,10 @@ namespace Odin.Core.Storage.SQLite
 
         private int _commitsCount = 0;
 
-        public DatabaseBase(string connectionString)
+        public DatabaseBase(string databasePath)
         {
-            _connectionString = connectionString;
+            //Database path is the physical path on disk
+            _connectionString = $"Data Source={databasePath}";
 
             _connection = new SqliteConnection(_connectionString);
             _connection.Open();

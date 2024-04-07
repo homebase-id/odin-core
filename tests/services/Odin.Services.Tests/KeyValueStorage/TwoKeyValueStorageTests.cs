@@ -12,7 +12,7 @@ public class TwoKeyValueStorageTests
     public void RequireNonEmptyContextKey()
     {
         var finalPath = "testdb1.db";
-        var db = new IdentityDatabase($"Data Source={finalPath}");
+        var db = new IdentityDatabase(finalPath);
         db.CreateDatabase(false);
 
         Assert.Throws<OdinSystemException>(() => { new TwoKeyValueStorage(db.tblKeyTwoValue, Guid.Empty); });
@@ -25,7 +25,7 @@ public class TwoKeyValueStorageTests
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var finalPath = "testdb4.db";
-        var db = new IdentityDatabase($"Data Source={finalPath}");
+        var db = new IdentityDatabase(finalPath);
         db.CreateDatabase(false);
 
         var contextKey1 = Guid.NewGuid();

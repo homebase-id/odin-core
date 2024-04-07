@@ -31,7 +31,7 @@ namespace Odin.Services.Base
                 finalPath = PathUtil.Combine(dbPath, oldName);
             }
 
-            IdentityDatabase = new IdentityDatabase($"Data Source={finalPath}");
+            IdentityDatabase = new IdentityDatabase(finalPath);
             IdentityDatabase.CreateDatabase(false);
 
             // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
