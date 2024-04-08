@@ -1,26 +1,33 @@
 ﻿using System;
 
-
-/*
-=====
-Query notes:
-
-https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
-
-https://stackoverflow.com/questions/50826767/sqlite-index-performance
-
-https://www.sqlitetutorial.net/sqlite-index/
-
-*/
-
-
 namespace Odin.Core.Storage.SQLite
 {
+    /// <summary>
+    /// You MUST lock {} before using this class
+    /// Locking locally leads to outer locking issues, so don't add a lock here,
+    /// lock before using
+    /// </summary>
     public partial class DatabaseBase
     {
         public class IntCounter // Since I can't store a ref to an int, I make this hack and pass a pointer to the class.
         {
-            public int _counter = 0;
+            private int _counter = 0;
+
+            public void Increment()
+            {
+                _counter++;
+            }
+
+
+            public void Decrement()
+            {
+                _counter--;
+            }
+
+            public int Count()
+            {
+                return _counter;
+            }
 
             public bool ReadyToCommit()
             {
@@ -31,13 +38,15 @@ namespace Odin.Core.Storage.SQLite
 
         public class LogicCommitUnit : IDisposable
         {
-            private bool _notDisposed = true;
+            private bool _disposed = false;
             private IntCounter _counterObject = null;
+            private DatabaseBase _db;
 
-            public LogicCommitUnit(IntCounter counter)
+            public LogicCommitUnit(IntCounter counter, DatabaseBase db)
             {
                 _counterObject = counter;
-                _counterObject._counter++;
+                _counterObject.Increment();
+                _db = db;
             }
 
             ~LogicCommitUnit()
@@ -51,16 +60,18 @@ namespace Odin.Core.Storage.SQLite
 
             public void Dispose()
             {
-                if (!_notDisposed)
+                if (_disposed == true)
                     return;
-                _counterObject._counter--;
-                _notDisposed = false;
-                GC.SuppressFinalize(this);
-            }
 
-            public bool ReadyToCommit()
-            {
-                return (_counterObject._counter == 0);
+                lock (_db._transactionLock)
+                {
+                    _counterObject.Decrement();
+                    if (_counterObject.ReadyToCommit())
+                        _db.Commit();
+                    _disposed = true;
+                }
+
+                GC.SuppressFinalize(this);
             }
         }
     }

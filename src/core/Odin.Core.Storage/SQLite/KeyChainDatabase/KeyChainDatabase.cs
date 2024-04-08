@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         private readonly CacheHelper _cache = new CacheHelper("blockchain");
         private readonly string _file;
         private readonly int _line;
-        public KeyChainDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
+        public KeyChainDatabase(string connectionString, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString)
         {
             tblKeyChain = new TableKeyChain(this, _cache);
             CN = connectionString;

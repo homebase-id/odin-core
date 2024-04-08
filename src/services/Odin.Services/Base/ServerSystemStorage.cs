@@ -29,7 +29,7 @@ public class ServerSystemStorage : IDisposable
         }
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new ServerDatabase($"Data Source={finalPath}");
+        _db = new ServerDatabase(finalPath);
         _db.CreateDatabase(false);
 
         //temp test
