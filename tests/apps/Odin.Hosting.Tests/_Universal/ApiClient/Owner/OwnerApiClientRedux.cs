@@ -1,5 +1,6 @@
 ﻿using System;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive.Reaction;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
@@ -45,7 +46,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
-            Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
+            Reactions = new UniversalLocalDriveReactionClient(identity.OdinId, factory);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
 
@@ -67,7 +68,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 
         public UniversalFollowerApiClient Follower { get; }
 
-        public UniversalDriveReactionClient Reactions { get; }
+        public UniversalLocalDriveReactionClient Reactions { get; }
 
         public UniversalPeerQueryApiClient PeerQuery { get; }
 

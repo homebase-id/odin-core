@@ -9,7 +9,6 @@ using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 

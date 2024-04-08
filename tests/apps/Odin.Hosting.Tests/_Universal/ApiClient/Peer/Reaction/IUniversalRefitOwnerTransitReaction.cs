@@ -7,12 +7,9 @@ using Odin.Services.Peer.Incoming.Reactions;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Peer
+namespace Odin.Hosting.Tests._Universal.ApiClient.Peer.Reaction
 {
-    /// <summary>
-    /// The interface for storing files
-    /// </summary>
-    public interface IUniversalRefitOwnerTransitReaction
+    public interface IUniversalRefitPeerReaction
     {
         private const string RootEndpoint = OwnerApiPathConstants.PeerReactionContentV1;
 

@@ -1,15 +1,14 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
-using Odin.Hosting.Controllers.Base.Drive;
 using Refit;
 
-namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
+namespace Odin.Hosting.Tests._Universal.ApiClient.Drive.Reaction
 {
-    public interface IUniversalDriveReactionHttpClient
+    public interface IUniversalLocalDriveReactionHttpClient
     {
         private const string ReactionRootEndpoint = "/drive/files/reactions";
 

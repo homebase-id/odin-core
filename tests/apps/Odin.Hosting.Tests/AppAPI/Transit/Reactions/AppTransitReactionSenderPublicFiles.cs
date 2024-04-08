@@ -17,7 +17,6 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
@@ -170,7 +169,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
         //
 
         [Test]
-        [Ignore("this test cannot be finalized until we decide to support allowing authenticated identities to send data over transit")]
+        [Ignore("this test cannot be finalized until we decide to support allowing authenticated " +
+                "identities to send data over transit")]
         public async Task AppCan_AddCommentOn_AnonymousDrive_With_CommentPermission()
         {
             // Prep
