@@ -9,9 +9,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -28,7 +26,6 @@ using Odin.Services.Mediator.Outbox;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
-using Odin.Services.Registry.Registration;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
@@ -305,20 +302,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 ApiResponse<PeerTransferResponse> response = null;
 
-                // await TryRetry.WithDelayAsync(
-                //     odinConfiguration.Host.PeerOperationMaxAttempts,
-                //     odinConfiguration.Host.PeerOperationDelayMs,
-                //     CancellationToken.None,
-                //     async () => { response = await TrySendFile(); });
-
-                var c1 = _contextAccessor.GetCurrent();
-
-                var httpClient = new HttpClient();
-                httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = "www.google.com" }.Uri;
-                var r = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/"));
-
-                // response = await TrySendFile();
-                var c2 = _contextAccessor.GetCurrent();
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () => { response = await TrySendFile(); });
+                //
+                // var c1 = _contextAccessor.GetCurrent();
+                //
+                // var httpClient = new HttpClient();
+                // httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = "www.google.com" }.Uri;
+                // var r = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/"));
+                //
+                // // response = await TrySendFile();
+                // var c2 = _contextAccessor.GetCurrent();
 
                 if (response.IsSuccessStatusCode)
                 {
