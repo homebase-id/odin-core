@@ -32,7 +32,7 @@ namespace Odin.Services.Membership.Connections
     public class CircleNetworkService : INotificationHandler<DriveDefinitionAddedNotification>,
         INotificationHandler<AppRegistrationChangedNotification>
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkStorage _storage;
         private readonly CircleMembershipService _circleMembershipService;
@@ -41,7 +41,7 @@ namespace Odin.Services.Membership.Connections
         private readonly IMediator _mediator;
         private readonly CircleDefinitionService _circleDefinitionService;
 
-        public CircleNetworkService(OdinContextAccessor contextAccessor,
+        public CircleNetworkService(IOdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
             IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService,
             IMediator mediator, CircleDefinitionService circleDefinitionService)

@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 {
     public sealed class HomeAuthenticatorService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly TenantContext _tenantContext;
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             TenantContext tenantContext,
             HomeRegistrationStorage storage,
             CircleMembershipService circleMembershipService,
-            OdinContextAccessor contextAccessor)
+            IOdinContextAccessor contextAccessor)
         {
             _circleNetworkService = circleNetworkService;
             _exchangeGrantService = exchangeGrantService;

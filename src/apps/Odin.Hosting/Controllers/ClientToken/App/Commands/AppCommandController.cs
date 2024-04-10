@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppCommandController(CommandMessagingService commandMessagingService, OdinContextAccessor contextAccessor)
+    public class AppCommandController(CommandMessagingService commandMessagingService, IOdinContextAccessor contextAccessor)
         : OdinControllerBase
     {
         /// <summary>

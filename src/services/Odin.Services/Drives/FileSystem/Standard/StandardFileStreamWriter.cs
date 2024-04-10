@@ -19,7 +19,7 @@ namespace Odin.Services.Drives.FileSystem.Standard;
 public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
+    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, IOdinContextAccessor contextAccessor,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)

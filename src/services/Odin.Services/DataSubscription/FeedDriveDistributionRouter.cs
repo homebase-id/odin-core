@@ -42,7 +42,7 @@ namespace Odin.Services.DataSubscription
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
@@ -59,7 +59,7 @@ namespace Odin.Services.DataSubscription
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
             TenantSystemStorage tenantSystemStorage,
-            OdinContextAccessor contextAccessor,
+            IOdinContextAccessor contextAccessor,
             CircleNetworkService circleNetworkService,
             IOdinHttpClientFactory odinHttpClientFactory,
             OdinConfiguration odinConfiguration,
@@ -79,7 +79,7 @@ namespace Odin.Services.DataSubscription
             _driveAcl = driveAcl;
             _logger = logger;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration);
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration, _circleNetworkService);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -250,7 +250,7 @@ namespace Odin.Services.DataSubscription
             var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
-                        (OdinId)cf.DomainName,
+                        (_circleNetworkService.GetIdentityConnectionRegistration((OdinId)cf.DomainName, true)).GetAwaiter().GetResult(),
                         notification.ServerFileHeader.ServerMetadata.AccessControlList)
                     .GetAwaiter().GetResult()).ToList();
 

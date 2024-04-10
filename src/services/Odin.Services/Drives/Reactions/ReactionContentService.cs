@@ -16,11 +16,11 @@ namespace Odin.Services.Drives.Reactions;
 /// </summary>
 public class ReactionContentService
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly IMediator _mediator;
 
-    public ReactionContentService(DriveDatabaseHost driveDatabaseHost, OdinContextAccessor contextAccessor, IMediator mediator)
+    public ReactionContentService(DriveDatabaseHost driveDatabaseHost, IOdinContextAccessor contextAccessor, IMediator mediator)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _contextAccessor = contextAccessor;

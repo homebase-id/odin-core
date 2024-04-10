@@ -24,14 +24,14 @@ namespace Odin.Services.Membership.CircleMembership;
 /// </summary>
 public class CircleMembershipService
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly CircleDefinitionService _circleDefinitionService;
     private readonly ExchangeGrantService _exchangeGrantService;
     private readonly ILogger<CircleMembershipService> _logger;
 
     public CircleMembershipService(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService,
-        ExchangeGrantService exchangeGrantService, OdinContextAccessor contextAccessor, ILogger<CircleMembershipService> logger)
+        ExchangeGrantService exchangeGrantService, IOdinContextAccessor contextAccessor, ILogger<CircleMembershipService> logger)
     {
         _tenantSystemStorage = tenantSystemStorage;
         _circleDefinitionService = circleDefinitionService;

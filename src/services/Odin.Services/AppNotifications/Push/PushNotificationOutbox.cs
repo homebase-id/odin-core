@@ -18,7 +18,7 @@ namespace Odin.Services.AppNotifications.Push;
 /// <summary>
 /// The outbox of notifications that need to be pushed to all subscribed devices
 /// </summary>
-public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, IOdinContextAccessor contextAccessor)
 {
     const string NotificationBoxId = "21a409e0-7cc2-4e97-b28d-93ef04c94a9c";
     private readonly Guid _notificationBoxId = Guid.Parse(NotificationBoxId);

@@ -23,7 +23,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 namespace Odin.Services.AppNotifications.WebSocket
 {
     public class AppNotificationHandler(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
         ILogger<AppNotificationHandler> logger)

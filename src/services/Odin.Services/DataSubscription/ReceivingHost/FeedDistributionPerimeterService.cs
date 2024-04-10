@@ -15,7 +15,7 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.DataSubscription.ReceivingHost
 {
     public class FeedDistributionPerimeterService(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         IDriveFileSystem fileSystem,
         FileSystemResolver fileSystemResolver,
         FollowerService followerService,

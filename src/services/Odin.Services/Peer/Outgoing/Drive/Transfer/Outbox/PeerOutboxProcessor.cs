@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -19,11 +20,12 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Comment;
+using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.JobManagement;
 using Odin.Services.Mediator.Outbox;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Job;
 using Refit;
@@ -31,39 +33,58 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessor(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         PeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
-        CircleNetworkService circleNetworkService,
-        FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
-        IDriveAclAuthorizationService driveAclAuthorizationService,
         ILogger<PeerOutboxProcessor> logger,
         IMediator mediator,
         PushNotificationService pushNotificationService,
-        IJobManager jobManager)
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
+        IJobManager jobManager,
+        ILoggerFactory loggerFactory,
+        DriveManager driveManager,
+        DriveFileReaderWriter driveFileReaderWriter)
     {
-        private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
-        private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
-        private readonly OdinContextAccessor _contextAccessor = contextAccessor;
-
         public async Task ProcessOutbox()
         {
             var item = await peerOutbox.GetNextItem();
-            var wtfIsHappeningWithHttpContext = new List<Task>();
-            
+
             while (item != null)
             {
-                wtfIsHappeningWithHttpContext.Add(ProcessOutboxItem(item));
-                // await ProcessOutboxItem(item);
+                var localContextAccessor = new ExplicitOdinContextAccessor( contextAccessor.GetCurrent());
+
+                // await ProcessOutboxItem(item, context);
+                _ = new ProcessOutboxItemWorker(item, localContextAccessor, logger, peerOutbox,
+                        mediator,
+                        jobManager,
+                        pushNotificationService,
+                        odinConfiguration,
+                        odinHttpClientFactory,
+                        loggerFactory,
+                        driveManager,
+                        driveFileReaderWriter)
+                    .ProcessOutboxItem();
                 item = await peerOutbox.GetNextItem();
             }
-
-            await Task.WhenAll(wtfIsHappeningWithHttpContext);
         }
+    }
 
-        private async Task ProcessOutboxItem(OutboxItem item)
+    public class ProcessOutboxItemWorker(
+        OutboxItem item,
+        IOdinContextAccessor contextAccessor,
+        ILogger<PeerOutboxProcessor> logger,
+        PeerOutbox peerOutbox,
+        IMediator mediator,
+        IJobManager jobManager,
+        PushNotificationService pushNotificationService,
+        OdinConfiguration odinConfiguration,
+        IOdinHttpClientFactory odinHttpClientFactory,
+        ILoggerFactory loggerFactory,
+        DriveManager driveManager,
+        DriveFileReaderWriter driveFileReaderWriter
+    )
+    {
+        public async Task ProcessOutboxItem()
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
@@ -71,15 +92,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             switch (item.Type)
             {
                 case OutboxItemType.PushNotification:
-                    await SendPushNotification(item);
+                    await SendPushNotification();
                     break;
 
                 case OutboxItemType.File:
-                    await SendFileOutboxItem(item);
+                    await SendFileOutboxItem();
                     break;
 
                 case OutboxItemType.Reaction:
-                    await SendReactionItem(item);
+                    await SendReactionItem();
                     break;
 
                 default:
@@ -87,9 +108,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        //
-
-        private async Task SendReactionItem(OutboxItem item)
+        private async Task SendReactionItem()
         {
             await Task.CompletedTask;
             throw new NotImplementedException("todo - support reactions in the outbox");
@@ -97,9 +116,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             // await peerOutbox.MarkComplete(item.Marker);
         }
 
-        private async Task SendPushNotification(OutboxItem item)
+        private async Task SendPushNotification()
         {
-            using (new UpgradeToPeerTransferSecurityContext(_contextAccessor))
+            using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
             {
                 await pushNotificationService.ProcessBatch([item]);
             }
@@ -112,12 +131,28 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await peerOutbox.MarkComplete(item.Marker);
         }
 
-        private async Task SendFileOutboxItem(OutboxItem item)
+        private async Task SendFileOutboxItem()
         {
+            DriveStorageServiceBase storage;
+            var driveAclAuthorizationService = new DriveAclAuthorizationService(contextAccessor,
+                loggerFactory.CreateLogger<DriveAclAuthorizationService>());
+
+            if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
+            {
+                storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                    odinConfiguration, driveFileReaderWriter);
+            }
+            else
+            {
+                storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                    odinConfiguration, driveFileReaderWriter);
+            }
+
+            
             try
             {
-                var versionTag = await SendOutboxFileItemAsync(item);
-                await UpdateTransferHistory(item, versionTag, null);
+                var versionTag = await SendOutboxFileItemAsync(item, storage);
+                await UpdateTransferHistory(versionTag, null);
                 await peerOutbox.MarkComplete(item.Marker);
                 await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
                 {
@@ -129,12 +164,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await UpdateTransferHistory(item, null, e.ProblemStatus);
+                await UpdateTransferHistory(versionTag: null, e.ProblemStatus);
                 var nextRunTime = CalculateNextRunTime(item);
 
                 await peerOutbox.MarkFailure(item.Marker, nextRunTime);
 
-                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(_contextAccessor.GetCurrent().Tenant, nextRunTime));
+                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
 
                 await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
                 {
@@ -178,28 +213,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return UnixTimeUtc.Now().AddMinutes(5);
         }
 
-        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem)
+        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, DriveStorageServiceBase storage)
         {
-            IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
-
             OdinId recipient = outboxItem.Recipient;
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
+            var header = await storage.GetServerFileHeader(outboxItem.File);
             var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
-            {
-                throw new OdinOutboxProcessingException($"Recipient does not have permission to file ACL during send process")
-                {
-                    ProblemStatus = LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile,
-                    VersionTag = versionTag,
-                    Recipient = recipient,
-                    File = file
-                };
-            }
+            // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
+            // {
+            //     throw new OdinOutboxProcessingException($"Recipient does not have permission to file ACL during send process")
+            //     {
+            //         ProblemStatus = LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile,
+            //         VersionTag = versionTag,
+            //         Recipient = recipient,
+            //         File = file
+            //     };
+            // }
 
             if (header.ServerMetadata.AllowDistribution == false)
             {
@@ -267,7 +300,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     string contentType = "application/unknown";
 
                     //TODO: consider what happens if the payload has been delete from disk
-                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                    var p = await storage.GetPayloadStream(file, payloadKey, null);
                     var payloadStream = p.Stream;
 
                     var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -276,7 +309,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var (thumbStream, thumbHeader) =
-                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
+                            await storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
 
                         var thumbnailKey =
                             $"{payloadKey}" +
@@ -293,7 +326,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
             {
-                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
+                var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
                 return response;
             }
@@ -347,10 +380,25 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task UpdateTransferHistory(OutboxItem item, Guid? versionTag, LatestProblemStatus? problemStatus)
+        private async Task UpdateTransferHistory(Guid? versionTag, LatestProblemStatus? problemStatus)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-            await fs.Storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);
+            DriveStorageServiceBase storage;
+            var driveAclAuthorizationService = new DriveAclAuthorizationService(contextAccessor,
+                loggerFactory.CreateLogger<DriveAclAuthorizationService>());
+
+            if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
+            {
+                storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                    odinConfiguration, driveFileReaderWriter);
+            }
+            else
+            {
+                storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                    odinConfiguration, driveFileReaderWriter);
+            }
+
+            
+            await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);
         }
 
         private LatestProblemStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)

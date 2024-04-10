@@ -12,7 +12,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
     public StandardDriveCommandService(
         DriveDatabaseHost driveDatabaseHost,
         StandardFileDriveStorageService storage,
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         DriveManager driveManager) :
         base(driveDatabaseHost, storage, contextAccessor, driveManager)
     {

@@ -21,14 +21,14 @@ namespace Odin.Services.Authentication.Owner
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly RecoveryService _recoveryService;
 
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _passwordDataStorage;
         private readonly SingleKeyValueStorage _rsaStorage;
 
         public OwnerSecretService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage, RecoveryService recoveryService,
-            PublicPrivateKeyService publicPrivateKeyService, OdinContextAccessor contextAccessor)
+            PublicPrivateKeyService publicPrivateKeyService, IOdinContextAccessor contextAccessor)
         {
             _tenantContext = tenantContext;
             _recoveryService = recoveryService;

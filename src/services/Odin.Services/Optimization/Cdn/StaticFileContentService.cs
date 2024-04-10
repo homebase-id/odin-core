@@ -41,11 +41,11 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
-    public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+    public StaticFileContentService(TenantContext tenantContext, IOdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter)
     {
         _tenantContext = tenantContext;

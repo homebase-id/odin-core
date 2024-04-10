@@ -35,7 +35,7 @@ public class PeerDriveQueryService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration,
-    OdinContextAccessor contextAccessor)
+    IOdinContextAccessor contextAccessor)
 {
     public async Task<QueryModifiedResult> GetModified(OdinId odinId, QueryModifiedRequest request, FileSystemType fileSystemType)
     {

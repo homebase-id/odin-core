@@ -27,7 +27,7 @@ namespace Odin.Services.Apps.CommandMessaging;
 public class CommandMessagingService(
     IPeerOutgoingTransferService peerOutgoingTransferService,
     StandardFileSystem standardFileSystem,
-    OdinContextAccessor contextAccessor,
+    IOdinContextAccessor contextAccessor,
     DriveManager driveManager)
 {
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)

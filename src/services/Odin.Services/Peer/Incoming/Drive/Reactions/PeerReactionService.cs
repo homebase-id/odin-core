@@ -17,7 +17,7 @@ public class PeerReactionService(
     ReactionContentService reactionContentService,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    OdinContextAccessor contextAccessor,
+    IOdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver)
     : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
 {

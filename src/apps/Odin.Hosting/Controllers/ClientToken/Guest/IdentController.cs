@@ -12,11 +12,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
     [Route(GuestApiPathConstants.AuthV1)]
     public class IdentController : Controller
     {
-        private readonly OdinContextAccessor _odinContextAccessor;
+        private readonly IOdinContextAccessor _odinContextAccessor;
         private readonly IIdentityRegistry _registry;
 
 
-        public IdentController(OdinContextAccessor odinContextAccessor, IIdentityRegistry registry)
+        public IdentController(IOdinContextAccessor odinContextAccessor, IIdentityRegistry registry)
         {
             _odinContextAccessor = odinContextAccessor;
             _registry = registry;

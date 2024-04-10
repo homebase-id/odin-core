@@ -12,7 +12,7 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
     /// <summary />
     public CommentPayloadStreamWriter(
         CommentFileSystem fileSystem,
-        OdinContextAccessor contextAccessor)
+        IOdinContextAccessor contextAccessor)
         : base(fileSystem, contextAccessor)
     {
     }

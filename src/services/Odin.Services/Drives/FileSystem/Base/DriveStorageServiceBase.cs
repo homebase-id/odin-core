@@ -27,7 +27,7 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         ILoggerFactory loggerFactory,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
@@ -39,7 +39,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
-        protected override OdinContextAccessor ContextAccessor { get; } = contextAccessor;
+        protected override IOdinContextAccessor ContextAccessor { get; } = contextAccessor;
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages

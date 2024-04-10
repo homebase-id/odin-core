@@ -10,6 +10,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Refit;
 
@@ -19,7 +20,8 @@ namespace Odin.Services.DataSubscription.SendingHost
         FileSystemResolver fileSystemResolver,
         IOdinHttpClientFactory odinHttpClientFactory,
         IDriveAclAuthorizationService driveAcl,
-        OdinConfiguration odinConfiguration)
+        OdinConfiguration odinConfiguration,
+        CircleNetworkService circleNetworkService)
     {
         public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
         {
@@ -32,7 +34,8 @@ namespace Odin.Services.DataSubscription.SendingHost
                 return false;
             }
 
-            var authorized = await driveAcl.IdentityHasPermission(recipient,
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, true);
+            var authorized = await driveAcl.IdentityHasPermission(icr,
                 header.ServerMetadata.AccessControlList);
 
             if (!authorized)
@@ -81,8 +84,8 @@ namespace Odin.Services.DataSubscription.SendingHost
                 return false;
             }
 
-            var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, true);
+            var authorized = await driveAcl.IdentityHasPermission(icr, header.ServerMetadata.AccessControlList);
 
             if (!authorized)
             {

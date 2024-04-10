@@ -34,7 +34,7 @@ namespace Odin.Services.DataSubscription.Follower
         private readonly IOdinHttpClientFactory _httpClientFactory;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly StandardFileSystem _standardFileSystem;
         private readonly PeerDriveQueryService _peerDriveQueryService;
         private readonly CircleNetworkService _circleNetworkService;
@@ -47,7 +47,7 @@ namespace Odin.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-            OdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
+            IOdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
             CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;

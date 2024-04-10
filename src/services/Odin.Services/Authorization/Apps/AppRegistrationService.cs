@@ -22,7 +22,7 @@ namespace Odin.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
 
@@ -37,7 +37,7 @@ namespace Odin.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+        public AppRegistrationService(IOdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService)
         {
             _contextAccessor = contextAccessor;

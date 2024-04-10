@@ -14,7 +14,7 @@ using Serilog;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveQueryServiceBase(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         DriveDatabaseHost driveDatabaseHost,
         DriveManager driveManager,
         DriveStorageServiceBase storage)
@@ -22,7 +22,7 @@ namespace Odin.Services.Drives.FileSystem.Base
     {
         protected override DriveManager DriveManager { get; } = driveManager;
 
-        protected override OdinContextAccessor ContextAccessor { get; } = contextAccessor;
+        protected override IOdinContextAccessor ContextAccessor { get; } = contextAccessor;
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages

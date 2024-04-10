@@ -29,7 +29,7 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private readonly CircleNetworkService _cns;
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
@@ -40,7 +40,7 @@ public class TenantConfigService
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
 
-    public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
+    public TenantConfigService(CircleNetworkService cns, IOdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry,
         DriveManager driveManager,

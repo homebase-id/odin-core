@@ -9,7 +9,7 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveQueryService(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         DriveDatabaseHost driveDatabaseHost,
         DriveManager driveManager,
         StandardFileDriveStorageService storage)

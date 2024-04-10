@@ -92,7 +92,7 @@ namespace Odin.Hosting
             cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
-            cb.RegisterType<OdinContextAccessor>().AsSelf().InstancePerLifetimeScope();
+            cb.RegisterType<HttpOdinContextAccessor>().As<IOdinContextAccessor>().InstancePerLifetimeScope();
             cb.RegisterType<OdinContext>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 

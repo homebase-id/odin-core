@@ -23,7 +23,7 @@ namespace Odin.Services.Membership.YouAuth
 {
     public class YouAuthDomainRegistrationService
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly CircleMembershipService _circleMembershipService;
@@ -38,7 +38,7 @@ namespace Odin.Services.Membership.YouAuth
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
-        public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+        public YouAuthDomainRegistrationService(IOdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext,
             CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService)
         {

@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
     [ApiController]
     [AuthorizeValidAppToken]
     [Route(AppApiPathConstants.PushNotificationsV1)]
-    public class AppPushNotificationController(PushNotificationService notificationService, OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory)
+    public class AppPushNotificationController(PushNotificationService notificationService, IOdinContextAccessor contextAccessor, ILoggerFactory loggerFactory)
         : PushNotificationControllerBase(notificationService, contextAccessor, loggerFactory)
     {
     }

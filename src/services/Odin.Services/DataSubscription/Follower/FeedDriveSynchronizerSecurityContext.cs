@@ -16,11 +16,11 @@ namespace Odin.Services.DataSubscription.Follower;
 public class FeedDriveSynchronizerSecurityContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
-    private readonly OdinContextAccessor _odinContextAccessor;
+    private readonly IOdinContextAccessor _odinContextAccessor;
 
     private const string GroupName = "patch_in_temp_icrkey";
 
-    public FeedDriveSynchronizerSecurityContext(OdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    public FeedDriveSynchronizerSecurityContext(IOdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {

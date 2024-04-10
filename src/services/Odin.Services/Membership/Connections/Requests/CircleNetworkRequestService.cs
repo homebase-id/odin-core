@@ -34,7 +34,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private readonly byte[] _sentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
 
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
@@ -52,7 +52,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
 
         public CircleNetworkRequestService(
-            OdinContextAccessor contextAccessor,
+            IOdinContextAccessor contextAccessor,
             CircleNetworkService cns,
             ILogger<CircleNetworkRequestService> logger,
             IOdinHttpClientFactory odinHttpClientFactory,

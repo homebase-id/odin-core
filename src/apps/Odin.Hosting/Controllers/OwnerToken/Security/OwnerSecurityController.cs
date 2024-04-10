@@ -14,13 +14,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class OwnerSecurityController : Controller
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
 
     /// <summary />
-    public OwnerSecurityController(OdinContextAccessor contextAccessor, RecoveryService recoveryService, OwnerSecretService ss,
+    public OwnerSecurityController(IOdinContextAccessor contextAccessor, RecoveryService recoveryService, OwnerSecretService ss,
         OwnerAuthenticationService ownerAuthenticationService)
     {
         _contextAccessor = contextAccessor;

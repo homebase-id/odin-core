@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     [AuthorizeValidOwnerToken]
     public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
-        public OwnerNotificationListDataListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
+        public OwnerNotificationListDataListController(NotificationListService notificationService, IOdinContextAccessor contextAccessor) : base(notificationService,
             contextAccessor)
         {
         }

@@ -16,10 +16,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Security;
 [AuthorizeValidGuestOrAppToken]
 public class SecurityController : Controller
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
 
     /// <summary />
-    public SecurityController(OdinContextAccessor contextAccessor)
+    public SecurityController(IOdinContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
     }

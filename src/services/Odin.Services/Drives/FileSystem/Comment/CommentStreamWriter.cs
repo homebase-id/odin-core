@@ -18,14 +18,14 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)

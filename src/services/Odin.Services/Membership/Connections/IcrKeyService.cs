@@ -13,10 +13,10 @@ namespace Odin.Services.Membership.Connections
     /// </summary>
     public class IcrKeyService
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly CircleNetworkStorage _storage;
 
-        public IcrKeyService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
+        public IcrKeyService(IOdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);

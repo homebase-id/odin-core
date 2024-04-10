@@ -25,13 +25,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
     private readonly IMemoryCache _encryptedTokens = new MemoryCache(new MemoryCacheOptions());
     private readonly IAppRegistrationService _appRegistrationService;
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly Dictionary<string, bool> _tempConsent;
     private readonly CircleNetworkService _circleNetwork;
 
     public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         YouAuthDomainRegistrationService domainRegistrationService, CircleNetworkService circleNetwork)
     {
         _appRegistrationService = appRegistrationService;

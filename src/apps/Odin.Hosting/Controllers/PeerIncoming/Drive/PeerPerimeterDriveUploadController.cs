@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerIncomingDriveUpdateController : OdinControllerBase
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private Guid _stateItemId;
 
         /// <summary />
-        public PeerIncomingDriveUpdateController(OdinContextAccessor contextAccessor, DriveManager driveManager,
+        public PeerIncomingDriveUpdateController(IOdinContextAccessor contextAccessor, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;

@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 #if DEBUG
         public static int CacheMiss;
 #endif
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly FileSystemHttpRequestResolver _fsResolver;
 
         private readonly OdinConfiguration _config;
@@ -35,7 +35,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private IAppCache? _cache;
 
-        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, OdinContextAccessor contextAccessor,
+        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, IOdinContextAccessor contextAccessor,
             FileSystemHttpRequestResolver fsResolver)
         {
             _driveManager = driveManager;

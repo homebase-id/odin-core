@@ -15,9 +15,9 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
     [AuthorizeValidGuestOrAppToken]
     public class GuestFollowerController : FollowerControllerBase
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         /// <summary />
-        public GuestFollowerController(FollowerService fs, OdinContextAccessor contextAccessor) : base(fs)
+        public GuestFollowerController(FollowerService fs, IOdinContextAccessor contextAccessor) : base(fs)
         {
             _contextAccessor = contextAccessor;
         }

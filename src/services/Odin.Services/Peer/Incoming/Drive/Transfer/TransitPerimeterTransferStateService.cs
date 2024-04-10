@@ -12,7 +12,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
-    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor) : ITransitPerimeterTransferStateService
+    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, IOdinContextAccessor contextAccessor) : ITransitPerimeterTransferStateService
     {
         private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 

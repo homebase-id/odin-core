@@ -23,13 +23,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 public class PeerReactionSenderService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    OdinContextAccessor contextAccessor,
+    IOdinContextAccessor contextAccessor,
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
     : PeerServiceBase(odinHttpClientFactory,
         circleNetworkService, contextAccessor, fileSystemResolver)
 {
-    private readonly OdinContextAccessor _contextAccessor = contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor = contextAccessor;
 
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)

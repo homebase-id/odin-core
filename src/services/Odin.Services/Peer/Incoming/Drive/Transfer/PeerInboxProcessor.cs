@@ -15,7 +15,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerInboxProcessor(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         PeerInbox peerInbox,
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,

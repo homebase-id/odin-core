@@ -23,7 +23,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     public class PeerDriveIncomingTransferService
     {
         private readonly PushNotificationService _pushNotificationService;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
         private readonly PeerInbox _peerInbox;
@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly IMediator _mediator;
 
         public PeerDriveIncomingTransferService(
-            OdinContextAccessor contextAccessor,
+            IOdinContextAccessor contextAccessor,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
@@ -92,7 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         {
                             var senderId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
 
-                            using (new UpgradeToPeerTransferSecurityContext(_contextAccessor))
+                            using (new UpgradeToPeerTransferSecurityContext(_contextAccessor.GetCurrent()))
                             {
                                 await _pushNotificationService.EnqueueNotification(senderId, notificationOptions);
                             }

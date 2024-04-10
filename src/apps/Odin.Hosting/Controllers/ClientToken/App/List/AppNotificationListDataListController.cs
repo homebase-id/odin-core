@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.List
     [AuthorizeValidAppToken]
     public class AppNotificationListDataListController : NotificationListDataControllerBase
     {
-        public AppNotificationListDataListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
+        public AppNotificationListDataListController(NotificationListService notificationService, IOdinContextAccessor contextAccessor) : base(notificationService,
             contextAccessor)
         {
         }

@@ -16,11 +16,11 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerPerimeterService
     {
         private readonly TenantSystemStorage _tenantStorage;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly IMediator _mediator;
 
 
-        public FollowerPerimeterService(TenantSystemStorage tenantStorage, OdinContextAccessor contextAccessor, IMediator mediator)
+        public FollowerPerimeterService(TenantSystemStorage tenantStorage, IOdinContextAccessor contextAccessor, IMediator mediator)
         {
             _tenantStorage = tenantStorage;
             _contextAccessor = contextAccessor;

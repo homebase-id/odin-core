@@ -27,13 +27,13 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 public abstract class FileSystemStreamWriterBase
 {
     private readonly TenantContext _tenantContext;
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
     private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
+    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, IOdinContextAccessor contextAccessor,
         DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;

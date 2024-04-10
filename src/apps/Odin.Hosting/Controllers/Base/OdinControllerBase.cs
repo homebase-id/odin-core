@@ -97,5 +97,5 @@ public abstract class OdinControllerBase : ControllerBase
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>
-    protected OdinContext OdinContext => HttpContext.RequestServices.GetRequiredService<OdinContextAccessor>().GetCurrent();
+    protected OdinContext OdinContext => HttpContext.RequestServices.GetRequiredService<IOdinContextAccessor>().GetCurrent();
 }

@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
     /// <summary>
     /// Handles reading/writing of app notifications
     /// </summary>
-    public abstract class NotificationListDataControllerBase(NotificationListService notificationService, OdinContextAccessor contextAccessor)
+    public abstract class NotificationListDataControllerBase(NotificationListService notificationService, IOdinContextAccessor contextAccessor)
         : OdinControllerBase
     {
         [HttpPost("list")]

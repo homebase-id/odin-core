@@ -3,21 +3,31 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Odin.Services.Base
 {
+    public interface IOdinContextAccessor
+    {
+        OdinContext GetCurrent();
+    }
+
     /// <summary>
     /// Contains all information required to execute commands in the Odin.Services services.
     /// </summary>
-    public class OdinContextAccessor
+    public class HttpOdinContextAccessor(IHttpContextAccessor accessor) : IOdinContextAccessor
     {
-        private readonly IHttpContextAccessor _accessor;
-
-        public OdinContextAccessor(IHttpContextAccessor accessor)
-        {
-            _accessor = accessor;
-        }
-
         public OdinContext GetCurrent()
         {
-            return _accessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            return accessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+        }
+    }
+
+    /// <summary>
+    /// Context accessor when you want to set an explicit OdinContext
+    /// </summary>
+    /// <param name="context"></param>
+    public class ExplicitOdinContextAccessor(OdinContext context) : IOdinContextAccessor
+    {
+        public OdinContext GetCurrent()
+        {
+            return context;
         }
     }
 }

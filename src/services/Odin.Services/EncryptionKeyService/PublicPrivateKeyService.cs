@@ -36,7 +36,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly Guid _offlineNotificationsKeyStorageId = Guid.Parse("22165337-1ff5-4e92-87f2-95fc9ce424c3");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IMediator _mediator;
 
@@ -49,7 +49,7 @@ namespace Odin.Services.EncryptionKeyService
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
+        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, IOdinContextAccessor contextAccessor,
             IOdinHttpClientFactory odinHttpClientFactory,
             IMediator mediator)
         {

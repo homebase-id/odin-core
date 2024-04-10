@@ -21,7 +21,7 @@ namespace Odin.Services.Peer
     public abstract class PeerServiceBase(
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         FileSystemResolver fileSystemResolver)
     {
 

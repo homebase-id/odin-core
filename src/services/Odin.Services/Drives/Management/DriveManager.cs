@@ -28,7 +28,7 @@ namespace Odin.Services.Drives.Management;
 public class DriveManager
 {
     private readonly IMediator _mediator;
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
 
     private readonly ConcurrentDictionary<Guid, StorageDrive> _driveCache;
@@ -37,7 +37,7 @@ public class DriveManager
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
-    public DriveManager(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager(IOdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
         _contextAccessor = contextAccessor;
         _mediator = mediator;

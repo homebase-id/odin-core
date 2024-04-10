@@ -29,7 +29,7 @@ namespace Odin.Services.DataSubscription
         DriveManager driveManager,
         PushNotificationService pushNotificationService,
         TenantContext tenantContext,
-        OdinContextAccessor contextAccessor)
+        IOdinContextAccessor contextAccessor)
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
@@ -44,7 +44,7 @@ namespace Odin.Services.DataSubscription
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
                 {
-                    using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
+                    using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
                     {
                         await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                         {
@@ -62,7 +62,7 @@ namespace Odin.Services.DataSubscription
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
 
-            using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
+            using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
             {
                 await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
                 {
@@ -88,7 +88,7 @@ namespace Odin.Services.DataSubscription
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
                 && sender != tenantContext.HostOdinId)
             {
-                using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
+                using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
                 {
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                     {
@@ -103,7 +103,7 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
-            using (new UpgradeToPeerTransferSecurityContext(contextAccessor))
+            using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
             {
                 await pushNotificationService.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
                 {

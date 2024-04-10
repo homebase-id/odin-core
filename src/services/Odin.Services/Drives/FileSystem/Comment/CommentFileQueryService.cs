@@ -9,7 +9,7 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.FileSystem.Comment
 {
     public class CommentFileQueryService(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         DriveDatabaseHost driveDatabaseHost,
         DriveManager driveManager,
         CommentFileStorageService commentStorage)

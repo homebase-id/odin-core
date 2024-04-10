@@ -24,7 +24,7 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
     public class PeerOutgoingOutgoingTransferService(
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         PeerOutbox peerOutbox,
         TenantSystemStorage tenantSystemStorage,
         IOdinHttpClientFactory odinHttpClientFactory,

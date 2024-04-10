@@ -18,12 +18,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class PayloadStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
 
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, IOdinContextAccessor contextAccessor)
     {
         FileSystem = fileSystem;
         _contextAccessor = contextAccessor;

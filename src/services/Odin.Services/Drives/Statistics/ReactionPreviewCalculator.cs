@@ -15,7 +15,7 @@ namespace Odin.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator(OdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver, OdinConfiguration config)
+public class ReactionPreviewCalculator(IOdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver, OdinConfiguration config)
     : INotificationHandler<IDriveNotification>,
         INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
         INotificationHandler<AllReactionsByFileDeleted>

@@ -14,7 +14,7 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.FileSystem.Comment;
 
 public class CommentFileStorageService(
-    OdinContextAccessor contextAccessor,
+    IOdinContextAccessor contextAccessor,
     ILoggerFactory loggerFactory,
     IMediator mediator,
     IDriveAclAuthorizationService driveAclAuthorizationService,

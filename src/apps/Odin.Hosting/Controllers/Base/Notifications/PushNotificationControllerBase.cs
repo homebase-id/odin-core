@@ -17,7 +17,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
 {
     public class PushNotificationControllerBase(
         PushNotificationService notificationService,
-        OdinContextAccessor contextAccessor,
+        IOdinContextAccessor contextAccessor,
         ILoggerFactory loggerFactory)
         : Controller
     {

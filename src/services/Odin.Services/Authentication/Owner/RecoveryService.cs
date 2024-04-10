@@ -13,12 +13,12 @@ namespace Odin.Services.Authentication.Owner;
 
 public class RecoveryService
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    private readonly IOdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _storage;
     private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private readonly OdinConfiguration _odinConfiguration;
 
-    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, OdinConfiguration odinConfiguration)
+    public RecoveryService(TenantSystemStorage tenantSystemStorage, IOdinContextAccessor contextAccessor, OdinConfiguration odinConfiguration)
     {
         _contextAccessor = contextAccessor;
         _odinConfiguration = odinConfiguration;

@@ -54,7 +54,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinContextAccessor _contextAccessor;
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
@@ -64,7 +64,7 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinContextAccessor contextAccessor, OdinConfiguration configuration)
+            IOdinContextAccessor contextAccessor, OdinConfiguration configuration)
         {
             _logger = logger;
             _secretService = secretService;

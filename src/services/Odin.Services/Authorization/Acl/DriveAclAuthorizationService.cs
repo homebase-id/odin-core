@@ -3,15 +3,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService(
-        OdinContextAccessor contextAccessor,
-        CircleNetworkService circleNetwork,
+        IOdinContextAccessor contextAccessor,
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
@@ -20,48 +18,50 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl)
+        public async Task<bool> IdentityHasPermission(IdentityConnectionRegistration recipientIcr, AccessControlList acl)
         {
             //there must be an acl
             if (acl == null)
             {
-                return false;
+                return await Task.FromResult(false);
             }
+
+            var odinId = recipientIcr.OdinId;
 
             //if file has required circles, see if caller has at least one
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, true);
-                var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
+                var hasBadData = recipientIcr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
-                    var cg = icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
+                    var cg = recipientIcr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
                     logger.LogWarning("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
 
                     //let it continue on
                 }
 
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
+                var hasAtLeastOneCircle = requiredCircles
+                    .Intersect(recipientIcr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
                     .Any();
-                return hasAtLeastOneCircle;
+                return await Task.FromResult(hasAtLeastOneCircle);
             }
 
             if (acl.GetRequiredIdentities().Any())
             {
-                return false;
+                return await Task.FromResult(false);
             }
 
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
-                    return true;
+                    return await Task.FromResult(true);
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, true)).IsConnected();
+                    return await Task.FromResult(recipientIcr.IsConnected());
             }
 
-            return false;
+            return await Task.FromResult(false);
         }
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
@@ -109,7 +109,7 @@ namespace Odin.Services.Authorization.Acl
 
             return Task.FromResult(false);
         }
-        
+
         private void ThrowWhenFalse(bool eval)
         {
             if (eval == false)

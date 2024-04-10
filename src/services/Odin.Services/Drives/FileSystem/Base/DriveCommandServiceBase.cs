@@ -9,21 +9,15 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Base;
 
-public abstract class DriveCommandServiceBase : RequirePermissionsBase
+public abstract class DriveCommandServiceBase(
+    DriveDatabaseHost driveDatabaseHost,
+    DriveStorageServiceBase storage,
+    IOdinContextAccessor contextAccessor,
+    DriveManager driveManager)
+    : RequirePermissionsBase
 {
-    private readonly DriveDatabaseHost _driveDatabaseHost;
-    private readonly DriveStorageServiceBase _storage;
-
-    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, OdinContextAccessor contextAccessor, DriveManager driveManager)
-    {
-        _driveDatabaseHost = driveDatabaseHost;
-        _storage = storage;
-        ContextAccessor = contextAccessor;
-        DriveManager = driveManager;
-    }
-
-    protected override DriveManager DriveManager { get; }
-    protected override OdinContextAccessor ContextAccessor { get; }
+    protected override DriveManager DriveManager { get; } = driveManager;
+    protected override IOdinContextAccessor ContextAccessor { get; } = contextAccessor;
 
     public async Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
     {
@@ -46,7 +40,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
                 FileId = cmd.Id
             };
 
-            var serverFileHeader = await _storage.GetServerFileHeader(file);
+            var serverFileHeader = await storage.GetServerFileHeader(file);
             if (null == serverFileHeader)
             {
                 continue;
@@ -75,6 +69,6 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, bool onlyReadyManagers = true)
     {
-        return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
+        return await driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
     }
 }

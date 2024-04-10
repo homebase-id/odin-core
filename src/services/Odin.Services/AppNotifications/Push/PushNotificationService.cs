@@ -38,7 +38,7 @@ public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
     TenantSystemStorage storage,
-    OdinContextAccessor contextAccessor,
+    IOdinContextAccessor contextAccessor,
     PublicPrivateKeyService keyService,
     TenantSystemStorage tenantSystemStorage,
     NotificationListService notificationListService,

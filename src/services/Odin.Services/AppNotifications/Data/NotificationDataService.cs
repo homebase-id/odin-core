@@ -14,7 +14,7 @@ namespace Odin.Services.AppNotifications.Data;
 /// <summary>
 /// Storage for notifications
 /// </summary>
-public class NotificationListService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+public class NotificationListService(TenantSystemStorage tenantSystemStorage, IOdinContextAccessor contextAccessor)
 {
     private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
 
