@@ -28,19 +28,19 @@ public class OdinContextAccessor(IHttpContextAccessor httpContextAccessor, OdinC
     public OdinContext GetCurrent()
     {
         // Try to resolve OdinContext from the current scope if available
-        if (LifetimeScope != null && LifetimeScope.TryResolve<OdinContext>(out var odinContext))
+        if (LifetimeScope != null && LifetimeScope.TryResolve<OdinContext>(out var foo))
         {
-            return odinContext;
+            return foo;
         }
 
         // Fallback to resolving from HttpContext
-        odinContext = httpContextAccessor.HttpContext?.RequestServices.GetService<OdinContext>();
-        if (!string.IsNullOrEmpty(odinContext?.Tenant.DomainName))
+        foo = httpContextAccessor.HttpContext?.RequestServices.GetService<OdinContext>();
+        if (foo != null)
         {
-            return odinContext;
+            return foo;
         }
 
-        throw new OdinSystemException("No valid OdinContext found. Did you forget to create a new scope?");
+        throw new OdinSystemException("No OdinContext found. Did you forget to create a new scope?");
     }
 
     //
