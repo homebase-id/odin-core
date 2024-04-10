@@ -13,15 +13,16 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Comment;
 
-public class CommentFileStorageService : DriveStorageServiceBase
+public class CommentFileStorageService(
+    OdinContextAccessor contextAccessor,
+    ILoggerFactory loggerFactory,
+    IMediator mediator,
+    IDriveAclAuthorizationService driveAclAuthorizationService,
+    DriveManager driveManager,
+    OdinConfiguration odinConfiguration,
+    DriveFileReaderWriter driveFileReaderWriter)
+    : DriveStorageServiceBase(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
 {
-    public CommentFileStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
-        IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, OdinConfiguration odinConfiguration,
-        DriveFileReaderWriter driveFileReaderWriter) :
-        base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
-    {
-    }
-
     public override async Task AssertCanReadDrive(Guid driveId)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
