@@ -226,6 +226,8 @@ public class PushNotificationService(
                 Data = OdinSystemSerializer.Serialize(payload),
                 DevicePlatform = subscription.FirebaseDevicePlatform,
                 DeviceToken = subscription.FirebaseDeviceToken,
+                FromDomain = payload.SenderId.DomainName,
+                ToDomain = thisDomain,
                 Id = messageId,
                 OriginDomain = thisDomain,
                 Signature = signature,

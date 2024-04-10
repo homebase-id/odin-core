@@ -39,6 +39,12 @@ public class DevicePushNotificationRequestV1
     [Required]
     public string Body { get; set; } = "";
 
+    [Required]
+    public string FromDomain { get; set; } = "";
+
+    [Required]
+    public string ToDomain { get; set; } = "";
+
     //
 
     public Dictionary<string, string> ToClientDictionary()
