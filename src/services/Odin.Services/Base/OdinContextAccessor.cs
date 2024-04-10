@@ -30,10 +30,7 @@ public class OdinContextAccessor(IHttpContextAccessor httpContextAccessor, OdinC
         // Try to resolve OdinContext from the current scope if available
         if (LifetimeScope != null && LifetimeScope.TryResolve<OdinContext>(out var odinContext))
         {
-            if (!string.IsNullOrEmpty(odinContext.Tenant.DomainName))
-            {
-                return odinContext;
-            }
+            return odinContext;
         }
 
         // Fallback to resolving from HttpContext
