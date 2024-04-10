@@ -327,6 +327,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
+            
+            await Task.Delay(10000);
+
 
             foreach (var recipient in recipients)
             {
@@ -336,7 +339,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
                 Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Queued);
 
-                await Task.Delay(4000);
                 // Assert: file that was sent has peer transfer status updated
                 var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
                 Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);

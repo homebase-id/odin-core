@@ -2,12 +2,13 @@ using MediatR;
 using Odin.Services.AppNotifications;
 using Odin.Services.Apps;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Mediator;
 
-public interface IDriveNotification : INotification
+public interface IDriveNotification : INotification 
 {
     ClientNotificationType NotificationType { get; }
     

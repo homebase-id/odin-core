@@ -265,7 +265,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             await _peerInbox.Add(item);
-            await _mediator.Publish(new TransitFileReceivedNotification()
+            await _mediator.Publish(new TransitFileReceivedNotification(_contextAccessor.GetCurrent())
             {
                 TempFile = new ExternalFileIdentifier()
                 {

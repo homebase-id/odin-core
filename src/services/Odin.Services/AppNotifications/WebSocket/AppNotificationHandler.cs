@@ -121,7 +121,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         return; // hangup!
                     }
 
-                    SocketCommand command = null;
+                    SocketCommand command;
                     var errorText = "Error deserializing socket command";
                     try
                     {
@@ -184,13 +184,14 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var hasSharedSecret = null != contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var context = ((MediatorNotificationBase)notification).Context ?? contextAccessor.GetCurrent();
+            var hasSharedSecret = null != context.PermissionsContext.SharedSecretKey;
 
             var data = OdinSystemSerializer.Serialize(new
             {
                 TargetDrive = (await driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
                 Header = hasSharedSecret
-                    ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, contextAccessor)
+                    ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, context)
                     : null
             });
 
@@ -202,7 +203,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
-            var notificationDriveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
+            var context = notification.Context ?? contextAccessor.GetCurrent();
+            var notificationDriveId = context.PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
@@ -218,6 +220,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(OutboxFileItemDeliverySuccessNotification notification, CancellationToken cancellationToken)
         {
+            var context = notification.Context ?? contextAccessor.GetCurrent();
+            
             var translated = new TranslatedClientNotification(
                 notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
@@ -225,7 +229,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     ExternalFileIdentifier = new ExternalFileIdentifier()
                     {
                         FileId = notification.File.FileId,
-                        TargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(notification.File.DriveId)
+                        TargetDrive = context.PermissionsContext.GetTargetDrive(notification.File.DriveId)
                     },
                     notification.VersionTag,
                     notification.Recipient,
@@ -239,6 +243,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(OutboxFileItemDeliveryFailedNotification notification, CancellationToken cancellationToken)
         {
+            var context = notification.Context ?? contextAccessor.GetCurrent();
+
             var translated = new TranslatedClientNotification(
                 notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
@@ -246,7 +252,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     ExternalFileIdentifier = new ExternalFileIdentifier()
                     {
                         FileId = notification.File.FileId,
-                        TargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(notification.File.DriveId)
+                        TargetDrive = context.PermissionsContext.GetTargetDrive(notification.File.DriveId)
                     },
                     notification.ProblemStatus,
                     notification.Recipient,

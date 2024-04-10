@@ -456,7 +456,7 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration)
         {
-            await _mediator.Publish(new AppRegistrationChangedNotification()
+            await _mediator.Publish(new AppRegistrationChangedNotification(_contextAccessor.GetCurrent())
             {
                 OldAppRegistration = oldAppRegistration,
                 NewAppRegistration = newAppRegistration

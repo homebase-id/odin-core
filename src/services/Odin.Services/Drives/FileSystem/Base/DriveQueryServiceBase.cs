@@ -233,7 +233,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(
                             serverFileHeader,
-                            ContextAccessor,
+                            ContextAccessor.GetCurrent(),
                             forceIncludeServerMetadata);
                         if (!options.IncludeHeaderContent)
                         {

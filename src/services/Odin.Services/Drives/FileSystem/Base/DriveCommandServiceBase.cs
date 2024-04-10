@@ -45,7 +45,7 @@ public abstract class DriveCommandServiceBase(
             {
                 continue;
             }
-            var commandFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
+            var commandFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor.GetCurrent());
             var command = OdinSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.Content);
 
             result.Add(new ReceivedCommand()

@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             while (item != null)
             {
-                var localContextAccessor = new ExplicitOdinContextAccessor( contextAccessor.GetCurrent());
+                var localContextAccessor = new ExplicitOdinContextAccessor(contextAccessor.GetCurrent());
 
                 // await ProcessOutboxItem(item, context);
                 _ = new ProcessOutboxItemWorker(item, localContextAccessor, logger, peerOutbox,
@@ -148,13 +148,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     odinConfiguration, driveFileReaderWriter);
             }
 
-            
             try
             {
                 var versionTag = await SendOutboxFileItemAsync(item, storage);
                 await UpdateTransferHistory(versionTag, null);
                 await peerOutbox.MarkComplete(item.Marker);
-                await mediator.Publish(new OutboxFileItemDeliverySuccessNotification
+                await mediator.Publish(new OutboxFileItemDeliverySuccessNotification(contextAccessor.GetCurrent())
                 {
                     Recipient = item.Recipient,
                     File = item.File,
@@ -171,7 +170,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
 
-                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
+                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification(contextAccessor.GetCurrent())
                 {
                     Recipient = item.Recipient,
                     File = item.File,
@@ -182,7 +181,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             catch
             {
                 await peerOutbox.MarkComplete(item.Marker);
-                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification
+                await mediator.Publish(new OutboxFileItemDeliveryFailedNotification(contextAccessor.GetCurrent())
                 {
                     Recipient = item.Recipient,
                     File = item.File,
@@ -397,7 +396,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     odinConfiguration, driveFileReaderWriter);
             }
 
-            
             await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);
         }
 

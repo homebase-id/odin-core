@@ -26,7 +26,7 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, IOdinContextAccessor contextAccessor,
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, OdinContext context,
         bool forceIncludeServerMetadata = false)
     {
         if (header == null)
@@ -37,9 +37,9 @@ public static class DriveFileUtility
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
         if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+            var storageKey = context.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-            var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var clientSharedSecret = context.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
         }
         else
@@ -70,7 +70,7 @@ public static class DriveFileUtility
         var clientFileHeader = new SharedSecretEncryptedFileHeader()
         {
             FileId = header.FileMetadata.File.FileId,
-            TargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId),
+            TargetDrive = context.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId),
             FileState = header.FileMetadata.FileState,
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
@@ -80,7 +80,7 @@ public static class DriveFileUtility
         };
 
         //add additional info
-        if (contextAccessor.GetCurrent().Caller.IsOwner || forceIncludeServerMetadata)
+        if (context.Caller.IsOwner || forceIncludeServerMetadata)
         {
             clientFileHeader.ServerMetadata = header.ServerMetadata;
         }

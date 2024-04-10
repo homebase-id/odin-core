@@ -114,7 +114,7 @@ public class DriveManager
             Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
-        await _mediator.Publish(new DriveDefinitionAddedNotification()
+        await _mediator.Publish(new DriveDefinitionAddedNotification(_contextAccessor.GetCurrent())
         {
             IsNewDrive = true,
             Drive = storageDrive
@@ -147,7 +147,7 @@ public class DriveManager
 
             CacheDrive(storageDrive);
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification()
+            await _mediator.Publish(new DriveDefinitionAddedNotification(_contextAccessor.GetCurrent())
             {
                 IsNewDrive = false,
                 Drive = storageDrive
