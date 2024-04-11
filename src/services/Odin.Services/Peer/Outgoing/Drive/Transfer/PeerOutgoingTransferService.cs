@@ -26,7 +26,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
     public class PeerOutgoingOutgoingTransferService(
         IOdinContextAccessor contextAccessor,
         PeerOutbox peerOutbox,
-        TenantSystemStorage tenantSystemStorage,
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantContext tenantContext,
         CircleNetworkService circleNetworkService,
@@ -40,7 +39,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
-        private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService = new(tenantSystemStorage);
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options,
@@ -60,14 +58,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var tenant = OdinContext.Tenant;
             serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
-            var priority = options.Schedule == ScheduleOptions.SendNowAwaitResponse ? 100 : 200;
+            var priority = options.Priority switch
+            {
+                PriorityOptions.High => 1000,
+                PriorityOptions.Medium => 2000,
+                _ => 3000
+            };
+            
             var outboxStatus = await EnqueueOutboxItems(internalFile, options, sfo, priority, OutboxItemType.File);
-
-            // note: if this fires in a background thread, i lose access to context so i need t pass it all in
-            // var _ = ProcessDriveOutbox(internalFile.DriveId);
-            //TODO: need to send these in parallel threads now
-            await outboxProcessor.ProcessOutbox();
-
+            await outboxProcessor.StartOutboxProcessing();
             return await MapOutboxCreationResult(outboxStatus);
         }
 
@@ -144,22 +143,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
         }
 
-        private void AddToTransferKeyEncryptionQueue(OdinId recipient, InternalDriveFileId file)
-        {
-            var now = UnixTimeUtc.Now().milliseconds;
-            var item = new PeerKeyEncryptionQueueItem()
-            {
-                Id = GuidId.NewId(),
-                FileId = file.FileId,
-                Recipient = recipient,
-                FirstAddedTimestampMs = now,
-                Attempts = 1,
-                LastAttemptTimestampMs = now
-            };
-
-            _transferKeyEncryptionQueueService.Enqueue(item);
-        }
-
         private async Task<Dictionary<string, bool>> EnqueueOutboxItems(
             InternalDriveFileId internalFile,
             TransitOptions options,
@@ -219,7 +202,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed while creating outbox item for recipient {recipient}", recipient);
-                    // AddToTransferKeyEncryptionQueue(recipient, internalFile);
                     status.Add(recipient, false);
                 }
             }

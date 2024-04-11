@@ -295,7 +295,7 @@ namespace Odin.Services.DataSubscription
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
-                Schedule = ScheduleOptions.SendLater,
+                Priority = PriorityOptions.Medium,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
                 RemoteTargetDrive = SystemDriveConstants.FeedDrive

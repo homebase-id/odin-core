@@ -43,9 +43,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 foreach (var item in items)
                 {
-                    //TODO: change to use batching inserts
-
-                    //TODO: value should also include transfer attempts, etc.
                     var state = OdinSystemSerializer.Serialize(new OutboxItemState()
                     {
                         Recipient = item.Recipient,

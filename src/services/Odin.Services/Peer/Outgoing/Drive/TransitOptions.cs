@@ -27,7 +27,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// Options for when to send the file(s)
         /// </summary>
-        public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
+        public PriorityOptions Priority { get; set; } = PriorityOptions.Medium;
 
         /// <summary>
         /// Specifies which parts of the file to send
@@ -60,18 +60,15 @@ namespace Odin.Services.Peer.Outgoing.Drive
         All = Header | Payload
     }
 
-    public enum ScheduleOptions
+    public enum PriorityOptions
     {
         /// <summary>
         /// Sends file now; blocks the return of the thread until a response is received from the all recipients.
         /// </summary>
-        SendNowAwaitResponse = 1,
-
-        /// <summary>
-        /// Sends immediately from the same thread as the caller but spawns a new thread so the caller's request
-        /// instantly returns.  For each failed recipient, the file is moved to ScheduleOptions.SendLater 
-        /// </summary>
-        //SendNowFireAndForget
-        SendLater = 2
+        High = 1,
+        
+        Medium = 2,
+        
+        Low = 3
     }
 }

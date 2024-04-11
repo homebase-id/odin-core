@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -27,6 +28,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Org.BouncyCastle.Asn1.X509;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -607,14 +609,45 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     public async Task<ApiResponse<InboxStatus>> ProcessInbox(TargetDrive drive, int batchSize = 1)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
-        var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var response = await transitSvc.ProcessInbox(new ProcessInboxRequest()
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.ProcessInbox(new ProcessInboxRequest()
         {
             TargetDrive = drive,
             BatchSize = batchSize
         });
 
         return response;
+    }
+
+    public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Outbox.TotalItems == 0)
+            {
+                return;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException($"timeout occured while waiting for outbox to complete processing");
+            }
+
+            await Task.Delay(100);
+        }
     }
 
     public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)

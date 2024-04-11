@@ -73,7 +73,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -83,8 +83,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
             
-            //hack wait for outbox
-            await Task.Delay(5000);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
@@ -131,7 +130,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -141,8 +140,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
 
-            //hack wait for outbox
-            await Task.Delay(5000);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
@@ -205,7 +203,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -215,8 +213,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
             
-            //hack wait for outbox
-            await Task.Delay(5000);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
             
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
@@ -294,7 +291,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = [recipientOwnerClient.Identity.OdinId],
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -304,8 +301,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
 
-            //hack wait for outbox
-            await Task.Delay(5000);
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);

@@ -233,7 +233,7 @@ TaskPerformanceTest_Transit
                     {
                         UseGlobalTransitId = true,
                         Recipients = recipients,
-                        Schedule = ScheduleOptions.SendNowAwaitResponse
+                        Priority = PriorityOptions.High
                     }
                 };
 
@@ -500,7 +500,7 @@ TaskPerformanceTest_Transit
                     {
                         UseGlobalTransitId = true,
                         Recipients = recipients,
-                        Schedule = ScheduleOptions.SendNowAwaitResponse
+                        Priority = PriorityOptions.High
                     }
                 };
 

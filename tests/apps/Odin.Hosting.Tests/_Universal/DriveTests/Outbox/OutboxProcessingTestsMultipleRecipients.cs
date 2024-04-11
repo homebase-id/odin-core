@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -52,8 +51,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
             var pippin = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
 
-            // List<OwnerApiClientRedux> recipients = [sam, pippin];
-            List<OwnerApiClientRedux> recipients = [sam];
+            List<OwnerApiClientRedux> recipients = [sam, pippin];
 
             const DrivePermission drivePermissions = DrivePermission.Write;
 
@@ -85,7 +83,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -94,7 +92,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
-            
+
             foreach (var recipient in recipients)
             {
                 Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
@@ -147,7 +145,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -157,9 +155,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
 
-            //hack wait for outbox
-            await Task.Delay(5000);
-            
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
             foreach (var recipient in recipients)
             {
                 Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
@@ -229,7 +226,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -238,9 +235,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
-
-            //wait for outbox processing
-            await Task.Delay(4000);
+            
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             foreach (var recipient in recipients)
             {
@@ -325,7 +321,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             {
                 Recipients = recipients.Select(r => r.Identity.OdinId.ToString()).ToList(),
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default
             };
 
@@ -334,8 +330,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
-            
-            await Task.Delay(10000);
+
+            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             foreach (var recipient in recipients)
             {

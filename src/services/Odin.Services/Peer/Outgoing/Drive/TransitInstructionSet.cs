@@ -28,7 +28,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// Options for when to send the file(s)
         /// </summary>
-        public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
+        public PriorityOptions Priority { get; set; } = PriorityOptions.Medium;
 
         /// <summary>
         /// Optionally specified if you are overwriting a remote file

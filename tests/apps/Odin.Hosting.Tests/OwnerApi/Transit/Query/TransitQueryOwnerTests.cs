@@ -759,7 +759,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Priority = PriorityOptions.High,
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
                 },
@@ -1533,7 +1533,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Priority = PriorityOptions.High,
                     Recipients = [recipient.OdinId],
                     UseGlobalTransitId = true
                 },
@@ -1687,7 +1687,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 TransitOptions = new TransitOptions()
                 {
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Priority = PriorityOptions.High,
                     Recipients = new List<string>() { recipient.OdinId },
                     UseGlobalTransitId = true
                 },

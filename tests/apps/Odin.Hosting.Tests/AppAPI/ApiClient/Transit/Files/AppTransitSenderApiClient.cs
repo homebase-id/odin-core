@@ -49,7 +49,7 @@ public class AppTransitSenderApiClient : AppApiClientBase
             TransferIv = transferIv,
             GlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
+            Priority = PriorityOptions.High,
             Recipients = recipients,
             Manifest = new UploadManifest()
         };

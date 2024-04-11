@@ -43,10 +43,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IJobManager jobManager,
         ILoggerFactory loggerFactory,
         DriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter, 
+        DriveFileReaderWriter driveFileReaderWriter,
         ConcurrentFileManager concurrentFileManager)
     {
-        public async Task ProcessOutbox()
+        public async Task StartOutboxProcessing()
         {
             var item = await peerOutbox.GetNextItem();
 
@@ -62,9 +62,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         odinHttpClientFactory,
                         loggerFactory,
                         driveManager,
-                        driveFileReaderWriter, concurrentFileManager)
+                        driveFileReaderWriter,
+                        concurrentFileManager)
                     .ProcessOutboxItem();
-                
+
                 item = await peerOutbox.GetNextItem();
             }
         }
@@ -82,7 +83,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IOdinHttpClientFactory odinHttpClientFactory,
         ILoggerFactory loggerFactory,
         DriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter, 
+        DriveFileReaderWriter driveFileReaderWriter,
         ConcurrentFileManager concurrentFileManager
     )
     {
@@ -120,40 +121,32 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         private async Task SendPushNotification()
         {
-            using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
+            try
             {
-                await pushNotificationService.ProcessBatch([item]);
+                using (new UpgradeToPeerTransferSecurityContext(contextAccessor.GetCurrent()))
+                {
+                    await pushNotificationService.ProcessBatch([item]);
+                }
             }
-
-            //   await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(_contextAccessor.GetCurrent().Tenant,
-            //                  nextRunTime));
-
-            //TODO: Consider how to fall back for push notifications; i.e. do we really care?
-
-            await peerOutbox.MarkComplete(item.Marker);
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed sending push notification");
+            }
+            finally
+            {
+                await peerOutbox.MarkComplete(item.Marker);
+            }
         }
 
         private async Task SendFileOutboxItem()
         {
-            DriveStorageServiceBase storage;
-            var driveAclAuthorizationService = new DriveAclAuthorizationService(contextAccessor,
-                loggerFactory.CreateLogger<DriveAclAuthorizationService>());
-
-            if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
-            }
-            else
-            {
-                storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
-            }
+            var storage = GetStorage();
 
             try
             {
                 var versionTag = await SendOutboxFileItemAsync(item, storage);
-                await UpdateTransferHistory(versionTag, null);
+                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, null);
+
                 await peerOutbox.MarkComplete(item.Marker);
                 await mediator.Publish(new OutboxFileItemDeliverySuccessNotification(contextAccessor.GetCurrent())
                 {
@@ -165,12 +158,28 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
             catch (OdinOutboxProcessingException e)
             {
-                await UpdateTransferHistory(versionTag: null, e.ProblemStatus);
-                var nextRunTime = CalculateNextRunTime(item);
+                await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag: null, e.ProblemStatus);
 
-                await peerOutbox.MarkFailure(item.Marker, nextRunTime);
+                switch (e.ProblemStatus)
+                {
+                    case LatestProblemStatus.RecipientIdentityReturnedAccessDenied:
+                    case LatestProblemStatus.UnknownServerError:
+                    case LatestProblemStatus.RecipientIdentityReturnedBadRequest:
+                        await peerOutbox.MarkComplete(item.Marker);
+                        break;
 
-                await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
+                    case LatestProblemStatus.RecipientIdentityReturnedServerError:
+                    case LatestProblemStatus.RecipientServerNotResponding:
+                    case LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile:
+                    case LatestProblemStatus.SourceFileDoesNotAllowDistribution:
+                        var nextRunTime = CalculateNextRunTime(e.ProblemStatus);
+                        await jobManager.Schedule<ProcessOutboxJob>(new ProcessOutboxSchedule(contextAccessor.GetCurrent().Tenant, nextRunTime));
+                        await peerOutbox.MarkFailure(item.Marker, nextRunTime);
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
 
                 await mediator.Publish(new OutboxFileItemDeliveryFailedNotification(contextAccessor.GetCurrent())
                 {
@@ -193,25 +202,49 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private UnixTimeUtc CalculateNextRunTime(OutboxItem item)
+        private DriveStorageServiceBase GetStorage()
         {
-            //TODO: expand logic as needed
+            var driveAclAuthorizationService = new DriveAclAuthorizationService(contextAccessor,
+                loggerFactory.CreateLogger<DriveAclAuthorizationService>());
+
+            if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
+            {
+                return new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
+            }
+
+            return new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
+                odinConfiguration, driveFileReaderWriter, concurrentFileManager);
+        }
+
+        private UnixTimeUtc CalculateNextRunTime(LatestProblemStatus problemStatus)
+        {
+            if (item.Type == OutboxItemType.File)
+            {
+                switch (problemStatus)
+                {
+                    case LatestProblemStatus.RecipientIdentityReturnedServerError:
+                    case LatestProblemStatus.RecipientServerNotResponding:
+                        return UnixTimeUtc.Now().AddSeconds(60);
+
+                    case LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile:
+                    case LatestProblemStatus.SourceFileDoesNotAllowDistribution:
+                        return UnixTimeUtc.Now().AddMinutes(2);
+                }
+            }
+
             // item.AddedTimestamp
             // item.AttemptCount > someValueInConfig
             switch (item.Type)
             {
                 case OutboxItemType.File:
                     return UnixTimeUtc.Now().AddSeconds(5);
-                // return UnixTimeUtc.Now().AddMinutes(5);
 
                 case OutboxItemType.Reaction:
                     return UnixTimeUtc.Now().AddMinutes(5);
-
-                case OutboxItemType.PushNotification:
-                    return UnixTimeUtc.Now().AddMinutes(5);
             }
 
-            return UnixTimeUtc.Now().AddMinutes(5);
+            return UnixTimeUtc.Now().AddSeconds(30);
         }
 
         private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, DriveStorageServiceBase storage)
@@ -341,15 +374,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
                     async () => { response = await TrySendFile(); });
-                //
-                // var c1 = _contextAccessor.GetCurrent();
-                //
-                // var httpClient = new HttpClient();
-                // httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = "www.google.com" }.Uri;
-                // var r = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/"));
-                //
-                // // response = await TrySendFile();
-                // var c2 = _contextAccessor.GetCurrent();
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -379,26 +403,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     File = file
                 };
             }
-        }
-
-        private async Task UpdateTransferHistory(Guid? versionTag, LatestProblemStatus? problemStatus)
-        {
-            DriveStorageServiceBase storage;
-            var driveAclAuthorizationService = new DriveAclAuthorizationService(contextAccessor,
-                loggerFactory.CreateLogger<DriveAclAuthorizationService>());
-
-            if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
-            {
-                storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter,concurrentFileManager);
-            }
-            else
-            {
-                storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
-            }
-
-            await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);
         }
 
         private LatestProblemStatus MapPeerResponseHttpStatus(ApiResponse<PeerTransferResponse> response)

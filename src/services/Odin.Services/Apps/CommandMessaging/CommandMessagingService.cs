@@ -76,7 +76,7 @@ public class CommandMessagingService(
                 Recipients = command.Recipients,
                 UseGlobalTransitId = false,
                 RemoteTargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId),
-                Schedule = ScheduleOptions.SendNowAwaitResponse //TODO: let the caller specify this
+                Priority = PriorityOptions.High //TODO: let the caller specify this
             },
             transferFileType: TransferFileType.CommandMessage,
             FileSystemType.Standard);

@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("initiate")]
         public async Task<IActionResult> InitiateOutboxProcessing()
         {
-            await outboxProcessor.ProcessOutbox();
+            await outboxProcessor.StartOutboxProcessing();
             return Ok();
         }
 

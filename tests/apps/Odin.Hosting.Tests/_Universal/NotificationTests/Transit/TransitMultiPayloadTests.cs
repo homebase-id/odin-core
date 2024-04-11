@@ -107,7 +107,7 @@ public class TransitNotificationTests
             Recipients = new List<string>() { frodo.OdinId },
             UseAppNotification = true,
             UseGlobalTransitId = true,
-            Schedule = ScheduleOptions.SendNowAwaitResponse,
+            Priority = PriorityOptions.High,
             AppNotificationOptions = options
         };
 

@@ -564,7 +564,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             {
                 Recipients = new List<string>() { recipient.OdinId },
                 UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
+                Priority = PriorityOptions.High,
                 RemoteTargetDrive = default,
             };
 

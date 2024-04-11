@@ -159,7 +159,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
-                    Schedule = transitInstructionSet.Schedule
+                    Priority = transitInstructionSet.Priority
                 },
                 Manifest = transitInstructionSet.Manifest
             };

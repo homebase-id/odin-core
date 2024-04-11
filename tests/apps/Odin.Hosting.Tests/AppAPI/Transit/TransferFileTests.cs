@@ -107,7 +107,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Priority = PriorityOptions.High,
                     UseGlobalTransitId = true
                 },
                 Manifest = new UploadManifest()
@@ -324,7 +324,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Priority = PriorityOptions.High,
                     UseGlobalTransitId = true
                 },
                 Manifest = new UploadManifest()

@@ -857,7 +857,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //Feature added much later in schedule but it means we don't have to thread sleep in our unit tests
             if (options.ProcessOutbox && instructionSet.TransitOptions != null)
             {
-                instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
+                instructionSet.TransitOptions.Priority = PriorityOptions.High;
             }
 
             await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);
