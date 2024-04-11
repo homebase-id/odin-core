@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,8 +23,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
-using SQLitePCL;
-
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -34,7 +33,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
         OdinConfiguration odinConfiguration,
-        DriveFileReaderWriter driveFileReaderWriter)
+        DriveFileReaderWriter driveFileReaderWriter,
+        ConcurrentFileManager concurrentFileManager)
         : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -140,31 +140,36 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
         }
-        
+
+
         /// <summary>
         /// Updates the transfer history for this file for the given recipient
         /// </summary>
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, Guid? versionTag, LatestProblemStatus? problemStatus)
         {
-            var header = await this.GetServerFileHeader(file);
-            var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-            history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-            if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+            await concurrentFileManager.WriteFile(file.ToString(), async _ =>
             {
-                recipientItem = new RecipientTransferHistoryItem();
-                history.Recipients.Add(recipient, recipientItem);
-            }
+                var header = await this.GetServerFileHeader(file);
 
-            recipientItem.LastUpdated = UnixTimeUtc.Now();
-            recipientItem.LatestProblemStatus = problemStatus;
-            if (problemStatus == null)
-            {
-                recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
-            }
+                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
+                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
 
-            header.ServerMetadata.TransferHistory = history;
-            await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, raiseEvent: true);
+                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                {
+                    recipientItem = new RecipientTransferHistoryItem();
+                    history.Recipients.Add(recipient, recipientItem);
+                }
+
+                recipientItem.LastUpdated = UnixTimeUtc.Now();
+                recipientItem.LatestProblemStatus = problemStatus;
+                if (problemStatus == null)
+                {
+                    recipientItem.LatestSuccessfullyDeliveredVersionTag = versionTag.GetValueOrDefault();
+                }
+
+                header.ServerMetadata.TransferHistory = history;
+                await this.UpdateActiveFileHeaderInternal(file, header, keepSameVersionTag: true, raiseEvent: true);
+            });
         }
 
         public async Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
@@ -960,7 +965,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { header = await mgr.GetServerFileHeader(file.FileId); });
+                async () =>
+                {
+                    header = await mgr.GetServerFileHeader(file.FileId);
+                });
 
             if (_logger.IsEnabled(LogLevel.Trace) && attempts > 1)
             {

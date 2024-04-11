@@ -119,10 +119,10 @@ public class ConcurrentFileManagerTests
         string actualContent1 = null;
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
-        _fileManager.WriteFile(testFilePath, path =>
+        _fileManager.WriteFile(testFilePath, async path =>
         {
-            File.WriteAllText(path, expectedContent);
-            actualContent1 = File.ReadAllText(path);
+            await File.WriteAllTextAsync(path, expectedContent);
+            actualContent1 = await File.ReadAllTextAsync(path);
             Task innerTask = Task.Run(() =>
             {
                 try
@@ -160,15 +160,16 @@ public class ConcurrentFileManagerTests
         string actualContent1 = null;
         string actualContent2 = null;
         var innerTaskFinished = new ManualResetEvent(false);
-        _fileManager.WriteFile(testFilePath, path =>
+        _fileManager.WriteFile(testFilePath, async path =>
         {
-            File.WriteAllText(path, expectedContent);
-            actualContent1 = File.ReadAllText(path);
+            await File.WriteAllTextAsync(path, expectedContent);
+            actualContent1 = await File.ReadAllTextAsync(path);
             Task innerTask = Task.Run(() =>
             {
                 try
                 {
-                    _fileManager.WriteFile(testFilePath, innerPath => { actualContent2 = File.ReadAllText(innerPath); }).GetAwaiter().GetResult();
+                    _fileManager.WriteFile(testFilePath, async innerPath => { actualContent2 = await File.ReadAllTextAsync(innerPath); }).GetAwaiter()
+                        .GetResult();
                     Assert.Fail("Not supposed to be here");
                 }
                 catch (Exception ex)
@@ -196,7 +197,7 @@ public class ConcurrentFileManagerTests
         string newContent = "New content";
         var fileManager = new ConcurrentFileManager(_logger, _correlationContext);
 
-        fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, newContent)).GetAwaiter().GetResult();
+        fileManager.WriteFile(testFilePath, async path => await File.WriteAllTextAsync(path, newContent)).GetAwaiter().GetResult();
 
         // Open a stream for reading
         var stream = fileManager.ReadStream(testFilePath).GetAwaiter().GetResult();
@@ -206,7 +207,8 @@ public class ConcurrentFileManagerTests
         {
             try
             {
-                fileManager.WriteFile(testFilePath, path => { File.WriteAllText(path, newContent); }).GetAwaiter().GetResult();;
+                fileManager.WriteFile(testFilePath, async path => { await File.WriteAllTextAsync(path, newContent); }).GetAwaiter().GetResult();
+                
                 Assert.Fail("Write operation should not succeed while the stream is open.");
             }
             catch (Exception ex)
@@ -225,9 +227,9 @@ public class ConcurrentFileManagerTests
         bool writeSucceeded = false;
         try
         {
-            fileManager.WriteFile(testFilePath, path =>
+            fileManager.WriteFile(testFilePath, async path =>
             {
-                File.WriteAllText(path, newContent);
+                await File.WriteAllTextAsync(path, newContent);
                 writeSucceeded = true;
             }).GetAwaiter().GetResult();
         }
@@ -247,7 +249,8 @@ public class ConcurrentFileManagerTests
 
         string contentToWrite = "Sample content";
 
-        _fileManager.WriteFile(testFilePath, path => File.WriteAllText(path, contentToWrite)).GetAwaiter().GetResult();;
+        _fileManager.WriteFile(testFilePath, async path => await File.WriteAllTextAsync(path, contentToWrite)).GetAwaiter().GetResult();
+        ;
 
         string actualContent = File.ReadAllText(testFilePath);
         Assert.AreEqual(contentToWrite, actualContent);
@@ -259,7 +262,8 @@ public class ConcurrentFileManagerTests
         string testFilePath = "testfile03.txt";
         File.WriteAllText(testFilePath, string.Empty);
 
-        _fileManager.DeleteFile(testFilePath).GetAwaiter().GetResult();;
+        _fileManager.DeleteFile(testFilePath).GetAwaiter().GetResult();
+        ;
 
         Assert.IsFalse(File.Exists(testFilePath));
     }

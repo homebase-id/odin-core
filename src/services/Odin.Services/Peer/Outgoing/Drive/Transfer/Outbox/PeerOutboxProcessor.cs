@@ -43,7 +43,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IJobManager jobManager,
         ILoggerFactory loggerFactory,
         DriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter)
+        DriveFileReaderWriter driveFileReaderWriter, 
+        ConcurrentFileManager concurrentFileManager)
     {
         public async Task ProcessOutbox()
         {
@@ -53,7 +54,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 var localContextAccessor = new ExplicitOdinContextAccessor(contextAccessor.GetCurrent());
 
-                // await ProcessOutboxItem(item, context);
                 _ = new ProcessOutboxItemWorker(item, localContextAccessor, logger, peerOutbox,
                         mediator,
                         jobManager,
@@ -62,8 +62,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                         odinHttpClientFactory,
                         loggerFactory,
                         driveManager,
-                        driveFileReaderWriter)
+                        driveFileReaderWriter, concurrentFileManager)
                     .ProcessOutboxItem();
+                
                 item = await peerOutbox.GetNextItem();
             }
         }
@@ -81,7 +82,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IOdinHttpClientFactory odinHttpClientFactory,
         ILoggerFactory loggerFactory,
         DriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter
+        DriveFileReaderWriter driveFileReaderWriter, 
+        ConcurrentFileManager concurrentFileManager
     )
     {
         public async Task ProcessOutboxItem()
@@ -140,12 +142,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
             {
                 storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter);
+                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
             }
             else
             {
                 storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter);
+                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
             }
 
             try
@@ -388,12 +390,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (item.TransferInstructionSet.FileSystemType == FileSystemType.Standard)
             {
                 storage = new StandardFileDriveStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter);
+                    odinConfiguration, driveFileReaderWriter,concurrentFileManager);
             }
             else
             {
                 storage = new CommentFileStorageService(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager,
-                    odinConfiguration, driveFileReaderWriter);
+                    odinConfiguration, driveFileReaderWriter, concurrentFileManager);
             }
 
             await storage.UpdateTransferHistory(item.File, item.Recipient, versionTag, problemStatus);

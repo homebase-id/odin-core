@@ -29,7 +29,7 @@ public sealed class DriveFileReaderWriter(
                 {
                     if (odinConfiguration.Host.UseConcurrentFileManager)
                     {
-                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
+                        await concurrentFileManager.WriteFile(filePath, async path => await File.WriteAllTextAsync(path, data));
                     }
                     else
                     {
@@ -55,7 +55,7 @@ public sealed class DriveFileReaderWriter(
                 {
                     if (odinConfiguration.Host.UseConcurrentFileManager)
                     {
-                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllBytes(path, bytes));
+                        await concurrentFileManager.WriteFile(filePath, async path => await File.WriteAllBytesAsync(path, bytes));
                     }
                     else
                     {

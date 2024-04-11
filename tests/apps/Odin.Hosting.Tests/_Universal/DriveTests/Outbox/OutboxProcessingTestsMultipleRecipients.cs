@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
@@ -156,6 +157,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 transitOptions
             );
 
+            //hack wait for outbox
+            await Task.Delay(5000);
+            
             foreach (var recipient in recipients)
             {
                 Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
@@ -234,6 +238,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
+
+            //wait for outbox processing
+            await Task.Delay(4000);
 
             foreach (var recipient in recipients)
             {
@@ -329,7 +336,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
             );
             
             await Task.Delay(10000);
-
 
             foreach (var recipient in recipients)
             {

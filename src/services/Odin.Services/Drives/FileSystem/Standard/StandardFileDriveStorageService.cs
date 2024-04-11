@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -20,9 +21,10 @@ namespace Odin.Services.Drives.FileSystem.Standard
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
         OdinConfiguration odinConfiguration,
-        DriveFileReaderWriter driveFileReaderWriter)
+        DriveFileReaderWriter driveFileReaderWriter,
+        ConcurrentFileManager concurrentFileManager)
         : DriveStorageServiceBase(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration,
-            driveFileReaderWriter)
+            driveFileReaderWriter, concurrentFileManager)
     {
         public override async Task AssertCanReadDrive(Guid driveId)
         {

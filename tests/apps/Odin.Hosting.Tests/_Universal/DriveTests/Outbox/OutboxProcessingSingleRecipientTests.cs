@@ -82,6 +82,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
+            
+            //hack wait for outbox
+            await Task.Delay(5000);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
@@ -137,6 +140,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
+
+            //hack wait for outbox
+            await Task.Delay(5000);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
@@ -208,7 +214,10 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
-
+            
+            //hack wait for outbox
+            await Task.Delay(5000);
+            
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
             var uploadResult = uploadResponse.Content;
@@ -294,6 +303,9 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Outbox
                 storageOptions,
                 transitOptions
             );
+
+            //hack wait for outbox
+            await Task.Delay(5000);
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.Accepted);
