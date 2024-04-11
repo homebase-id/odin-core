@@ -132,7 +132,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 if (await ShouldRaiseDriveEvent(targetFile))
                 {
-                    await mediator.Publish(new DriveFileAddedNotification(contextAccessor.GetCurrent())
+                    await mediator.Publish(new DriveFileAddedNotification(ContextAccessor.GetCurrent())
                     {
                         File = targetFile,
                         ServerFileHeader = header
@@ -439,7 +439,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(file))
             {
-                await mediator.Publish(new DriveFileDeletedNotification(contextAccessor.GetCurrent())
+                await mediator.Publish(new DriveFileDeletedNotification(ContextAccessor.GetCurrent())
                 {
                     IsHardDelete = true,
                     File = file,
@@ -495,7 +495,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await mediator.Publish(new DriveFileAddedNotification(contextAccessor.GetCurrent())
+                await mediator.Publish(new DriveFileAddedNotification(ContextAccessor.GetCurrent())
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
@@ -586,7 +586,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await mediator.Publish(new DriveFileChangedNotification(contextAccessor.GetCurrent())
+                await mediator.Publish(new DriveFileChangedNotification(ContextAccessor.GetCurrent())
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
@@ -654,7 +654,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await mediator.Publish(new DriveFileChangedNotification(contextAccessor.GetCurrent())
+                await mediator.Publish(new DriveFileChangedNotification(ContextAccessor.GetCurrent())
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
@@ -701,7 +701,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile))
             {
-                await mediator.Publish(new DriveFileChangedNotification(contextAccessor.GetCurrent())
+                await mediator.Publish(new DriveFileChangedNotification(ContextAccessor.GetCurrent())
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
