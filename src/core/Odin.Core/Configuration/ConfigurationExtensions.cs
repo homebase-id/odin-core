@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Exceptions;
 
@@ -43,4 +44,25 @@ public static class ConfigurationExtensions
 
     //
 
+    public static List<string> ExportAsEnvironmentVariables(this IConfiguration config)
+    {
+        var result = new List<string>();
+
+        foreach (var section in config.AsEnumerable())
+        {
+            if (!string.IsNullOrEmpty(section.Key) && !string.IsNullOrEmpty(section.Value))
+            {
+                var key = section.Key.Replace(":", "__");
+                var value = section.Value
+                    .Replace(@"\", @"\\") // Escape backslashes first to avoid double escaping
+                    .Replace("'", @"\'"); // Escape single quotes
+
+                result.Add($"{key}='{value}'");
+            }
+        }
+
+        return result;
+    }
+
+    //
 }

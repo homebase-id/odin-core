@@ -1,0 +1,50 @@
+name: "Host: Deploy release to environment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag (e.g., v0.1.96)"
+        required: true
+      choice:
+        type: choice
+        description: Environment
+        options:
+        - bleeding_edge
+        - sandbox
+        - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up IMAGE_NAME_WITH_TAG
+        run: echo "IMAGE_NAME_WITH_TAG=ghcr.io/youfoundation/dotyoucore:${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+
+      - name: Check IMAGE_NAME_WITH_TAG
+        run: |
+          set -ex
+          if [[ -z "${{ env.IMAGE_NAME_WITH_TAG }}" ]]; then
+            echo "Error: env.IMAGE_NAME_WITH_TAG is empty"
+            exit 1
+          fi
+          echo "Deploying: ${{ env.IMAGE_NAME_WITH_TAG }}"
+
+      - name: Deploy to selected environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ANSIBLE_HOST }}
+          username: ${{ secrets.ANSIBLE_USERNAME }}
+          key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          script_stop: true
+          script: |
+            source $HOME/.profile
+            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+            echo work folder: $ANSIBLE_WORK_FOLDER
+            mkdir $ANSIBLE_WORK_FOLDER
+            cd $ANSIBLE_WORK_FOLDER
+            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+            cd $ANSIBLE_WORK_FOLDER/ansible
+            ansible-playbook deploy-identity-hosts.yml --limit ${{ github.event.inputs.choice }} --extra-vars "docker_force_image_update=true identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
+            cd /tmp
+            rm -rf $ANSIBLE_WORK_FOLDER

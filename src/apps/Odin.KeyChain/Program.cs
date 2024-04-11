@@ -13,7 +13,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-using var db = new KeyChainDatabase(@"Data Source=blockchain.db");
+using var db = new KeyChainDatabase(@"blockchain.db");
 
 KeyChainDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
 

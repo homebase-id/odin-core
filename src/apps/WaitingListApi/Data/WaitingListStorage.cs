@@ -26,7 +26,7 @@ public class WaitingListStorage : IDisposable
         Log.Information($"Creating database at path {dbPath}");
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new WaitingListDatabase($"Data Source={finalPath}");
+        _db = new WaitingListDatabase(finalPath);
         _db.CreateDatabase(false);
     }
 

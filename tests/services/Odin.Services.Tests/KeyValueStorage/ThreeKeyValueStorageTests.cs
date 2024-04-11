@@ -12,7 +12,7 @@ public class ThreeKeyValueStorageTests
     public void RequireNonEmptyContextKey()
     {
         var finalPath = "testdb1.db";
-        var db = new IdentityDatabase($"Data Source={finalPath}");
+        var db = new IdentityDatabase(finalPath);
         db.CreateDatabase(false);
 
         Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(db.TblKeyThreeValue, Guid.Empty); });
@@ -23,7 +23,7 @@ public class ThreeKeyValueStorageTests
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var finalPath = "testdb2.db";
-        var db = new IdentityDatabase($"Data Source={finalPath}");
+        var db = new IdentityDatabase(finalPath);
         db.CreateDatabase(false);
 
         var contextKey1 = Guid.NewGuid();

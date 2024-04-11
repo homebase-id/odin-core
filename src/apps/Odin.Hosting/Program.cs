@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Odin.Core.Configuration;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
@@ -32,31 +33,41 @@ namespace Odin.Hosting
     {
         public static int Main(string[] args)
         {
-            var (odinConfig, appSettingsConfig) = LoadConfig();
-            Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
-
-            try
+            var (didHandle, exitCode) = HandleCommandLineArgs(args);
+            if (didHandle)
             {
-                Log.Information("Starting web host");
-                CreateHostBuilder(args).Build().Run();
-                Log.Information("Stopped web host");
-            }
-            catch (Exception ex)
-            {
-                Log.Fatal(ex, "Host terminated unexpectedly");
-                return 1;
-            }
-            finally
-            {
-                Log.CloseAndFlush();
+                return exitCode;
             }
 
-            return 0;
+            //
+            // Web host
+            //
+            {
+                var (odinConfig, appSettingsConfig) = LoadConfig(true);
+                Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
+                try
+                {
+                    Log.Information("Starting web host");
+                    CreateHostBuilder(args).Build().Run();
+                    Log.Information("Stopped web host");
+                }
+                catch (Exception ex)
+                {
+                    Log.Fatal(ex, "Host terminated unexpectedly");
+                    return 1;
+                }
+                finally
+                {
+                    Log.CloseAndFlush();
+                }
+
+                return 0;
+            }
         }
 
         //
 
-        private static (OdinConfiguration, IConfiguration) LoadConfig()
+        private static (OdinConfiguration, IConfiguration) LoadConfig(bool includeEnvVars)
         {
             const string configPathOverrideVariable = "ODIN_CONFIG_PATH";
 
@@ -83,10 +94,12 @@ namespace Odin.Hosting
 
             Log.Information($"Loading configuration at [{configPath}]");
 
-            var config = new ConfigurationBuilder()
-                .AddJsonFile(configPath, optional: false)
-                .AddEnvironmentVariables()
-                .Build();
+            var configBuilder = new ConfigurationBuilder().AddJsonFile(configPath, optional: false);
+            if (includeEnvVars)
+            {
+                configBuilder.AddEnvironmentVariables();
+            }
+            var config = configBuilder.Build();
 
             return (new OdinConfiguration(config), config);
         }
@@ -132,7 +145,7 @@ namespace Odin.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (odinConfig, appSettingsConfig) = LoadConfig();
+            var (odinConfig, appSettingsConfig) = LoadConfig(true);
 
             if (odinConfig.Logging.LogFilePath != "")
             {
@@ -355,5 +368,67 @@ namespace Odin.Hosting
         }
 
         //
+
+        private static (bool didHandle, int exitCode) HandleCommandLineArgs(string[] args)
+        {
+            //
+            // Command line: export docker env config
+            //
+            //
+            // Example:
+            //   dotnet run --no-build -- --export-docker-env
+            //
+            if (args.Contains("--export-docker-env"))
+            {
+                var (_, appSettingsConfig) = LoadConfig(false);
+                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
+                foreach (var envVar in envVars)
+                {
+                    Console.WriteLine($@"--env {envVar} \");
+                }
+                return (true, 0);
+            }
+
+            //
+            // Command line: export shell env config
+            //
+            //
+            // Example:
+            //   dotnet run --no-build -- --export-shell-env
+            //
+            if (args.Contains("--export-shell-env"))
+            {
+                var (_, appSettingsConfig) = LoadConfig(false);
+                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
+                foreach (var envVar in envVars)
+                {
+                    Console.WriteLine($"export {envVar}");
+                }
+                return (true, 0);
+            }
+
+            //
+            // Command line: dump environment variables
+            //
+            // examples:
+            //
+            //   FOO=BAR dotnet run --no-build -- --dump-env
+            //
+            //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --dump-env
+            //
+            //
+            if (args.Contains("--dump-env"))
+            {
+                var (_, appSettingsConfig) = LoadConfig(true);
+                var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
+                foreach (var envVar in envVars)
+                {
+                    Console.WriteLine(envVar);
+                }
+                return (true, 0);
+            }
+
+            return (false, 0);
+        }
     }
 }

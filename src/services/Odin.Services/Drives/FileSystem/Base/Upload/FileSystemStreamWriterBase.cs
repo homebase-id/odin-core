@@ -107,7 +107,8 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddMetadata(Stream data)
     {
-        await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
+        // await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
     public virtual async Task AddPayload(string key, string contentType, Stream data)
@@ -307,7 +308,8 @@ public abstract class FileSystemStreamWriterBase
     {
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        // var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString());
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 

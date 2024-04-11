@@ -15,7 +15,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-using var db = new NotaryDatabase(@"Data Source=notarychain.db");
+using var db = new NotaryDatabase(@"notarychain.db");
 
 NotaryDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
 

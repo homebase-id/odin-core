@@ -94,21 +94,21 @@ app.MapPost("/message/v1", async (
         try
         {
             var response = await pushNotification.Post(request);
-            logger.LogInformation("Successfully sent {platform} message with id {id} to device {device}: {response}",
-                request.DevicePlatform, request.Id, request.DeviceToken, response);
+            logger.LogInformation("Successfully sent {platform} message with id {id} from {from} to {to} for device {device}: {response}",
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, response);
             return Results.Ok("Message sent successfully to Firebase.");
         }
         catch (FirebaseException e)
         {
-            logger.LogError("Error sending {platform} message with id {id} to device {device}: {code} - {error}",
-                request.DevicePlatform, request.Id, request.DeviceToken, e.ErrorCode, e.Message);
+            logger.LogError("Error sending {platform} message with id {id} from {from} to {to} for device {device}: {code} - {error}",
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.ErrorCode, e.Message);
             return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error sending message: {error}", e.Message);
-            logger.LogError(e, "Error sending {platform} message with id {id} to device {device}: {error}",
-                request.DevicePlatform, request.Id, request.DeviceToken, e.Message);
+            logger.LogError(e, "Error sending {platform} message with id {id} from {from} to {to} for device {device}: {error}",
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.Message);
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
     })
@@ -133,6 +133,8 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
         RuleFor(request => request.Data).NotEmpty();
         RuleFor(request => request.Title).NotEmpty();
         RuleFor(request => request.Body).NotEmpty();
+        RuleFor(request => request.FromDomain).NotEmpty();
+        RuleFor(request => request.ToDomain).NotEmpty();
     }
 }
 
