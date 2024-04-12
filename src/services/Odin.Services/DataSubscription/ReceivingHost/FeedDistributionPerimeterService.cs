@@ -1,3 +1,4 @@
+using System.Configuration;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
@@ -15,13 +16,12 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.DataSubscription.ReceivingHost
 {
     public class FeedDistributionPerimeterService(
-        IOdinContextAccessor contextAccessor,
         IDriveFileSystem fileSystem,
         FileSystemResolver fileSystemResolver,
         FollowerService followerService,
         IMediator mediator)
     {
-       public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, OdinContext context)
         {
             await followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -29,12 +29,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            var context = contextAccessor.GetCurrent();
             using (new FeedDriveDistributionSecurityContext(context))
             {
                 var driveId = context.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
-                var fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId, context);
 
                 if (null == fileId)
                 {
@@ -71,12 +70,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, OdinContext context)
         {
             await followerService.AssertTenantFollowsTheCaller();
-            using (new FeedDriveDistributionSecurityContext(contextAccessor.GetCurrent()))
+            using (new FeedDriveDistributionSecurityContext(context))
             {
-                var fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId, context);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -98,9 +97,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
+        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, OdinContext context)
         {
-            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, context, tryCommentDrive: false);
             return fileId;
         }
     }

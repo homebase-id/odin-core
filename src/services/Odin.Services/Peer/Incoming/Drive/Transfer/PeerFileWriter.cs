@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(FileSystemResolver fileSystemResolver)
+    public class PeerFileWriter(FileSystemResolver fileSystemResolver, OdinContext context)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
@@ -103,7 +103,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             AccessControlList targetAcl;
 
-            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, context);
 
             if (null == referencedFs)
             {

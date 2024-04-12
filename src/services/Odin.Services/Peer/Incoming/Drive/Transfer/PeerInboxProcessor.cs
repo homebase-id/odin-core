@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
             var items = await peerInbox.GetPendingItems(driveId, batchSize);
 
-            PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(fileSystemResolver, contextAccessor.GetCurrent());
             logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
 
             foreach (var inboxItem in items)

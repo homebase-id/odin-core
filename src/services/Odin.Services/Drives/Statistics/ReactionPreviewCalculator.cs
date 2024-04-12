@@ -40,7 +40,7 @@ public class ReactionPreviewCalculator(IOdinContextAccessor contextAccessor, Fil
         }
 
         //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
-        var (fs, _) = await fileSystemResolver.ResolveFileSystem(referencedFile);
+        var (fs, _) = await fileSystemResolver.ResolveFileSystem(referencedFile, ((MediatorNotificationBase)notification).Context);
         if (null == fs)
         {
             //TODO: consider if we log this or just ignore it

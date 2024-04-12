@@ -158,9 +158,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
+        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, OdinContext context)
         {
-            var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
+            var ctx = context ?? ContextAccessor.GetCurrent();
+            var driveId = ctx.PermissionsContext.GetDriveId(file.TargetDrive);
             await AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
@@ -178,7 +179,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var queryManager = await TryGetOrLoadQueryManager(driveId);
             if (queryManager != null)
             {
-                var (_, fileIdList, _) = await queryManager.GetBatchCore(ContextAccessor.GetCurrent(),
+                var (_, fileIdList, _) = await queryManager.GetBatchCore(ctx,
                     GetFileSystemType(),
                     qp,
                     options);

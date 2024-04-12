@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Drives;
@@ -60,6 +58,7 @@ namespace Odin.Services.Base
         }
 
         public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId,
+            OdinContext context,
             bool tryCommentDrive = true)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
@@ -67,13 +66,13 @@ namespace Odin.Services.Base
             // the type, then get a new IDriveFileSystem
 
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
-            var file = await fs.Query.ResolveFileId(globalTransitFileId);
+            var file = await fs.Query.ResolveFileId(globalTransitFileId, context);
 
             if (null == file && tryCommentDrive)
             {
                 //try by comment
                 fs = this.ResolveFileSystem(FileSystemType.Comment);
-                file = await fs.Query.ResolveFileId(globalTransitFileId);
+                file = await fs.Query.ResolveFileId(globalTransitFileId, context);
             }
 
             if (null == file)

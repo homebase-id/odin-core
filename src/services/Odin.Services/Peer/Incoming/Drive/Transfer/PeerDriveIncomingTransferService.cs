@@ -191,15 +191,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
+            var context = _contextAccessor.GetCurrent();
             //HACK: if it's not a connected token
-            if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
+            if (context.AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
                 return false;
             }
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileWriter writer = new PeerFileWriter(_fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(_fileSystemResolver,context);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
 
