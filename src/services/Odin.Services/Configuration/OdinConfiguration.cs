@@ -198,7 +198,7 @@ namespace Odin.Services.Configuration
 
             public HostSection(IConfiguration config)
             {
-                var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+                var isDev = Env.IsDevelopment();
                 var home = Environment.GetEnvironmentVariable("HOME") ?? "";
 
                 var p = config.Required<string>("Host:TenantDataRootPath");
