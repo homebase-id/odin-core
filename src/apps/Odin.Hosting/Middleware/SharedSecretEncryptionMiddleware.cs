@@ -96,10 +96,16 @@ namespace Odin.Hosting.Middleware
 
                 $"{AppApiPathConstants.PeerQueryV1}/payload",
                 $"{AppApiPathConstants.PeerQueryV1}/thumb",
-
+                
+                $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+                
                 $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
                 $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
 
+                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+                
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
