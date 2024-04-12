@@ -1,6 +1,5 @@
 using System;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem;
@@ -20,96 +19,75 @@ namespace Odin.Hosting.Controllers.Base.Drive;
 /// </summary>
 public class FileSystemHttpRequestResolver
 {
-    private readonly IHttpContextAccessor _contextAccessor;
+    private readonly StandardFileSystem _standardFileSystem;
+    private readonly CommentFileSystem _commentFileSystem;
+
+    private readonly StandardFileStreamWriter _standardFileStreamWriter;
+    private readonly CommentStreamWriter _commentStreamWriter;
+
+    private readonly StandardFilePayloadStreamWriter _standardFilePayloadStreamWriter;
+    private readonly CommentPayloadStreamWriter _commentPayloadStreamWriter;
 
     /// <summary/> 
-    public FileSystemHttpRequestResolver(IHttpContextAccessor contextAccessor)
+    public FileSystemHttpRequestResolver(StandardFileSystem standardFileSystem, CommentFileSystem commentFileSystem,
+        CommentStreamWriter commentStreamWriter, StandardFileStreamWriter standardFileStreamWriter,
+        StandardFilePayloadStreamWriter standardFilePayloadStreamWriter, CommentPayloadStreamWriter commentPayloadStreamWriter)
     {
-        _contextAccessor = contextAccessor;
+        _standardFileSystem = standardFileSystem;
+        _commentFileSystem = commentFileSystem;
+        _commentStreamWriter = commentStreamWriter;
+        _standardFileStreamWriter = standardFileStreamWriter;
+        _standardFilePayloadStreamWriter = standardFilePayloadStreamWriter;
+        _commentPayloadStreamWriter = commentPayloadStreamWriter;
     }
 
-    public PayloadStreamWriterBase ResolvePayloadStreamWriter()
+    public PayloadStreamWriterBase ResolvePayloadStreamWriter(FileSystemType fst)
     {
-        var ctx = _contextAccessor.HttpContext;
-
-        var fst = GetFileSystemType();
 
         if (fst == FileSystemType.Standard)
         {
-            return ctx!.RequestServices.GetRequiredService<StandardFilePayloadStreamWriter>();
+            return _standardFilePayloadStreamWriter;
         }
 
         if (fst == FileSystemType.Comment)
         {
-            return ctx!.RequestServices.GetRequiredService<CommentPayloadStreamWriter>();
-        }
-
-        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
-    }
-    
-    /// <summary />
-    public FileSystemStreamWriterBase ResolveFileSystemWriter()
-    {
-        var ctx = _contextAccessor.HttpContext;
-
-        var fst = GetFileSystemType();
-
-        if (fst == FileSystemType.Standard)
-        {
-            return ctx!.RequestServices.GetRequiredService<StandardFileStreamWriter>();
-        }
-
-        if (fst == FileSystemType.Comment)
-        {
-            return ctx!.RequestServices.GetRequiredService<CommentStreamWriter>();
+            return _commentPayloadStreamWriter;
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 
     /// <summary />
-    public IDriveFileSystem ResolveFileSystem()
+    public FileSystemStreamWriterBase ResolveFileSystemWriter(FileSystemType fst)
     {
-        var ctx = _contextAccessor.HttpContext;
-
-        var fst = GetFileSystemType();
-
         if (fst == FileSystemType.Standard)
         {
-            return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
+            return _standardFileStreamWriter;
         }
 
         if (fst == FileSystemType.Comment)
         {
-            return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
+            return _commentStreamWriter;
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 
-    public FileSystemType GetFileSystemType()
+    /// <summary />
+    public IDriveFileSystem ResolveFileSystem(FileSystemType fst)
     {
-        var ctx = _contextAccessor.HttpContext!;
+        // var fst = GetFileSystemType();
 
-        //first try to get file system type by qs
-        var hasQs = ctx.Request.Query.TryGetValue(OdinHeaderNames.FileSystemTypeRequestQueryStringName, out var value);
-        if (hasQs)
+        if (fst == FileSystemType.Standard)
         {
-            if (!Enum.TryParse(typeof(FileSystemType), value, true, out var fst))
-            {
-                throw new OdinClientException("Invalid file system type specified on query string", OdinClientErrorCode.InvalidFileSystemType);
-            }
-            
-            return (FileSystemType)fst!;
+            return _standardFileSystem;
         }
 
-        //Fall back to the header
-
-        if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[OdinHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
+        if (fst == FileSystemType.Comment)
         {
-            throw new OdinClientException("Invalid file system type or no header specified", OdinClientErrorCode.InvalidFileSystemType);
+            return _commentFileSystem;
         }
 
-        return (FileSystemType)fileSystemType!;
+        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 }

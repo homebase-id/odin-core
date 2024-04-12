@@ -40,7 +40,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var fileSystemWriter = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
+            var fileSystemWriter = this.ResolveFileSystemWriter();
 
             // Note: comparing this to a drive upload - 
             // We receive TransitInstructionSet from the client then

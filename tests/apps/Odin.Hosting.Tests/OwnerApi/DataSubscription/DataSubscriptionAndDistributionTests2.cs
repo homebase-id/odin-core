@@ -90,8 +90,7 @@ public class DataSubscriptionAndDistributionTests2
         var (firstUploadResult, encryptedJsonContent64, encryptedPayloadContent64) =
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
-        // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(firstUploadResult.File.TargetDrive);
 
         //
         // The header is distributed to the feed drive of Sam
@@ -171,9 +170,7 @@ public class DataSubscriptionAndDistributionTests2
         var (uploadResult, encryptedJsonContent64, encryptedPayloadContent64) =
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoSecureChannel, headerContent, payloadContent, circle.Id);
 
-        // Process the outbox since we're sending an encrypted file
-        await frodoOwnerClient.Transit.ProcessOutbox();
-
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(uploadResult.File.TargetDrive);
         //
         // The header is distributed to the feed drive of Sam
         // Sam can get the payload via transit query

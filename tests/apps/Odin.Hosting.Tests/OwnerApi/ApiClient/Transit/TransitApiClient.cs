@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -26,6 +27,7 @@ using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken.Transit;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.Transit.Query;
@@ -46,12 +48,37 @@ public class TransitApiClient
         _ownerApi = ownerApi;
         _identity = identity;
     }
+    
 
-    public async Task ProcessOutbox()
+    public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
     {
-        Log.Warning("process outbox called but not implemented because i'm intermezzo with the outbox");
-        await Task.CompletedTask;
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Outbox.TotalItems == 0)
+            {
+                return;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException($"timeout occured while waiting for outbox to complete processing");
+            }
+
+            await Task.Delay(100);
+        }
     }
 
     public async Task ProcessInbox(TargetDrive drive)

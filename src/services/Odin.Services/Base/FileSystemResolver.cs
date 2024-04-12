@@ -12,27 +12,27 @@ namespace Odin.Services.Base
 {
     public class FileSystemResolver
     {
-        private readonly IHttpContextAccessor _contextAccessor;
+        private readonly StandardFileSystem _standardFileSystem;
+        private readonly CommentFileSystem _commentFileSystem;
 
         /// <summary/> 
-        public FileSystemResolver(IHttpContextAccessor contextAccessor)
+        public FileSystemResolver(StandardFileSystem standardFileSystem, CommentFileSystem commentFileSystem)
         {
-            _contextAccessor = contextAccessor;
+            _standardFileSystem = standardFileSystem;
+            _commentFileSystem = commentFileSystem;
         }
 
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
-            var ctx = _contextAccessor.HttpContext;
-
             if (fileSystemType == FileSystemType.Standard)
             {
-                return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
+                return _standardFileSystem;
             }
 
             if (fileSystemType == FileSystemType.Comment)
             {
-                return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
+                return _commentFileSystem;
             }
 
             throw new OdinClientException("Invalid file system type or could not parse instruction set",

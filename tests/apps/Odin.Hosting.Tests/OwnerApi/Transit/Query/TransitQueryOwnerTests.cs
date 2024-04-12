@@ -498,7 +498,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1, $"Actual count was {queryBatchResponse.Content.SearchResults.Count()}");
 
                 uploadedFile = new ExternalFileIdentifier()
                 {

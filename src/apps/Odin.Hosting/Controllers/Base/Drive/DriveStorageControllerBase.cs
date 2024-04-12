@@ -35,7 +35,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
-            var result = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(MapToInternalFile(request));
+            var result = await this.ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(MapToInternalFile(request));
 
             if (result == null)
             {
@@ -56,7 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             DriveFileUtility.AssertValidPayloadKey(request.Key);
 
             var file = MapToInternalFile(request.File);
-            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
@@ -118,7 +118,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             DriveFileUtility.AssertValidPayloadKey(request.PayloadKey);
 
             var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = this.ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey);
@@ -195,7 +195,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
                 var driveId = OdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
-                var queryResults = await GetHttpFileSystemResolver().ResolveFileSystem()
+                var queryResults = await ResolveFileSystem()
                     .Query.GetBatch(driveId, qp, options);
 
                 //
@@ -253,7 +253,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var file = MapToInternalFile(request.File);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = this.ResolveFileSystem();
 
             return new DeletePayloadResult()
             {

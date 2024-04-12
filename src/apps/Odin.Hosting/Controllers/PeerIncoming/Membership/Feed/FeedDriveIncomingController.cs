@@ -51,7 +51,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
 
         private FeedDistributionPerimeterService GetPerimeterService()
         {
-            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            var fileSystem = ResolveFileSystem();
             return new FeedDistributionPerimeterService(
                 _contextAccessor,
                 fileSystem,

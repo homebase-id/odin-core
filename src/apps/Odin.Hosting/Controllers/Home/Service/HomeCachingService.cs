@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using LazyCache;
 using LazyCache.Providers;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -48,14 +49,14 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, FileSystemType fst = FileSystemType.Standard)
         {
             var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
             {
 #if DEBUG
                 CacheMiss++;
 #endif
-                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request);
+                var collection = await _fsResolver.ResolveFileSystem(fst).Query.GetBatchCollection(request);
                 return collection;
             });
 

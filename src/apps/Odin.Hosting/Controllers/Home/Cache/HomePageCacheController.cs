@@ -65,6 +65,6 @@ public class HomePageCacheController : OdinControllerBase
         // tell the browser to check in ever 1 minutes
         const int minutes = 1;
         AddGuestApiCacheHeader(minutes);
-        return await _cachingService.GetResult(request);
+        return await _cachingService.GetResult(request, this.GetFileSystemType());
     }
 }

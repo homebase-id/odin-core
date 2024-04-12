@@ -6,12 +6,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
 namespace Odin.Hosting.Controllers.Base;
 
@@ -21,9 +25,25 @@ namespace Odin.Hosting.Controllers.Base;
 public abstract class OdinControllerBase : ControllerBase
 {
     /// <summary />
-    protected FileSystemHttpRequestResolver GetHttpFileSystemResolver()
+    protected IDriveFileSystem ResolveFileSystem()
     {
-        return this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
+        var resolver = this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
+        var fst = GetFileSystemType();
+        return resolver.ResolveFileSystem(fst);
+    }
+
+    protected FileSystemStreamWriterBase ResolveFileSystemWriter()
+    {
+        var resolver = this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
+        var fst = GetFileSystemType();
+        return resolver.ResolveFileSystemWriter(fst);
+    }
+
+    protected PayloadStreamWriterBase ResolvePayloadStreamWriter()
+    {
+        var resolver = this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
+        var fst = GetFileSystemType();
+        return resolver.ResolvePayloadStreamWriter(fst);
     }
 
     /// <summary />
@@ -98,4 +118,29 @@ public abstract class OdinControllerBase : ControllerBase
     /// Returns the current DotYouContext from the request
     /// </summary>
     protected OdinContext OdinContext => HttpContext.RequestServices.GetRequiredService<IOdinContextAccessor>().GetCurrent();
+
+    //
+
+    public FileSystemType GetFileSystemType()
+    {
+        var hasQs = HttpContext.Request.Query.TryGetValue(OdinHeaderNames.FileSystemTypeRequestQueryStringName, out var value);
+        if (hasQs)
+        {
+            if (!Enum.TryParse(typeof(FileSystemType), value, true, out var fst))
+            {
+                throw new OdinClientException("Invalid file system type specified on query string", OdinClientErrorCode.InvalidFileSystemType);
+            }
+
+            return (FileSystemType)fst!;
+        }
+
+        //Fall back to the header
+
+        if (!Enum.TryParse(typeof(FileSystemType), HttpContext!.Request.Headers[OdinHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
+        {
+            throw new OdinClientException("Invalid file system type or no header specified", OdinClientErrorCode.InvalidFileSystemType);
+        }
+
+        return (FileSystemType)fileSystemType!;
+    }
 }

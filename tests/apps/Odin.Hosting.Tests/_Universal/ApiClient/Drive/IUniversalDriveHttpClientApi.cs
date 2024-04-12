@@ -20,9 +20,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         private const string RootStorageEndpoint = RootDriveEndpoint + "/files";
         private const string RootQueryEndpoint = RootDriveEndpoint + "/query";
 
-        [Post("/transit/outbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
-
         [Post("/transit/inbox/processor/process")]
         Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
 

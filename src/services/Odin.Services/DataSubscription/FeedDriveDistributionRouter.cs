@@ -84,10 +84,11 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            var context = GetContextOrFallback(notification);
             var serverFileHeader = notification.ServerFileHeader;
             if (await ShouldDistribute(serverFileHeader))
             {
-                if (_contextAccessor.GetCurrent().Caller.IsOwner)
+                if (context.Caller.IsOwner)
                 {
                     var deleteNotification = notification as DriveFileDeletedNotification;
                     var isEncryptedFile =
@@ -117,6 +118,11 @@ namespace Odin.Services.DataSubscription
             }
         }
 
+        private OdinContext GetContextOrFallback(IDriveNotification notification)
+        {
+            return ((MediatorNotificationBase)notification).Context ?? _contextAccessor.GetCurrent();
+        }
+
         private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(
             IDriveNotification notification)
         {
@@ -128,7 +134,7 @@ namespace Odin.Services.DataSubscription
                 FeedDistroType = FeedDistroType.FileMetadata
             };
 
-            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(GetContextOrFallback(notification)))
             {
                 await EnqueueFollowers(notification, item);
                 EnqueueCronJob();
@@ -137,7 +143,7 @@ namespace Odin.Services.DataSubscription
 
         private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item)
         {
-            var recipients = await GetFollowers(notification.File.DriveId);
+            var recipients = await GetFollowers(notification.File.DriveId, notification);
             if (!recipients.Any())
             {
                 return;
@@ -240,7 +246,7 @@ namespace Odin.Services.DataSubscription
         {
             var file = notification.File;
 
-            var followers = await GetFollowers(notification.File.DriveId);
+            var followers = await GetFollowers(notification.File.DriveId, notification);
             if (!followers.Any())
             {
                 return;
@@ -270,14 +276,14 @@ namespace Odin.Services.DataSubscription
             // return followers.Except(connectedFollowers).ToList();
         }
 
-        private async Task<List<OdinId>> GetFollowers(Guid driveId)
+        private async Task<List<OdinId>> GetFollowers(Guid driveId, IDriveNotification notification)
         {
             int maxRecords = 100000; //TODO: cursor thru batches instead
 
             //
             // Get followers for this drive and merge with followers who want everything
             //
-            var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
+            var td = GetContextOrFallback(notification).PermissionsContext.GetTargetDrive(driveId);
             var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 

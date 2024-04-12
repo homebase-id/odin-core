@@ -8,7 +8,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.Push;
@@ -17,15 +16,12 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Comment;
-using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
-using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 
@@ -83,7 +79,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
             //S0100
-            _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
+            _fileSystem = _fileSystemResolver.ResolveFileSystem(transferInstructionSet.FileSystemType);
 
             //S1000, S2000 - can the sender write the content to the target drive?
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
@@ -127,7 +123,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("deletelinkedfile")]
         public async Task<PeerTransferResponse> DeleteLinkedFile(DeleteRemoteFileRequest request)
         {
-            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            var fileSystem = ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
             return await perimeterService.AcceptDeleteLinkedFileRequest(
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
@@ -325,24 +321,24 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return cd.Name?.Trim('"');
         }
 
-        private IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
-        {
-            //TODO: this is duplicated code
-
-            var ctx = this.HttpContext;
-
-            if (fileSystemType == FileSystemType.Standard)
-            {
-                return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
-            }
-
-            if (fileSystemType == FileSystemType.Comment)
-            {
-                return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
-            }
-
-            throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
-        }
+        // private IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
+        // {
+        //     //TODO: this is duplicated code
+        //
+        //     var ctx = this.HttpContext;
+        //
+        //     if (fileSystemType == FileSystemType.Standard)
+        //     {
+        //         return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
+        //     }
+        //
+        //     if (fileSystemType == FileSystemType.Comment)
+        //     {
+        //         return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
+        //     }
+        //
+        //     throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
+        // }
 
         private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
         {

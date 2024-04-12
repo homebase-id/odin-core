@@ -90,7 +90,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
         {
-            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var queryService = ResolveFileSystem().Query;
 
             var driveId = OdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {
