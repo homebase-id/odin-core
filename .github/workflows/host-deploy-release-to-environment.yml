@@ -18,7 +18,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: ./.github/actions/host/deploy-image-to-environment.yml
+    - name: Checkout Repository
+      uses: actions/checkout@v4 
+    - name: Deploy Docker Image    
+      uses: ./.github/actions/host/deploy-image-to-environment.yml
       with:
         image_name: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag }}
         env_name: ${{ github.event.inputs.choice }}
