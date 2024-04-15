@@ -21,7 +21,7 @@ runs:
       uses: actions/checkout@v4
       with:
         repository: YouFoundation/dotyoucore-js
-        token: ${{ ${{ inputs.dotyoucore_lib_token }} }}
+        token: ${{ inputs.dotyoucore_lib_token }}
         path: client/apps
 
     - name: Authenticate to Github packages
