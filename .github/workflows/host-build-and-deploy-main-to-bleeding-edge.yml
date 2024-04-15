@@ -20,24 +20,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18.x"
-          registry-url: "https://npm.pkg.github.com"
-          # Defaults to the user or organization that owns the workflow file
-          scope: "@octocat"
-
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
         with:
           path: dotyoucore
 
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          registry-url: "https://npm.pkg.github.com"
+
       - name: Checkout dotyoucorejs monorepo
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/dotyoucore-js
-          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           path: client/apps
 
       - name: Authenticate to Github packages
@@ -106,8 +104,10 @@ jobs:
           rm -rf ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
           mv packages/provisioning-app/dist ../../dotyoucore/src/apps/Odin.Hosting/client/provisioning-app
 
+
+
       - name: Log in to the Container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
