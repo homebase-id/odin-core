@@ -31,13 +31,15 @@ runs:
         key: ${{ inputs.ansible_ssh_key }}
         script_stop: true
         script: |
+          docker_image_name=$(echo '${{ inputs.image_name }}' | tr '[:upper:]' '[:lower:]')
+          echo "Using docker image name: $docker_image_name"
           source $HOME/.profile
           export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
-          echo work folder: $ANSIBLE_WORK_FOLDER
-          mkdir $ANSIBLE_WORK_FOLDER
+          echo "Work folder: $ANSIBLE_WORK_FOLDER"
+          mkdir -p $ANSIBLE_WORK_FOLDER
           cd $ANSIBLE_WORK_FOLDER
           git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
           cd $ANSIBLE_WORK_FOLDER/ansible
-          ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} identity_host_docker_image=${{ inputs.image_name }}"
+          ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} identity_host_docker_image=$docker_image_name"
           cd /tmp
           rm -rf $ANSIBLE_WORK_FOLDER
