@@ -24,13 +24,10 @@ jobs:
           chmod -R +rw ./
 
       - name: Restore dependencies
-        #working-directory: dotyoucore
         run: dotnet restore ./dotyoucore.sln
 
       - name: Build
-        #working-directory: dotyoucore
         run: dotnet build --no-restore --warnaserror ./dotyoucore.sln
 
       - name: Test
-        #working-directory: dotyoucore
         run: sudo dotnet test --no-build --verbosity normal ./dotyoucore.sln
