@@ -69,7 +69,7 @@ jobs:
           file: ./dotyoucore/docker/Dockerfile-identity-host
           push: true
           # tags: ${{ env.IMAGE_TAGS }}
-          tags: "TEST"
+          tags: "sebtest"
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
