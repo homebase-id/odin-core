@@ -25,13 +25,6 @@ jobs:
       # Build Frontend
       #
 
-      - name: asdsaddasd
-        shell: bash
-        run: |
-          echo "AAAAAAAAAAAAAAAAAAAAAAAAA"
-          echo $PWD
-          tree
-
       - name: Build frontend
         uses: ./.github/actions/host/build-frontend
         with:
@@ -45,48 +38,47 @@ jobs:
           echo $PWD
           tree
 
-
       #
       # Build docker image
       #
 
-      # - name: Log in to the Container registry
-      #   uses: docker/login-action@v3.1.0
-      #   with:
-      #     registry: ${{ env.REGISTRY }}
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3.3.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
 
-      # - name: Extract metadata (tags, labels) for Docker
-      #   id: meta
-      #   uses: docker/metadata-action@v5.5.1
-      #   with:
-      #     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5.5.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      # - name: Build and push Docker image
-      #   uses: docker/build-push-action@v5.3.0
-      #   with:
-      #     file: ./docker/Dockerfile-identity-host
-      #     push: true
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
-      #     platforms: linux/amd64,linux/arm64
-      #     outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5.3.0
+        with:
+          file: ./docker/Dockerfile-identity-host
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
 
       #
       # Deploy
       #
 
-      # - name: Deploy Docker Image    
-      #   uses: ./.github/actions/host/deploy-image-to-environment
-      #   with:
-      #     image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-      #     env_name: "sandbox"
-      #     force_update: "true"
-      #     ansible_host: ${{ secrets.ANSIBLE_HOST }}
-      #     ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
-      #     ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+      - name: Deploy Docker Image    
+        uses: ./.github/actions/host/deploy-image-to-environment
+        with:
+          image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          env_name: "sandbox"
+          force_update: "true"
+          ansible_host: ${{ secrets.ANSIBLE_HOST }}
+          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
+          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
 
