@@ -54,53 +54,49 @@ runs:
       shell: bash
       working-directory: ./client/apps
       run: |
-        echo "ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
-        echo $PWD
-        tree
-        ls -la
         npm run build:owner
         rm -rf ../../src/apps/Odin.Hosting/client/owner-app
         mv packages/owner-app/dist ../../src/apps/Odin.Hosting/client/owner-app
 
-    # - name: Build public-app
-    #   shell: bash
-    #   working-directory: ./client/apps
-    #   run: |
-    #     npm run build:public
-    #     rm -rf ../../src/apps/Odin.Hosting/client/public-app
-    #     mv packages/public-app/dist ../../src/apps/Odin.Hosting/client/public-app
+    - name: Build public-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:public
+        rm -rf ../../src/apps/Odin.Hosting/client/public-app
+        mv packages/public-app/dist ../../src/apps/Odin.Hosting/client/public-app
 
-    # - name: Build feed-app
-    #   shell: bash
-    #   working-directory: ./client/apps
-    #   run: |
-    #     npm run build:feed
-    #     rm -rf ../../src/apps/Odin.Hosting/client/apps/feed
-    #     mv packages/feed-app/dist ../../src/apps/Odin.Hosting/client/apps/feed
+    - name: Build feed-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:feed
+        rm -rf ../../src/apps/Odin.Hosting/client/apps/feed
+        mv packages/feed-app/dist ../../src/apps/Odin.Hosting/client/apps/feed
 
-    # - name: Build chat-app
-    #   shell: bash
-    #   working-directory: ./client/apps
-    #   run: |
-    #     npm run build:chat
-    #     rm -rf ../../src/apps/Odin.Hosting/client/apps/chat
-    #     mv packages/chat-app/dist ../../src/apps/Odin.Hosting/client/apps/chat
+    - name: Build chat-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:chat
+        rm -rf ../../src/apps/Odin.Hosting/client/apps/chat
+        mv packages/chat-app/dist ../../src/apps/Odin.Hosting/client/apps/chat
 
-    # - name: Build mail-app
-    #   shell: bash
-    #   working-directory: ./client/apps
-    #   run: |
-    #     npm run build:mail
-    #     rm -rf ../../src/apps/Odin.Hosting/client/apps/mail
-    #     mv packages/mail-app/dist ../../src/apps/Odin.Hosting/client/apps/mail
+    - name: Build mail-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:mail
+        rm -rf ../../src/apps/Odin.Hosting/client/apps/mail
+        mv packages/mail-app/dist ../../src/apps/Odin.Hosting/client/apps/mail
 
-    # - name: Build provisioning-app
-    #   shell: bash
-    #   working-directory: ./client/apps
-    #   run: |
-    #     npm run build:provisioning
-    #     rm -rf ../../src/apps/Odin.Hosting/client/provisioning-app
-    #     mv packages/provisioning-app/dist ../../src/apps/Odin.Hosting/client/provisioning-app
+    - name: Build provisioning-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:provisioning
+        rm -rf ../../src/apps/Odin.Hosting/client/provisioning-app
+        mv packages/provisioning-app/dist ../../src/apps/Odin.Hosting/client/provisioning-app
 
     - name: Clean up
       shell: bash
