@@ -29,7 +29,7 @@ jobs:
       #
 
       - name: Build frontend
-        uses: ./.github/actions/host/build-frontend
+        uses: ./dotyoucore/.github/actions/host/build-frontend
         with:
           dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
       #
 
       - name: Deploy Docker Image    
-        uses: ./.github/actions/host/deploy-image-to-environment
+        uses: ./dotyoucore/.github/actions/host/deploy-image-to-environment
         with:
           image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           env_name: "sandbox"
