@@ -5,7 +5,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_WITH_TAG: ""
   LATEST_VERSION_TAG: ""
   REPO: ""
 
@@ -14,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4 
+
       - name: Setup environment variables
         run: echo "REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
@@ -35,41 +37,13 @@ jobs:
           echo "latest_version_tag: $latest_version_tag"
           echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
 
-      - name: Get deployable image name
-        run: |
-          set -ex
-          if [[ -z "${{ env.LATEST_VERSION_TAG }}" ]]; then
-            echo "Error: env.LATEST_VERSION_TAG is empty"
-            exit 1
-          fi
-          image_name_with_tag="${{ env.REGISTRY }}/${{ env.REPO }}:${{ env.LATEST_VERSION_TAG }}"
-          echo "image_name_with_tag: $image_name_with_tag"
-          echo "IMAGE_NAME_WITH_TAG=$image_name_with_tag" >> $GITHUB_ENV
-
-      - name: Check IMAGE_NAME_WITH_TAG
-        run: |
-          set -ex
-          if [[ -z "${{ env.IMAGE_NAME_WITH_TAG }}" ]]; then
-            echo "Error: env.IMAGE_NAME_WITH_TAG is empty"
-            exit 1
-          fi
-          echo "Deploying: ${{ env.IMAGE_NAME_WITH_TAG }}"
-
-      - name: Deploy to production servers
-        uses: appleboy/ssh-action@master
+      - name: Deploy Docker Image    
+        uses: ./.github/actions/host/deploy-image-to-environment
         with:
-          host: ${{ secrets.ANSIBLE_HOST }}
-          username: ${{ secrets.ANSIBLE_USERNAME }}
-          key: ${{ secrets.ANSIBLE_SSH_KEY }}
-          script_stop: true
-          script: |
-            source $HOME/.profile
-            export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
-            echo work folder: $ANSIBLE_WORK_FOLDER
-            mkdir $ANSIBLE_WORK_FOLDER
-            cd $ANSIBLE_WORK_FOLDER
-            git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
-            cd $ANSIBLE_WORK_FOLDER/ansible
-            ansible-playbook deploy-identity-hosts.yml --limit production --extra-vars "identity_host_docker_image=${{ env.IMAGE_NAME_WITH_TAG }}"
-            cd /tmp
-            rm -rf $ANSIBLE_WORK_FOLDER
+          image_name: ghcr.io/${{ github.repository }}:${{ env.LATEST_VERSION_TAG }}
+          env_name: 'sandbox'
+          force_update: 'false'
+          ansible_host: ${{ secrets.ANSIBLE_HOST }}
+          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
+          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+
