@@ -70,7 +70,7 @@ jobs:
       #   with:
       #     image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
       #     env_name: "sandbox"
-      #     force_update: 'true'
+      #     force_update: "true"
       #     ansible_host: ${{ secrets.ANSIBLE_HOST }}
       #     ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
       #     ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
