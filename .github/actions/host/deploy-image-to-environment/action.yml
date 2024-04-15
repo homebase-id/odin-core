@@ -10,6 +10,15 @@ inputs:
   force_update:
     description: "Force update of the Docker image (true/false)"
     required: true
+  ansible_host:
+    description: "Ansible host"
+    required: true
+  ansible_username:
+    description: "Ansible username"
+    required: true
+  ansible_ssh_key:  
+    description: "Ansible SSH key"
+    required: true
 
 runs:
   using: "composite"
@@ -17,9 +26,9 @@ runs:
     - name: Deploy to selected environment
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.ANSIBLE_HOST }}
-        username: ${{ secrets.ANSIBLE_USERNAME }}
-        key: ${{ secrets.ANSIBLE_SSH_KEY }}
+        host: ${{ input.ansible_host }}
+        username: ${{ input.ansible_username }}
+        key: ${{ input.ansible_ssh_key }}
         script_stop: true
         script: |
           source $HOME/.profile

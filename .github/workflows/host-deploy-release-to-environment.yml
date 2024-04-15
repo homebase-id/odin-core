@@ -26,3 +26,7 @@ jobs:
         image_name: ghcr.io/${{ github.repository }}:${{ github.event.inputs.image_tag }}
         env_name: ${{ github.event.inputs.choice }}
         force_update: 'true'
+        ansible_host: ${{ secrets.ANSIBLE_HOST }}
+        ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
+        ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+        
