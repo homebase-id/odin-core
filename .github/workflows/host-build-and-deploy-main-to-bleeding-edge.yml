@@ -54,7 +54,6 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./dotyoucore
           file: ./dotyoucore/docker/Dockerfile-identity-host
           push: true
           tags: ${{ steps.meta.outputs.tags }}
