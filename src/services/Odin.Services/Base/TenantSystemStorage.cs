@@ -69,9 +69,9 @@ namespace Odin.Services.Base
 
         public TableCircleMember CircleMemberStorage { get; }
 
-        public DatabaseBase.UnitOfWorkTracker CreateCommitUnitOfWork(DatabaseBase.DatabaseConnection conn)
+        public DatabaseBase.UnitOfWorkTracker CreateCommitUnitOfWork()
         {
-            return conn.CreateCommitUnitOfWork();
+            return IdentityDatabase.CreateCommitUnitOfWork();
         }
 
         /// <summary>
