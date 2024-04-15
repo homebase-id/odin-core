@@ -6,6 +6,8 @@ namespace Odin.Services.Base
     public interface IOdinContextAccessor
     {
         OdinContext GetCurrent();
+
+        void SetCurrent(OdinContext context);
     }
 
     /// <summary>
@@ -13,9 +15,16 @@ namespace Odin.Services.Base
     /// </summary>
     public class HttpOdinContextAccessor(IHttpContextAccessor accessor) : IOdinContextAccessor
     {
+        private OdinContext _localContext;
+
         public OdinContext GetCurrent()
         {
-            return accessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            return _localContext ?? accessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+        }
+
+        public void SetCurrent(OdinContext context)
+        {
+            _localContext = context;
         }
     }
 
@@ -28,6 +37,11 @@ namespace Odin.Services.Base
         public OdinContext GetCurrent()
         {
             return context;
+        }
+
+        public void SetCurrent(OdinContext context)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

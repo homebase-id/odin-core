@@ -724,9 +724,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
+            var recipientClient = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -751,16 +751,16 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(senderContext.TargetDrive);
 
-            client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
+            recipientClient = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
             {
                 //First force transfers to be put into their long term location
-                var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
+                var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
                 var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
-                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(recipientClient, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
 

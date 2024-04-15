@@ -202,7 +202,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<PeerDriveQueryService>().AsSelf().SingleInstance();
+            cb.RegisterType<PeerDriveQueryOutgoingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<PeerReactionSenderService>().AsSelf().SingleInstance();
 

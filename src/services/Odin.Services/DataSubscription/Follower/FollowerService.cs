@@ -21,56 +21,37 @@ using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 using Refit;
 
 namespace Odin.Services.DataSubscription.Follower
 {
     /// <summary/>
-    public class FollowerService
+    public class FollowerService(
+        TenantSystemStorage tenantStorage,
+        DriveManager driveManager,
+        IOdinHttpClientFactory httpClientFactory,
+        PublicPrivateKeyService publicPrivatePublicKeyService,
+        TenantContext tenantContext,
+        IOdinContextAccessor contextAccessor,
+        StandardFileSystem standardFileSystem,
+        PeerDriveQueryOutgoingService peerDriveQueryService,
+        CircleNetworkService circleNetworkService)
     {
-        private readonly TenantSystemStorage _tenantStorage;
-        private readonly DriveManager _driveManager;
-        private readonly IOdinHttpClientFactory _httpClientFactory;
-        private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
-        private readonly TenantContext _tenantContext;
-        private readonly IOdinContextAccessor _contextAccessor;
-        private readonly StandardFileSystem _standardFileSystem;
-        private readonly PeerDriveQueryService _peerDriveQueryService;
-        private readonly CircleNetworkService _circleNetworkService;
-
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
-
-        public FollowerService(TenantSystemStorage tenantStorage,
-            DriveManager driveManager,
-            IOdinHttpClientFactory httpClientFactory,
-            PublicPrivateKeyService publicPrivatePublicKeyService,
-            TenantContext tenantContext,
-            IOdinContextAccessor contextAccessor, StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
-            CircleNetworkService circleNetworkService)
-        {
-            _tenantStorage = tenantStorage;
-            _driveManager = driveManager;
-            _httpClientFactory = httpClientFactory;
-            _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
-            _tenantContext = tenantContext;
-            _contextAccessor = contextAccessor;
-            _standardFileSystem = standardFileSystem;
-            _peerDriveQueryService = peerDriveQueryService;
-            _circleNetworkService = circleNetworkService;
-        }
 
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
         public async Task Follow(FollowRequest request)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var identityToFollow = (OdinId)request.OdinId;
 
-            if (_contextAccessor.GetCurrent().Caller.OdinId == identityToFollow)
+            if (contextAccessor.GetCurrent().Caller.OdinId == identityToFollow)
             {
                 throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
                     OdinClientErrorCode.InvalidRecipient);
@@ -86,7 +67,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             var perimeterFollowRequest = new PerimeterFollowRequest()
             {
-                OdinId = _tenantContext.HostOdinId,
+                OdinId = tenantContext.HostOdinId,
                 NotificationType = request.NotificationType,
                 Channels = request.Channels
             };
@@ -95,7 +76,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(
+                var rsaEncryptedPayload = await publicPrivatePublicKeyService.EncryptPayloadForRecipient(
                     RsaKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray());
                 var client = CreateClient(identityToFollow);
                 var response = await client.Follow(rsaEncryptedPayload);
@@ -105,7 +86,7 @@ namespace Odin.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey(identityToFollow);
+                await publicPrivatePublicKeyService.InvalidateRecipientPublicKey(identityToFollow);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -114,13 +95,13 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             }
 
-            using (_tenantStorage.CreateCommitUnitOfWork())
+            using (tenantStorage.CreateCommitUnitOfWork())
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
+                tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
+                    tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -133,7 +114,7 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
+                        tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
             }
@@ -150,7 +131,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// </summary>
         public async Task Unfollow(OdinId recipient)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
             var client = CreateClient(recipient);
             var response = await client.Unfollow();
@@ -160,15 +141,15 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
+            tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollower(OdinId odinId)
         {
             //a follower is allowed to read their own configuration
-            if (odinId != _contextAccessor.GetCurrent().Caller.OdinId)
+            if (odinId != contextAccessor.GetCurrent().Caller.OdinId)
             {
-                _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
+                contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
             }
 
             return await GetFollowerInternal(odinId);
@@ -179,15 +160,15 @@ namespace Odin.Services.DataSubscription.Follower
         /// </summary>
         public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
             return await GetIdentityIFollowInternal(odinId);
         }
 
         public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
+            var dbResults = tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
 
             var result = new CursoredResult<string>()
             {
@@ -203,14 +184,14 @@ namespace Odin.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
             if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
+            var dbResults = tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
             var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
@@ -225,9 +206,9 @@ namespace Odin.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            var dbResults = tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -243,9 +224,9 @@ namespace Odin.Services.DataSubscription.Follower
         /// </summary>
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
+            var dbResults = tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -256,15 +237,15 @@ namespace Odin.Services.DataSubscription.Follower
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var drive = await _driveManager.GetDrive(driveAlias, true);
+            var drive = await driveManager.GetDrive(driveAlias, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
+            var dbResults = tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -319,7 +300,7 @@ namespace Odin.Services.DataSubscription.Follower
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
 
-            var driveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
+            var driveId = (await driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
             var driveGrants = new List<DriveGrant>()
             {
                 new()
@@ -344,7 +325,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         public async Task AssertTenantFollowsTheCaller()
         {
-            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var odinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var definition = await this.GetIdentityIFollowInternal(odinId);
             if (null == definition)
             {
@@ -355,23 +336,23 @@ namespace Odin.Services.DataSubscription.Follower
 
         public async Task SynchronizeChannelFiles(OdinId odinId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
+            contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
             var definition = await this.GetIdentityIFollowInternal(odinId);
             if (definition == null) //not following
             {
                 return;
             }
 
-            var feedDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+            var feedDriveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId);
             if (icr.IsConnected())
             {
-                sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+                sharedSecret = icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            var channelDrives = await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
+            var channelDrives = await peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
 
             //filter the drives to those I want to see
             if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -406,7 +387,7 @@ namespace Odin.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
+            var collection = await peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
 
             foreach (var results in collection.Results)
             {
@@ -451,18 +432,18 @@ namespace Odin.Services.DataSubscription.Follower
                     SharedSecretEncryptedFileHeader existingFile = null;
                     if (dsr.FileMetadata.AppData.UniqueId.HasValue)
                     {
-                        existingFile = await _standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
+                        existingFile = await standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
                             dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault());
                     }
                     else if (dsr.FileMetadata.GlobalTransitId.HasValue)
                     {
-                        existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
+                        existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
                             dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
                     }
 
                     if (null == existingFile)
                     {
-                        await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata);
+                        await standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata);
                     }
                     else
                     {
@@ -472,7 +453,7 @@ namespace Odin.Services.DataSubscription.Follower
                             DriveId = feedDriveId
                         };
 
-                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true);
+                        await standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true);
                     }
                 }
             }
@@ -487,13 +468,13 @@ namespace Odin.Services.DataSubscription.Follower
 
         private IFollowerHttpClient CreateClient(OdinId odinId)
         {
-            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>(odinId);
+            var httpClient = httpClientFactory.CreateClient<IFollowerHttpClient>(odinId);
             return httpClient;
         }
 
         private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
+            var dbRecords = tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return Task.FromResult<FollowerDefinition>(null);
@@ -532,7 +513,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.Followers.Get(odinId);
+            var dbRecords = tenantStorage.Followers.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

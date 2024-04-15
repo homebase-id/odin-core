@@ -674,7 +674,7 @@ public class DataSubscriptionAndDistributionTests1
         var (standardFileUploadResult, encryptedStandardFileJsonContent64, _) =
             await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
-        await frodoOwnerClient.Transit.WaitForEmptyOutbox(standardFileUploadResult.File.TargetDrive);
+        await frodoOwnerClient.Transit.WaitForEmptyOutbox(standardFileUploadResult.File.TargetDrive, TimeSpan.FromMinutes(3));
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive

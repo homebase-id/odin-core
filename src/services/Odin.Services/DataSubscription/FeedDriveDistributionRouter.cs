@@ -19,12 +19,15 @@ using Odin.Services.DataSubscription.ReceivingHost;
 using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Serilog;
 
@@ -35,7 +38,6 @@ namespace Odin.Services.DataSubscription
     /// </summary>
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
-        private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
@@ -47,6 +49,10 @@ namespace Odin.Services.DataSubscription
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
+        private readonly IOdinHttpClientFactory _httpClientFactory;
+        private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
+        private readonly StandardFileSystem _standardFileSystem;
+        private readonly PeerDriveQueryOutgoingService _peerDriveQueryOutgoingService;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
 
@@ -54,8 +60,9 @@ namespace Odin.Services.DataSubscription
         /// Routes file changes to drives which allow subscriptions to be sent in a background process
         /// </summary>
         public FeedDriveDistributionRouter(
-            FollowerService followerService,
-            IPeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager, TenantContext tenantContext,
+            IPeerOutgoingTransferService peerOutgoingTransferService,
+            DriveManager driveManager,
+            TenantContext tenantContext,
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
             TenantSystemStorage tenantSystemStorage,
@@ -64,9 +71,14 @@ namespace Odin.Services.DataSubscription
             IOdinHttpClientFactory odinHttpClientFactory,
             OdinConfiguration odinConfiguration,
             IDriveAclAuthorizationService driveAcl,
-            ILogger<FeedDriveDistributionRouter> logger)
+            ILogger<FeedDriveDistributionRouter> logger,
+            IOdinHttpClientFactory httpClientFactory,
+            PublicPrivateKeyService publicPrivatePublicKeyService,
+            StandardFileSystem standardFileSystem,
+            PeerDriveQueryOutgoingService peerDriveQueryOutgoingService
+        )
+
         {
-            _followerService = followerService;
             _peerOutgoingTransferService = peerOutgoingTransferService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
@@ -78,6 +90,10 @@ namespace Odin.Services.DataSubscription
             _odinConfiguration = odinConfiguration;
             _driveAcl = driveAcl;
             _logger = logger;
+            _httpClientFactory = httpClientFactory;
+            _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
+            _standardFileSystem = standardFileSystem;
+            _peerDriveQueryOutgoingService = peerDriveQueryOutgoingService;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration, _circleNetworkService);
         }
@@ -86,35 +102,38 @@ namespace Odin.Services.DataSubscription
         {
             var context = GetContextOrFallback(notification);
             var serverFileHeader = notification.ServerFileHeader;
-            if (await ShouldDistribute(serverFileHeader))
+            using (new OdinContextSwitcher(_contextAccessor, context))
             {
-                if (context.Caller.IsOwner)
+                if (await ShouldDistribute(serverFileHeader))
                 {
-                    var deleteNotification = notification as DriveFileDeletedNotification;
-                    var isEncryptedFile =
-                        (deleteNotification != null &&
-                         deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
-                        notification.ServerFileHeader.FileMetadata.IsEncrypted;
-
-                    if (isEncryptedFile)
+                    if (context.Caller.IsOwner)
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        var deleteNotification = notification as DriveFileDeletedNotification;
+                        var isEncryptedFile =
+                            (deleteNotification != null &&
+                             deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
+                            notification.ServerFileHeader.FileMetadata.IsEncrypted;
+
+                        if (isEncryptedFile)
+                        {
+                            await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        }
+                        else
+                        {
+                            await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
+                        }
                     }
                     else
                     {
-                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
+                        // If this is the reaction preview being updated due to an incoming comment or reaction
+                        if (notification is ReactionPreviewUpdatedNotification)
+                        {
+                            await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
+                        }
                     }
-                }
-                else
-                {
-                    // If this is the reaction preview being updated due to an incoming comment or reaction
-                    if (notification is ReactionPreviewUpdatedNotification)
-                    {
-                        await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
-                    }
-                }
 
-                //Note: intentionally ignoring when the notification is a file and it's not the owner
+                    //Note: intentionally ignoring when the notification is a file and it's not the owner
+                }
             }
         }
 
@@ -283,9 +302,16 @@ namespace Odin.Services.DataSubscription
             //
             // Get followers for this drive and merge with followers who want everything
             //
-            var td = GetContextOrFallback(notification).PermissionsContext.GetTargetDrive(driveId);
-            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
-            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
+            var context = GetContextOrFallback(notification);
+            var td = context.PermissionsContext.GetTargetDrive(driveId);
+
+            var localContextAccessor = new ExplicitOdinContextAccessor(context);
+
+            var followerService = new FollowerService(_tenantSystemStorage, _driveManager, _httpClientFactory, _publicPrivatePublicKeyService, _tenantContext,
+                localContextAccessor, _standardFileSystem, _peerDriveQueryOutgoingService, _circleNetworkService);
+
+            var driveFollowers = await followerService.GetFollowers(td, maxRecords, cursor: "");
+            var allDriveFollowers = await followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 
             var recipients = new List<OdinId>();
             recipients.AddRange(driveFollowers.Results);

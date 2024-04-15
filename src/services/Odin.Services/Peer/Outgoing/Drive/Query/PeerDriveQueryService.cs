@@ -31,7 +31,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query;
 /// <summary>
 /// Executes query functionality on connected identity hosts
 /// </summary>
-public class PeerDriveQueryService(
+public class PeerDriveQueryOutgoingService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration,

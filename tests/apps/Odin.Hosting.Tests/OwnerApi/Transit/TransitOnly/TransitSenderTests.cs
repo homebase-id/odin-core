@@ -97,7 +97,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: You might need to process the outbox or wait for a bit 
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(targetDrive); 
             
             //
             // Test results
@@ -183,7 +183,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: You might need to process the outbox or wait for a bit 
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(targetDrive); 
 
             //
             // Test results
@@ -271,7 +271,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: You might need to process the outbox or wait for a bit 
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(targetDrive); 
 
             //
             // Test results
@@ -386,7 +386,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: You might need to process the outbox or wait for a bit 
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(targetDrive); 
 
             //
             // Test results
@@ -477,8 +477,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.Queued);
 
-            //Note: You might need to process the outbox or wait for a bit 
 
+            await _scaffold.CreateOwnerApiClientRedux(sender).DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             //
             // Test results

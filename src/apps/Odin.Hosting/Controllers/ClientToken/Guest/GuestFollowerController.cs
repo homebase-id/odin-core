@@ -1,9 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Follow;
 using Odin.Hosting.Controllers.ClientToken.Shared;
 
@@ -32,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("FollowerConfiguration")]
         public async Task<object> GetFollowerConfig()
         {
-            var follower = await base.GetFollower(_contextAccessor.GetCurrent().Caller.OdinId);
+            var follower = await GetFollower(_contextAccessor.GetCurrent().Caller.OdinId);
             return follower;
         }
 

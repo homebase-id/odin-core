@@ -11,5 +11,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerQueryV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerSecurityContextController(PeerDriveQueryService peerDriveQueryService) : PeerSecurityContextControllerBase(peerDriveQueryService);
+    public class AppPeerSecurityContextController(PeerDriveQueryOutgoingService peerDriveQueryOutgoingService) : PeerSecurityContextControllerBase(peerDriveQueryOutgoingService);
 }
