@@ -101,3 +101,8 @@ runs:
     #     npm run build:provisioning
     #     rm -rf ../../src/apps/Odin.Hosting/client/provisioning-app
     #     mv packages/provisioning-app/dist ../../src/apps/Odin.Hosting/client/provisioning-app
+
+    - name: Clean up
+      shell: bash
+      run: |
+        rm -rf ./client/apps
