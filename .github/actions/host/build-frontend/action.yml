@@ -1,10 +1,10 @@
 name: "Host: Build frontend"
 description: "Buid frontend code"
 inputs:
-  dotyoucore_lib_token: # ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+  dotyoucore_lib_token:
     description: "Github token for dotyoucore-js repo"
     required: true
-  github_token: # ${{ secrets.GITHUB_TOKEN }}
+  github_token:
     description: "Github token for package repo"
     required: true
 
