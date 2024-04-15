@@ -26,9 +26,9 @@ runs:
     - name: Deploy to selected environment
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ input.ansible_host }}
-        username: ${{ input.ansible_username }}
-        key: ${{ input.ansible_ssh_key }}
+        host: ${{ inputs.ansible_host }}
+        username: ${{ inputs.ansible_username }}
+        key: ${{ inputs.ansible_ssh_key }}
         script_stop: true
         script: |
           source $HOME/.profile
