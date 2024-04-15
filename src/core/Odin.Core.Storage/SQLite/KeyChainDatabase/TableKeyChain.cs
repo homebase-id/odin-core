@@ -31,15 +31,15 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// <param name="rsakey"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public KeyChainRecord GetLastLink()
+        public KeyChainRecord GetLastLink(DatabaseBase.DatabaseConnection conn)
         {
             if (_get0Command == null)
             {
-                _get0Command = _database.CreateCommand();
+                _get0Command = _database.CreateCommand(conn);
                 _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid DESC LIMIT 1;";
             }
 
-            using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+            using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
             {
                 if (!rdr.Read())
                 {
@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
 
         // Get oldest 
-        public KeyChainRecord GetOldest(string identity)
+        public KeyChainRecord GetOldest(DatabaseBase.DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             if (_get1Command == null)
             {
-                _get1Command = _database.CreateCommand();
+                _get1Command = _database.CreateCommand(conn);
                 _get1Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                                 "WHERE identity = $identity ORDER BY rowid ASC LIMIT 1;";
                 _get1Param1 = _get1Command.CreateParameter();
@@ -69,7 +69,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
             _get1Param1.Value = identity;
 
-            using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+            using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.SingleRow))
             {
                 if (!rdr.Read())
                 {
@@ -80,7 +80,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             } // using
         }
 
-        public List<KeyChainRecord> GetIdentity(string identity)
+        public List<KeyChainRecord> GetIdentity(DatabaseBase.DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             {
                 if (_get2Command == null)
                 {
-                    _get2Command = _database.CreateCommand();
+                    _get2Command = _database.CreateCommand(conn);
                     _get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                                  "WHERE identity = $identity ORDER BY rowid;";
                     _get2Param1 = _get2Command.CreateParameter();
@@ -98,7 +98,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                     _get2Command.Prepare();
                 }
                 _get2Param1.Value = identity;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get2Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {

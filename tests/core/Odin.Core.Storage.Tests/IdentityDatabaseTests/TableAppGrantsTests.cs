@@ -11,7 +11,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertTest()
         {   
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid();
             var d1 = Guid.NewGuid().ToByteArray();
@@ -19,9 +18,12 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var c3 = SequentialGuid.CreateGuid();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            var i = db.tblAppGrants.Insert(new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-
-            Debug.Assert(i == 1);
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var i = db.tblAppGrants.Insert(myc, new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
+                Debug.Assert(i == 1);
+            }
         }
 
     }

@@ -1,4 +1,5 @@
-﻿using Odin.Core.Storage.SQLite.AttestationDatabase;
+﻿using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.AttestationDatabase;
 
 namespace Odin.Attestation
 {
@@ -9,9 +10,9 @@ namespace Odin.Attestation
         /// Need to set drop to false in production
         /// </summary>
         /// <param name="_db"></param>
-        public static void InitializeDatabase(AttestationDatabase _db)
+        public static void InitializeDatabase(AttestationDatabase _db, DatabaseBase.DatabaseConnection conn)
         {
-            _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
+            _db.CreateDatabase(conn, dropExistingTables: true); // Remove "true" for production
         }
     }
 }

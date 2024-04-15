@@ -160,16 +160,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS connections;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS connections;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
                      +"identity BLOB NOT NULL UNIQUE, "
                      +"displayName STRING NOT NULL, "
@@ -182,18 +182,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(created);"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(ConnectionsRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, ConnectionsRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                                  "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -228,7 +228,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam6.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam7.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -238,13 +238,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(ConnectionsRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, ConnectionsRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created) " +
                                                  "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created)"+
                                                  "ON CONFLICT (identity) DO UPDATE "+
@@ -281,7 +281,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam6.Value = now.uniqueTime;
                 _upsertParam7.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -300,13 +300,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return 0;
         }
 
-        public virtual int Update(ConnectionsRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, ConnectionsRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE connections " +
                                                  "SET displayName = $displayName,status = $status,accessIsRevoked = $accessIsRevoked,data = $data,modified = $modified "+
                                                  "WHERE (identity = $identity)";
@@ -341,7 +341,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = now.uniqueTime;
                 _updateParam7.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -419,13 +419,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(OdinId identity)
+        public int Delete(DatabaseBase.DatabaseConnection conn, OdinId identity)
         {
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM connections " +
                                                  "WHERE identity = $identity";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -434,7 +434,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = identity.DomainName;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableConnectionsCRUD", identity.DomainName);
                 return count;
@@ -502,7 +502,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public ConnectionsRecord Get(OdinId identity)
+        public ConnectionsRecord Get(DatabaseBase.DatabaseConnection conn, OdinId identity)
         {
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identity.DomainName);
             if (hit)
@@ -511,7 +511,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity = $identity LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -520,7 +520,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = identity.DomainName;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -534,7 +534,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsRecord> PagingByIdentity(int count, string inCursor, out string nextCursor)
+        public List<ConnectionsRecord> PagingByIdentity(DatabaseBase.DatabaseConnection conn, int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -545,7 +545,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_getPaging1Command == null)
                 {
-                    _getPaging1Command = _database.CreateCommand();
+                    _getPaging1Command = _database.CreateCommand(conn);
                     _getPaging1Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity > $identity ORDER BY identity ASC LIMIT $_count;";
                     _getPaging1Param1 = _getPaging1Command.CreateParameter();
@@ -559,7 +559,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _getPaging1Param1.Value = inCursor;
                 _getPaging1Param2.Value = count+1;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;
@@ -582,7 +582,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // lock
         } // PagingGet
 
-        public List<ConnectionsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<ConnectionsRecord> PagingByCreated(DatabaseBase.DatabaseConnection conn, int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -593,7 +593,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_getPaging6Command == null)
                 {
-                    _getPaging6Command = _database.CreateCommand();
+                    _getPaging6Command = _database.CreateCommand(conn);
                     _getPaging6Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE created < $created ORDER BY created DESC LIMIT $_count;";
                     _getPaging6Param1 = _getPaging6Command.CreateParameter();
@@ -607,7 +607,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _getPaging6Param1.Value = inCursor?.uniqueTime;
                 _getPaging6Param2.Value = count+1;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging6Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging6Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;

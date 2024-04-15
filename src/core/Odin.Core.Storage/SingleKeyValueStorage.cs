@@ -1,6 +1,7 @@
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage;
@@ -27,9 +28,10 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(Guid key) where T : class
+    public T Get<T>(DatabaseBase.DatabaseConnection conn, Guid key) where T : class
     {
-        var item = _database.tblKeyValue.Get(MakeStorageKey(key));
+        var item = _database.tblKeyValue.Get(conn, MakeStorageKey(key));
+
         if (null == item)
         {
             return null;
@@ -43,15 +45,15 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(Guid key, T value)
+    public void Upsert<T>(DatabaseBase.DatabaseConnection conn, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _database.tblKeyValue.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        _database.tblKeyValue.Upsert(conn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(Guid key)
+    public void Delete(DatabaseBase.DatabaseConnection conn, Guid key)
     {
-        _database.tblKeyValue.Delete(MakeStorageKey(key));
+        _database.tblKeyValue.Delete(conn, MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

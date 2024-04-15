@@ -163,16 +163,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS feedDistributionOutbox;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS feedDistributionOutbox;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS feedDistributionOutbox("
                      +"fileId BLOB NOT NULL, "
                      +"driveId BLOB NOT NULL, "
@@ -187,18 +187,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(timeStamp);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(popStamp);"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(FeedDistributionOutboxRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -237,7 +237,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam7.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam8.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -246,13 +246,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(FeedDistributionOutboxRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created)"+
                                                  "ON CONFLICT (fileId,driveId,recipient) DO UPDATE "+
@@ -293,7 +293,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
                 _upsertParam8.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -311,13 +311,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return 0;
         }
 
-        public virtual int Update(FeedDistributionOutboxRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE feedDistributionOutbox " +
                                                  "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (fileId = $fileId,driveId = $driveId,recipient = $recipient)";
@@ -356,7 +356,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam7.Value = now.uniqueTime;
                 _updateParam8.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -449,7 +449,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid fileId,Guid driveId,string recipient)
+        public int Delete(DatabaseBase.DatabaseConnection conn, Guid fileId,Guid driveId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -458,7 +458,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM feedDistributionOutbox " +
                                                  "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -475,7 +475,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = driveId.ToByteArray();
                 _delete0Param3.Value = recipient;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 return count;
             } // Lock
         }
@@ -542,7 +542,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public FeedDistributionOutboxRecord Get(Guid fileId,Guid driveId,string recipient)
+        public FeedDistributionOutboxRecord Get(DatabaseBase.DatabaseConnection conn, Guid fileId,Guid driveId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -551,7 +551,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox " +
                                                  "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -568,7 +568,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = driveId.ToByteArray();
                 _get0Param3.Value = recipient;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

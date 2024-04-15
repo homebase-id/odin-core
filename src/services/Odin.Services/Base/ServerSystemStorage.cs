@@ -8,6 +8,7 @@ using Odin.Core.Storage.SQLite.ServerDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
+using static Odin.Core.Storage.SQLite.DatabaseBase;
 
 namespace Odin.Services.Base;
 
@@ -34,11 +35,6 @@ public class ServerSystemStorage : IDisposable
 
         //temp test
         JobQueue = _db.tblCron;
-    }
-
-    public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
-    {
-        return _db.CreateCommitUnitOfWork();
     }
 
     public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data, UnixTimeUtc nextRun)

@@ -12,34 +12,37 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var k222 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k2 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k22 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var k222 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
 
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
 
-            r = db.TblKeyThreeValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
 
-            var lr = db.TblKeyThreeValue.GetByKeyTwo(k11);
-            if (ByteArrayUtil.muidcmp(lr[0], v1) != 0)
-                Assert.Fail();
+                var lr = db.TblKeyThreeValue.GetByKeyTwo(myc, k11);
+                if (ByteArrayUtil.muidcmp(lr[0], v1) != 0)
+                    Assert.Fail();
 
-            lr = db.TblKeyThreeValue.GetByKeyThree(k111);
-            if (ByteArrayUtil.muidcmp(lr[0], v1) != 0)
-                Assert.Fail();
+                lr = db.TblKeyThreeValue.GetByKeyThree(myc, k111);
+                if (ByteArrayUtil.muidcmp(lr[0], v1) != 0)
+                    Assert.Fail();
+            }
         }
 
 
@@ -48,36 +51,39 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertDuplicateTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
-
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
-
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
-
-            bool ok = false;
-
-            try
+            using (var myc = db.CreateDisposableConnection())
             {
-                db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v2 });
-                ok = true;
-            }
-            catch
-            {
-                ok = false;
-            }
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            Debug.Assert(ok == false);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
 
-            r = db.TblKeyThreeValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                Assert.Fail();
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+
+                bool ok = false;
+
+                try
+                {
+                    db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v2 });
+                    ok = true;
+                }
+                catch
+                {
+                    ok = false;
+                }
+
+                Debug.Assert(ok == false);
+
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
+            }
         }
 
 
@@ -85,23 +91,26 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void UpdateTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
 
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
-            db.TblKeyThreeValue.Update(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v2 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+                db.TblKeyThreeValue.Update(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v2 });
 
-            r = db.TblKeyThreeValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
+                    Assert.Fail();
+            }
         }
 
 
@@ -110,33 +119,36 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void Update2Test()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
-
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
-
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
-
-            bool ok = false;
-
-            try
+            using (var myc = db.CreateDisposableConnection())
             {
-                db.TblKeyThreeValue.Update(new KeyThreeValueRecord() { key1 = k2, key2 = k11, key3 = k111, data = v2 });
-                ok = true;
-            }
-            catch
-            {
-                ok = false;
-            }
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k2 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            Debug.Assert(ok == true);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
+
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+
+                bool ok = false;
+
+                try
+                {
+                    db.TblKeyThreeValue.Update(myc, new KeyThreeValueRecord() { key1 = k2, key2 = k11, key3 = k111, data = v2 });
+                    ok = true;
+                }
+                catch
+                {
+                    ok = false;
+                }
+
+                Debug.Assert(ok == true);
+            }
         }
 
 
@@ -145,30 +157,33 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void DeleteTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var k222 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k2 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k22 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var k222 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
 
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
 
-            r = db.TblKeyThreeValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
 
-            db.TblKeyThreeValue.Delete(k1);
-            r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
+                db.TblKeyThreeValue.Delete(myc, k1);
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
+            }
         }
 
 
@@ -176,37 +191,40 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void UpsertTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
-            var k111 = Guid.NewGuid().ToByteArray();
-            var k222 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
-            var v3 = Guid.NewGuid().ToByteArray();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k2 = Guid.NewGuid().ToByteArray();
+                var k11 = Guid.NewGuid().ToByteArray();
+                var k22 = Guid.NewGuid().ToByteArray();
+                var k111 = Guid.NewGuid().ToByteArray();
+                var k222 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
+                var v3 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyThreeValue.Get(k1);
-            Debug.Assert(r == null);
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                Debug.Assert(r == null);
 
-            db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1});
-            db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2});
+                db.TblKeyThreeValue.Upsert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
+                db.TblKeyThreeValue.Upsert(myc, new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
 
-            r = db.TblKeyThreeValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k1);
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
 
-            r = db.TblKeyThreeValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k2);
+                if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
+                    Assert.Fail();
 
-            db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v3 });
+                db.TblKeyThreeValue.Upsert(myc, new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v3 });
 
-            r = db.TblKeyThreeValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
-                Assert.Fail();
+                r = db.TblKeyThreeValue.Get(myc, k2);
+                if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
+                    Assert.Fail();
+            }
         }
 
 
@@ -215,64 +233,67 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void TableKeyThreeValueTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var i1 = Guid.NewGuid().ToByteArray();
-            var i2 = Guid.NewGuid().ToByteArray();
-            var u1 = Guid.NewGuid().ToByteArray();
-            var u2 = Guid.NewGuid().ToByteArray();
-            var v1 = Guid.NewGuid().ToByteArray();
-            var v2 = Guid.NewGuid().ToByteArray();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var k1 = Guid.NewGuid().ToByteArray();
+                var k2 = Guid.NewGuid().ToByteArray();
+                var i1 = Guid.NewGuid().ToByteArray();
+                var i2 = Guid.NewGuid().ToByteArray();
+                var u1 = Guid.NewGuid().ToByteArray();
+                var u2 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+                var v2 = Guid.NewGuid().ToByteArray();
 
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k1, key2 = i1, key3 = u1, data = v1 });
-            db.TblKeyThreeValue.Insert(new KeyThreeValueRecord() { key1 = k2, key2 = i1, key3 = u2, data = v2 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k1, key2 = i1, key3 = u1, data = v1 });
+                db.TblKeyThreeValue.Insert(myc, new KeyThreeValueRecord() { key1 = k2, key2 = i1, key3 = u2, data = v2 });
 
-            var r = db.TblKeyThreeValue.Get(k1);
-            if (r == null)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
-                Assert.Fail();
+                var r = db.TblKeyThreeValue.Get(myc, k1);
+                if (r == null)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                    Assert.Fail();
 
-            var ra = db.TblKeyThreeValue.GetByKeyTwo(i1);
-            if (ra.Count != 2)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[1], v2) != 0)
-                Assert.Fail();
+                var ra = db.TblKeyThreeValue.GetByKeyTwo(myc, i1);
+                if (ra.Count != 2)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[1], v2) != 0)
+                    Assert.Fail();
 
-            ra = db.TblKeyThreeValue.GetByKeyThree(u1);
-            if (ra.Count != 1)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
-                Assert.Fail();
+                ra = db.TblKeyThreeValue.GetByKeyThree(myc, u1);
+                if (ra.Count != 1)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
+                    Assert.Fail();
 
-            var singleRecord = db.TblKeyThreeValue.GetByKeyTwoThree(i1, u2);
-            Assert.NotNull(singleRecord);
-            if (ByteArrayUtil.muidcmp(singleRecord.Single().data, v2) != 0)
-                Assert.Fail();
+                var singleRecord = db.TblKeyThreeValue.GetByKeyTwoThree(myc, i1, u2);
+                Assert.NotNull(singleRecord);
+                if (ByteArrayUtil.muidcmp(singleRecord.Single().data, v2) != 0)
+                    Assert.Fail();
 
-            db.TblKeyThreeValue.Update(new KeyThreeValueRecord() { key1 = k1, key2 = i1, key3 = u1, data = v2 });
-            r = db.TblKeyThreeValue.Get(k1);
+                db.TblKeyThreeValue.Update(myc, new KeyThreeValueRecord() { key1 = k1, key2 = i1, key3 = u1, data = v2 });
+                r = db.TblKeyThreeValue.Get(myc, k1);
 
-            if (r == null)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
-                Assert.Fail();
+                if (r == null)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
+                    Assert.Fail();
 
-            db.TblKeyThreeValue.Delete(k1);
-            ra = db.TblKeyThreeValue.GetByKeyTwo(i1);
-            if (ra.Count != 1)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v2) != 0)
-                Assert.Fail();
+                db.TblKeyThreeValue.Delete(myc, k1);
+                ra = db.TblKeyThreeValue.GetByKeyTwo(myc, i1);
+                if (ra.Count != 1)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[0], v2) != 0)
+                    Assert.Fail();
 
-            r = db.TblKeyThreeValue.Get(k1);
+                r = db.TblKeyThreeValue.Get(myc, k1);
 
-            if (r != null)
-                Assert.Fail();
+                if (r != null)
+                    Assert.Fail();
+            }
         }
     }
 }

@@ -13,30 +13,34 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertRowTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
 
-            var md = db.tblDriveTagIndex.Get(driveId, k1);
+                var k1 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                a1.Add(Guid.NewGuid());
 
-            if (md != null)
-                Assert.Fail();
+                var md = db.tblDriveTagIndex.Get(myc, driveId, k1);
 
-            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
+                if (md != null)
+                    Assert.Fail();
 
-            md = db.tblDriveTagIndex.Get(driveId, k1);
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
 
-            if (md == null)
-                Assert.Fail();
+                md = db.tblDriveTagIndex.Get(myc, driveId, k1);
 
-            if (md.Count != 1)
-                Assert.Fail();
+                if (md == null)
+                    Assert.Fail();
 
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
+                if (md.Count != 1)
+                    Assert.Fail();
+
+                if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
+                    Assert.Fail();
+            }
         }
 
         [Test]
@@ -44,37 +48,41 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertDoubleRowTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-            a1.Add(Guid.NewGuid());
-
-            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-
-            var md = db.tblDriveTagIndex.Get(driveId, k1);
-
-            if (md == null)
-                Assert.Fail();
-
-            if (md.Count != 2)
-                Assert.Fail();
-
-            // We don't know what order it comes back in :o) Quick hack.
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
+            using (var myc = db.CreateDisposableConnection())
             {
-                if (ByteArrayUtil.muidcmp(md[0], a1[1]) != 0)
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
+
+                var k1 = Guid.NewGuid();
+                var k2 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                a1.Add(Guid.NewGuid());
+                a1.Add(Guid.NewGuid());
+
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+
+                var md = db.tblDriveTagIndex.Get(myc, driveId, k1);
+
+                if (md == null)
                     Assert.Fail();
-                if (ByteArrayUtil.muidcmp(md[1], a1[0]) != 0)
+
+                if (md.Count != 2)
                     Assert.Fail();
-            }
-            else
-            {
-                if (ByteArrayUtil.muidcmp(md[1], a1[1]) != 0)
-                    Assert.Fail();
+
+                // We don't know what order it comes back in :o) Quick hack.
+                if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
+                {
+                    if (ByteArrayUtil.muidcmp(md[0], a1[1]) != 0)
+                        Assert.Fail();
+                    if (ByteArrayUtil.muidcmp(md[1], a1[0]) != 0)
+                        Assert.Fail();
+                }
+                else
+                {
+                    if (ByteArrayUtil.muidcmp(md[1], a1[1]) != 0)
+                        Assert.Fail();
+                }
             }
         }
 
@@ -83,28 +91,32 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertDuplicatetagMemberTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-            a1.Add(a1[0]);
-
-            bool ok = false;
-            try
+            using (var myc = db.CreateDisposableConnection())
             {
-                db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
 
-            if (!ok)
-                Assert.Fail();
+                var k1 = Guid.NewGuid();
+                var k2 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                a1.Add(Guid.NewGuid());
+                a1.Add(a1[0]);
+
+                bool ok = false;
+                try
+                {
+                    db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+                    ok = false;
+                }
+                catch
+                {
+                    ok = true;
+                }
+
+                if (!ok)
+                    Assert.Fail();
+            }
         }
 
         [Test]
@@ -112,24 +124,28 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertDoubletagMemberTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
 
-            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-            db.tblDriveTagIndex.InsertRows(driveId, k2, a1);
+                var k1 = Guid.NewGuid();
+                var k2 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                a1.Add(Guid.NewGuid());
 
-            var md = db.tblDriveTagIndex.Get(driveId, k1);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k2, a1);
 
-            md = db.tblDriveTagIndex.Get(driveId, k2);
-            if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
-                Assert.Fail();
+                var md = db.tblDriveTagIndex.Get(myc, driveId, k1);
+                if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
+                    Assert.Fail();
+
+                md = db.tblDriveTagIndex.Get(myc, driveId, k2);
+                if (ByteArrayUtil.muidcmp(md[0], a1[0]) != 0)
+                    Assert.Fail();
+            }
         }
 
         [Test]
@@ -137,27 +153,31 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void InsertDoubleKeyTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-
-            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-            bool ok = false;
-            try
+            using (var myc = db.CreateDisposableConnection())
             {
-                db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-                ok = false;
-            }
-            catch
-            {
-                ok = true;
-            }
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
 
-            if (!ok)
-                Assert.Fail();
+                var k1 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                a1.Add(Guid.NewGuid());
+
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+                bool ok = false;
+                try
+                {
+                    db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+                    ok = false;
+                }
+                catch
+                {
+                    ok = true;
+                }
+
+                if (!ok)
+                    Assert.Fail();
+            }
         }
 
 
@@ -165,40 +185,44 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void DeleteRowTest()
         {
             using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-            var driveId = Guid.NewGuid();
 
-            var k1 = Guid.NewGuid();
-            var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            var v1 = Guid.NewGuid();
-            var v2 = Guid.NewGuid();
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
 
-            a1.Add(v1);
-            a1.Add(v2);
+                var k1 = Guid.NewGuid();
+                var k2 = Guid.NewGuid();
+                var a1 = new List<Guid>();
+                var v1 = Guid.NewGuid();
+                var v2 = Guid.NewGuid();
 
-            db.tblDriveTagIndex.InsertRows(driveId, k1, a1);
-            db.tblDriveTagIndex.InsertRows(driveId, k2, a1);
+                a1.Add(v1);
+                a1.Add(v2);
 
-            // Delete all tagmembers of the first key entirely
-            db.tblDriveTagIndex.DeleteRow(driveId, k1, a1);
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k1, a1);
+                db.tblDriveTagIndex.InsertRows(myc, driveId, k2, a1);
 
-            // Check that k1 is now gone
-            var md = db.tblDriveTagIndex.Get(driveId, k1);
-            if (md != null)
-                Assert.Fail();
+                // Delete all tagmembers of the first key entirely
+                db.tblDriveTagIndex.DeleteRow(myc, driveId, k1, a1);
 
-            // Remove one of the tagmembers from the list, delete it, and make sure we have the other one
-            a1.RemoveAt(0); // Remove v1
-            db.tblDriveTagIndex.DeleteRow(driveId, k2, a1);  // Delete v2
+                // Check that k1 is now gone
+                var md = db.tblDriveTagIndex.Get(myc, driveId, k1);
+                if (md != null)
+                    Assert.Fail();
 
-            // Check that we have one left
-            md = db.tblDriveTagIndex.Get(driveId, k2);
-            if (md.Count != 1)
-                Assert.Fail();
+                // Remove one of the tagmembers from the list, delete it, and make sure we have the other one
+                a1.RemoveAt(0); // Remove v1
+                db.tblDriveTagIndex.DeleteRow(myc, driveId, k2, a1);  // Delete v2
 
-            if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
-                Assert.Fail();
+                // Check that we have one left
+                md = db.tblDriveTagIndex.Get(myc, driveId, k2);
+                if (md.Count != 1)
+                    Assert.Fail();
+
+                if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
+                    Assert.Fail();
+            }
         }
     }
 }

@@ -105,16 +105,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circleMember("
                      +"circleId BLOB NOT NULL, "
                      +"memberId BLOB NOT NULL, "
@@ -122,18 +122,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (circleId,memberId)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(CircleMemberRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, CircleMemberRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
                                                  "VALUES ($circleId,$memberId,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -150,7 +150,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.circleId.ToByteArray();
                 _insertParam2.Value = item.memberId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.circleId.ToString()+item.memberId.ToString(), item);
@@ -159,13 +159,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CircleMemberRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, CircleMemberRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
                                                  "VALUES ($circleId,$memberId,$data)"+
                                                  "ON CONFLICT (circleId,memberId) DO UPDATE "+
@@ -185,19 +185,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam1.Value = item.circleId.ToByteArray();
                 _upsertParam2.Value = item.memberId.ToByteArray();
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.circleId.ToString()+item.memberId.ToString(), item);
                 return count;
             } // Lock
         }
-        public virtual int Update(CircleMemberRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, CircleMemberRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE circleMember " +
                                                  "SET data = $data "+
                                                  "WHERE (circleId = $circleId,memberId = $memberId)";
@@ -215,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.circleId.ToByteArray();
                 _updateParam2.Value = item.memberId.ToByteArray();
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleMemberCRUD", item.circleId.ToString()+item.memberId.ToString(), item);
@@ -270,13 +270,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid circleId,Guid memberId)
+        public int Delete(DatabaseBase.DatabaseConnection conn, Guid circleId,Guid memberId)
         {
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM circleMember " +
                                                  "WHERE circleId = $circleId AND memberId = $memberId";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _delete0Param1.Value = circleId.ToByteArray();
                 _delete0Param2.Value = memberId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableCircleMemberCRUD", circleId.ToString()+memberId.ToString());
                 return count;
@@ -323,7 +323,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public CircleMemberRecord Get(Guid circleId,Guid memberId)
+        public CircleMemberRecord Get(DatabaseBase.DatabaseConnection conn, Guid circleId,Guid memberId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", circleId.ToString()+memberId.ToString());
             if (hit)
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT data FROM circleMember " +
                                                  "WHERE circleId = $circleId AND memberId = $memberId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -345,7 +345,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _get0Param1.Value = circleId.ToByteArray();
                 _get0Param2.Value = memberId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -395,13 +395,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
+        public List<CircleMemberRecord> GetCircleMembers(DatabaseBase.DatabaseConnection conn, Guid circleId)
         {
             lock (_get1Lock)
             {
                 if (_get1Command == null)
                 {
-                    _get1Command = _database.CreateCommand();
+                    _get1Command = _database.CreateCommand(conn);
                     _get1Command.CommandText = "SELECT memberId,data FROM circleMember " +
                                                  "WHERE circleId = $circleId;";
                     _get1Param1 = _get1Command.CreateParameter();
@@ -410,7 +410,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = circleId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {
@@ -465,13 +465,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
+        public List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseBase.DatabaseConnection conn, Guid memberId)
         {
             lock (_get2Lock)
             {
                 if (_get2Command == null)
                 {
-                    _get2Command = _database.CreateCommand();
+                    _get2Command = _database.CreateCommand(conn);
                     _get2Command.CommandText = "SELECT circleId,data FROM circleMember " +
                                                  "WHERE memberId = $memberId;";
                     _get2Param1 = _get2Command.CreateParameter();
@@ -480,7 +480,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get2Command.Prepare();
                 }
                 _get2Param1.Value = memberId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get2Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {

@@ -172,16 +172,16 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS cron;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS cron;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS cron("
                      +"identityId BLOB NOT NULL, "
                      +"type INT NOT NULL, "
@@ -196,18 +196,18 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableCronCRUD ON cron(nextRun);"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(CronRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, CronRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
                                                  "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -250,7 +250,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam8.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam9.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -259,13 +259,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CronRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, CronRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created) " +
                                                  "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created)"+
                                                  "ON CONFLICT (identityId,type) DO UPDATE "+
@@ -310,7 +310,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
                 _upsertParam9.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -328,13 +328,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return 0;
         }
 
-        public virtual int Update(CronRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, CronRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE cron " +
                                                  "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (identityId = $identityId,type = $type)";
@@ -377,7 +377,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = now.uniqueTime;
                 _updateParam9.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -474,13 +474,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public int Delete(Guid identityId,Int32 type)
+        public int Delete(DatabaseBase.DatabaseConnection conn, Guid identityId,Int32 type)
         {
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM cron " +
                                                  "WHERE identityId = $identityId AND type = $type";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -493,7 +493,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 }
                 _delete0Param1.Value = identityId.ToByteArray();
                 _delete0Param2.Value = type;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 return count;
             } // Lock
         }
@@ -570,13 +570,13 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public CronRecord Get(Guid identityId,Int32 type)
+        public CronRecord Get(DatabaseBase.DatabaseConnection conn, Guid identityId,Int32 type)
         {
             lock (_get0Lock)
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron " +
                                                  "WHERE identityId = $identityId AND type = $type LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -589,7 +589,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 }
                 _get0Param1.Value = identityId.ToByteArray();
                 _get0Param2.Value = type;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

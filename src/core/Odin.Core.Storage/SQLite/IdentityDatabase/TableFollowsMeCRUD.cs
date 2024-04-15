@@ -114,16 +114,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS followsMe("
                      +"identity STRING NOT NULL, "
                      +"driveId BLOB NOT NULL, "
@@ -133,18 +133,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(FollowsMeRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, FollowsMeRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created,modified) " +
                                                  "VALUES ($identity,$driveId,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -167,7 +167,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam3.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam4.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -177,13 +177,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(FollowsMeRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, FollowsMeRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created) " +
                                                  "VALUES ($identity,$driveId,$created)"+
                                                  "ON CONFLICT (identity,driveId) DO UPDATE "+
@@ -208,7 +208,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam2.Value = item.driveId.ToByteArray();
                 _upsertParam3.Value = now.uniqueTime;
                 _upsertParam4.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -227,13 +227,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return 0;
         }
 
-        public virtual int Update(FollowsMeRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, FollowsMeRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE followsMe " +
                                                  "SET modified = $modified "+
                                                  "WHERE (identity = $identity,driveId = $driveId)";
@@ -256,7 +256,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = now.uniqueTime;
                 _updateParam4.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -310,7 +310,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(string identity,Guid driveId)
+        public int Delete(DatabaseBase.DatabaseConnection conn, string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -319,7 +319,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM followsMe " +
                                                  "WHERE identity = $identity AND driveId = $driveId";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = driveId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableFollowsMeCRUD", identity+driveId.ToString());
                 return count;
@@ -370,7 +370,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public FollowsMeRecord Get(string identity,Guid driveId)
+        public FollowsMeRecord Get(DatabaseBase.DatabaseConnection conn, string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -382,7 +382,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT created,modified FROM followsMe " +
                                                  "WHERE identity = $identity AND driveId = $driveId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -395,7 +395,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 _get0Param1.Value = identity;
                 _get0Param2.Value = driveId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -449,7 +449,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public List<FollowsMeRecord> Get(string identity)
+        public List<FollowsMeRecord> Get(DatabaseBase.DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -458,7 +458,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get1Command == null)
                 {
-                    _get1Command = _database.CreateCommand();
+                    _get1Command = _database.CreateCommand(conn);
                     _get1Command.CommandText = "SELECT driveId,created,modified FROM followsMe " +
                                                  "WHERE identity = $identity;";
                     _get1Param1 = _get1Command.CreateParameter();
@@ -467,7 +467,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = identity;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {

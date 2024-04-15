@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 
@@ -23,40 +26,29 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Odin.Core.Storage.SQLite
 {
+
     public partial class DatabaseBase : IDisposable
     {
-        internal readonly IntCounter _counter = new IntCounter();
-
-        private string _connectionString;
-
-        private SqliteConnection _connection = null;
-        private SqliteTransaction _transaction = null;
-
-        private readonly Object _transactionLock = new Object();
-
+        protected readonly string _connectionString;
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(20); // Max 20 concurrent connections
+ 
         protected bool _wasDisposed = false;
 
-        private int _commitsCount = 0;
-
-        public DatabaseBase(string databasePath)
+        public DatabaseBase(string dataSource)
         {
-            //Database path is the physical path on disk
-            _connectionString = $"Data Source={databasePath}";
+            var builder = new SqliteConnectionStringBuilder();
 
-            _connection = new SqliteConnection(_connectionString);
-            _connection.Open();
+            // Set the properties
+            builder.DataSource = dataSource;  // Replace with your database file path
+            builder.Mode = SqliteOpenMode.ReadWriteCreate;  // Opens the database in read/write mode and creates the database file if it does not exist
+            builder.Cache = SqliteCacheMode.Shared;  // Sets the cache mode to shared, allowing multiple connections to efficiently share the same data
+            builder.Pooling = true;  // Enables connection pooling
 
-            using (var pragmaJournalModeCommand = _connection.CreateCommand())
-            {
-                pragmaJournalModeCommand.CommandText = "PRAGMA journal_mode=WAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-                pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-            }
+            // Generate the connection string
+            _connectionString = builder.ToString();
 
             RsaKeyManagement.noDBOpened++;
         }
-
 
         ~DatabaseBase()
         {
@@ -72,150 +64,65 @@ namespace Odin.Core.Storage.SQLite
         }
 
 
+        public DatabaseConnection CreateDisposableConnection()
+        {
+            _semaphore.WaitAsync(); // Wait to enter the semaphore
+
+            return new DatabaseConnection(this, _connectionString);
+        }
+
+
         public virtual void Dispose()
         {
-            _transaction?.Commit(); // Flush any pending data
-            _transaction?.Dispose();
-            _transaction = null;
-
-            if (_connection != null)
-            {
-                // https://www.bricelam.net/2021/11/08/microsoft-data-sqlite-6.html
-                SqliteConnection.ClearPool(_connection);
-                _connection.Close();
-                _connection.Dispose();
-                _connection = null;
-            }
-
             _wasDisposed = true;
+
         }
 
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public virtual void CreateDatabase(bool dropExistingTables = true)
+        public virtual void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
         {
             throw new Exception("Not implemented");
         }
 
         public void Vacuum()
         {
-            _transaction?.Commit();
-            _transaction = null;
-
-            using (var cmd = CreateCommand())
+            using (var conn = this.CreateDisposableConnection()) 
             {
-                cmd.CommandText = "VACUUM;";
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        public int ExecuteNonQuery(SqliteCommand command)
-        {
-            lock (_transactionLock) // Serialize all writes to avoid locks
-            {
-                command.Transaction = _transaction;
-                var r = command.ExecuteNonQuery();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
-        public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
-        {
-            lock (_transactionLock)
-            {
-                command.Transaction = _transaction;
-                var r = command.ExecuteReader();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
-
-        public SqliteCommand CreateCommand()
-        {
-            return new SqliteCommand
-            {
-                Connection = _connection
-            };
-        }
-
-
-        /// <summary>
-        /// This is a wrapper to logically group (same) database transactions what you want to 
-        /// be sure are either committed together, or not at all. Preferably used like this
-        /// using (db.CreateLogicCommitUnit())
-        /// {
-        ///     write one row
-        ///     write another row
-        /// }
-        /// If you want to ensure that the data is subsequently flushed to the DB (will slow it down)
-        /// and you don't want to wait for the timer, then use the:
-        /// db.Commit()
-        /// Calling db.Commit() will be futile while one or more logic commit units are in progress.
-        /// If you forget to Dispose a LogicCommitUnit you're totally screwed. Use with thought.
-        /// </summary>
-        /// <returns>LogicCommitUnit disposable object</returns>
-        public LogicCommitUnit CreateCommitUnitOfWork()
-        {
-            lock (_transactionLock)
-            {
-                if (_counter.Count() == 0)
-                    BeginTransaction();
-                var lcu = new LogicCommitUnit(_counter, this);
-                return lcu;
-            }
-        }
-
-
-        /// <summary>
-        /// You can only have one transaction per connection. Create a new database object
-        /// if you want a second transaction.
-        /// </summary>
-        private void BeginTransaction()
-        {
-            lock (_transactionLock)
-            {
-                if (_counter.ReadyToCommit())
+                using (var cmd = CreateCommand(conn))
                 {
-                    Commit();
-                    Debug.Assert(_transaction == null);
-                    _transaction = _connection.BeginTransaction();
+                    cmd.CommandText = "VACUUM;";
+                    ExecuteNonQuery(conn, cmd);
                 }
             }
         }
 
-
-        /// <summary>
-        /// Commit the current transaction - if possible. The transaction cannot be commited if 
-        /// multiple threads are in the middle of different units of work.
-        /// </summary>
-        /// <returns>true is data was committed to the DB, false otherwise.</returns>
-        public bool Commit()
+        public int ExecuteNonQuery(DatabaseConnection connection, SqliteCommand command)
         {
-            lock (_transactionLock)
-            {
-                if (_counter.ReadyToCommit())
-                {
-                    if (_transaction != null)
-                    {
-                        _commitsCount++;
-                        _transaction.Commit(); // Flush the data
-                        _transaction.Dispose();
-                        _transaction = null;
-                        return true;
-                    }
-                }
-            }
+            command.Connection = connection._connection;
+            command.Transaction = connection._transaction;
+            var r = command.ExecuteNonQuery();
+            command.Transaction = null;
+            return r;
+        }
 
-            return false;
+        public SqliteDataReader ExecuteReader(DatabaseConnection connection, SqliteCommand command, CommandBehavior behavior)
+        {
+            command.Connection = connection._connection;
+            command.Transaction = connection._transaction;
+            var r = command.ExecuteReader();
+            command.Transaction = null;
+            return r;
         }
 
 
-        public int CommitsCount()
+        public SqliteCommand CreateCommand(DatabaseConnection connection)
         {
-            return _commitsCount;
+            var cmd = new SqliteCommand();
+            cmd.Connection = connection._connection;
+
+            return cmd;
         }
     }
 }

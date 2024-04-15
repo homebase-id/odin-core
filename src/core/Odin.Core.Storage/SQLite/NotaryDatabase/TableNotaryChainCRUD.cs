@@ -177,16 +177,16 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS notaryChain("
                      +"previousHash BLOB NOT NULL UNIQUE, "
                      +"identity STRING NOT NULL, "
@@ -199,18 +199,18 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                      +", PRIMARY KEY (notarySignature)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(NotaryChainRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, NotaryChainRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$notarySignature,$recordHash)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _insertParam6.Value = item.publicKeyJwkBase64Url;
                 _insertParam7.Value = item.notarySignature;
                 _insertParam8.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
@@ -256,13 +256,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             } // Lock
         }
 
-        public virtual int Upsert(NotaryChainRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, NotaryChainRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$signedPreviousHash,$algorithm,$publicKeyJwkBase64Url,$notarySignature,$recordHash)"+
                                                  "ON CONFLICT (notarySignature) DO UPDATE "+
@@ -302,19 +302,19 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _upsertParam6.Value = item.publicKeyJwkBase64Url;
                 _upsertParam7.Value = item.notarySignature;
                 _upsertParam8.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 return count;
             } // Lock
         }
-        public virtual int Update(NotaryChainRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, NotaryChainRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE notaryChain " +
                                                  "SET previousHash = $previousHash,identity = $identity,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,publicKeyJwkBase64Url = $publicKeyJwkBase64Url,recordHash = $recordHash "+
                                                  "WHERE (notarySignature = $notarySignature)";
@@ -352,7 +352,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _updateParam6.Value = item.publicKeyJwkBase64Url;
                 _updateParam7.Value = item.notarySignature;
                 _updateParam8.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
@@ -454,7 +454,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public int Delete(byte[] notarySignature)
+        public int Delete(DatabaseBase.DatabaseConnection conn, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -463,7 +463,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM notaryChain " +
                                                  "WHERE notarySignature = $notarySignature";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -472,7 +472,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = notarySignature;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableNotaryChainCRUD", notarySignature.ToBase64());
                 return count;
@@ -562,7 +562,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public NotaryChainRecord Get(byte[] notarySignature)
+        public NotaryChainRecord Get(DatabaseBase.DatabaseConnection conn, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -574,7 +574,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM notaryChain " +
                                                  "WHERE notarySignature = $notarySignature LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -583,7 +583,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = notarySignature;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

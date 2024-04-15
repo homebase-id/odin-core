@@ -32,7 +32,10 @@ namespace Odin.Services.Base
             }
 
             IdentityDatabase = new IdentityDatabase(finalPath);
-            IdentityDatabase.CreateDatabase(false);
+            using (var conn = IdentityDatabase.CreateDisposableConnection())
+            {
+                IdentityDatabase.CreateDatabase(conn, false);
+            }
 
             // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
@@ -66,9 +69,9 @@ namespace Odin.Services.Base
 
         public TableCircleMember CircleMemberStorage { get; }
 
-        public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
+        public DatabaseBase.UnitOfWorkTracker CreateCommitUnitOfWork(DatabaseBase.DatabaseConnection conn)
         {
-            return IdentityDatabase.CreateCommitUnitOfWork();
+            return conn.CreateCommitUnitOfWork();
         }
 
         /// <summary>

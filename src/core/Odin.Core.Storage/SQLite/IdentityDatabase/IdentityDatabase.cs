@@ -64,8 +64,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableConnections tblConnections = null;
         public readonly TableAppNotifications tblAppNotificationsTable = null;
 
-        public readonly string CN;
-
         public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
@@ -94,8 +92,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblConnections = new TableConnections(this, _cache);
             tblAppNotificationsTable = new TableAppNotifications(this, _cache);
 
-            CN = databasePath;
-
             _file = file;
             _line = line;
         }
@@ -105,7 +101,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+                throw new Exception($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
                Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
@@ -115,7 +111,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            Commit();
+            // Commit();
 
             // Drives
             tblDriveMainIndex.Dispose();
@@ -146,30 +142,30 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
         {
             // Drives
-            tblDriveMainIndex.EnsureTableExists(dropExistingTables);
-            tblDriveAclIndex.EnsureTableExists(dropExistingTables);
-            tblDriveTagIndex.EnsureTableExists(dropExistingTables);
-            tblDriveCommandMessageQueue.EnsureTableExists(dropExistingTables);
-            tblDriveReactions.EnsureTableExists(dropExistingTables);
+            tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
+            tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
+            tblDriveTagIndex.EnsureTableExists(conn, dropExistingTables);
+            tblDriveCommandMessageQueue.EnsureTableExists(conn, dropExistingTables);
+            tblDriveReactions.EnsureTableExists(conn, dropExistingTables);
 
             // Identity
-            tblAppGrants.EnsureTableExists(dropExistingTables);
-            tblKeyValue.EnsureTableExists(dropExistingTables);
-            tblKeyTwoValue.EnsureTableExists(dropExistingTables);
-            TblKeyThreeValue.EnsureTableExists(dropExistingTables);
-            // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
-            tblInbox.EnsureTableExists(dropExistingTables);
-            tblOutbox.EnsureTableExists(dropExistingTables);
-            tblFeedDistributionOutbox.EnsureTableExists(dropExistingTables);
-            tblCircle.EnsureTableExists(dropExistingTables);
-            tblCircleMember.EnsureTableExists(dropExistingTables);
-            tblImFollowing.EnsureTableExists(dropExistingTables);
-            tblFollowsMe.EnsureTableExists(dropExistingTables);
-            tblConnections.EnsureTableExists(dropExistingTables);
-            tblAppNotificationsTable.EnsureTableExists(dropExistingTables);
+            tblAppGrants.EnsureTableExists(conn, dropExistingTables);
+            tblKeyValue.EnsureTableExists(conn, dropExistingTables);
+            tblKeyTwoValue.EnsureTableExists(conn, dropExistingTables);
+            TblKeyThreeValue.EnsureTableExists(conn, dropExistingTables);
+            // TblKeyUniqueThreeValue.EnsureTableExists(conn, dropExistingTables);
+            tblInbox.EnsureTableExists(conn, dropExistingTables);
+            tblOutbox.EnsureTableExists(conn, dropExistingTables);
+            tblFeedDistributionOutbox.EnsureTableExists(conn, dropExistingTables);
+            tblCircle.EnsureTableExists(conn, dropExistingTables);
+            tblCircleMember.EnsureTableExists(conn, dropExistingTables);
+            tblImFollowing.EnsureTableExists(conn, dropExistingTables);
+            tblFollowsMe.EnsureTableExists(conn, dropExistingTables);
+            tblConnections.EnsureTableExists(conn, dropExistingTables);
+            tblAppNotificationsTable.EnsureTableExists(conn, dropExistingTables);
 
             if (dropExistingTables)
                 Vacuum();
@@ -189,7 +185,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="requiredSecurityGroup">The security group required </param>
         /// <param name="accessControlList">The list of Id's of the circles or identities which can access this file</param>
         /// <param name="tagIdList">The tags</param>
-        public void AddEntry(Guid driveId, Guid fileId,
+        public void AddEntry(DatabaseConnection conn, Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -208,31 +204,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
-            using (CreateCommitUnitOfWork())
+            using (conn.CreateCommitUnitOfWork())
             {
-                tblDriveMainIndex.Insert(new DriveMainIndexRecord()
+                tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
                 {
                     driveId = driveId, fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate, fileType = fileType,
                     dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus,
                     historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType, byteCount = byteCount
                 });
-                tblDriveAclIndex.InsertRows(driveId, fileId, accessControlList);
-                tblDriveTagIndex.InsertRows(driveId, fileId, tagIdList);
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
             }
         }
 
-        public void DeleteEntry(Guid driveId, Guid fileId)
+        public void DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
-            using (CreateCommitUnitOfWork())
+            using (conn.CreateCommitUnitOfWork())
             {
-                tblDriveAclIndex.DeleteAllRows(driveId, fileId);
-                tblDriveTagIndex.DeleteAllRows(driveId, fileId);
-                tblDriveMainIndex.Delete(driveId, fileId);
+                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveMainIndex.Delete(conn, driveId, fileId);
             }
         }
 
         // We do not allow updating the fileId, globalTransitId
-        public void UpdateEntry(Guid driveId, Guid fileId,
+        public void UpdateEntry(DatabaseConnection conn, Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
@@ -249,17 +245,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> addTagIdList = null,
             List<Guid> deleteTagIdList = null)
         {
-            using (CreateCommitUnitOfWork())
+            using (conn.CreateCommitUnitOfWork())
             {
-                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
                     senderId: senderId,
                     groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
                     requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.InsertRows(driveId, fileId, addAccessControlList);
-                tblDriveTagIndex.InsertRows(driveId, fileId, addTagIdList);
-                tblDriveAclIndex.DeleteRow(driveId, fileId, deleteAccessControlList);
-                tblDriveTagIndex.DeleteRow(driveId, fileId, deleteTagIdList);
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
+                tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
+                tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
@@ -267,7 +263,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
         // We do not allow updating the fileId, globalTransitId
-        public void UpdateEntryZapZap(Guid driveId, Guid fileId,
+        public void UpdateEntryZapZap(DatabaseConnection conn, Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
@@ -283,17 +279,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagIdList = null,
             Int32 fileSystemType = 0)
         {
-            using (CreateCommitUnitOfWork())
+            using (conn.CreateCommitUnitOfWork())
             {
-                tblDriveMainIndex.UpdateRow(driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
                     senderId: senderId,
                     groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
                     requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.DeleteAllRows(driveId, fileId);
-                tblDriveAclIndex.InsertRows(driveId, fileId, accessControlList);
-                tblDriveTagIndex.DeleteAllRows(driveId, fileId);
-                tblDriveTagIndex.InsertRows(driveId, fileId, tagIdList);
+                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
@@ -416,7 +412,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
-        public (List<Guid>, bool moreRows) QueryBatch(Guid driveId,
+        public (List<Guid>, bool moreRows) QueryBatch(DatabaseConnection conn, Guid driveId,
             int noOfItems,
             ref QueryBatchCursor cursor,
             bool newestFirstOrder,
@@ -534,10 +530,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand();
+            var cmd = this.CreateCommand(conn);
             cmd.CommandText = stm;
 
-            var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
+            var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
             var _fileId = new byte[16];
@@ -586,7 +582,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryBatchAuto(Guid driveId,
+        public (List<Guid>, bool moreRows) QueryBatchAuto(DatabaseConnection conn, Guid driveId,
             int noOfItems,
             ref QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -607,7 +603,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
             var (result, moreRows) =
-                QueryBatch(driveId, noOfItems,
+                QueryBatch(conn, driveId, noOfItems,
                     ref cursor,
                     newestFirstOrder: true,
                     fileIdSort: true,
@@ -664,7 +660,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2) = QueryBatchAuto(driveId, noOfItems - result.Count, ref cursor,
+                    var (r2, moreRows2) = QueryBatchAuto(conn, driveId, noOfItems - result.Count, ref cursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -696,7 +692,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     cursor.stopAtBoundary = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatchAuto(driveId, noOfItems, ref cursor,
+                    return QueryBatchAuto(conn, driveId, noOfItems, ref cursor,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -729,7 +725,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public (List<Guid>, bool moreRows) QueryModified(Guid driveId, int noOfItems,
+        public (List<Guid>, bool moreRows) QueryModified(DatabaseConnection conn, Guid driveId, int noOfItems,
             ref UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -775,10 +771,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 fileSystemType, driveId);
 
             string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand();
+            var cmd = this.CreateCommand(conn);
             cmd.CommandText = stm;
 
-            var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
+            var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
             var fileId = new byte[16];

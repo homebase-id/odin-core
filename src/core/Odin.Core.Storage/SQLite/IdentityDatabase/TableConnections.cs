@@ -32,7 +32,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             base.Dispose();
         }
 
-        public List<ConnectionsRecord> PagingByIdentity(int count, Int32 statusFilter, string inCursor, out string nextCursor)
+        public List<ConnectionsRecord> PagingByIdentity(DatabaseBase.DatabaseConnection conn, int count, Int32 statusFilter, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_getPaging1Command == null)
                 {
-                    _getPaging1Command = _database.CreateCommand();
+                    _getPaging1Command = _database.CreateCommand(conn);
                     _getPaging1Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity > $identity AND status = $status ORDER BY identity ASC LIMIT $_count;";
                     _getPaging1Param1 = _getPaging1Command.CreateParameter();
@@ -62,7 +62,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _getPaging1Param2.Value = count + 1;
                 _getPaging1Param3.Value = statusFilter;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;
@@ -86,7 +86,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         } // PagingGet
 
 
-        public List<ConnectionsRecord> PagingByCreated(int count, Int32 statusFilter, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<ConnectionsRecord> PagingByCreated(DatabaseBase.DatabaseConnection conn, int count, Int32 statusFilter, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -97,7 +97,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_getPaging6Command == null)
                 {
-                    _getPaging6Command = _database.CreateCommand();
+                    _getPaging6Command = _database.CreateCommand(conn);
                     _getPaging6Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE created < $created AND status=$status ORDER BY created DESC LIMIT $_count;";
                     _getPaging6Param1 = _getPaging6Command.CreateParameter();
@@ -115,7 +115,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _getPaging6Param2.Value = count + 1;
                 _getPaging6Param3.Value = statusFilter;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging6Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging6Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;

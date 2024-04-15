@@ -29,15 +29,15 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         /// <param name="rsakey"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public NotaryChainRecord GetLastLink()
+        public NotaryChainRecord GetLastLink(DatabaseBase.DatabaseConnection conn)
         {
             if (_get0Command == null)
             {
-                _get0Command = _database.CreateCommand();
+                _get0Command = _database.CreateCommand(conn);
                 _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid DESC LIMIT 1;";
             }
 
-            using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+            using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
             {
                 if (!rdr.Read())
                 {
@@ -48,7 +48,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             } // using
         }
 
-        public List<NotaryChainRecord> GetIdentity(string identity)
+        public List<NotaryChainRecord> GetIdentity(DatabaseBase.DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -57,7 +57,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             {
                 if (_get2Command == null)
                 {
-                    _get2Command = _database.CreateCommand();
+                    _get2Command = _database.CreateCommand(conn);
                     _get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain " +
                                                  "WHERE identity = $identity ORDER BY rowid;";
                     _get2Param1 = _get2Command.CreateParameter();
@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     _get2Command.Prepare();
                 }
                 _get2Param1.Value = identity;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get2Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {

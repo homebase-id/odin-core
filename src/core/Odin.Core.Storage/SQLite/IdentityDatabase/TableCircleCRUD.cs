@@ -102,16 +102,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circle;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS circle;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circle("
                      +"circleName STRING NOT NULL, "
                      +"circleId BLOB NOT NULL UNIQUE, "
@@ -119,18 +119,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (circleId)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(CircleRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, CircleRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO circle (circleName,circleId,data) " +
                                                  "VALUES ($circleName,$circleId,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.circleName;
                 _insertParam2.Value = item.circleId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
@@ -156,13 +156,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CircleRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, CircleRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO circle (circleName,circleId,data) " +
                                                  "VALUES ($circleName,$circleId,$data)"+
                                                  "ON CONFLICT (circleId) DO UPDATE "+
@@ -182,19 +182,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam1.Value = item.circleName;
                 _upsertParam2.Value = item.circleId.ToByteArray();
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
                 return count;
             } // Lock
         }
-        public virtual int Update(CircleRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, CircleRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE circle " +
                                                  "SET circleName = $circleName,data = $data "+
                                                  "WHERE (circleId = $circleId)";
@@ -212,7 +212,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.circleName;
                 _updateParam2.Value = item.circleId.ToByteArray();
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
@@ -264,13 +264,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid circleId)
+        public int Delete(DatabaseBase.DatabaseConnection conn, Guid circleId)
         {
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM circle " +
                                                  "WHERE circleId = $circleId";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -279,7 +279,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = circleId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableCircleCRUD", circleId.ToString());
                 return count;
@@ -319,7 +319,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public CircleRecord Get(Guid circleId)
+        public CircleRecord Get(DatabaseBase.DatabaseConnection conn, Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", circleId.ToString());
             if (hit)
@@ -328,7 +328,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT circleName,data FROM circle " +
                                                  "WHERE circleId = $circleId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -337,7 +337,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = circleId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -351,7 +351,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<CircleRecord> PagingByCircleId(int count, Guid? inCursor, out Guid? nextCursor)
+        public List<CircleRecord> PagingByCircleId(DatabaseBase.DatabaseConnection conn, int count, Guid? inCursor, out Guid? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -362,7 +362,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_getPaging2Command == null)
                 {
-                    _getPaging2Command = _database.CreateCommand();
+                    _getPaging2Command = _database.CreateCommand(conn);
                     _getPaging2Command.CommandText = "SELECT circleName,circleId,data FROM circle " +
                                                  "WHERE circleId > $circleId ORDER BY circleId ASC LIMIT $_count;";
                     _getPaging2Param1 = _getPaging2Command.CreateParameter();
@@ -376,7 +376,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _getPaging2Param1.Value = inCursor?.ToByteArray();
                 _getPaging2Param2.Value = count+1;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging2Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging2Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<CircleRecord>();
                     int n = 0;

@@ -84,15 +84,18 @@ namespace Odin.Attestation.Controllers
                 return BadRequest("Invalid attestationIdBase64");
             }
 
-            var r = _db.tblAttestationStatus.Get(attestationId);
-            if (r == null)
+            using (var conn = _db.CreateDisposableConnection())
             {
-                return NotFound("No such attestationId found.");
+                var r = _db.tblAttestationStatus.Get(conn, attestationId);
+                if (r == null)
+                {
+                    return NotFound("No such attestationId found.");
+                }
+
+                var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
+
+                return Ok(JsonSerializer.Serialize(result, options));
             }
-
-            var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
-
-            return Ok(JsonSerializer.Serialize(result, options));
         }
 
         /// <summary>
@@ -135,20 +138,23 @@ namespace Odin.Attestation.Controllers
             //
             var r = new AttestationRequestRecord() { attestationId = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 
-            try
+            using (var conn = _db.CreateDisposableConnection())
             {
-                if (_db.tblAttestationRequest.Upsert(r) < 1)
-                    return BadRequest($"Had trouble upserting row into database, try again");
-            }
-            catch (Exception  ex)
-            {
-                return BadRequest($"There was an error: {ex.Message}");
-            }
+                try
+                {
+                    if (_db.tblAttestationRequest.Upsert(conn, r) < 1)
+                        return BadRequest($"Had trouble upserting row into database, try again");
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"There was an error: {ex.Message}");
+                }
 
-            await Task.Delay(0); // Only to not get into async hell.
+                await Task.Delay(0); // Only to not get into async hell.
 
-            // This means the request has been successfully registered
-            return Ok("");
+                // This means the request has been successfully registered
+                return Ok("");
+            }
         }
     }
 }

@@ -30,7 +30,7 @@ public class WaitingListStorage : IDisposable
         _db.CreateDatabase(false);
     }
 
-    public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
+    public DatabaseBase.UnitOfWorkTracker CreateCommitUnitOfWork()
     {
         return _db.CreateCommitUnitOfWork();
     }

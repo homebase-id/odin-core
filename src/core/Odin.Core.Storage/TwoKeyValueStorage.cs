@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage;
@@ -26,9 +27,10 @@ public class TwoKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(Guid key) where T : class
+    public T Get<T>(DatabaseBase.DatabaseConnection conn, Guid key) where T : class
     {
-        var record = _db.tblKeyTwoValue.Get(MakeStorageKey(key));
+        var record = _db.tblKeyTwoValue.Get(conn, MakeStorageKey(key));
+
         if (null == record)
         {
             return null;
@@ -37,9 +39,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(byte[] key2) where T : class
+    public IEnumerable<T> GetByDataType<T>(DatabaseBase.DatabaseConnection conn, byte[] key2) where T : class
     {
-        var list = _db.tblKeyTwoValue.GetByKeyTwo(key2);
+        var list = _db.tblKeyTwoValue.GetByKeyTwo(conn, key2);
         if (null == list)
         {
             return new List<T>();
@@ -48,15 +50,15 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(Guid key1, byte[] dataTypeKey, T value)
+    public void Upsert<T>(DatabaseBase.DatabaseConnection conn, Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        _db.tblKeyTwoValue.Upsert(conn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(Guid id)
+    public void Delete(DatabaseBase.DatabaseConnection conn, Guid id)
     {
-        _db.tblKeyTwoValue.Delete(MakeStorageKey(id));
+        _db.tblKeyTwoValue.Delete(conn, MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

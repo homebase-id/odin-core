@@ -41,8 +41,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public override void Dispose()
         {
-            Commit();
-
             tblCron.Dispose();;
 
             base.Dispose();
@@ -52,9 +50,9 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
         {
-            tblCron.EnsureTableExists(dropExistingTables);
+            tblCron.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
                 Vacuum();
         }

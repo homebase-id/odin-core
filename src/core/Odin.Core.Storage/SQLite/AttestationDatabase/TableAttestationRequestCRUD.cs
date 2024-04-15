@@ -103,16 +103,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS attestationRequest("
                      +"attestationId STRING NOT NULL UNIQUE, "
                      +"requestEnvelope STRING NOT NULL UNIQUE, "
@@ -120,18 +120,18 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                      +", PRIMARY KEY (attestationId)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(AttestationRequestRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, AttestationRequestRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
                                                  "VALUES ($attestationId,$requestEnvelope,$timestamp)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -148,7 +148,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _insertParam1.Value = item.attestationId;
                 _insertParam2.Value = item.requestEnvelope;
                 _insertParam3.Value = item.timestamp.milliseconds;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
@@ -157,13 +157,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // Lock
         }
 
-        public virtual int Upsert(AttestationRequestRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, AttestationRequestRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
                                                  "VALUES ($attestationId,$requestEnvelope,$timestamp)"+
                                                  "ON CONFLICT (attestationId) DO UPDATE "+
@@ -183,19 +183,19 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _upsertParam1.Value = item.attestationId;
                 _upsertParam2.Value = item.requestEnvelope;
                 _upsertParam3.Value = item.timestamp.milliseconds;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 return count;
             } // Lock
         }
-        public virtual int Update(AttestationRequestRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, AttestationRequestRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE attestationRequest " +
                                                  "SET requestEnvelope = $requestEnvelope,timestamp = $timestamp "+
                                                  "WHERE (attestationId = $attestationId)";
@@ -213,7 +213,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _updateParam1.Value = item.attestationId;
                 _updateParam2.Value = item.requestEnvelope;
                 _updateParam3.Value = item.timestamp.milliseconds;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
@@ -256,7 +256,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public int Delete(string attestationId)
+        public int Delete(DatabaseBase.DatabaseConnection conn, string attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
@@ -265,7 +265,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM attestationRequest " +
                                                  "WHERE attestationId = $attestationId";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -274,7 +274,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = attestationId;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAttestationRequestCRUD", attestationId);
                 return count;
@@ -311,7 +311,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public AttestationRequestRecord Get(string attestationId)
+        public AttestationRequestRecord Get(DatabaseBase.DatabaseConnection conn, string attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 0) throw new Exception("Too short");
@@ -323,7 +323,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT requestEnvelope,timestamp FROM attestationRequest " +
                                                  "WHERE attestationId = $attestationId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = attestationId;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -346,7 +346,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // lock
         }
 
-        public List<AttestationRequestRecord> PagingByAttestationId(int count, string inCursor, out string nextCursor)
+        public List<AttestationRequestRecord> PagingByAttestationId(DatabaseBase.DatabaseConnection conn, int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 if (_getPaging1Command == null)
                 {
-                    _getPaging1Command = _database.CreateCommand();
+                    _getPaging1Command = _database.CreateCommand(conn);
                     _getPaging1Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
                                                  "WHERE attestationId > $attestationId ORDER BY attestationId ASC LIMIT $_count;";
                     _getPaging1Param1 = _getPaging1Command.CreateParameter();
@@ -371,7 +371,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _getPaging1Param1.Value = inCursor;
                 _getPaging1Param2.Value = count+1;
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<AttestationRequestRecord>();
                     int n = 0;

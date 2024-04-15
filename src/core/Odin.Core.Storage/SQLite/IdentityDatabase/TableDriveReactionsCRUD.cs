@@ -118,16 +118,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveReactions("
                      +"driveId BLOB NOT NULL, "
                      +"identity BLOB NOT NULL, "
@@ -136,18 +136,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (driveId,identity,postId,singleReaction)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(DriveReactionsRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, DriveReactionsRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO driveReactions (driveId,identity,postId,singleReaction) " +
                                                  "VALUES ($driveId,$identity,$postId,$singleReaction)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -168,7 +168,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam2.Value = item.identity.DomainName;
                 _insertParam3.Value = item.postId.ToByteArray();
                 _insertParam4.Value = item.singleReaction;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                  }
@@ -176,13 +176,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(DriveReactionsRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, DriveReactionsRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO driveReactions (driveId,identity,postId,singleReaction) " +
                                                  "VALUES ($driveId,$identity,$postId,$singleReaction)"+
                                                  "ON CONFLICT (driveId,identity,postId,singleReaction) DO UPDATE "+
@@ -206,17 +206,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam2.Value = item.identity.DomainName;
                 _upsertParam3.Value = item.postId.ToByteArray();
                 _upsertParam4.Value = item.singleReaction;
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
                 return count;
             } // Lock
         }
-        public virtual int Update(DriveReactionsRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, DriveReactionsRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE driveReactions " +
                                                  "SET  "+
                                                  "WHERE (driveId = $driveId,identity = $identity,postId = $postId,singleReaction = $singleReaction)";
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam2.Value = item.identity.DomainName;
                 _updateParam3.Value = item.postId.ToByteArray();
                 _updateParam4.Value = item.singleReaction;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                 }
@@ -293,7 +293,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        public int Delete(DatabaseBase.DatabaseConnection conn, Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -302,7 +302,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM driveReactions " +
                                                  "WHERE driveId = $driveId AND identity = $identity AND postId = $postId AND singleReaction = $singleReaction";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -323,18 +323,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param2.Value = identity.DomainName;
                 _delete0Param3.Value = postId.ToByteArray();
                 _delete0Param4.Value = singleReaction;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 return count;
             } // Lock
         }
 
-        public int DeleteAllReactions(Guid driveId,OdinId identity,Guid postId)
+        public int DeleteAllReactions(DatabaseBase.DatabaseConnection conn, Guid driveId,OdinId identity,Guid postId)
         {
             lock (_delete1Lock)
             {
                 if (_delete1Command == null)
                 {
-                    _delete1Command = _database.CreateCommand();
+                    _delete1Command = _database.CreateCommand(conn);
                     _delete1Command.CommandText = "DELETE FROM driveReactions " +
                                                  "WHERE driveId = $driveId AND identity = $identity AND postId = $postId";
                     _delete1Param1 = _delete1Command.CreateParameter();
@@ -351,7 +351,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete1Param1.Value = driveId.ToByteArray();
                 _delete1Param2.Value = identity.DomainName;
                 _delete1Param3.Value = postId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete1Command);
+                var count = _database.ExecuteNonQuery(conn, _delete1Command);
                 return count;
             } // Lock
         }
@@ -375,7 +375,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public DriveReactionsRecord Get(Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        public DriveReactionsRecord Get(DatabaseBase.DatabaseConnection conn, Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -384,7 +384,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT driveId,identity,postId,singleReaction FROM driveReactions " +
                                                  "WHERE driveId = $driveId AND identity = $identity AND postId = $postId AND singleReaction = $singleReaction LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -405,7 +405,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = identity.DomainName;
                 _get0Param3.Value = postId.ToByteArray();
                 _get0Param4.Value = singleReaction;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

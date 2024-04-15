@@ -107,16 +107,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand(conn))
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
+                        _database.ExecuteNonQuery(conn, cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS attestationStatus("
                      +"attestationId BLOB NOT NULL UNIQUE, "
                      +"status INT NOT NULL, "
@@ -125,18 +125,18 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                      +", PRIMARY KEY (attestationId)"
                      +");"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.Commit();
             }
         }
 
-        public virtual int Insert(AttestationStatusRecord item)
+        public virtual int Insert(DatabaseBase.DatabaseConnection conn, AttestationStatusRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
                                                  "VALUES ($attestationId,$status,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _insertParam3.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam4.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(conn, _insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -169,13 +169,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             } // Lock
         }
 
-        public virtual int Upsert(AttestationStatusRecord item)
+        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, AttestationStatusRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _database.CreateCommand();
+                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created) " +
                                                  "VALUES ($attestationId,$status,$created)"+
                                                  "ON CONFLICT (attestationId) DO UPDATE "+
@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _upsertParam2.Value = item.status;
                 _upsertParam3.Value = now.uniqueTime;
                 _upsertParam4.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -219,13 +219,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return 0;
         }
 
-        public virtual int Update(AttestationStatusRecord item)
+        public virtual int Update(DatabaseBase.DatabaseConnection conn, AttestationStatusRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _database.CreateCommand();
+                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE attestationStatus " +
                                                  "SET status = $status,modified = $modified "+
                                                  "WHERE (attestationId = $attestationId)";
@@ -248,7 +248,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 _updateParam2.Value = item.status;
                 _updateParam3.Value = now.uniqueTime;
                 _updateParam4.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(conn, _updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -305,7 +305,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public int Delete(byte[] attestationId)
+        public int Delete(DatabaseBase.DatabaseConnection conn, byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
@@ -314,7 +314,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 if (_delete0Command == null)
                 {
-                    _delete0Command = _database.CreateCommand();
+                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM attestationStatus " +
                                                  "WHERE attestationId = $attestationId";
                     _delete0Param1 = _delete0Command.CreateParameter();
@@ -323,7 +323,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = attestationId;
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
@@ -367,7 +367,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public AttestationStatusRecord Get(byte[] attestationId)
+        public AttestationStatusRecord Get(DatabaseBase.DatabaseConnection conn, byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
@@ -379,7 +379,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 if (_get0Command == null)
                 {
-                    _get0Command = _database.CreateCommand();
+                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT status,created,modified FROM attestationStatus " +
                                                  "WHERE attestationId = $attestationId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
@@ -388,7 +388,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = attestationId;
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
