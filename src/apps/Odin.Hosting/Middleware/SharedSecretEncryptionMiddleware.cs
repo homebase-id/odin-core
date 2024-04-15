@@ -17,11 +17,9 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Peer;
-using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
-using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Middleware
 {
@@ -96,7 +94,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{AppApiPathConstants.PeerQueryV1}/payload",
                 $"{AppApiPathConstants.PeerQueryV1}/thumb",
-                
+
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
                 
@@ -105,7 +103,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
-                
+
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
