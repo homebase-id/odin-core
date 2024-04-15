@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4 
+        with:
+          path: dotyoucore
+
 
       #
       # Build Frontend
@@ -30,13 +33,6 @@ jobs:
         with:
           dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: ajksdf
-        shell: bash
-        run: |
-          echo "BBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
-          echo $PWD
-          tree
 
       #
       # Build docker image
@@ -61,6 +57,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
         with:
+          context: ./dotyoucore
           file: ./docker/Dockerfile-identity-host
           push: true
           tags: ${{ steps.meta.outputs.tags }}
