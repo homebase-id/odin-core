@@ -20,10 +20,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout dotyoucore
-        uses: actions/checkout@v3
-        with:
-          path: dotyoucore
+      - name: Checkout Repository
+        uses: actions/checkout@v4 
 
       - name: Build frontend
         uses: ./.github/actions/host/build-frontend
