@@ -54,14 +54,9 @@ runs:
       shell: bash
       working-directory: ./client/apps
       run: |
-        echo "XXXXXXXXXXXXXXXX"
-        echo $PWD
         npm run build:owner
         rm -rf ../../src/apps/Odin.Hosting/client/owner-app
-        ls -la packages/owner-app
         mv packages/owner-app/dist ../../src/apps/Odin.Hosting/client/owner-app
-        echo "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ"
-        ls -la ../../src/apps/Odin.Hosting/client/owner-app
 
     - name: Build public-app
       shell: bash
