@@ -53,7 +53,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             tenantSystemStorage.Outbox.Insert(new OutboxRecord()
             {
-                boxId = item.File.DriveId,
+                driveId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
                 priority = item.Priority,

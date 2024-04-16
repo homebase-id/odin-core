@@ -11,163 +11,137 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private Int32 _rowid;
         public Int32 rowid
         {
-            get
-            {
-                return _rowid;
-            }
-            set
-            {
-                _rowid = value;
-            }
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
         }
         private Guid _driveId;
         public Guid driveId
         {
-            get
-            {
-                return _driveId;
-            }
-            set
-            {
-                _driveId = value;
-            }
+           get {
+                   return _driveId;
+               }
+           set {
+                  _driveId = value;
+               }
         }
         private Guid _fileId;
         public Guid fileId
         {
-            get
-            {
-                return _fileId;
-            }
-            set
-            {
-                _fileId = value;
-            }
+           get {
+                   return _fileId;
+               }
+           set {
+                  _fileId = value;
+               }
         }
         private string _recipient;
         public string recipient
         {
-            get
-            {
-                return _recipient;
-            }
-            set
-            {
-                if (value == null) throw new Exception("Cannot be null");
-                if (value?.Length < 0) throw new Exception("Too short");
-                if (value?.Length > 65535) throw new Exception("Too long");
-                _recipient = value;
-            }
+           get {
+                   return _recipient;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
+                  _recipient = value;
+               }
         }
         private Int32 _type;
         public Int32 type
         {
-            get
-            {
-                return _type;
-            }
-            set
-            {
-                _type = value;
-            }
+           get {
+                   return _type;
+               }
+           set {
+                  _type = value;
+               }
         }
         private Int32 _priority;
         public Int32 priority
         {
-            get
-            {
-                return _priority;
-            }
-            set
-            {
-                _priority = value;
-            }
+           get {
+                   return _priority;
+               }
+           set {
+                  _priority = value;
+               }
         }
         private Guid? _dependencyFileId;
         public Guid? dependencyFileId
         {
-            get
-            {
-                return _dependencyFileId;
-            }
-            set
-            {
-                _dependencyFileId = value;
-            }
+           get {
+                   return _dependencyFileId;
+               }
+           set {
+                  _dependencyFileId = value;
+               }
         }
         private Int32 _checkOutCount;
         public Int32 checkOutCount
         {
-            get
-            {
-                return _checkOutCount;
-            }
-            set
-            {
-                _checkOutCount = value;
-            }
+           get {
+                   return _checkOutCount;
+               }
+           set {
+                  _checkOutCount = value;
+               }
         }
         private UnixTimeUtc _nextRunTime;
         public UnixTimeUtc nextRunTime
         {
-            get
-            {
-                return _nextRunTime;
-            }
-            set
-            {
-                _nextRunTime = value;
-            }
+           get {
+                   return _nextRunTime;
+               }
+           set {
+                  _nextRunTime = value;
+               }
         }
         private byte[] _value;
         public byte[] value
         {
-            get
-            {
-                return _value;
-            }
-            set
-            {
-                if (value?.Length < 0) throw new Exception("Too short");
-                if (value?.Length > 65535) throw new Exception("Too long");
-                _value = value;
-            }
+           get {
+                   return _value;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
+                  _value = value;
+               }
         }
         private Guid? _checkOutStamp;
         public Guid? checkOutStamp
         {
-            get
-            {
-                return _checkOutStamp;
-            }
-            set
-            {
-                _checkOutStamp = value;
-            }
+           get {
+                   return _checkOutStamp;
+               }
+           set {
+                  _checkOutStamp = value;
+               }
         }
         private UnixTimeUtcUnique _created;
         public UnixTimeUtcUnique created
         {
-            get
-            {
-                return _created;
-            }
-            set
-            {
-                _created = value;
-            }
+           get {
+                   return _created;
+               }
+           set {
+                  _created = value;
+               }
         }
         private UnixTimeUtcUnique? _modified;
         public UnixTimeUtcUnique? modified
         {
-            get
-            {
-                return _modified;
-            }
-            set
-            {
-                _modified = value;
-            }
+           get {
+                   return _modified;
+               }
+           set {
+                  _modified = value;
+               }
         }
     } // End of class OutboxRecord
 
@@ -268,21 +242,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS outbox("
-                     + "driveId BLOB NOT NULL, "
-                     + "fileId BLOB NOT NULL, "
-                     + "recipient STRING NOT NULL, "
-                     + "type INT NOT NULL, "
-                     + "priority INT NOT NULL, "
-                     + "dependencyFileId BLOB , "
-                     + "checkOutCount INT NOT NULL, "
-                     + "nextRunTime INT NOT NULL, "
-                     + "value BLOB , "
-                     + "checkOutStamp BLOB , "
-                     + "created INT NOT NULL, "
-                     + "modified INT  "
-                     + ", PRIMARY KEY (driveId,fileId,recipient)"
-                     + ");"
-                     + "CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(nextRunTime);"
+                     +"driveId BLOB NOT NULL, "
+                     +"fileId BLOB NOT NULL, "
+                     +"recipient STRING NOT NULL, "
+                     +"type INT NOT NULL, "
+                     +"priority INT NOT NULL, "
+                     +"dependencyFileId BLOB , "
+                     +"checkOutCount INT NOT NULL, "
+                     +"nextRunTime INT NOT NULL, "
+                     +"value BLOB , "
+                     +"checkOutStamp BLOB , "
+                     +"created INT NOT NULL, "
+                     +"modified INT  "
+                     +", PRIMARY KEY (driveId,fileId,recipient)"
+                     +");"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(nextRunTime);"
                      ;
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();
@@ -352,9 +326,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam12.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                {
-                    item.created = now;
-                }
+                 {
+                     item.created = now;
+                 }
                 return count;
             } // Lock
         }
@@ -367,9 +341,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO outbox (driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created) " +
-                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created)" +
-                                                 "ON CONFLICT (driveId,fileId,recipient) DO UPDATE " +
-                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified " +
+                                                 "VALUES ($driveId,$fileId,$recipient,$type,$priority,$dependencyFileId,$checkOutCount,$nextRunTime,$value,$checkOutStamp,$created)"+
+                                                 "ON CONFLICT (driveId,fileId,recipient) DO UPDATE "+
+                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
                                                  "RETURNING created, modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
@@ -424,17 +398,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam12.Value = now.uniqueTime;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
-                    if (rdr.Read())
-                    {
-                        long created = rdr.GetInt64(0);
-                        long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                        item.created = new UnixTimeUtcUnique(created);
-                        if (modified != null)
-                            item.modified = new UnixTimeUtcUnique((long)modified);
-                        else
-                            item.modified = null;
-                        return 1;
-                    }
+                   if (rdr.Read())
+                   {
+                      long created = rdr.GetInt64(0);
+                      long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                      item.created = new UnixTimeUtcUnique(created);
+                      if (modified != null)
+                         item.modified = new UnixTimeUtcUnique((long)modified);
+                      else
+                         item.modified = null;
+                      return 1;
+                   }
                 }
             } // Lock
             return 0;
@@ -448,7 +422,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE outbox " +
-                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified " +
+                                                 "SET type = $type,priority = $priority,dependencyFileId = $dependencyFileId,checkOutCount = $checkOutCount,nextRunTime = $nextRunTime,value = $value,checkOutStamp = $checkOutStamp,modified = $modified "+
                                                  "WHERE (driveId = $driveId,fileId = $fileId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -504,7 +478,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
-                    item.modified = now;
+                     item.modified = now;
                 }
                 return count;
             } // Lock
@@ -514,7 +488,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<OutboxRecord>();
-            byte[] _tmpbuf = new byte[65535 + 1];
+            byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -597,13 +571,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(9, 0, _tmpbuf, 0, 65535 + 1);
+                bytesRead = rdr.GetBytes(9, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in value...");
                 item.value = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)bytesRead);
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(10))
@@ -630,9 +604,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.modified = new UnixTimeUtcUnique(rdr.GetInt64(12));
             }
             return item;
-        }
+       }
 
-        public int Delete(Guid driveId, Guid fileId, string recipient)
+        public int Delete(Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -663,10 +637,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId, Guid fileId)
+        public OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
-            byte[] _tmpbuf = new byte[65535 + 1];
+            byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -724,13 +698,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(6, 0, _tmpbuf, 0, 65535 + 1);
+                bytesRead = rdr.GetBytes(6, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in value...");
                 item.value = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)bytesRead);
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(7))
@@ -757,9 +731,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.modified = new UnixTimeUtcUnique(rdr.GetInt64(9));
             }
             return item;
-        }
+       }
 
-        public List<OutboxRecord> Get(Guid driveId, Guid fileId)
+        public List<OutboxRecord> Get(Guid driveId,Guid fileId)
         {
             lock (_get0Lock)
             {
@@ -787,7 +761,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     var result = new List<OutboxRecord>();
                     while (true)
                     {
-                        result.Add(ReadRecordFromReader0(rdr, driveId, fileId));
+                        result.Add(ReadRecordFromReader0(rdr, driveId,fileId));
                         if (!rdr.Read())
                             break;
                     }
@@ -796,13 +770,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid driveId, Guid fileId, string recipient)
+        public OutboxRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
             var result = new List<OutboxRecord>();
-            byte[] _tmpbuf = new byte[65535 + 1];
+            byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -854,13 +828,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535 + 1);
+                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
                     throw new Exception("Too little data in value...");
                 item.value = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)bytesRead);
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(6))
@@ -887,9 +861,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
             }
             return item;
-        }
+       }
 
-        public OutboxRecord Get(Guid driveId, Guid fileId, string recipient)
+        public OutboxRecord Get(Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -921,7 +895,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     {
                         return null;
                     }
-                    var r = ReadRecordFromReader1(rdr, driveId, fileId, recipient);
+                    var r = ReadRecordFromReader1(rdr, driveId,fileId,recipient);
                     return r;
                 } // using
             } // lock

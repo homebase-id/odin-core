@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -18,33 +22,106 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f2 = SequentialGuid.CreateGuid();
             var v1 = SequentialGuid.CreateGuid().ToByteArray();
             var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
             var tshi = UnixTimeUtc.Now();
 
-            var r = db.tblOutbox.Get(f1, "frodo.baggins.me");
+            var r = db.tblOutbox.Get(driveId, f1, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
                 Assert.Fail();
-            if ((r.timeStamp < tslo) || (r.timeStamp > tshi))
+            if (r.dependencyFileId != null)
                 Assert.Fail();
             if (r.priority != 0)
                 Assert.Fail();
 
-            r = db.tblOutbox.Get(f2, "frodo.baggins.me");
+            r = db.tblOutbox.Get(driveId, f2, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
                 Assert.Fail();
-            if ((r.timeStamp < tslo) || (r.timeStamp > tshi))
+            if (ByteArrayUtil.muidcmp(r.dependencyFileId, did1) != 0)
                 Assert.Fail();
             if (r.priority != 10)
                 Assert.Fail();
+        }
+
+        [TestCase()]
+        public void InsertCannotInsertDuplicateIdForSameRecipient()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            try
+            {
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+                Assert.Fail();
+            }
+            catch
+            {
+                // Pass
+            }
+        }
+
+        [TestCase()]
+        public void InsertCanInsertDuplicateIdForTwoRecipients()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            try
+            {
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+                db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "sam.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+                // Pass
+            }
+            catch
+            {
+                Assert.Fail();
+            }
+        }
+
+        [TestCase()]
+        public void GetByTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var did1 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 10, dependencyFileId = did1, value = v2 });
+
+            var r = db.tblOutbox.Get(driveId, f1);
+
+            Assert.IsTrue(r.Count == 1);
         }
 
         [TestCase()]
@@ -63,81 +140,222 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var v3 = SequentialGuid.CreateGuid().ToByteArray();
             var v4 = SequentialGuid.CreateGuid().ToByteArray();
             var v5 = SequentialGuid.CreateGuid().ToByteArray();
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
             var tshi = UnixTimeUtc.Now();
 
             // pop one item from the Outbox
-            var r = db.tblOutbox.PopSpecificBox(boxid, 1);
-            if (r.Count != 1)
+            var r = db.tblOutbox.CheckOutItem();
+            if (r == null)
                 Assert.Fail();
+            if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
+                Assert.Fail();
+            if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
+                Assert.Fail();
+            if (r.priority != 0)
+                Assert.Fail();
+            Assert.IsTrue(r.recipient == "frodo.baggins.me");
 
-            if (ByteArrayUtil.muidcmp(r[0].fileId, f1) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[0].value, v1) != 0)
-                Assert.Fail();
-            if (r[0].priority != 0)
-                Assert.Fail();
-            if ((r[0].timeStamp < tslo) || (r[0].timeStamp > tshi))
-                Assert.Fail();
-            Assert.IsTrue(r[0].recipient == "frodo.baggins.me");
+            var (ti, tp, nrt) = db.tblOutbox.OutboxStatus();
+            Debug.Assert(ti == 5);
+            Debug.Assert(tp == 1);
+            var (ti1, tp1, nrt1) = db.tblOutbox.OutboxStatusDrive(driveId);
+            Assert.IsTrue(ti == ti1);
+            Assert.IsTrue(tp == tp1);
+            Assert.IsTrue(nrt == nrt1);
 
             // pop all the remaining items from the Outbox
-            r = db.tblOutbox.PopSpecificBox(boxid, 10);
-            if (r.Count != 4)
+            r = db.tblOutbox.CheckOutItem();
+            if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                 Assert.Fail();
+            if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
+                Assert.Fail();
+            if (r.priority != 1)
+                Assert.Fail();
+            Assert.IsTrue(r.recipient == "frodo.baggins.me");
 
-            if (ByteArrayUtil.muidcmp(r[0].fileId, f2) != 0)
+            r = db.tblOutbox.CheckOutItem();
+            if (ByteArrayUtil.muidcmp(r.fileId, f3) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[0].value, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.value, v3) != 0)
                 Assert.Fail();
-            if (r[0].priority != 1)
+            if (r.priority != 2)
                 Assert.Fail();
-            if ((r[0].timeStamp < tslo) || (r[0].timeStamp > tshi))
-                Assert.Fail();
-            Assert.IsTrue(r[0].recipient == "frodo.baggins.me");
+            Assert.IsTrue(r.recipient == "frodo.baggins.me");
 
-            if (ByteArrayUtil.muidcmp(r[1].fileId, f3) != 0)
+            r = db.tblOutbox.CheckOutItem();
+            if (ByteArrayUtil.muidcmp(r.fileId, f4) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[1].value, v3) != 0)
+            if (ByteArrayUtil.muidcmp(r.value, v4) != 0)
                 Assert.Fail();
-            if (r[1].priority != 2)
+            if (r.priority != 3)
                 Assert.Fail();
-            if ((r[1].timeStamp < tslo) || (r[1].timeStamp > tshi))
-                Assert.Fail();
-            Assert.IsTrue(r[1].recipient == "frodo.baggins.me");
+            Assert.IsTrue(r.recipient == "frodo.baggins.me");
 
-            if (ByteArrayUtil.muidcmp(r[2].fileId, f4) != 0)
+            r = db.tblOutbox.CheckOutItem();
+            if (ByteArrayUtil.muidcmp(r.fileId, f5) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[2].value, v4) != 0)
+            if (ByteArrayUtil.muidcmp(r.value, v5) != 0)
                 Assert.Fail();
-            if (r[2].priority != 3)
+            if (r.priority != 4)
                 Assert.Fail();
-            if ((r[2].timeStamp < tslo) || (r[2].timeStamp > tshi))
-                Assert.Fail();
-            Assert.IsTrue(r[2].recipient == "frodo.baggins.me");
+            Assert.IsTrue(r.recipient == "frodo.baggins.me");
 
-            if (ByteArrayUtil.muidcmp(r[3].fileId, f5) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[3].value, v5) != 0)
-                Assert.Fail();
-            if (r[3].priority != 4)
-                Assert.Fail();
-            if ((r[3].timeStamp < tslo) || (r[3].timeStamp > tshi))
-                Assert.Fail();
-            Assert.IsTrue(r[3].recipient == "frodo.baggins.me");
-
-            // pop to make sure there are no more items
-            r = db.tblOutbox.PopSpecificBox(boxid, 1);
-            if (r.Count != 0)
+            r = db.tblOutbox.CheckOutItem();
+            if (r != null)
                 Assert.Fail();
         }
+
+        // Make sure priority takes precedence
+        [TestCase()]
+        public void PriorityTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var v3 = SequentialGuid.CreateGuid().ToByteArray();
+            var v4 = SequentialGuid.CreateGuid().ToByteArray();
+            var v5 = SequentialGuid.CreateGuid().ToByteArray();
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 4, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 0, value = v5 });
+
+            var r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.priority == 0);
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.priority == 1);
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.priority == 2);
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.priority == 3);
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.priority == 4);
+        }
+
+        // With the same priority, make sure nextRunTime matters
+        [TestCase()]
+        public void NextRunTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var v3 = SequentialGuid.CreateGuid().ToByteArray();
+            var v4 = SequentialGuid.CreateGuid().ToByteArray();
+            var v5 = SequentialGuid.CreateGuid().ToByteArray();
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "2frodo.baggins.me", priority = 0, value = v2 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "3frodo.baggins.me", priority = 0, value = v3 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "4frodo.baggins.me", priority = 0, value = v4 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "5frodo.baggins.me", priority = 0, value = v5 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "1frodo.baggins.me", priority = 0, value = v1 });
+
+            var r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.recipient == "2frodo.baggins.me");
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.recipient == "3frodo.baggins.me");
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.recipient == "4frodo.baggins.me");
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.recipient == "5frodo.baggins.me");
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.recipient == "1frodo.baggins.me");
+        }
+
+
+        // Make sure dependency works
+        [TestCase()]
+        public void DependencyTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var v3 = SequentialGuid.CreateGuid().ToByteArray();
+            var v4 = SequentialGuid.CreateGuid().ToByteArray();
+            var v5 = SequentialGuid.CreateGuid().ToByteArray();
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", dependencyFileId = f3, priority = 0, value = v2 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", dependencyFileId = null, priority = 0, value = v3 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", dependencyFileId = f2, priority = 0, value = v4 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", dependencyFileId = f4, priority = 0, value = v5 });
+            Thread.Sleep(2);
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", dependencyFileId = f5, priority = 0, value = v1 });
+
+            var r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
+            var nr = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(nr == null);
+
+            db.tblOutbox.CompleteAndRemove((Guid)r.checkOutStamp);
+
+            // Get the next one
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
+            nr = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(nr == null);
+            db.tblOutbox.CompleteAndRemove((Guid)r.checkOutStamp);
+
+            // Get the next one
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
+            nr = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(nr == null);
+            db.tblOutbox.CompleteAndRemove((Guid)r.checkOutStamp);
+
+            // Get the next one
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
+            nr = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(nr == null);
+            db.tblOutbox.CompleteAndRemove((Guid)r.checkOutStamp);
+
+            // Get the next one
+            r = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
+            nr = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(nr == null);
+            db.tblOutbox.CompleteAndRemove((Guid)r.checkOutStamp);
+        }
+
 
         [TestCase()]
         public void PopCancelTest()
@@ -150,35 +368,38 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f3 = SequentialGuid.CreateGuid();
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 3);
+            var r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
 
-            db.tblOutbox.PopCancelAll((Guid)r1[0].popStamp);
+            var r2 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r2.fileId, f2) == 0);
 
-            var r3 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            db.tblOutbox.CheckInAsCancelled((Guid)r1.checkOutStamp, UnixTimeUtc.Now().AddSeconds(2));
 
-            if (r3.Count != 2)
-                Assert.Fail();
+            var r3 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r3.fileId, f3) == 0);
 
-            if (ByteArrayUtil.muidcmp(r1[0].fileId, r3[0].fileId) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r1[1].fileId, r3[1].fileId) != 0)
-                Assert.Fail();
+            var r4 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r4.fileId, f4) == 0);
 
-            db.tblOutbox.PopCancelAll((Guid)r3[0].popStamp);
-            db.tblOutbox.PopCancelAll((Guid)r2[0].popStamp);
-            var r4 = db.tblOutbox.PopSpecificBox(boxid, 10);
+            var r5 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r5.fileId, f5) == 0);
 
-            if (r4.Count != 5)
-                Assert.Fail();
+            r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r1 == null);
+
+            Thread.Sleep(3000); // Wait until it's available again
+
+            r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
         }
 
 
@@ -194,21 +415,55 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
-            db.tblOutbox.PopCommitAll((Guid)r1[0].popStamp);
-
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 10);
-            if (r2.Count != 3)
-                Assert.Fail();
+            var r1 = db.tblOutbox.CheckOutItem();
+            db.tblOutbox.CompleteAndRemove((Guid)r1.checkOutStamp);
+            var (ti, tp, nrt) = db.tblOutbox.OutboxStatus();
+            Debug.Assert(ti == 4);
+            Debug.Assert(tp == 0);
         }
+
+
+        [TestCase()]
+        public void NextRunTest2()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+
+            var driveId = SequentialGuid.CreateGuid();
+
+            var tilo = UnixTimeUtc.Now();
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            var tihi = UnixTimeUtc.Now();
+
+            var r = db.tblOutbox.CheckOutItem();
+            var r2 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(r.nextRunTime >= tilo);
+            Assert.IsTrue(r.nextRunTime <= tihi);
+
+            var t = db.tblOutbox.NextScheduledItem();
+            Assert.IsTrue(t == null); // There is no next item
+
+            var nextTime = UnixTimeUtc.Now().AddHours(1);
+            db.tblOutbox.CheckInAsCancelled((Guid)r.checkOutStamp, nextTime);
+            db.tblOutbox.CheckInAsCancelled((Guid)r2.checkOutStamp, UnixTimeUtc.Now().AddDays(7));
+
+            t = db.tblOutbox.NextScheduledItem();
+            Assert.IsTrue(t == nextTime);
+        }
+
+
 
         [TestCase()]
         public void PopRecoverDeadTest()
@@ -222,78 +477,37 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var boxid = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
-            var r1 = db.tblOutbox.PopSpecificBox(boxid, 2);
+            var r1 = db.tblOutbox.CheckOutItem();
+            var r2 = db.tblOutbox.CheckOutItem();
+
+            var (ti, tp, nrt) = db.tblOutbox.OutboxStatus();
+            Debug.Assert(ti == 5);
+            Debug.Assert(tp == 2);
 
             // Recover all items older than the future (=all)
-            db.tblOutbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(2));
+            db.tblOutbox.RecoverCheckedOutDeadItems(UnixTimeUtc.Now().AddSeconds(2));
 
-            var r2 = db.tblOutbox.PopSpecificBox(boxid, 10);
-            if (r2.Count != 5)
-                Assert.Fail();
+            (ti, tp, nrt) = db.tblOutbox.OutboxStatus();
+            Debug.Assert(ti == 5);
+            Debug.Assert(tp == 0);
+
+            r1 = db.tblOutbox.CheckOutItem();
+            r2 = db.tblOutbox.CheckOutItem();
 
             // Recover items older than long ago (=none)
-            db.tblOutbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(-2));
-            var r3 = db.tblOutbox.PopSpecificBox(boxid, 10);
-            if (r3.Count != 0)
-                Assert.Fail();
+            db.tblOutbox.RecoverCheckedOutDeadItems(UnixTimeUtc.Now().AddSeconds(-2));
+            (ti, tp, nrt) = db.tblOutbox.OutboxStatus();
+            Debug.Assert(ti == 5);
+            Debug.Assert(tp == 2);
         }
-
-
-        [TestCase()]
-        public void DualBoxTest()
-        {
-            using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-
-            var f1 = SequentialGuid.CreateGuid();
-            var v1 = SequentialGuid.CreateGuid();
-            var f2 = SequentialGuid.CreateGuid();
-            var f3 = SequentialGuid.CreateGuid();
-            var f4 = SequentialGuid.CreateGuid();
-            var f5 = SequentialGuid.CreateGuid();
-
-            var b1 = SequentialGuid.CreateGuid();
-            var b2 = SequentialGuid.CreateGuid();
-
-            // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b2, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-
-            // Pop the oldest record from the Outbox 1
-            var r1 = db.tblOutbox.PopSpecificBox(b1, 1);
-            var r2 = db.tblOutbox.PopSpecificBox(b1, 10);
-            if (r2.Count != 1)
-                Assert.Fail();
-
-            // Then pop 10 oldest record from the Outbox (only 2 are available now)
-            var r3 = db.tblOutbox.PopSpecificBox(b2, 10);
-            if (r3.Count != 3)
-                Assert.Fail();
-
-            // The thread that popped the first record is now done.
-            // Commit the pop
-            db.tblOutbox.PopCommitAll((Guid)r1[0].popStamp);
-
-            // Oh no, the second thread running on the second pop of records
-            // encountered a terrible error. Undo the pop
-            db.tblOutbox.PopCancelAll((Guid)r2[0].popStamp);
-
-            var r4 = db.tblOutbox.PopSpecificBox(b1, 10);
-            if (r4.Count != 1)
-                Assert.Fail();
-        }
-
 
         [TestCase()]
         public void ExampleTest()
@@ -320,216 +534,39 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // An Outbox is simply a GUID. E.g. the DriveID.
             // A record has a fileId, priority and a custom value
             // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
 
-            // A thread1 pops one record from Outbox1 (it'll get the oldest one)
-            // Popping the record "reserves it" for your thread but doesn't remove
-            // it from the Outbox until the pop is committed or cancelled.
-            var r1 = db.tblOutbox.PopSpecificBox(box1id, 1);
+            // A thread1 checks out one record from Outbox1 (it'll get the highest priority & one with the oldest nextRunTime)
+            // Checking out the record "reserves it" for your thread but doesn't remove
+            // it from the Outbox until it is checked back in or removed. 
+            var r1 = db.tblOutbox.CheckOutItem();
 
-            // Another thread2 then pops 10 records from Outbox1 (only 2 are available now)
-            var r2 = db.tblOutbox.PopSpecificBox(box1id, 10);
+            // Another thread2 also checks out a record
+            var r2 = db.tblOutbox.CheckOutItem();
 
             // The thread1 that popped the first record is now done.
-            // Commit the pop, which effectively deletes it from the Outbox
+            // Everything was fine, so the item is completed & removed.
             // You of course call commit as the very final step when you're
-            // certain the item has been saved correctly.
-            db.tblOutbox.PopCommitAll((Guid) r1[0].popStamp);
+            // certain the item has been dealt with correctly.
+            db.tblOutbox.CompleteAndRemove((Guid)r1.checkOutStamp);
 
             // Imagine that thread2 encountered a terrible error, e.g. out of disk space
-            // Undo the pop and put the items back into the Outbox
-            db.tblOutbox.PopCancelAll((Guid)r2[0].popStamp);
+            // Undo the pop and put the items back into the Outbox. And specify when we
+            // want to try to run it again. You can use the checkOutCount to incrementally
+            // make the durations longer
+            db.tblOutbox.CheckInAsCancelled((Guid)r2.checkOutStamp, UnixTimeUtc.Now().AddSeconds(r2.checkOutCount * 5));
 
-            // Thread3 pops 10 items from Outbox2 (will retrieve 2)
-            var r3 = db.tblOutbox.PopSpecificBox(box2id, 10);
+            // Thread3 pops an items 
+            var r3 = db.tblOutbox.CheckOutItem();
 
             // Now imagine that there is a power outage, the server crashes.
             // The popped items are in "limbo" because they are not committed and not cancelled.
             // You can recover items popped for more than X seconds like this:
-            db.tblOutbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(60*10));
-
-            // That would recover all popped items that have not been committed or cancelled.
-        }
-
-
-        [TestCase()]
-        public void PopCancelListTest()
-        {
-            using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-
-            var f1 = SequentialGuid.CreateGuid();
-            var v1 = SequentialGuid.CreateGuid().ToByteArray();
-            var f2 = SequentialGuid.CreateGuid();
-            var f3 = SequentialGuid.CreateGuid();
-
-            var b1 = SequentialGuid.CreateGuid();
-
-            // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-
-            // Pop all records from the Outbox,be sure we get 3
-            var r1 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r1.Count != 3)
-                Assert.Fail();
-
-            // Cancel two of the three records
-            db.tblOutbox.PopCancelList((Guid)r1[0].popStamp, new List<Guid>() { f1, f2 });
-
-            // Pop all the recods from the Outbox, but sure we get the two cancelled
-            var r2 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r2.Count != 2)
-                Assert.Fail();
-
-            // Cancel one of the two records
-            db.tblOutbox.PopCancelList((Guid)r2[0].popStamp, new List<Guid>() { f1 });
-
-            // Pop all the recods from the Outbox, but sure we get the two cancelled
-            var r3 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r3.Count != 1)
-                Assert.Fail();
-        }
-
-
-        [TestCase()]
-        public void PopCommitListTest()
-        {
-            using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-
-            var f1 = SequentialGuid.CreateGuid();
-            var v1 = SequentialGuid.CreateGuid().ToByteArray();
-            var f2 = SequentialGuid.CreateGuid();
-            var f3 = SequentialGuid.CreateGuid();
-
-            var b1 = SequentialGuid.CreateGuid();
-
-            // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-
-            // Pop all records from the Outbox,be sure we get 3
-            var r1 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r1.Count != 3)
-                Assert.Fail();
-
-            // Commit one of the three records
-            db.tblOutbox.PopCommitList((Guid)r1[0].popStamp, new List<Guid>() { f2 });
-
-            // Cancel the rest (f1, f3)
-            db.tblOutbox.PopCancelAll((Guid)r1[0].popStamp);
-
-            // Pop all records from the Outbox,be sure we get 2 (f1 & f3)
-            var r2 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r2.Count != 2)
-                Assert.Fail();
-
-            // Commit all records
-            db.tblOutbox.PopCommitList((Guid)r2[0].popStamp, new List<Guid>() { f1, f3 });
-
-            // Cancel nothing
-            db.tblOutbox.PopCancelAll((Guid)r2[0].popStamp);
-            // Get everything back
-            db.tblOutbox.PopRecoverDead(new UnixTimeUtc());
-
-            // Pop all records from the Outbox,be sure we get 2 (f1 & f3)
-            var r3 = db.tblOutbox.PopSpecificBox(b1, 5);
-            if (r3.Count != 0)
-                Assert.Fail();
-        }
-
-
-        [TestCase()]
-        public void PopAnyBoxTest()
-        {
-            using var db = new IdentityDatabase("");
-            db.CreateDatabase();
-
-            var f1 = SequentialGuid.CreateGuid();
-            var v1 = SequentialGuid.CreateGuid().ToByteArray();
-            var f2 = SequentialGuid.CreateGuid();
-            var f3 = SequentialGuid.CreateGuid();
-            var f4 = SequentialGuid.CreateGuid();
-            var f5 = SequentialGuid.CreateGuid();
-            var f6 = SequentialGuid.CreateGuid();
-            var f7 = SequentialGuid.CreateGuid();
-            var f8 = SequentialGuid.CreateGuid();
-            var f9 = SequentialGuid.CreateGuid();
-            var f10 = SequentialGuid.CreateGuid();
-
-            var box1id = SequentialGuid.CreateGuid();
-            var box2id = SequentialGuid.CreateGuid();
-            var box3id = SequentialGuid.CreateGuid();
-
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f6, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f7, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f8, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f9, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxRecord() { boxId = box3id, fileId = f10, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-
-            var (tot, pop, poptime) = db.tblOutbox.PopStatus();
-            Assert.AreEqual(10, tot);
-            Assert.AreEqual( 0, pop);
-            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
-
-            (tot, pop, poptime) = db.tblOutbox.PopStatusSpecificBox(box1id);
-            Assert.AreEqual(3, tot);
-            Assert.AreEqual(0, pop);
-            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
-
-            var tbefore = new UnixTimeUtc();
-            var r = db.tblOutbox.PopSpecificBox(box1id, 1000);
-            var tafter = new UnixTimeUtc();
-
-            if (r.Count != 3)
-                Assert.Fail();
-
-            (tot, pop, poptime) = db.tblOutbox.PopStatus();
-            Assert.AreEqual(10, tot);
-            Assert.AreEqual( 3, pop);
-            if (poptime < tbefore) // We can't have popped before we popped
-                Assert.Fail();
-            if (poptime > tafter) // We can't have popped after we popped
-                Assert.Fail();
-
-            (tot, pop, poptime) = db.tblOutbox.PopStatusSpecificBox(box1id);
-            Assert.AreEqual(3, tot);
-            Assert.AreEqual(3, pop);
-            if (poptime < tbefore) // We can't have popped before we popped
-                Assert.Fail();
-            if (poptime > tafter) // We can't have popped after we popped
-                Assert.Fail();
-
-
-            if (ByteArrayUtil.muidcmp(r[0].fileId, f1) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[0].boxId, box1id) != 0)
-                Assert.Fail();
-            Assert.IsTrue(r[0].recipient == "frodo.baggins.me");
-
-            if (ByteArrayUtil.muidcmp(r[1].fileId, f2) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[1].boxId, box1id) != 0)
-                Assert.Fail();
-            Assert.IsTrue(r[1].recipient == "frodo.baggins.me");
-
-            if (ByteArrayUtil.muidcmp(r[2].fileId, f3) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r[2].boxId, box1id) != 0)
-                Assert.Fail();
-            Assert.IsTrue(r[2].recipient == "frodo.baggins.me");
+            db.tblOutbox.RecoverCheckedOutDeadItems(UnixTimeUtc.Now().AddSeconds(60 * 10));
 
             // That would recover all popped items that have not been committed or cancelled.
         }

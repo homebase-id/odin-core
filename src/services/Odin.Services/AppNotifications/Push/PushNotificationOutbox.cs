@@ -42,7 +42,7 @@ public class PushNotificationOutbox
 
         _tenantSystemStorage.Outbox.Upsert(new OutboxRecord()
         {
-            boxId = _notificationBoxId,
+            driveId = _notificationBoxId,
             recipient = recipient,
             fileId = fileId,
             priority = 10,
