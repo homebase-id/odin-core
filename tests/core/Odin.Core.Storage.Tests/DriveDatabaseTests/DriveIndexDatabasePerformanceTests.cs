@@ -33,6 +33,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// 2024-04-05 Bandwidth: 17301 rows / second
         /// REMOVED EVERYTHING TRANSACTION WRAPPER
         /// 2024-04-06 Bandwidth: 3918 rows / second
+        /// 
+        /// 2024-04-15 Standard Output, first with multi-connections
+        /// Bandwidth: 4080 rows / second
         /// </summary>
         [Test]
         public void PerformanceTest01()
@@ -82,6 +85,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// 2024-04-05 Bandwidth: 17301 rows / second
         /// REMOVED EVERYTHING TRANSACTION WRAPPER
         /// 2024-04-06 Bandwidth: 16578 rows / second
+        /// 
+        /// 2024-04-15 Standard Output, first with multi-connections
+        /// 00:00:02.71 : Added 50000 rows in mainindex, ACL, Tags
+        /// Bandwidth: 18416 rows / second
+        /// DB Opened 1, Closed 0
         /// </summary>
         [Test]
         public void PerformanceTest01B()
@@ -133,6 +141,10 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// 2024-04-05 Bandwidth: 7733 rows / second
         /// REMOVED EVERYTHING TRANSACTION WRAPPER
         /// 2024-04-06 Bandwidth: Bandwidth: 3898 rows / second
+        /// 
+        /// 2024-04-15 Standard Output, first with multi-connections
+        /// Bandwidth: 3961 rows / second
+        /// 
         /// </summary>
         [Test]
         public void PerformanceTest02() // Test batch of 100
@@ -188,6 +200,9 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// 2024-04-05: Bandwidth: 8376 rows / second
         /// REMOVED EVERYTHING TRANSACTION WRAPPER
         /// 2024-04-06 Bandwidth: 8547 rows / second
+        /// 
+        /// 2024-04-15 Standard Output, first with multi-connections
+        /// Bandwidth: 20491 rows / second
         /// </summary>
         [Test]
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
@@ -275,15 +290,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             return timers;
         }
 
+        /// <summary>
+        /// 2024-04-15 Standard Output, first with multi-connections
+        /// Bandwidth: 4560 rows / second
+        /// </summary>
         [Test]
         public void PerformanceTest10()
         {
-
-            var s = new SqliteConnectionStringBuilder() { DataSource = "my.db", Pooling = true, Cache = SqliteCacheMode.Shared };
-            var t = s.ConnectionString;
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase($"Data Source=mydatabase.db; Mode=ReadWriteCreate; Cache=Shared; Pooling=true");
+            using var _testDatabase = new IdentityDatabase($"mydatabase.db");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {

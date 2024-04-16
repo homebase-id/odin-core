@@ -74,8 +74,12 @@ namespace Odin.Core.Storage.SQLite
 
         public virtual void Dispose()
         {
+            if (!_wasDisposed)
+            {
+                using (var connection = CreateDisposableConnection())
+                    SqliteConnection.ClearPool(connection._connection);
+            }
             _wasDisposed = true;
-
         }
 
         /// <summary>
