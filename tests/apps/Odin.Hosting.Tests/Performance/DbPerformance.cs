@@ -38,7 +38,7 @@ namespace Odin.Hosting.Tests.Performance
             _scaffold.RunBeforeAnyTests();
             _db = new IdentityDatabase("");
             _db.CreateDatabase();
-            storage = new SingleKeyValueStorage(_db.tblKeyValue, testContextKey);
+            storage = new SingleKeyValueStorage(_db, testContextKey);
 
             for (int i = 0; i < KEYS; i++)
             {
