@@ -7,6 +7,10 @@ inputs:
   github_token:
     description: "Github token for package repo"
     required: true
+  git_ref:
+    description: "Branch or commit to build frontend from"
+    required: false
+    default: "main"
 
 runs:
   using: "composite"
@@ -22,6 +26,7 @@ runs:
       with:
         repository: YouFoundation/dotyoucore-js
         token: ${{ inputs.dotyoucore_lib_token }}
+        ref: ${{ inputs.git_ref }}
         path: client/apps
 
     - name: Authenticate to Github packages
