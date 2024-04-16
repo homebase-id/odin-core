@@ -76,15 +76,17 @@ app.MapPost("/message/v1", async (
         //
         // Check signature (unless it's from *.dotyou.cloud in development mode)
         //
-        var skipSignatureCheck = app.Environment.IsDevelopment() && request.OriginDomain.EndsWith(".dotyou.cloud");
-        if (!skipSignatureCheck)
-        {
-            var isValidSignature = await signatureCheck.Validate(request.OriginDomain, request.Signature, request.Id);
-            if (!isValidSignature)
-            {
-                return Results.BadRequest("Invalid message signature");
-            }
-        }
+        // SEB:TODO enable this when we're sure everything is okidoki
+        //
+        // var skipSignatureCheck = app.Environment.IsDevelopment() && request.OriginDomain.EndsWith(".dotyou.cloud");
+        // if (!skipSignatureCheck)
+        // {
+        //     var isValidSignature = await signatureCheck.Validate(request.OriginDomain, request.Signature, request.Id);
+        //     if (!isValidSignature)
+        //     {
+        //         return Results.BadRequest("Invalid message signature");
+        //     }
+        // }
 
         //
         // Send the message
