@@ -1,0 +1,45 @@
+name: "Host: Deploy image to environment"
+description: "Deploy a Docker image to a selected environment"
+inputs:
+  image_name:
+    description: "Image name to deploy (e.g. ghcr.io/youfoundation/dotyoucore:v0.1.107)"
+    required: true
+  env_name:
+    description: "Environment name to deploy to (e.g. bleeding_edge)"
+    required: true
+  force_update:
+    description: "Force update of the Docker image (true/false)"
+    required: true
+  ansible_host:
+    description: "Ansible host"
+    required: true
+  ansible_username:
+    description: "Ansible username"
+    required: true
+  ansible_ssh_key:  
+    description: "Ansible SSH key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Deploy to selected environment
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ inputs.ansible_host }}
+        username: ${{ inputs.ansible_username }}
+        key: ${{ inputs.ansible_ssh_key }}
+        script_stop: true
+        script: |
+          docker_image_name=$(echo '${{ inputs.image_name }}' | tr '[:upper:]' '[:lower:]')
+          echo "Using docker image name: $docker_image_name"
+          source $HOME/.profile
+          export ANSIBLE_WORK_FOLDER=/tmp/$(uuidgen)
+          echo "Work folder: $ANSIBLE_WORK_FOLDER"
+          mkdir -p $ANSIBLE_WORK_FOLDER
+          cd $ANSIBLE_WORK_FOLDER
+          git clone --depth 1 git@github.com:YouFoundation/DevOps.git .
+          cd $ANSIBLE_WORK_FOLDER/ansible
+          ansible-playbook deploy-identity-hosts.yml --limit ${{ inputs.env_name }} --extra-vars "docker_force_image_update=${{ inputs.force_update }} identity_host_docker_image=$docker_image_name"
+          cd /tmp
+          rm -rf $ANSIBLE_WORK_FOLDER
