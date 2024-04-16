@@ -36,8 +36,6 @@ jobs:
         with:
           dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          git_ref: "9a4a2fae75aa7d533546a55fd20ca9e8233444d5"
-
 
       #
       # Build Docker image
