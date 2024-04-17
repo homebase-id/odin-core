@@ -67,8 +67,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 FileSystemType = fileSystemType
             };
 
-            var tenant = _contextAccessor.GetCurrent().Tenant;
+            var tenant = OdinContext.Tenant;
             serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
+
+            // var priority = options.Priority switch
+            // {
+            //     PriorityOptions.High => 1000,
+            //     PriorityOptions.Medium => 2000,
+            //     _ => 3000
+            // };
+
+            // var outboxStatus = await EnqueueOutboxItems(internalFile, options, sfo, priority, OutboxItemType.File);
+            // await outboxProcessor.StartOutboxProcessing();
+            // return await MapOutboxCreationResult(outboxStatus);
 
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
@@ -79,29 +90,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return await SendFileLater(internalFile, options, sfo);
         }
 
-        public async Task ProcessOutbox()
-        {
-            var batchSize = odinConfiguration.Transit.OutboxBatchSize;
-
-            //Note: here we can prioritize outbox processing by drive if need be
-            var page = await driveManager.GetDrives(PageOptions.All);
-
-            foreach (var drive in page.Results)
-            {
-                var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                await SendOutboxItemsBatchToPeers(batch);
-
-                // Results will be a set of outbox processing results
-                // these have not been converted to client codes we we have to decide what
-                // to report back to the job;
-
-                // at this point, they are already back in the peer outbox; marked as failure
-                // foreach (var failures in results.Where(r => r.TransferResult != TransferResult.Success))
-                // {
-                //     //todo: decide if we send failures back or just a code indicating - something went wrong
-                // }
-            }
-        }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
             FileTransferOptions fileTransferOptions, IEnumerable<string> recipients)
@@ -193,7 +181,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items)
+        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<OutboxItem> items)
         {
             var sendFileTasks = new List<Task<OutboxProcessingResult>>();
             var results = new List<OutboxProcessingResult>();
@@ -202,7 +190,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             await Task.WhenAll(sendFileTasks);
 
-            List<TransitOutboxItem> filesForDeletion = new List<TransitOutboxItem>();
+            List<OutboxItem> filesForDeletion = new List<OutboxItem>();
             sendFileTasks.ForEach(task =>
             {
                 var sendResult = task.Result;
@@ -233,7 +221,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return results;
         }
 
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem)
+        private async Task<OutboxProcessingResult> SendOutboxItemAsync(OutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -429,17 +417,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return (PeerResponseCode.Unknown, TransferResult.UnknownError);
         }
 
-        private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
-            InternalDriveFileId internalFile,
+        private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<OutboxItem>)> CreateOutboxItems(InternalDriveFileId internalFile,
             TransitOptions options,
-            FileTransferOptions fileTransferOptions)
+            FileTransferOptions fileTransferOptions, int priority)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
 
             TargetDrive targetDrive = options.RemoteTargetDrive ?? (await driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var status = new Dictionary<string, bool>();
-            var outboxItems = new List<TransitOutboxItem>();
+            var outboxItems = new List<OutboxItem>();
 
             if (options.Recipients?.Contains(tenantContext.HostOdinId) ?? false)
             {
@@ -463,8 +450,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     //TODO: apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
-                    outboxItems.Add(new TransitOutboxItem()
+                    outboxItems.Add(new OutboxItem()
                     {
+                        Priority = priority,
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
                         Recipient = recipient,
@@ -498,7 +486,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
 
-            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions);
+            const int priority = 100;
+
+            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, priority);
             await peerOutbox.Add(outboxItems);
 
             return await MapOutboxCreationResult(outboxStatus);
@@ -507,7 +497,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
             TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
         {
-            var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
+            const int priority = 0;
+            var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions, priority);
 
             //first map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);

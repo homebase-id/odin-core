@@ -111,12 +111,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await WriteNewFileHeader(targetFile, header, raiseEvent);
                 return;
             }
-            
+
             var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
-            
+
             if (metadata.FileState != FileState.Active)
             {
                 throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
