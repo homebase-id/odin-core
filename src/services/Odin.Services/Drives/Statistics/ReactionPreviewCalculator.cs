@@ -23,6 +23,8 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
     {
         //TODO: handle encrypted content?
+        
+        var odinContext = ??
 
         var updatedFileHeader = notification.ServerFileHeader;
 
@@ -59,12 +61,12 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
         {
-            HandleFileAdded(updatedFileHeader, ref referencedFileReactionPreview);
+            HandleFileAdded(updatedFileHeader, ref referencedFileReactionPreview, odinContext);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileModified)
         {
-            HandleFileModified(updatedFileHeader, ref referencedFileReactionPreview);
+            HandleFileModified(updatedFileHeader, ref referencedFileReactionPreview, odinContext);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
@@ -98,7 +100,7 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
-        ref ReactionSummary targetFileReactionPreview)
+        ref ReactionSummary targetFileReactionPreview, OdinContext odinContext)
     {
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
@@ -117,7 +119,7 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
         }
     }
 
-    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview)
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview, OdinContext odinContext)
     {
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;

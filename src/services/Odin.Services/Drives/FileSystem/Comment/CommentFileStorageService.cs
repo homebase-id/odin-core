@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -21,7 +22,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
     {
     }
 
-    public override async Task AssertCanReadDrive(Guid driveId)
+    public override async Task AssertCanReadDrive(Guid driveId, OdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
@@ -30,7 +31,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         }
     }
 
-    public override async Task AssertCanWriteToDrive(Guid driveId)
+    public override async Task AssertCanWriteToDrive(Guid driveId, OdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
@@ -39,7 +40,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         }
     }
 
-    public override async Task AssertCanReadOrWriteToDrive(Guid driveId)
+    public override async Task AssertCanReadOrWriteToDrive(Guid driveId, OdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)

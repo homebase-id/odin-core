@@ -3,8 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
-using Odin.Services.Peer;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;

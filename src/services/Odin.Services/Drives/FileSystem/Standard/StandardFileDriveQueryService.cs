@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -18,7 +19,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
         {
         }
 
-        public override async Task AssertCanReadDrive(Guid driveId)
+        public override async Task AssertCanReadDrive(Guid driveId, OdinContext odinContext)
         {
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
@@ -27,7 +28,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             }
         }
 
-        public override async Task AssertCanWriteToDrive(Guid driveId)
+        public override async Task AssertCanWriteToDrive(Guid driveId, OdinContext odinContext)
         {
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
@@ -36,7 +37,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             }
         }
 
-        public override async Task AssertCanReadOrWriteToDrive(Guid driveId)
+        public override async Task AssertCanReadOrWriteToDrive(Guid driveId, OdinContext odinContext)
         {
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)

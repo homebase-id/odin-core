@@ -28,18 +28,17 @@ namespace Odin.Services.Drives.Management;
 public class DriveManager
 {
     private readonly IMediator _mediator;
-    
+
     private readonly TenantContext _tenantContext;
 
     private readonly ConcurrentDictionary<Guid, StorageDrive> _driveCache;
 
-    private readonly AsyncLock _createDriveLock = new ();
+    private readonly AsyncLock _createDriveLock = new();
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
-    public DriveManager( TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager(TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
-        
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
@@ -50,7 +49,7 @@ public class DriveManager
         LoadCache();
     }
 
-    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request)
+    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request, OdinContext odinContext)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -123,7 +122,7 @@ public class DriveManager
         return storageDrive;
     }
 
-    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
+    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous, OdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDrive(driveId);
@@ -155,7 +154,7 @@ public class DriveManager
         }
     }
 
-    public Task UpdateMetadata(Guid driveId, string metadata)
+    public Task UpdateMetadata(Guid driveId, string metadata, OdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
@@ -213,7 +212,7 @@ public class DriveManager
         return await Task.FromResult(drive.Id);
     }
 
-    public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
+    public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions, OdinContext odinContext)
     {
         Func<StorageDrive, bool> predicate = drive => true;
         if (odinContext.Caller.IsAnonymous)
@@ -221,7 +220,7 @@ public class DriveManager
             predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternal(false, pageOptions);
+        var page = await this.GetDrivesInternal(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -229,7 +228,7 @@ public class DriveManager
         // return await this.GetDrivesInternal(true, pageOptions);
     }
 
-    public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions)
+    public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions, OdinContext odinContext)
     {
         Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 
@@ -238,15 +237,15 @@ public class DriveManager
             predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternal(false, pageOptions);
+        var page = await this.GetDrivesInternal(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
 
-    public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
+    public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions, OdinContext odinContext)
     {
-        var page = await this.GetDrivesInternal(false, pageOptions);
+        var page = await this.GetDrivesInternal(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -254,7 +253,7 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, OdinContext odinContext)
     {
         List<StorageDrive> allDrives;
 
