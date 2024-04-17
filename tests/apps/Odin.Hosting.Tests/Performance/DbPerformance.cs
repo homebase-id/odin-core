@@ -105,6 +105,7 @@ namespace Odin.Hosting.Tests.Performance
          */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
+        public async Task TaskPerformanceTest_Db_SingleThread()
         {
             await PerformanceFramework.ThreadedTestAsync(1, MAXITERATIONS, DoDb);
             Assert.Pass();
@@ -151,6 +152,7 @@ TaskPerformanceTest_Db_MultiThread
         */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
+        public async Task TaskPerformanceTest_Db_MultiThread()
         {
             await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoDb);
             Assert.Pass();
@@ -226,6 +228,7 @@ TaskPerformanceTest_DbWrapper_MultiThread
          */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
+        public async Task TaskPerformanceTest_DbWrapper_MultiThread()
         {
             await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoWrapperDb);
             Assert.Pass();
