@@ -15,7 +15,7 @@ namespace Odin.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator(OdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver, OdinConfiguration config)
+public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, OdinConfiguration config)
     : INotificationHandler<IDriveNotification>,
         INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
         INotificationHandler<AllReactionsByFileDeleted>
@@ -53,7 +53,7 @@ public class ReactionPreviewCalculator(OdinContextAccessor contextAccessor, File
         // };
 
         // var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
-        var referenceFileDriveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(referencedFile.TargetDrive);
+        var referenceFileDriveId = odinContext.PermissionsContext.GetDriveId(referencedFile.TargetDrive);
         var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
         var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
@@ -109,7 +109,7 @@ public class ReactionPreviewCalculator(OdinContextAccessor contextAccessor, File
             {
                 Created = updatedFileHeader.FileMetadata.Created,
                 Updated = updatedFileHeader.FileMetadata.Updated,
-                OdinId = contextAccessor.GetCurrent().Caller.OdinId,
+                OdinId = odinContext.Caller.OdinId,
                 IsEncrypted = updatedFileHeader.FileMetadata.IsEncrypted,
                 Content = updatedFileHeader.FileMetadata.AppData.Content,
                 Reactions = new List<ReactionContentPreview>()
@@ -133,7 +133,7 @@ public class ReactionPreviewCalculator(OdinContextAccessor contextAccessor, File
             FileId = updatedFileHeader.FileMetadata.File.FileId,
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
-            OdinId = contextAccessor.GetCurrent().Caller.OdinId,
+            OdinId = odinContext.Caller.OdinId,
             IsEncrypted = isEncrypted,
             Content = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.Content,
             Reactions = new List<ReactionContentPreview>()

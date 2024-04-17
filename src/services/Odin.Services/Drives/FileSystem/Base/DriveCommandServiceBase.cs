@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
 using Odin.Services.Apps.CommandMessaging;
-using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
 
@@ -14,7 +13,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly DriveStorageServiceBase _storage;
 
-    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, OdinContextAccessor contextAccessor, DriveManager driveManager)
+    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, DriveManager driveManager)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _storage = storage;

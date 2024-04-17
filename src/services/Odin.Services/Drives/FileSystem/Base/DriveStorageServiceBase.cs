@@ -15,7 +15,6 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
@@ -26,7 +25,7 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
-        OdinContextAccessor contextAccessor,
+        
         ILoggerFactory loggerFactory,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
@@ -344,7 +343,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader)
         {
-            var storageKey = ContextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(driveId);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
 
             (await this.DriveManager.GetDrive(driveId)).AssertValidStorageKey(storageKey);
 
@@ -726,7 +725,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOneDrivePermission(
+            odinContext.PermissionsContext.AssertHasAtLeastOneDrivePermission(
                 targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
 
             var lts = await GetLongTermStorageManager(targetFile.DriveId);
@@ -784,7 +783,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (!bypassCallerCheck) //eww
             {
                 //S0510
-                if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
+                if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())
                 {
                     throw new OdinSecurityException("Invalid caller");
                 }
@@ -808,7 +807,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             //S0510
-            if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
+            if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())
             {
                 throw new OdinSecurityException("Invalid caller");
             }
@@ -829,7 +828,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var existingHeader = await lts.GetServerFileHeader(targetFile.FileId);
 
             //S0510
-            if (existingHeader.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().Caller.OdinId)
+            if (existingHeader.FileMetadata.SenderOdinId != odinContext.Caller.OdinId)
             {
                 throw new OdinSecurityException("Invalid caller");
             }

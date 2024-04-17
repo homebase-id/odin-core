@@ -107,10 +107,10 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext odinContext)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext OdinContext)
         {
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext);
+            return await authService.UpdateOdinContext(token, OdinContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

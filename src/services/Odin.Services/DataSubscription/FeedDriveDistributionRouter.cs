@@ -42,7 +42,6 @@ namespace Odin.Services.DataSubscription
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly OdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
@@ -59,7 +58,6 @@ namespace Odin.Services.DataSubscription
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
             TenantSystemStorage tenantSystemStorage,
-            OdinContextAccessor contextAccessor,
             CircleNetworkService circleNetworkService,
             IOdinHttpClientFactory odinHttpClientFactory,
             OdinConfiguration odinConfiguration,
@@ -73,7 +71,6 @@ namespace Odin.Services.DataSubscription
             _serverSystemStorage = serverSystemStorage;
             _fileSystemResolver = fileSystemResolver;
             _tenantSystemStorage = tenantSystemStorage;
-            _contextAccessor = contextAccessor;
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
             _driveAcl = driveAcl;
@@ -87,7 +84,7 @@ namespace Odin.Services.DataSubscription
             var serverFileHeader = notification.ServerFileHeader;
             if (await ShouldDistribute(serverFileHeader))
             {
-                if (_contextAccessor.GetCurrent().Caller.IsOwner)
+                if (odinContext.Caller.IsOwner)
                 {
                     var deleteNotification = notification as DriveFileDeletedNotification;
                     var isEncryptedFile =
@@ -277,7 +274,7 @@ namespace Odin.Services.DataSubscription
             //
             // Get followers for this drive and merge with followers who want everything
             //
-            var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
+            var td = odinContext.PermissionsContext.GetTargetDrive(driveId);
             var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 

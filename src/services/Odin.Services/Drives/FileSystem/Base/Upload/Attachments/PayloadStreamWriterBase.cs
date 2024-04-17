@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
-using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
 
@@ -18,15 +17,15 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class PayloadStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    
 
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem)
     {
         FileSystem = fileSystem;
-        _contextAccessor = contextAccessor;
+        
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -222,7 +221,7 @@ public abstract class PayloadStreamWriterBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
 }

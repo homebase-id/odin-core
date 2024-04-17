@@ -4,13 +4,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService(
-        OdinContextAccessor contextAccessor,
         CircleNetworkService circleNetwork,
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
@@ -66,7 +64,7 @@ namespace Odin.Services.Authorization.Acl
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
-            var caller = contextAccessor.GetCurrent().Caller;
+            var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
@@ -121,7 +119,7 @@ namespace Odin.Services.Authorization.Acl
         private async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            return await Task.FromResult(contextAccessor.GetCurrent().Caller.IsConnected);
+            return await Task.FromResult(odinContext.Caller.IsConnected);
         }
     }
 }

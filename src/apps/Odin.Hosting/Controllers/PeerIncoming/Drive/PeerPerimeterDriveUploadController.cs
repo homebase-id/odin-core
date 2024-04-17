@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerIncomingDriveUpdateController : OdinControllerBase
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly OdinContext _contextAccessor;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private Guid _stateItemId;
 
         /// <summary />
-        public PeerIncomingDriveUpdateController(OdinContextAccessor contextAccessor, DriveManager driveManager,
+        public PeerIncomingDriveUpdateController(DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
             _contextAccessor = contextAccessor;
@@ -86,7 +86,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
 
             //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId);
             //End Optimizations
 
@@ -139,7 +139,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             //TODO: later add check to see if this is from an introduction?
 
-            var dotYouContext = _contextAccessor.GetCurrent();
+            var dotYouContext = TheOdinContext;
             var isValidCaller = dotYouContext.Caller.IsConnected || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider;
             if (!isValidCaller)
             {
@@ -346,7 +346,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
         {
-            return new PeerDriveIncomingTransferService(_contextAccessor,
+            return new PeerDriveIncomingTransferService(
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

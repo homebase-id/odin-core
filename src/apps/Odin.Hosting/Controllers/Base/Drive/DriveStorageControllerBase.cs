@@ -173,8 +173,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = OdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
-                OdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                TheOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
             foreach (var request in batchRequest.Requests)
@@ -193,7 +193,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     MaxRecords = int.MaxValue
                 };
 
-                var driveId = OdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
                 var queryResults = await GetHttpFileSystemResolver().ResolveFileSystem()
                     .Query.GetBatch(driveId, qp, options);
@@ -231,8 +231,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
-                OdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+                TheOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
             var batchResult = await PerformDeleteFileIdBatch(batchRequest);
@@ -280,7 +280,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private async Task<DeleteFileResult> PerformFileDelete(DeleteFileRequest request)
         {
-            var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
             OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: true);

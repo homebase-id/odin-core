@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
@@ -10,7 +9,7 @@ namespace Odin.Services.Drives.FileSystem.Standard.Attachments;
 public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, OdinContextAccessor contextAccessor)
+    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem)
         : base(fileSystem, contextAccessor)
     {
     }

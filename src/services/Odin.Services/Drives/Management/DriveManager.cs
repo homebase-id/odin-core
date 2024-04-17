@@ -28,7 +28,7 @@ namespace Odin.Services.Drives.Management;
 public class DriveManager
 {
     private readonly IMediator _mediator;
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly TenantContext _tenantContext;
 
     private readonly ConcurrentDictionary<Guid, StorageDrive> _driveCache;
@@ -37,9 +37,9 @@ public class DriveManager
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
-    public DriveManager(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager( TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
-        _contextAccessor = contextAccessor;
+        
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
@@ -69,7 +69,7 @@ public class DriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
-        var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+        var mk = odinContext.Caller.GetMasterKey();
 
         StorageDrive storageDrive;
 
@@ -125,7 +125,7 @@ public class DriveManager
 
     public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDrive(driveId);
 
         if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
@@ -157,7 +157,7 @@ public class DriveManager
 
     public Task UpdateMetadata(Guid driveId, string metadata)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
         sdb.Metadata = metadata;
 
@@ -216,7 +216,7 @@ public class DriveManager
     public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
     {
         Func<StorageDrive, bool> predicate = drive => true;
-        if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
+        if (odinContext.Caller.IsAnonymous)
         {
             predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
@@ -233,7 +233,7 @@ public class DriveManager
     {
         Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 
-        if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
+        if (odinContext.Caller.IsAnonymous)
         {
             predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
         }
@@ -272,7 +272,7 @@ public class DriveManager
             Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
-        if (_contextAccessor.GetCurrent()?.Caller?.IsOwner ?? false)
+        if (odinContext?.Caller?.IsOwner ?? false)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
@@ -281,7 +281,7 @@ public class DriveManager
         predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
-            if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
+            if (odinContext.Caller.IsAnonymous)
             {
                 predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
             }

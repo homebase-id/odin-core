@@ -12,6 +12,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
+using Serilog;
 
 namespace Odin.Hosting.Controllers.Base;
 
@@ -20,6 +21,8 @@ namespace Odin.Hosting.Controllers.Base;
 /// </summary>
 public abstract class OdinControllerBase : ControllerBase
 {
+    private OdinContext _odinContext;
+
     /// <summary />
     protected FileSystemHttpRequestResolver GetHttpFileSystemResolver()
     {
@@ -32,17 +35,16 @@ public abstract class OdinControllerBase : ControllerBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = OdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = TheOdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
 
     protected void AddGuestApiCacheHeader(int? minutes = null)
     {
-        if (OdinContext.AuthContext == YouAuthConstants.YouAuthScheme || OdinContext.AuthContext == YouAuthConstants.AppSchemeName)
+        if (TheOdinContext.AuthContext == YouAuthConstants.YouAuthScheme || TheOdinContext.AuthContext == YouAuthConstants.AppSchemeName)
         {
             var seconds = minutes == null ? TimeSpan.FromDays(365).TotalSeconds : TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
-
-            this.Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
+            Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
         }
     }
 
@@ -97,5 +99,23 @@ public abstract class OdinControllerBase : ControllerBase
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>
-    protected OdinContext OdinContext => HttpContext.RequestServices.GetRequiredService<OdinContextAccessor>().GetCurrent();
+    protected OdinContext TheOdinContext
+    {
+        get
+        {
+            if (_odinContext != null)
+            {
+                return _odinContext;
+            }
+
+            _odinContext = HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            if (string.IsNullOrEmpty(_odinContext.Tenant))
+            {
+                Log.Error("");
+                _odinContext = null;
+            }
+            
+            return _odinContext;
+        }
+    }
 }

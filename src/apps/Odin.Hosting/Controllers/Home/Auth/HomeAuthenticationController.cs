@@ -18,6 +18,7 @@ using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
@@ -25,7 +26,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 {
     [ApiController]
     [Route(HomeApiPathConstants.AuthV1)]
-    public class HomeAuthenticationController : Controller
+    public class HomeAuthenticationController : OdinControllerBase
     {
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly HomeAuthenticatorService _homeAuthenticatorService;
@@ -153,7 +154,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         public async Task<ActionResult> DeleteToken()
         {
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
-            await _homeAuthenticatorService.DeleteSession();
+            await _homeAuthenticatorService.DeleteSession(TheOdinContext);
 
             return Ok();
         }

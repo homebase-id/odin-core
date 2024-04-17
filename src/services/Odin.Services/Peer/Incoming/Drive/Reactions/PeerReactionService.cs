@@ -17,13 +17,13 @@ public class PeerReactionService(
     ReactionContentService reactionContentService,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    OdinContextAccessor contextAccessor,
+    
     FileSystemResolver fileSystemResolver)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, contextAccessor, fileSystemResolver)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService,  fileSystemResolver)
 {
-    public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
+    public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload);
+        var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, odinContext);
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
@@ -33,9 +33,9 @@ public class PeerReactionService(
         await reactionContentService.AddReaction(fileId.Value, request.Reaction);
     }
 
-    public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload)
+    public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
+        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -46,9 +46,9 @@ public class PeerReactionService(
         await reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
     }
 
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
+        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -59,9 +59,9 @@ public class PeerReactionService(
         return await reactionContentService.GetReactionCountsByFile(fileId.Value);
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload);
+        var request = await DecryptUsingSharedSecret<PeerGetReactionsByIdentityRequest>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -72,9 +72,9 @@ public class PeerReactionService(
         return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
     }
 
-    public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload)
+    public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
+        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -85,9 +85,9 @@ public class PeerReactionService(
         await reactionContentService.DeleteAllReactions(fileId.Value);
     }
 
-    public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
+    public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
+        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, odinContext);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)

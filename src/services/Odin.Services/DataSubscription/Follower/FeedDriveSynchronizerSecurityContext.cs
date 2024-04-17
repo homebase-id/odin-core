@@ -16,16 +16,14 @@ namespace Odin.Services.DataSubscription.Follower;
 public class FeedDriveSynchronizerSecurityContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
-    private readonly OdinContextAccessor _odinContextAccessor;
 
     private const string GroupName = "patch_in_temp_icrkey";
 
-    public FeedDriveSynchronizerSecurityContext(OdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    public FeedDriveSynchronizerSecurityContext( Guid feedDriveId, SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        _odinContextAccessor = odinContextAccessor;
-        var ctx = odinContextAccessor.GetCurrent();
+        var ctx = odinodinContext;
 
         _prevSecurityGroupType = ctx.Caller.SecurityLevel;
 
@@ -52,7 +50,7 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 
     public void Dispose()
     {
-        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
-        _odinContextAccessor.GetCurrent().PermissionsContext.PermissionGroups.Remove(GroupName);
+        _odinodinContext.Caller.SecurityLevel = _prevSecurityGroupType;
+        _odinodinContext.PermissionsContext.PermissionGroups.Remove(GroupName);
     }
 }

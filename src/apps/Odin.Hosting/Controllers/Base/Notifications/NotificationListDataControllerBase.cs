@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.AppNotifications.Data;
-using Odin.Services.Base;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
@@ -11,13 +10,12 @@ namespace Odin.Hosting.Controllers.Base.Notifications
     /// <summary>
     /// Handles reading/writing of app notifications
     /// </summary>
-    public abstract class NotificationListDataControllerBase(NotificationListService notificationService, OdinContextAccessor contextAccessor)
-        : OdinControllerBase
+    public abstract class NotificationListDataControllerBase(NotificationListService notificationService) : OdinControllerBase
     {
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            var sender = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var sender = TheOdinContext.GetCallerOdinIdOrFail();
             return await notificationService.AddNotification(sender, request);
         }
 

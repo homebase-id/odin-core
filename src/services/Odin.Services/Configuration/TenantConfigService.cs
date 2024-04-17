@@ -29,7 +29,7 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private readonly CircleNetworkService _cns;
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
@@ -40,7 +40,7 @@ public class TenantConfigService
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
 
-    public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
+    public TenantConfigService(CircleNetworkService cns,
         TenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry,
         DriveManager driveManager,
@@ -51,7 +51,7 @@ public class TenantConfigService
         IAppRegistrationService appRegistrationService)
     {
         _cns = cns;
-        _contextAccessor = contextAccessor;
+        
         _tenantContext = tenantContext;
         _registry = registry;
         _driveManager = driveManager;
@@ -76,7 +76,7 @@ public class TenantConfigService
 
     public bool IsEulaSignatureRequired()
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         var info = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey);
         if (info == null || !info.Any())
@@ -90,7 +90,7 @@ public class TenantConfigService
 
     public EulaVersionResponse GetRequiredEulaVersion()
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         return new EulaVersionResponse()
         {
             Version = EulaSystemInfo.RequiredVersion
@@ -99,7 +99,7 @@ public class TenantConfigService
 
     public List<EulaSignature> GetEulaSignatureHistory()
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
@@ -108,7 +108,7 @@ public class TenantConfigService
 
     public void MarkEulaSigned(MarkEulaSignedRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.Version, nameof(request.Version));
@@ -132,7 +132,7 @@ public class TenantConfigService
 
     public async Task CreateInitialKeys()
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         await _recoverService.CreateInitialKey();
 
@@ -146,7 +146,7 @@ public class TenantConfigService
     /// </summary>
     public async Task EnsureInitialOwnerSetup(InitialSetupRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         if (request.FirstRunToken.HasValue)
         {
@@ -190,7 +190,7 @@ public class TenantConfigService
 
     public async Task UpdateSystemFlag(UpdateFlagRequest request)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
@@ -261,13 +261,13 @@ public class TenantConfigService
 
     public OwnerAppSettings GetOwnerAppSettings()
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 

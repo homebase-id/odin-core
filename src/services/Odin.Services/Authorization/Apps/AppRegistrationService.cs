@@ -22,7 +22,7 @@ namespace Odin.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
 
@@ -37,10 +37,10 @@ namespace Odin.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+        public AppRegistrationService( TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService)
         {
-            _contextAccessor = contextAccessor;
+            
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _mediator = mediator;
@@ -57,14 +57,14 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
             var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey() : null;
@@ -108,7 +108,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(request.AppId);
             if (null == appReg)
@@ -118,7 +118,7 @@ namespace Odin.Services.Authorization.Apps
 
             //TODO: Should we regen the key store key?  
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
             var icrKey = hasTransit ? _icrKeyService.GetDecryptedIcrKey() : null;
@@ -147,7 +147,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var oldRegistration = await this.GetAppRegistrationInternal(request.AppId);
             if (null == oldRegistration)
@@ -196,7 +196,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (appReg == null)
@@ -204,7 +204,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
             }
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
@@ -335,7 +335,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task RevokeClient(GuidId accessRegistrationId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
             if (null == client)
@@ -353,7 +353,7 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         public async Task DeleteCurrentAppClient()
         {
-            var context = _contextAccessor.GetCurrent();
+            var context = odinContext;
             var accessRegistrationId = context.Caller.OdinClientContext?.AccessRegistrationId;
 
             var validAccess = accessRegistrationId != null &&
@@ -377,7 +377,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task DeleteClient(GuidId accessRegistrationId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
@@ -392,7 +392,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task AllowClient(GuidId accessRegistrationId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
@@ -408,7 +408,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task DeleteApp(GuidId appId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var app = await GetAppRegistrationInternal(appId);
 
@@ -438,7 +438,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var apps = _appRegistrationValueStorage.GetByCategory<AppRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();

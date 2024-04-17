@@ -25,17 +25,17 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
     private readonly IMemoryCache _encryptedTokens = new MemoryCache(new MemoryCacheOptions());
     private readonly IAppRegistrationService _appRegistrationService;
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly Dictionary<string, bool> _tempConsent;
     private readonly CircleNetworkService _circleNetwork;
 
     public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
-        OdinContextAccessor contextAccessor,
+        
         YouAuthDomainRegistrationService domainRegistrationService, CircleNetworkService circleNetwork)
     {
         _appRegistrationService = appRegistrationService;
-        _contextAccessor = contextAccessor;
+        
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
 
@@ -126,7 +126,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string permissionRequest,
         string publicKey)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         ClientAccessToken? token;
         if (clientType == ClientType.app)
@@ -146,7 +146,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)domain);
             if (info.IsConnected())
             {
-                var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
+                var icrKey = odinContext.PermissionsContext.GetIcrKey();
                 token = info.CreateClientAccessToken(icrKey);
             }
             else

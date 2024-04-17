@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 
@@ -12,18 +13,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityV1)]
 [AuthorizeValidOwnerToken]
-public class OwnerSecurityController : Controller
+public class OwnerSecurityController : OdinControllerBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
 
     /// <summary />
-    public OwnerSecurityController(OdinContextAccessor contextAccessor, RecoveryService recoveryService, OwnerSecretService ss,
+    public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
         OwnerAuthenticationService ownerAuthenticationService)
     {
-        _contextAccessor = contextAccessor;
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
@@ -36,7 +35,7 @@ public class OwnerSecurityController : Controller
     [HttpGet("context")]
     public RedactedOdinContext GetSecurityContext()
     {
-        return _contextAccessor.GetCurrent().Redacted();
+        return TheOdinContext.Redacted();
     }
 
     [HttpGet("recovery-key")]
@@ -57,7 +56,7 @@ public class OwnerSecurityController : Controller
     {
         return await _ownerAuthenticationService.GetAccountStatus();
     }
-    
+
     [HttpPost("delete-account")]
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
@@ -65,7 +64,7 @@ public class OwnerSecurityController : Controller
         await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply);
         return new OkResult();
     }
-    
+
     [HttpPost("undelete-account")]
     public async Task<IActionResult> UndeleteAccount([FromBody] DeleteAccountRequest request)
     {

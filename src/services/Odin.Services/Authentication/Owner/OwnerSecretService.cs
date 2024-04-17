@@ -21,19 +21,17 @@ namespace Odin.Services.Authentication.Owner
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly RecoveryService _recoveryService;
 
-        private readonly OdinContextAccessor _contextAccessor;
-
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _passwordDataStorage;
         private readonly SingleKeyValueStorage _rsaStorage;
 
         public OwnerSecretService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage, RecoveryService recoveryService,
-            PublicPrivateKeyService publicPrivateKeyService, OdinContextAccessor contextAccessor)
+            PublicPrivateKeyService publicPrivateKeyService)
         {
             _tenantContext = tenantContext;
             _recoveryService = recoveryService;
             _publicPrivateKeyService = publicPrivateKeyService;
-            _contextAccessor = contextAccessor;
+            
             
             const string nonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
             _nonceDataStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(nonceDataContextKey));
@@ -199,11 +197,11 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPassword(ResetPasswordRequest request)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
             
             await this.AssertPasswordKeyMatch(request.CurrentAuthenticationPasswordReply.NonceHashedPassword64, request.CurrentAuthenticationPasswordReply.Nonce64);
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
             await SavePassword(request.NewPasswordReply, masterKey);
         }
 

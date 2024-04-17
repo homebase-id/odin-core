@@ -1,25 +1,21 @@
 ﻿#nullable enable
 
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.Notifications;
 using Odin.Services.AppNotifications.Push;
-using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
     public class PushNotificationControllerBase(
         PushNotificationService notificationService,
-        OdinContextAccessor contextAccessor,
         ILoggerFactory loggerFactory)
-        : Controller
+        : OdinControllerBase
     {
         private readonly ILogger<PushNotificationControllerBase> _logger =
             loggerFactory.CreateLogger<PushNotificationControllerBase>();
@@ -129,7 +125,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("push")]
         public async Task<IActionResult> Push([FromBody] AppNotificationOptions options)
         {
-            var caller = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var caller = TheOdinContext.GetCallerOdinIdOrFail();
             await notificationService.EnqueueNotification(caller, options);
             return Ok();
         }

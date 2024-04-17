@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -10,9 +9,9 @@ namespace Odin.Services.Drives.FileSystem.Comment
 {
     public class CommentFileQueryService : DriveQueryServiceBase
     {
-        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
+        public CommentFileQueryService(DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
             CommentFileStorageService commentStorage) :
-            base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
+            base(driveDatabaseHost, driveManager, commentStorage)
         {
         }
 
@@ -21,7 +20,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
             }
         }
 
@@ -30,7 +29,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+                odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
 
@@ -39,7 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                var pc = ContextAccessor.GetCurrent().PermissionsContext;
+                var pc = odinContext.PermissionsContext;
                 var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Comment) ||
                                      pc.HasDrivePermission(driveId, DrivePermission.Read);
 

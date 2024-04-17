@@ -54,7 +54,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly OdinContextAccessor _contextAccessor;
+        
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
@@ -64,7 +64,7 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-            OdinContextAccessor contextAccessor, OdinConfiguration configuration)
+             OdinConfiguration configuration)
         {
             _logger = logger;
             _secretService = secretService;
@@ -74,7 +74,7 @@ namespace Odin.Services.Authentication.Owner
             _tenantConfigService = tenantConfigService;
             _httpContextAccessor = httpContextAccessor;
             _identityRegistry = identityRegistry;
-            _contextAccessor = contextAccessor;
+            
             _configuration = configuration;
 
             //TODO: does this need to mwatch owner secret service?
@@ -383,7 +383,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task MarkForDeletion(PasswordReply currentPasswordReply)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
             var _ = await this.AssertValidPassword(currentPasswordReply);
             await _identityRegistry.MarkForDeletion(_tenantContext.HostOdinId);
 
@@ -393,7 +393,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task UnmarkForDeletion(PasswordReply currentPasswordReply)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
             var _ = await this.AssertValidPassword(currentPasswordReply);
             await _identityRegistry.UnmarkForDeletion(_tenantContext.HostOdinId);
 
@@ -403,7 +403,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task<AccountStatusResponse> GetAccountStatus()
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             var idReg = await _identityRegistry.Get(_tenantContext.HostOdinId);
 

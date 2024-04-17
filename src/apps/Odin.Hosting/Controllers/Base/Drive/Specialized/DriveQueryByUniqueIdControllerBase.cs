@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
-            var driveId = OdinContext.PermissionsContext.GetDriveId(new TargetDrive()
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {
                 Alias = alias,
                 Type = type

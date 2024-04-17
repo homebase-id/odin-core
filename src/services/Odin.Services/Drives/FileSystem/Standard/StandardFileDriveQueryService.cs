@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -11,11 +10,11 @@ namespace Odin.Services.Drives.FileSystem.Standard
     public class StandardFileDriveQueryService : DriveQueryServiceBase
     {
         public StandardFileDriveQueryService(
-            OdinContextAccessor contextAccessor,
+            
             DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager,
             StandardFileDriveStorageService storage) :
-            base(contextAccessor, driveDatabaseHost, driveManager, storage)
+            base( driveDatabaseHost, driveManager, storage)
         {
         }
 
@@ -24,7 +23,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
             }
         }
 
@@ -33,7 +32,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+                odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
 
@@ -42,7 +41,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                var pc = ContextAccessor.GetCurrent().PermissionsContext;
+                var pc = odinContext.PermissionsContext;
                 var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
                                      pc.HasDrivePermission(driveId, DrivePermission.Read);
 

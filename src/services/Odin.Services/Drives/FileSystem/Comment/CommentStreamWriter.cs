@@ -18,19 +18,19 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
-        OdinContextAccessor contextAccessor,
+        
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)
+        : base(fileSystem, tenantContext,  driveManager, peerOutgoingTransferService)
     {
-        _contextAccessor = contextAccessor;
+        
         _peerOutgoingTransferService = peerOutgoingTransferService;
     }
 
@@ -140,7 +140,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            SenderOdinId = odinContext.Caller.OdinId,
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 

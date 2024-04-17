@@ -11,16 +11,14 @@ namespace Odin.Services.DataSubscription.ReceivingHost;
 public class FeedDriveDistributionSecurityContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
-    private readonly OdinContextAccessor _odinContextAccessor;
 
     private const string GroupName = "read_followers_only_for_distribution";
 
     // private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
-    public FeedDriveDistributionSecurityContext(OdinContextAccessor odinContextAccessor)
+    public FeedDriveDistributionSecurityContext()
     {
-        _odinContextAccessor = odinContextAccessor;
-        var ctx = odinContextAccessor.GetCurrent();
+        var ctx = odinContext;
 
         _prevSecurityGroupType = ctx.Caller.SecurityLevel;
 
@@ -39,7 +37,7 @@ public class FeedDriveDistributionSecurityContext : IDisposable
 
     public void Dispose()
     {
-        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
-        _odinContextAccessor.GetCurrent().PermissionsContext.PermissionGroups.Remove(GroupName);
+        _odinodinContext.Caller.SecurityLevel = _prevSecurityGroupType;
+        _odinodinContext.PermissionsContext.PermissionGroups.Remove(GroupName);
     }
 }

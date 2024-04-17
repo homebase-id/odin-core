@@ -80,7 +80,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         //
 
-        private async Task<AuthenticateResult> HandleAppAuth(OdinContext odinContext)
+        private async Task<AuthenticateResult> HandleAppAuth(OdinContext OdinContext)
         {
             if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
             {
@@ -88,7 +88,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
+            OdinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
             var ctx = await appRegService.GetAppPermissionContext(authToken);
 
@@ -97,12 +97,12 @@ namespace Odin.Hosting.Authentication.YouAuth
                 return AuthenticateResult.Fail("Invalid App Token");
             }
 
-            odinContext.Caller = ctx.Caller;
-            odinContext.SetPermissionContext(ctx.PermissionsContext);
+            OdinContext.Caller = ctx.Caller;
+            OdinContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>
             {
-                new (ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()), //caller is this owner
+                new (ClaimTypes.Name, OdinContext.GetCallerOdinIdOrFail()), //caller is this owner
                 new (OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
                 new (OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
                 new (OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
@@ -117,29 +117,29 @@ namespace Odin.Hosting.Authentication.YouAuth
             return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuth(OdinContext odinContext)
+        private async Task<AuthenticateResult> HandleYouAuth(OdinContext OdinContext)
         {
-            odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
+            OdinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
             {
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(OdinContext));
             }
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.BuiltInBrowserApp)
             {
-                return await HandleBuiltInBrowserAppToken(clientAuthToken, odinContext);
+                return await HandleBuiltInBrowserAppToken(clientAuthToken, OdinContext);
             }
 
             if (clientAuthToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                 return await HandleYouAuthToken(clientAuthToken, odinContext);
+                 return await HandleYouAuthToken(clientAuthToken, OdinContext);
             }
 
             throw new OdinClientException("Unhandled youauth token type");
         }
 
-        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
+        private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken, OdinContext OdinContext)
         {
             if (Request.Query.TryGetValue(GuestApiQueryConstants.IgnoreAuthCookie, out var values))
             {
@@ -147,7 +147,7 @@ namespace Odin.Hosting.Authentication.YouAuth
                 {
                     if (shouldIgnoreAuth)
                     {
-                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                        return AuthenticateResult.Success(await CreateAnonYouAuthTicket(OdinContext));
                     }
                 }
             }
@@ -158,28 +158,28 @@ namespace Odin.Hosting.Authentication.YouAuth
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(OdinContext));
             }
 
-            odinContext.Caller = ctx.Caller;
-            odinContext.SetPermissionContext(ctx.PermissionsContext);
-            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
+            OdinContext.Caller = ctx.Caller;
+            OdinContext.SetPermissionContext(ctx.PermissionsContext);
+            return CreateAuthenticationResult(GetYouAuthClaims(OdinContext), YouAuthConstants.YouAuthScheme);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, OdinContext odinContext)
+        private async Task<AuthenticateResult> HandleYouAuthToken(ClientAuthenticationToken clientAuthToken, OdinContext OdinContext)
         {
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
             if (null == ctx)
             {
                 //if still no context, fall back to anonymous
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(OdinContext));
             }
 
-            odinContext.Caller = ctx.Caller;
-            odinContext.SetPermissionContext(ctx.PermissionsContext);
+            OdinContext.Caller = ctx.Caller;
+            OdinContext.SetPermissionContext(ctx.PermissionsContext);
 
-            return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
+            return CreateAuthenticationResult(GetYouAuthClaims(OdinContext), YouAuthConstants.YouAuthScheme);
         }
 
         private AuthenticateResult CreateAuthenticationResult(IEnumerable<Claim> claims, string scheme)
@@ -195,7 +195,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             return AuthenticateResult.Success(ticket);
         }
 
-        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(OdinContext odinContext)
+        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(OdinContext OdinContext)
         {
             var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All);
@@ -234,13 +234,13 @@ namespace Odin.Hosting.Authentication.YouAuth
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
             };
 
-            odinContext.Caller = new CallerContext(
+            OdinContext.Caller = new CallerContext(
                 odinId: null,
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );
 
-            odinContext.SetPermissionContext(
+            OdinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
                     sharedSecretKey: null
@@ -256,11 +256,11 @@ namespace Odin.Hosting.Authentication.YouAuth
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
 
-        private List<Claim> GetYouAuthClaims(OdinContext odinContext)
+        private List<Claim> GetYouAuthClaims(OdinContext OdinContext)
         {
             var claims = new List<Claim>
             {
-                new (ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
+                new (ClaimTypes.Name, OdinContext.GetCallerOdinIdOrFail()),
                 new (OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
                 new (OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };

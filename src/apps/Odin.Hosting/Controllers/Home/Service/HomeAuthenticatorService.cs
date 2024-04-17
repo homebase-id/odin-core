@@ -23,7 +23,6 @@ namespace Odin.Hosting.Controllers.Home.Service
 {
     public sealed class HomeAuthenticatorService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {
-        private readonly OdinContextAccessor _contextAccessor;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly TenantContext _tenantContext;
@@ -38,15 +37,14 @@ namespace Odin.Hosting.Controllers.Home.Service
             ExchangeGrantService exchangeGrantService,
             TenantContext tenantContext,
             HomeRegistrationStorage storage,
-            CircleMembershipService circleMembershipService,
-            OdinContextAccessor contextAccessor)
+            CircleMembershipService circleMembershipService
+            )
         {
             _circleNetworkService = circleNetworkService;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _storage = storage;
             _circleMembershipService = circleMembershipService;
-            _contextAccessor = contextAccessor;
             _cache = new OdinContextCache();
         }
 
@@ -118,11 +116,11 @@ namespace Odin.Hosting.Controllers.Home.Service
             return await _cache.GetOrAddContext(token, creator);
         }
 
-        public ValueTask<bool> DeleteSession()
+        public ValueTask<bool> DeleteSession(OdinContext odinContext)
         {
             try
             {
-                var ctx = _contextAccessor.GetCurrent().Caller.OdinClientContext;
+                var ctx = odinContext.Caller.OdinClientContext;
 
                 if (null != ctx)
                 {

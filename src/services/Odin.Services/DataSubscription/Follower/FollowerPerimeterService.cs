@@ -16,14 +16,14 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerPerimeterService
     {
         private readonly TenantSystemStorage _tenantStorage;
-        private readonly OdinContextAccessor _contextAccessor;
+        
         private readonly IMediator _mediator;
 
 
-        public FollowerPerimeterService(TenantSystemStorage tenantStorage, OdinContextAccessor contextAccessor, IMediator mediator)
+        public FollowerPerimeterService(TenantSystemStorage tenantStorage, IMediator mediator)
         {
             _tenantStorage = tenantStorage;
-            _contextAccessor = contextAccessor;
+            
             _mediator = mediator;
         }
 
@@ -54,9 +54,9 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     //use try/catch since GetDriveId will throw an exception
                     //TODO: update PermissionContext with a better method
-                    var drives = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
+                    var drives = request.Channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
                     var allHaveReadAccess = drives.All(driveId =>
-                        _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
+                        odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
                     if (!allHaveReadAccess)
                     {
                         throw new OdinSecurityException("Caller does not have read access to one or more channels");
@@ -93,7 +93,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <returns></returns>
         public Task AcceptUnfollowRequest()
         {
-            var follower = _contextAccessor.GetCurrent().Caller.OdinId;
+            var follower = odinContext.Caller.OdinId;
             _tenantStorage.Followers.DeleteByIdentity(follower);
             return Task.CompletedTask;
         }

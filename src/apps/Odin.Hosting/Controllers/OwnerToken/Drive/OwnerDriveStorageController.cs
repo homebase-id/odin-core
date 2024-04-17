@@ -169,7 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("harddelete")]
         public async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
 
             if (request.Recipients != null && request.Recipients.Any())
             {

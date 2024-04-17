@@ -27,19 +27,19 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload;
 public abstract class FileSystemStreamWriterBase
 {
     private readonly TenantContext _tenantContext;
-    private readonly OdinContextAccessor _contextAccessor;
+    
 
     private readonly DriveManager _driveManager;
     private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
+    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext,
         DriveManager driveManager, IPeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
-        _contextAccessor = contextAccessor;
+        
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
     }
@@ -68,10 +68,10 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
+        var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
         var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
-        // _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+        // odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
         bool isUpdateOperation = false;
 
@@ -306,7 +306,7 @@ public abstract class FileSystemStreamWriterBase
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package)
     {
-        var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         // var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.InternalFile, MultipartUploadParts.Metadata.ToString());
         var metadataBytes = await FileSystem.Storage.GetAllFileBytes(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString());
@@ -355,7 +355,7 @@ public abstract class FileSystemStreamWriterBase
             throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header", OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+        var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
@@ -492,7 +492,7 @@ public abstract class FileSystemStreamWriterBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
 }

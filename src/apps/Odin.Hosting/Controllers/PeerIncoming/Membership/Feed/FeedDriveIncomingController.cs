@@ -6,7 +6,6 @@ using Odin.Services.DataSubscription.Follower;
 using Odin.Services.DataSubscription.ReceivingHost;
 using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Incoming;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 
@@ -20,16 +19,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
     public class FeedDriveIncomingController : OdinControllerBase
     {
-        private readonly OdinContextAccessor _contextAccessor;
+        private readonly OdinContext _contextAccessor;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
 
         /// <summary />
-        public FeedDriveIncomingController(OdinContextAccessor contextAccessor,
+        public FeedDriveIncomingController(
             FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator)
         {
-            _contextAccessor = contextAccessor;
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
@@ -53,7 +51,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             return new FeedDistributionPerimeterService(
-                _contextAccessor,
                 fileSystem,
                 _fileSystemResolver,
                 _followerService,

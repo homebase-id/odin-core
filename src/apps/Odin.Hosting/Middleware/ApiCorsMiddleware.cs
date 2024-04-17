@@ -18,7 +18,7 @@ namespace Odin.Hosting.Middleware
             _next = next;
         }
 
-        public Task Invoke(HttpContext context, OdinContext odinContext)
+        public Task Invoke(HttpContext context, OdinContext OdinContext)
         {
             if (context.Request.Method == "OPTIONS")
             {
@@ -30,9 +30,9 @@ namespace Odin.Hosting.Middleware
 
             List<string> allowHeaders = new List<string>();
 
-            if (odinContext.AuthContext == YouAuthConstants.AppSchemeName)
+            if (OdinContext.AuthContext == YouAuthConstants.AppSchemeName)
             {
-                string appHostName = odinContext.Caller.OdinClientContext.CorsHostName;
+                string appHostName = OdinContext.Caller.OdinClientContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;

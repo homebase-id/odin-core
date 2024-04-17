@@ -7,13 +7,15 @@ using LazyCache;
 using LazyCache.Providers;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
-using Odin.Services.Base;
+using Odin.Core.Identity;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Base;
+using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
@@ -22,7 +24,6 @@ namespace Odin.Hosting.Controllers.Home.Service
 #if DEBUG
         public static int CacheMiss;
 #endif
-        private readonly OdinContextAccessor _contextAccessor;
         private readonly FileSystemHttpRequestResolver _fsResolver;
 
         private readonly OdinConfiguration _config;
@@ -35,12 +36,11 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private IAppCache? _cache;
 
-        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, OdinContextAccessor contextAccessor,
+        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, 
             FileSystemHttpRequestResolver fsResolver)
         {
             _driveManager = driveManager;
             _config = config;
-            _contextAccessor = contextAccessor;
             _fsResolver = fsResolver;
 
             InitializeCache();
@@ -59,7 +59,8 @@ namespace Odin.Hosting.Controllers.Home.Service
                 return collection;
             });
 
-            var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)));
+            var tenantOdinId = ??
+            var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)), tenantOdinId);
             var policy = new MemoryCacheEntryOptions()
             {
                 SlidingExpiration = TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
@@ -103,9 +104,9 @@ namespace Odin.Hosting.Controllers.Home.Service
             }
         }
 
-        private string GetCacheKey(string key)
+        private string GetCacheKey(string key, OdinId tenantOdinId)
         {
-            return $"{_contextAccessor.GetCurrent().Tenant}-{key}";
+            return $"{tenantOdinId}-{key}";
         }
 
         public void Invalidate()

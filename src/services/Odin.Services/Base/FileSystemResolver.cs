@@ -17,7 +17,7 @@ namespace Odin.Services.Base
         /// <summary/> 
         public FileSystemResolver(IHttpContextAccessor contextAccessor)
         {
-            _contextAccessor = contextAccessor;
+            
         }
 
         /// <summary />

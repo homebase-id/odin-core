@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -15,10 +14,10 @@ namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveStorageService : DriveStorageServiceBase
     {
-        public StandardFileDriveStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
+        public StandardFileDriveStorageService( ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager, OdinConfiguration odinConfiguration,
             DriveFileReaderWriter driveFileReaderWriter) :
-            base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
+            base( loggerFactory, mediator, driveAclAuthorizationService, driveManager, odinConfiguration, driveFileReaderWriter)
         {
         }
 
@@ -27,13 +26,13 @@ namespace Odin.Services.Drives.FileSystem.Standard
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
             }
         }
 
         public override Task AssertCanWriteToDrive(Guid driveId)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             return Task.CompletedTask;
         }
 
@@ -42,7 +41,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             var drive = await DriveManager.GetDrive(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
-                var pc = ContextAccessor.GetCurrent().PermissionsContext;
+                var pc = odinContext.PermissionsContext;
                 var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
                                      pc.HasDrivePermission(driveId, DrivePermission.Read);
 

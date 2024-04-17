@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -12,9 +11,9 @@ public class StandardDriveCommandService : DriveCommandServiceBase
     public StandardDriveCommandService(
         DriveDatabaseHost driveDatabaseHost,
         StandardFileDriveStorageService storage,
-        OdinContextAccessor contextAccessor,
+        
         DriveManager driveManager) :
-        base(driveDatabaseHost, storage, contextAccessor, driveManager)
+        base(driveDatabaseHost, storage,  driveManager)
     {
     }
 
@@ -23,7 +22,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
         }
     }
 
@@ -32,7 +31,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
         }
     }
 
@@ -41,7 +40,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            var pc = ContextAccessor.GetCurrent().PermissionsContext;
+            var pc = odinContext.PermissionsContext;
             var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
                                  pc.HasDrivePermission(driveId, DrivePermission.Read);
 

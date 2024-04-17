@@ -15,7 +15,6 @@ using Odin.Services.Peer.Encryption;
 namespace Odin.Services.DataSubscription.ReceivingHost
 {
     public class FeedDistributionPerimeterService(
-        OdinContextAccessor contextAccessor,
         IDriveFileSystem fileSystem,
         FileSystemResolver fileSystemResolver,
         FollowerService followerService,
@@ -59,7 +58,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
-                var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
                 var fileId = await this.ResolveInternalFile(request.FileId);
 
@@ -75,19 +74,19 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         AllowDistribution = false,
                     };
 
-                    request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                    request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
                     var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
-                        Sender = contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+                        Sender = odinContext.GetCallerOdinIdOrFail(),
                     });
                 }
                 else
                 {
                     // perform update
-                    request.FileMetadata.SenderOdinId = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                    request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
                     await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
                 }
             }

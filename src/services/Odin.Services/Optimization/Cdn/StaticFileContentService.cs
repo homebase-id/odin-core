@@ -41,15 +41,15 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
-    public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+    public StaticFileContentService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter)
     {
         _tenantContext = tenantContext;
-        _contextAccessor = contextAccessor;
+        
         _driveManager = driveManager;
         _fileSystem = fileSystem;
         _driveFileReaderWriter = driveFileReaderWriter;
@@ -59,7 +59,7 @@ public class StaticFileContentService
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
-        List<QueryParamSection> sections)
+        List<QueryParamSection> sections, OdinContext odinContext)
     {
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
@@ -67,7 +67,7 @@ public class StaticFileContentService
 
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
         string targetFolder = await EnsurePath();
         foreach (var s in sections)
         {

@@ -36,7 +36,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly Guid _offlineNotificationsKeyStorageId = Guid.Parse("22165337-1ff5-4e92-87f2-95fc9ce424c3");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly OdinContextAccessor _contextAccessor;
+        
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IMediator _mediator;
 
@@ -49,12 +49,12 @@ namespace Odin.Services.EncryptionKeyService
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
+        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage,
             IOdinHttpClientFactory odinHttpClientFactory,
             IMediator mediator)
         {
             _tenantSystemStorage = tenantSystemStorage;
-            _contextAccessor = contextAccessor;
+            
             _odinHttpClientFactory = odinHttpClientFactory;
             _mediator = mediator;
 
@@ -264,13 +264,13 @@ namespace Odin.Services.EncryptionKeyService
         /// </summary>
         public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             EccFullKeyListData keyList;
             SensitiveByteArray decryptionKey;
 
             keyList = this.GetEccKeyListFromStorage(_onlineEccKeyStorageId);
-            decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            decryptionKey = odinContext.Caller.GetMasterKey();
 
             var pk = EccKeyListManagement.FindKey(keyList, crc32);
             return Task.FromResult((pk, decryptionKey));
@@ -291,12 +291,12 @@ namespace Odin.Services.EncryptionKeyService
         /// </summary>
         internal async Task CreateInitialKeys()
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey();
 
             try
             {
                 await KeyCreationLock.WaitAsync();
-                var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+                var mk = odinContext.Caller.GetMasterKey();
 
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
                 await this.CreateNewEccKeys(mk, _signingKeyStorageId);
@@ -354,7 +354,7 @@ namespace Odin.Services.EncryptionKeyService
 
                 case RsaKeyType.OnlineKey:
                     keyList = this.GetRsaKeyListFromStorage(_onlineKeyStorageId);
-                    decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+                    decryptionKey = odinContext.Caller.GetMasterKey();
                     break;
 
                 default:

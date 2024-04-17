@@ -12,13 +12,13 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
-    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor) : ITransitPerimeterTransferStateService
+    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem) : ITransitPerimeterTransferStateService
     {
         private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 
-        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet)
+        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, OdinContext odinContext)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
             // Notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();

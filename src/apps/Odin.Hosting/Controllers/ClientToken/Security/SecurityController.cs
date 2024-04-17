@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.ClientToken.Shared;
@@ -14,14 +15,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Security;
 [Route(AppApiPathConstants.SecurityV1)]
 [Route(GuestApiPathConstants.SecurityV1)]
 [AuthorizeValidGuestOrAppToken]
-public class SecurityController : Controller
+public class SecurityController : OdinControllerBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
 
     /// <summary />
-    public SecurityController(OdinContextAccessor contextAccessor)
+    public SecurityController()
     {
-        _contextAccessor = contextAccessor;
     }
 
     /// <summary>
@@ -31,6 +30,6 @@ public class SecurityController : Controller
     [HttpGet("context")]
     public RedactedOdinContext GetSecurityContext()
     {
-        return _contextAccessor.GetCurrent().Redacted();
+        return TheOdinContext.Redacted();
     }
 }

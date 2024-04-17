@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Apps.CommandMessaging;
-using Odin.Services.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
 
@@ -12,7 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppCommandController(CommandMessagingService commandMessagingService, OdinContextAccessor contextAccessor)
+    public class AppCommandController(CommandMessagingService commandMessagingService )
         : OdinControllerBase
     {
         /// <summary>
@@ -22,7 +21,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
             OdinValidationUtils.AssertValidRecipientList(request.Command.Recipients);
             OdinValidationUtils.AssertNotNull(request, nameof(request));
@@ -40,7 +39,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("unprocessed")]
         public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnprocessedCommandsRequest request)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
             var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor);
             return result;
         }
@@ -48,7 +47,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("markcompleted")]
         public async Task<bool> MarkCommandsCompleted([FromBody] MarkCommandsCompleteRequest request)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));

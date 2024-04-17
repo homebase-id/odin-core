@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Services.Base;
 using Odin.Services.Registry;
 using Odin.Hosting.Controllers.Base;
 
@@ -10,15 +9,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
     [Route(GuestApiPathConstants.AuthV1)]
-    public class IdentController : Controller
+    public class IdentController : OdinControllerBase
     {
-        private readonly OdinContextAccessor _odinContextAccessor;
         private readonly IIdentityRegistry _registry;
 
 
-        public IdentController(OdinContextAccessor odinContextAccessor, IIdentityRegistry registry)
+        public IdentController(IIdentityRegistry registry)
         {
-            _odinContextAccessor = odinContextAccessor;
             _registry = registry;
         }
 
@@ -29,7 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [Produces("application/json")]
         public async Task<IActionResult> GetInfo()
         {
-            var tenant = _odinContextAccessor.GetCurrent().Tenant;
+            var tenant = TheOdinContext.Tenant;
             HttpContext.Response.Headers.Append("Access-Control-Allow-Origin", "*");
 
             if (string.IsNullOrEmpty(tenant))
