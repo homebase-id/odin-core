@@ -20,14 +20,14 @@ namespace Odin.Services.Tenant.Container
         // This action configures a container builder
         private readonly Action<ContainerBuilder, Tenant> _tenantServiceConfiguration;
         private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
-        
+
         // This dictionary keeps track of all of the tenant scopes that we have created
         private readonly ConcurrentDictionary<string, Lazy<ILifetimeScope>> _tenantLifetimeScopes = new();
 
         private const string MultiTenantTag = "multitenantcontainer";
 
         public MultiTenantContainer(
-            IContainer applicationContainer, 
+            IContainer applicationContainer,
             Action<ContainerBuilder, Tenant> serviceConfiguration,
             Action<ILifetimeScope, Tenant> tenantInitialization)
         {
@@ -41,11 +41,20 @@ namespace Odin.Services.Tenant.Container
         /// <summary>
         /// Get the scope of the current tenant
         /// </summary>
-        /// <returns></returns>
+        /// <returns>ILifetimeScope</returns>
         public ILifetimeScope GetCurrentTenantScope()
         {
             var tenant = GetCurrentTenant();
-            return GetTenantScope(tenant?.Name);
+            return GetOrCreateTenantScope(tenant?.Name);
+        }
+
+        /// <summary>
+        /// Look up the scope of the current tenant, if it exits
+        /// </summary>
+        /// <returns>ILifetimeScope?</returns>
+        public ILifetimeScope? LookupTenantScope(string tenant)
+        {
+            return _tenantLifetimeScopes.TryGetValue(tenant, out var lazyScope) ? lazyScope.Value : null;
         }
 
         //
@@ -65,7 +74,7 @@ namespace Odin.Services.Tenant.Container
         //
 
         /// <summary>
-        /// Get the current teanant from the application container
+        /// Get the current tenant from the application container
         /// </summary>
         /// <returns></returns>
         private Tenant? GetCurrentTenant()
@@ -80,7 +89,7 @@ namespace Odin.Services.Tenant.Container
         /// </summary>
         /// <param name="tenantId"></param>
         /// <returns></returns>
-        private ILifetimeScope GetTenantScope(string? tenantId)
+        private ILifetimeScope GetOrCreateTenantScope(string? tenantId)
         {
             // If no tenant (e.g. early on in the pipeline, we just use the application container)
             if (tenantId == null)
@@ -128,7 +137,6 @@ namespace Odin.Services.Tenant.Container
                 }
             }
             _applicationContainer.Dispose(); // SEB:TODO really? _applicationContainer is injected
-            GC.SuppressFinalize(this);
         }
 
         //
