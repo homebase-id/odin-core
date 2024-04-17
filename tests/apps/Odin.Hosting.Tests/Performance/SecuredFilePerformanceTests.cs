@@ -95,7 +95,7 @@ namespace Odin.Hosting.Tests.Performance
             var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
             frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
         }
 
 

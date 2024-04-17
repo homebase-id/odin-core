@@ -31,19 +31,7 @@ namespace Odin.Hosting.Tests.Performance
         }
 
 
-        public static async Task<(long, long[])> ExecuteFunction(int threadno, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
-        {
-            // Call the function with the provided parameters
-            var (l, result) = await functionToExecute(threadno, iterations);
-
-            // Perform any additional operations or transformations on the result
-            // ...
-
-            return (l, result);
-        }
-
-
-        public static void ThreadedTest(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
+/*        public static void ThreadedTest(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
         {
             // var tasks = new Task[maxThreads];
             List<long[]> timers = new List<long[]>();
@@ -91,6 +79,50 @@ namespace Odin.Hosting.Tests.Performance
 
             Array.Sort(oneDimensionalArray);
             for (var i = 1; i < maxThreads * iterations; i++)
+                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+
+            PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
+            if (fileByteLength > 0)
+                Console.WriteLine($"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
+        }
+*/
+
+        public static async Task ThreadedTestAsync(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
+        {
+            List<long[]> timers = new List<long[]>();
+            long fileByteLength = 0;
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
+            Task[] tasks = new Task[maxThreads];
+
+            for (int i = 0; i < maxThreads; i++)
+            {
+                int threadIndex = i;  // Capture the current index for use in the lambda
+
+                tasks[i] = Task.Run(async () =>
+                {
+                    (long bw, long[] measurements) = await functionToExecute(threadIndex, iterations);
+                    Debug.Assert(measurements.Length == iterations);
+                    lock (timers)
+                    {
+                        timers.Add(measurements);
+                        fileByteLength += bw;
+                    }
+                });
+            }
+
+            await Task.WhenAll(tasks);  // Wait for all tasks to complete
+
+            sw.Stop();
+
+            Debug.Assert(timers.Count == maxThreads);
+            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
+            Debug.Assert(oneDimensionalArray.Length == (maxThreads * iterations));
+
+            Array.Sort(oneDimensionalArray);
+            for (int i = 1; i < maxThreads * iterations; i++)
                 Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
             PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
