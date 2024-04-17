@@ -17,6 +17,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
+using SQLitePCL;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
@@ -27,18 +28,31 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILogger<PeerOutboxProcessor> logger,
         IDriveFileSystem fileSystem)
     {
+        public async Task ProcessItemsSync(IEnumerable<OutboxItem> items)
+        {
+            foreach (var item in items)
+            {
+                await ProcessItem(item);
+            }
+        }
+        
+        public async Task ProcessItem(OutboxItem item)
+        {
+            _ = new ProcessOutboxItemWorker(item,
+                fileSystem,
+                logger,
+                peerOutbox,
+                odinConfiguration,
+                odinHttpClientFactory).ProcessOutboxItem();
+        }
+
         public async Task StartOutboxProcessing()
         {
             var item = await peerOutbox.GetNextItem();
 
             while (item != null)
             {
-                _ = new ProcessOutboxItemWorker(item,
-                    fileSystem,
-                    logger,
-                    peerOutbox,
-                    odinConfiguration,
-                    odinHttpClientFactory).ProcessOutboxItem();
+                _ = this.ProcessItem(item);
 
                 item = await peerOutbox.GetNextItem();
             }

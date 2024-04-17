@@ -44,7 +44,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         ServerSystemStorage serverSystemStorage,
-        ILogger<PeerOutgoingOutgoingTransferService> logger)
+        ILogger<PeerOutgoingOutgoingTransferService> logger,
+        PeerOutboxProcessor outboxProcessor)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
             contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
     {
@@ -499,9 +500,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         {
             const int priority = 0;
             var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions, priority);
-
+            
             //first map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
+
+            await outboxProcessor.ProcessItemsSync(outboxItems);
 
             var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);
             foreach (var result in sendResults)
