@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -33,6 +34,8 @@ namespace Odin.Hosting.Multitenant
 
         public async Task Invoke(HttpContext context)
         {
+            ILifetimeScope? scope = null;
+
             // Bail if we don't know the hostname/tenant
             var host = context.Request.Host.Host;
             var registration = _identityRegistry.ResolveIdentityRegistration(host, out _);
@@ -50,11 +53,17 @@ namespace Odin.Hosting.Multitenant
                 return;
             }
             
-            // Begin new scope for request as ASP.NET Core standard scope is per-request
-            var scope = _container.Container().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
-            context.RequestServices = new AutofacServiceProvider(scope);
-            
-            await _next(context);
+            // Begin new scope for the request (this is where e.g. OdinContext is created)
+            try
+            {
+                scope = _container.Container().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
+                context.RequestServices = new AutofacServiceProvider(scope);
+                await _next(context);
+            }
+            finally
+            {
+                //scope?.Dispose(); // SEB:TODO enable this when the turtles are aligned
+            }
         }
     }
 }
