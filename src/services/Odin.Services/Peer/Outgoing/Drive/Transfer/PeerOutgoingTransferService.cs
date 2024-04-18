@@ -77,17 +77,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return await SendFileLater(internalFile, options, sfo, odinContext);
         }
 
-        public async Task ProcessOutbox()
+        public async Task ProcessOutbox(OdinContext odinContext)
         {
             var batchSize = odinConfiguration.Transit.OutboxBatchSize;
 
             //Note: here we can prioritize outbox processing by drive if need be
-            var page = await driveManager.GetDrives(PageOptions.All);
+            var page = await driveManager.GetDrives(PageOptions.All, odinContext);
 
             foreach (var drive in page.Results)
             {
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                await SendOutboxItemsBatchToPeers(batch);
+                await SendOutboxItemsBatchToPeers(batch, odinContext);
 
                 // Results will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
@@ -191,12 +191,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items)
+        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items, OdinContext odinContext)
         {
             var sendFileTasks = new List<Task<OutboxProcessingResult>>();
             var results = new List<OutboxProcessingResult>();
 
-            sendFileTasks.AddRange(items.Select(SendOutboxItemAsync));
+            sendFileTasks.AddRange(items.Select(i => SendOutboxItemAsync(i, odinContext)));
 
             await Task.WhenAll(sendFileTasks);
 
@@ -225,13 +225,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in filesForDeletion)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(item.File);
+                await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
             }
 
             return results;
         }
 
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem)
+        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem, OdinContext odinContext)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -239,7 +239,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
+            var header = await fs.Storage.GetServerFileHeader(outboxItem.File, odinContext);
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
             if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
@@ -334,7 +334,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     string contentType = "application/unknown";
 
                     //TODO: consider what happens if the payload has been delete from disk
-                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null, odinContext);
                     var payloadStream = p.Stream;
 
                     var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -343,7 +343,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var (thumbStream, thumbHeader) =
-                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
+                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid, odinContext);
 
                         var thumbnailKey =
                             $"{payloadKey}" +
@@ -445,7 +445,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
-            var header = await fs.Storage.GetServerFileHeader(internalFile);
+            var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext);
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
             var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
@@ -511,7 +511,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //first map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
 
-            var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);
+            var sendResults = await SendOutboxItemsBatchToPeers(outboxItems, odinContext);
             foreach (var result in sendResults)
             {
                 if (result.TransferResult == TransferResult.Success)

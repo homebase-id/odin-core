@@ -19,7 +19,7 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 
     private const string GroupName = "patch_in_temp_icrkey";
 
-    public FeedDriveSynchronizerSecurityContext( Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    public FeedDriveSynchronizerSecurityContext(Guid feedDriveId, SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
@@ -44,7 +44,7 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
         ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
         ctx.PermissionsContext.PermissionGroups.Add(GroupName,
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.UseTransitRead,PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
+                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
                 new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
     }
 

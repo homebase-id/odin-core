@@ -34,7 +34,7 @@ namespace Odin.Services.DataSubscription.Follower
         private readonly IOdinHttpClientFactory _httpClientFactory;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
-        
+
         private readonly StandardFileSystem _standardFileSystem;
         private readonly PeerDriveQueryService _peerDriveQueryService;
         private readonly CircleNetworkService _circleNetworkService;
@@ -47,7 +47,7 @@ namespace Odin.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-             StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
+            StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
             CircleNetworkService circleNetworkService)
         {
             _tenantStorage = tenantStorage;
@@ -55,7 +55,7 @@ namespace Odin.Services.DataSubscription.Follower
             _httpClientFactory = httpClientFactory;
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
-            
+
             _standardFileSystem = standardFileSystem;
             _peerDriveQueryService = peerDriveQueryService;
             _circleNetworkService = circleNetworkService;
@@ -64,7 +64,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
-        public async Task Follow(FollowRequest request)
+        public async Task Follow(FollowRequest request, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -140,7 +140,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.SynchronizeFeedHistoryNow)
             {
-                await this.SynchronizeChannelFiles(identityToFollow);
+                await this.SynchronizeChannelFiles(identityToFollow, odinContext);
             }
         }
 
@@ -148,7 +148,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Notifies the recipient you are no longer following them.  This means they
         /// should no longer send you updates/notifications
         /// </summary>
-        public async Task Unfollow(OdinId recipient)
+        public async Task Unfollow(OdinId recipient, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -163,7 +163,7 @@ namespace Odin.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
         }
 
-        public async Task<FollowerDefinition> GetFollower(OdinId odinId)
+        public async Task<FollowerDefinition> GetFollower(OdinId odinId, OdinContext odinContext)
         {
             //a follower is allowed to read their own configuration
             if (odinId != odinContext.Caller.OdinId)
@@ -177,13 +177,13 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
+        public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
             return await GetIdentityIFollowInternal(odinId);
         }
 
-        public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
+        public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -201,7 +201,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor)
+        public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -223,7 +223,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets followers who want notifications for all channels
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor)
+        public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -241,7 +241,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -254,7 +254,7 @@ namespace Odin.Services.DataSubscription.Follower
             return await Task.FromResult(result);
         }
 
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -342,7 +342,7 @@ namespace Odin.Services.DataSubscription.Follower
             return new PermissionContext(groups, sharedSecret);
         }
 
-        public async Task AssertTenantFollowsTheCaller()
+        public async Task AssertTenantFollowsTheCaller(OdinContext odinContext)
         {
             var odinId = odinContext.GetCallerOdinIdOrFail();
             var definition = await this.GetIdentityIFollowInternal(odinId);
@@ -353,7 +353,7 @@ namespace Odin.Services.DataSubscription.Follower
         }
 
 
-        public async Task SynchronizeChannelFiles(OdinId odinId)
+        public async Task SynchronizeChannelFiles(OdinId odinId, OdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
             var definition = await this.GetIdentityIFollowInternal(odinId);
@@ -365,13 +365,14 @@ namespace Odin.Services.DataSubscription.Follower
             var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
             SensitiveByteArray sharedSecret = null;
-            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            var channelDrives = await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard);
+            var channelDrives =
+                await _peerDriveQueryService.GetDrivesByType(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext);
 
             //filter the drives to those I want to see
             if (definition.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -406,7 +407,7 @@ namespace Odin.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard);
+            var collection = await _peerDriveQueryService.GetBatchCollection(odinId, request, FileSystemType.Standard, odinContext);
 
             foreach (var results in collection.Results)
             {
@@ -452,17 +453,17 @@ namespace Odin.Services.DataSubscription.Follower
                     if (dsr.FileMetadata.AppData.UniqueId.HasValue)
                     {
                         existingFile = await _standardFileSystem.Query.GetFileByClientUniqueId(feedDriveId,
-                            dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault());
+                            dsr.FileMetadata.AppData.UniqueId.GetValueOrDefault(), odinContext);
                     }
                     else if (dsr.FileMetadata.GlobalTransitId.HasValue)
                     {
                         existingFile = await _standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
-                            dsr.FileMetadata.GlobalTransitId.GetValueOrDefault());
+                            dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
                     }
 
                     if (null == existingFile)
                     {
-                        await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata);
+                        await _standardFileSystem.Storage.WriteNewFileToFeedDrive(keyHeader, newFileMetadata, odinContext);
                     }
                     else
                     {
@@ -472,7 +473,8 @@ namespace Odin.Services.DataSubscription.Follower
                             DriveId = feedDriveId
                         };
 
-                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true);
+                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true,
+                            odinContext: odinContext);
                     }
                 }
             }

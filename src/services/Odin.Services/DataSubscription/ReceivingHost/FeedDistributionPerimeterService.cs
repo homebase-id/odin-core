@@ -20,7 +20,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request, OdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller();
 
@@ -39,7 +39,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     throw new OdinClientException("Invalid File");
                 }
 
-                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
+                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview, odinContext);
             }
 
             return new PeerTransferResponse()
@@ -48,7 +48,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, OdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -75,8 +75,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
-                    await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
+                    var serverFileHeader =
+                        await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata, odinContext);
+                    await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true, odinContext: odinContext);
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
@@ -87,7 +88,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     // perform update
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
+                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, odinContext);
                 }
             }
 
@@ -97,7 +98,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request)
+        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, OdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller();
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
@@ -112,7 +113,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
                 }
 
-                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value);
+                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value, odinContext);
 
                 return new PeerTransferResponse()
                 {

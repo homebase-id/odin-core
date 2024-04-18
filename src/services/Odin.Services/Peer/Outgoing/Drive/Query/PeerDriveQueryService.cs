@@ -42,7 +42,7 @@ public class PeerDriveQueryService(
 
         try
         {
-            var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+            var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
             ApiResponse<QueryModifiedResponse> queryModifiedResponse = null;
 
             await TryRetry.WithDelayAsync(
@@ -57,7 +57,7 @@ public class PeerDriveQueryService(
 
             return new QueryModifiedResult()
             {
-                SearchResults = TransformSharedSecret(response.SearchResults, icr,odinContext),
+                SearchResults = TransformSharedSecret(response.SearchResults, icr, odinContext),
                 Cursor = response.Cursor,
                 IncludeHeaderContent = response.IncludeHeaderContent
             };
@@ -69,11 +69,12 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<QueryBatchCollectionResponse> GetBatchCollection(OdinId odinId, QueryBatchCollectionRequest request, FileSystemType fileSystemType, OdinContext odinContext)
+    public async Task<QueryBatchCollectionResponse> GetBatchCollection(OdinId odinId, QueryBatchCollectionRequest request, FileSystemType fileSystemType,
+        OdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (_, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (_, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
         try
         {
             ApiResponse<QueryBatchCollectionResponse> queryBatchResponse = null;
@@ -99,7 +100,7 @@ public class PeerDriveQueryService(
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType, OdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
 
         try
         {
@@ -117,7 +118,7 @@ public class PeerDriveQueryService(
             return new QueryBatchResult()
             {
                 QueryTime = batch.QueryTime,
-                SearchResults = TransformSharedSecret(batch.SearchResults, icr,odinContext),
+                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
                 Cursor = new QueryBatchCursor(batch.CursorState),
                 IncludeMetadataHeader = batch.IncludeMetadataHeader
             };
@@ -129,11 +130,12 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType, OdinContext odinContext)
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType,
+        OdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
 
         try
         {
@@ -151,7 +153,7 @@ public class PeerDriveQueryService(
 
             await HandleInvalidResponse(odinId, response);
 
-            var header = TransformSharedSecret(response.Content, icr,odinContext);
+            var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
         }
         catch (TryRetryException t)
@@ -167,7 +169,7 @@ public class PeerDriveQueryService(
         var permissionContext = odinContext.PermissionsContext;
         permissionContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -177,7 +179,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Key = key, Chunk = chunk }); });
 
-            return await HandlePayloadResponse(odinId, icr, key, response,odinContext);
+            return await HandlePayloadResponse(odinId, icr, key, response, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -191,7 +193,8 @@ public class PeerDriveQueryService(
         bool payloadIsEncrypted,
         string decryptedContentType,
         UnixTimeUtc? lastModified,
-        Stream thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType, OdinContext odinContext)
+        Stream thumbnail)> GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey, FileSystemType fileSystemType,
+        OdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
@@ -227,7 +230,7 @@ public class PeerDriveQueryService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (_, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (_, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
 
         try
         {
@@ -264,7 +267,7 @@ public class PeerDriveQueryService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
 
         try
         {
@@ -282,7 +285,7 @@ public class PeerDriveQueryService(
 
             await HandleInvalidResponse(odinId, response);
 
-            var header = TransformSharedSecret(response.Content, icr,odinContext);
+            var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
         }
         catch (TryRetryException t)
@@ -298,7 +301,7 @@ public class PeerDriveQueryService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -316,7 +319,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
-            return await HandlePayloadResponse(odinId, icr, key, response,odinContext);
+            return await HandlePayloadResponse(odinId, icr, key, response, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -336,7 +339,7 @@ public class PeerDriveQueryService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType,odinContext);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType, odinContext);
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -356,7 +359,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
-            return await HandleThumbnailResponse(odinId, icr, response,odinContext);
+            return await HandleThumbnailResponse(odinId, icr, response, odinContext);
         }
         catch (TryRetryException t)
         {
@@ -390,7 +393,8 @@ public class PeerDriveQueryService(
         }
     }
 
-    private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType, OdinContext odinContext)
+    private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType,
+        OdinContext odinContext)
     {
         //TODO: this check is duplicated in the ResolveClientAccessToken method; need to centralize
         odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
@@ -398,7 +402,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, overrideHack: true);
+        var icr = await circleNetworkService.GetIdentityConnectionRegistration(odinId, odinContext, overrideHack: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {

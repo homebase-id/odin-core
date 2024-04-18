@@ -17,7 +17,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
         /// </summary>
-        Task ProcessOutbox();
+        /// <param name="odinContext"></param>
+        Task ProcessOutbox(OdinContext odinContext);
 
         /// <summary>
         /// Notifies the recipients the file with the <param name="remoteGlobalTransitIdentifier"/> must be deleted
