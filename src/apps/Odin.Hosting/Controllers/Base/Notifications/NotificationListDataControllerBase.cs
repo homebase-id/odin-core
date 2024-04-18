@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
             var sender = TheOdinContext.GetCallerOdinIdOrFail();
-            return await notificationService.AddNotification(sender, request);
+            return await notificationService.AddNotification(sender, request, TheOdinContext);
         }
 
         [HttpGet("list")]
@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             {
                 Count = count,
                 Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
-            });
+            }, TheOdinContext);
         }
 
         [HttpPut("list")]
@@ -37,14 +37,14 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid request");
             }
 
-            await notificationService.UpdateNotifications(request);
+            await notificationService.UpdateNotifications(request, TheOdinContext);
             return Ok();
         }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
-            await notificationService.Delete(request);
+            await notificationService.Delete(request, TheOdinContext);
             return Ok();
         }
     }

@@ -153,7 +153,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             var homeAuthenticatorService = this.Context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
-            var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken);
+            var ctx = await homeAuthenticatorService.GetDotYouContext(clientAuthToken, odinContext);
 
             if (null == ctx)
             {

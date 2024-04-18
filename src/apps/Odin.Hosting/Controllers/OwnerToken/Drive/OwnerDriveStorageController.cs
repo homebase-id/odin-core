@@ -182,7 +182,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
+            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, TheOdinContext);
             return Ok();
         }
     }
