@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.AppNotifications.WebSocket;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
@@ -13,7 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
     [ApiController]
     [AuthorizeValidAppToken]
     [Route(AppApiPathConstants.NotificationsV1)]
-    public class AppNotificationSocketController : Controller
+    public class AppNotificationSocketController : OdinControllerBase
     {
         private readonly AppNotificationHandler _notificationHandler;
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
@@ -49,7 +50,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 
             try
             {
-                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token);
+                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, TheOdinContext);
             }
             catch (OperationCanceledException)
             {
@@ -63,7 +64,6 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
             //this only exists so we can use the [AuthorizeValidAppExchangeGrant] attribute to trigger the clienttokenauthhandler
             return Ok();
         }
-        
     }
 
     public class SocketPreAuthRequest

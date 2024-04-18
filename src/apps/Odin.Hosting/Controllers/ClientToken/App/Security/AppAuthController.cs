@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Security
@@ -11,16 +12,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
     [ApiController]
     [Route(AppApiPathConstants.AuthV1)]
     [AuthorizeValidAppToken]
-    public class AppAuthController : Controller
+    public class AppAuthController(IAppRegistrationService appRegistrationService) : OdinControllerBase
     {
-        private readonly IAppRegistrationService _appRegistrationService;
-
-        public AppAuthController(IAppRegistrationService appRegistrationService)
-        {
-            _appRegistrationService = appRegistrationService;
-        }
-
-
         /// <summary>
         /// Verifies the ClientAuthToken (provided as a cookie) is Valid.
         /// </summary>
@@ -41,7 +34,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         {
             // Cookie might have been set by the preauth middleware
             Response.Cookies.Delete(YouAuthConstants.AppCookieName);
-            await _appRegistrationService.DeleteCurrentAppClient();
+            await appRegistrationService.DeleteCurrentAppClient(TheOdinContext);
         }
     }
 }

@@ -11,8 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppCommandController(CommandMessagingService commandMessagingService )
-        : OdinControllerBase
+    public class AppCommandController(CommandMessagingService commandMessagingService) : OdinControllerBase
     {
         /// <summary>
         /// Sends a command message to a set of recipients
@@ -27,7 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.Command, nameof(request.Command));
             OdinValidationUtils.AssertIsTrue(request.Command.IsValid(), "Command is invalid");
-            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command);
+            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command, TheOdinContext);
             return results;
         }
 
@@ -40,7 +39,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnprocessedCommandsRequest request)
         {
             var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
-            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor);
+            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor, TheOdinContext);
             return result;
         }
 
@@ -52,8 +51,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));
             OdinValidationUtils.AssertIsTrue(request.CommandIdList.Count() > 0, "The command list is empty");
-            
-            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList());
+
+            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList(), TheOdinContext);
             return true;
         }
     }

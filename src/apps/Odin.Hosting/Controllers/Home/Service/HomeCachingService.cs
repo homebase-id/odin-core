@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private IAppCache? _cache;
 
-        public HomeCachingService(DriveManager driveManager, OdinConfiguration config, 
+        public HomeCachingService(DriveManager driveManager, OdinConfiguration config,
             FileSystemHttpRequestResolver fsResolver)
         {
             _driveManager = driveManager;
@@ -48,18 +48,17 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, OdinContext odinContext, OdinId tenantOdinId)
         {
             var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
             {
 #if DEBUG
                 CacheMiss++;
 #endif
-                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request);
+                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
                 return collection;
             });
 
-            var tenantOdinId = ??
             var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)), tenantOdinId);
             var policy = new MemoryCacheEntryOptions()
             {

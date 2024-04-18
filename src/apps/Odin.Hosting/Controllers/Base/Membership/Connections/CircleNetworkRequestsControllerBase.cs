@@ -4,7 +4,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
-using Odin.Core.Identity;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -29,7 +28,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("pending/list")]
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
-            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), TheOdinContext);
             return result;
             // var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             // return new PagedResult<PendingConnectionRequestHeader>(result.Request, result.TotalPages, resp);
@@ -45,7 +44,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            var result = await _requestService.GetPendingRequest(id);
+            var result = await _requestService.GetPendingRequest(id, TheOdinContext);
 
             if (result == null)
             {
@@ -67,7 +66,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
-            await _requestService.AcceptConnectionRequest(header);
+            await _requestService.AcceptConnectionRequest(header, TheOdinContext);
             return true;
         }
 
@@ -81,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            await _requestService.DeletePendingRequest(id);
+            await _requestService.DeletePendingRequest(id, TheOdinContext);
             return true;
         }
 
@@ -95,7 +94,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("sent/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
-            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize), TheOdinContext);
             var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing)).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
@@ -110,7 +109,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            var result = await _requestService.GetSentRequest(id);
+            var result = await _requestService.GetSentRequest(id, TheOdinContext);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -130,7 +129,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            await _requestService.DeleteSentRequest(id);
+            await _requestService.DeleteSentRequest(id, TheOdinContext);
             return true;
         }
 
@@ -146,8 +145,8 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
             OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
-            
-            await _requestService.SendConnectionRequest(requestHeader);
+
+            await _requestService.SendConnectionRequest(requestHeader, TheOdinContext);
             return true;
         }
     }

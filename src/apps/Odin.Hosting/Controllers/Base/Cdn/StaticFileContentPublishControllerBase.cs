@@ -5,7 +5,7 @@ using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Cdn
 {
-    public class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService) : ControllerBase
+    public class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService) : OdinControllerBase
     {
         /// <summary>
         /// Creates a static file which contents match the query params.  Accessible to the public
@@ -20,7 +20,7 @@ namespace Odin.Hosting.Controllers.Base.Cdn
             OdinValidationUtils.AssertValidFileName(request.Filename, "The file name is invalid");
             OdinValidationUtils.AssertNotNull(request.Sections, nameof(request.Sections));
             OdinValidationUtils.AssertIsTrue(request.Sections.Count != 0, "At least one section is needed");
-            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections);
+            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, TheOdinContext);
             return publishResult;
         }
     }

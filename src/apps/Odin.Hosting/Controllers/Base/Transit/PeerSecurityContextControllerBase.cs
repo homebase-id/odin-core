@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         [HttpPost("security/context")]
         public async Task<RedactedOdinContext> GetRemoteDotYouContext([FromBody] TransitGetSecurityContextRequest request)
         {
-            var ctx = await peerDriveQueryService.GetRemoteDotYouContext((OdinId)request.OdinId);
+            var ctx = await peerDriveQueryService.GetRemoteDotYouContext((OdinId)request.OdinId,TheOdinContext);
             return ctx;
         }
     }

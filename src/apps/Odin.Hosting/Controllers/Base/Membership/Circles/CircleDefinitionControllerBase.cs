@@ -10,7 +10,7 @@ using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Membership.Circles
 {
-    public abstract class CircleDefinitionControllerBase : ControllerBase
+    public abstract class CircleDefinitionControllerBase : OdinControllerBase
     {
         private readonly CircleNetworkService _cns;
         private readonly CircleMembershipService _circleMembershipService;
@@ -28,14 +28,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpGet("list")]
         public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
         {
-            var result = await _circleMembershipService.GetCircleDefinitions(includeSystemCircle);
+            var result = await _circleMembershipService.GetCircleDefinitions(includeSystemCircle, TheOdinContext);
             return result;
         }
 
         [HttpPost("get")]
         public CircleDefinition GetCircle([FromBody] Guid id)
         {
-            return _circleMembershipService.GetCircle(id);
+            return _circleMembershipService.GetCircle(id, TheOdinContext);
         }
 
         [HttpPost("create")]
@@ -44,36 +44,36 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotEmptyGuid(request.Id, nameof(request.Id));
-            
-            await _circleMembershipService.CreateCircleDefinition(request);
+
+            await _circleMembershipService.CreateCircleDefinition(request, TheOdinContext);
             return true;
         }
 
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            await _cns.UpdateCircleDefinition(circleDefinition);
+            await _cns.UpdateCircleDefinition(circleDefinition, TheOdinContext);
             return true;
         }
 
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            await _cns.DeleteCircleDefinition(new GuidId(id));
+            await _cns.DeleteCircleDefinition(new GuidId(id), TheOdinContext);
             return true;
         }
 
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.EnableCircle(new GuidId(id));
+            await _circleMembershipService.EnableCircle(new GuidId(id), TheOdinContext);
             return true;
         }
 
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {
-            await _circleMembershipService.DisableCircle(new GuidId(id));
+            await _circleMembershipService.DisableCircle(new GuidId(id), TheOdinContext);
             return true;
         }
     }

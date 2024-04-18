@@ -6,6 +6,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.Shared;
 using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.Controllers.Home.Service;
+using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Home.Cache;
@@ -16,10 +17,12 @@ namespace Odin.Hosting.Controllers.Home.Cache;
 public class HomePageCacheController : OdinControllerBase
 {
     private readonly HomeCachingService _cachingService;
+    private readonly TenantContext _tenantContext;
 
-    public HomePageCacheController(HomeCachingService cachingService)
+    public HomePageCacheController(HomeCachingService cachingService, TenantContext tenantContext)
     {
         _cachingService = cachingService;
+        _tenantContext = tenantContext;
     }
 
     private const string HomePageSwaggerTag = "Home Page Data";
@@ -65,6 +68,6 @@ public class HomePageCacheController : OdinControllerBase
         // tell the browser to check in ever 1 minutes
         const int minutes = 1;
         AddGuestApiCacheHeader(minutes);
-        return await _cachingService.GetResult(request);
+        return await _cachingService.GetResult(request, TheOdinContext, _tenantContext.HostOdinId);
     }
 }

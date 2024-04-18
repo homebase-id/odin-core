@@ -98,7 +98,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 Type = type
             });
 
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: TheOdinContext);
             return result;
         }
     }

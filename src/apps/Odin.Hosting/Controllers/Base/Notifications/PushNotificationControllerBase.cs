@@ -40,8 +40,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             {
                 throw new OdinClientException("Invalid Push notification subscription request");
             }
-            
-            await notificationService.AddDevice(subscription);
+
+            await notificationService.AddDevice(subscription, TheOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid Push notification subscription request: missing device platform");
             }
 
-            await notificationService.AddDevice(subscription);
+            await notificationService.AddDevice(subscription, TheOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()
         {
-            var subscription = await notificationService.GetDeviceSubscription();
+            var subscription = await notificationService.GetDeviceSubscription(TheOdinContext);
             if (null == subscription)
             {
                 return NotFound();
@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("list")]
         public async Task<IActionResult> GetAllSubscriptions()
         {
-            var allSubscriptions = await notificationService.GetAllSubscriptions();
+            var allSubscriptions = await notificationService.GetAllSubscriptions(TheOdinContext);
             if (null == allSubscriptions)
             {
                 return NotFound();
@@ -104,21 +104,21 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("unsubscribe")]
         public async Task<IActionResult> RemoveDevice()
         {
-            await notificationService.RemoveDevice();
+            await notificationService.RemoveDevice(TheOdinContext);
             return Ok();
         }
-        
+
         [HttpDelete("subscription")]
         public async Task<IActionResult> RemoveDevice(Guid key)
         {
-            await notificationService.RemoveDevice(key);
+            await notificationService.RemoveDevice(key, TheOdinContext);
             return Ok();
         }
 
         [HttpPost("unsubscribeAll")]
         public async Task<IActionResult> RemoveAllDevices()
         {
-            await notificationService.RemoveAllDevices();
+            await notificationService.RemoveAllDevices(TheOdinContext);
             return Ok();
         }
 
@@ -126,7 +126,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> Push([FromBody] AppNotificationOptions options)
         {
             var caller = TheOdinContext.GetCallerOdinIdOrFail();
-            await notificationService.EnqueueNotification(caller, options);
+            await notificationService.EnqueueNotification(caller, options, TheOdinContext);
             return Ok();
         }
     }

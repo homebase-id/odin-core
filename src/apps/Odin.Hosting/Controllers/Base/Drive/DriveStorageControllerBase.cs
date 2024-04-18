@@ -59,14 +59,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key, TheOdinContext);
 
             if (!fileExists)
             {
                 return NotFound();
             }
 
-            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk);
+            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk, TheOdinContext);
             if (payloadStream == null)
             {
                 return NotFound();
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey, TheOdinContext);
 
             if (!fileExists)
             {
@@ -131,7 +131,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
-                request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, request.DirectMatchOnly);
+                request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, TheOdinContext, request.DirectMatchOnly);
 
             if (thumbPayload == Stream.Null)
             {
