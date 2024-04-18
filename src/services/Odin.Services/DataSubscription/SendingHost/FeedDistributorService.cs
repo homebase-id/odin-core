@@ -23,7 +23,7 @@ namespace Odin.Services.DataSubscription.SendingHost
     {
         public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,OdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
             var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)
@@ -72,7 +72,7 @@ namespace Odin.Services.DataSubscription.SendingHost
 
         public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, OdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
             var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)

@@ -22,7 +22,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
     {
         public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request, OdinContext odinContext)
         {
-            await followerService.AssertTenantFollowsTheCaller();
+            await followerService.AssertTenantFollowsTheCaller(odinContext);
 
             //S0510
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -32,14 +32,14 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
-                var fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId,odinContext);
 
                 if (null == fileId)
                 {
                     throw new OdinClientException("Invalid File");
                 }
 
-                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
+                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview,odinContext);
             }
 
             return new PeerTransferResponse()
@@ -60,7 +60,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             {
                 var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
-                var fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId,odinContext);
 
                 if (null == fileId)
                 {
@@ -75,7 +75,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata,odinContext);
+                    var serverFileHeader =
+                        await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata, odinContext);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, raiseEvent: true);
 
                     await mediator.Publish(new NewFeedItemReceived()
@@ -88,7 +89,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     // perform update
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata,odinContext);
+                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, odinContext);
                 }
             }
 
@@ -103,7 +104,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             await followerService.AssertTenantFollowsTheCaller(odinContext);
             using (new FeedDriveDistributionSecurityContext(contextAccessor))
             {
-                var fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId, odinContext);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -113,7 +114,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
                 }
 
-                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value,odinContext);
+                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value, odinContext);
 
                 return new PeerTransferResponse()
                 {
@@ -125,9 +126,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
+        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, OdinContext odinContext)
         {
-            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, tryCommentDrive: false);
             return fileId;
         }
     }

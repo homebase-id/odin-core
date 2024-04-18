@@ -104,7 +104,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             AccessControlList targetAcl;
 
-            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+            var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext);
 
             if (null == referencedFs)
             {

@@ -40,7 +40,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
         }
 
         //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
-        var (fs, _) = await fileSystemResolver.ResolveFileSystem(referencedFile);
+        var (fs, _) = await fileSystemResolver.ResolveFileSystem(referencedFile, odinContext);
         if (null == fs)
         {
             //TODO: consider if we log this or just ignore it
@@ -146,7 +146,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
+        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
         var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
@@ -173,7 +173,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
+        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
         var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header?.FileMetadata.ReactionPreview;
 
@@ -212,7 +212,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     {
         var targetFile = notification.FileId;
         var odinContext = notification.OdinContext;
-        var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
+        var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
         var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header?.FileMetadata.ReactionPreview;
 

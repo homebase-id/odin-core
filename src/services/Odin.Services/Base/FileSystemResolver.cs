@@ -12,12 +12,6 @@ namespace Odin.Services.Base
 {
     public class FileSystemResolver
     {
-        private readonly IHttpContextAccessor _contextAccessor;
-
-        /// <summary/> 
-        public FileSystemResolver(IHttpContextAccessor contextAccessor)
-        {
-        }
 
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)

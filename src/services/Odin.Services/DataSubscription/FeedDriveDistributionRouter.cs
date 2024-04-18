@@ -258,7 +258,7 @@ namespace Odin.Services.DataSubscription
 
             if (connectedFollowers.Any())
             {
-                var fs = await _fileSystemResolver.ResolveFileSystem(file);
+                var fs = await _fileSystemResolver.ResolveFileSystem(file,odinContext);
                 var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)

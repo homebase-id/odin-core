@@ -27,7 +27,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
-        
+
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly DriveManager _driveManager;
         private readonly ILogger<AppNotificationHandler> _logger;
@@ -37,7 +37,6 @@ namespace Odin.Services.AppNotifications.WebSocket
             DriveManager driveManager,
             ILogger<AppNotificationHandler> logger)
         {
-            
             _peerInboxProcessor = peerInboxProcessor;
             _driveManager = driveManager;
             _logger = logger;
@@ -211,7 +210,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
-            var notificationDriveId = odinContext.PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
+            var notificationDriveId = notification.OdinContext.PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
@@ -352,12 +351,12 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive);
+                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext);
                     break;
 
                 case SocketCommandType.ProcessInbox:
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, request.BatchSize);
                     break;
 
                 case SocketCommandType.Ping:

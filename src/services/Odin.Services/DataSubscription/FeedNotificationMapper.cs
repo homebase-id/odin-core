@@ -42,12 +42,13 @@ namespace Odin.Services.DataSubscription
                 if (sender != tenantContext.HostOdinId)
                 {
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                    {
-                        AppId = SystemAppConstants.FeedAppId,
-                        TypeId = notification.NotificationTypeId,
-                        TagId = sender.ToHashId(),
-                        Silent = false,
-                    });
+                        {
+                            AppId = SystemAppConstants.FeedAppId,
+                            TypeId = notification.NotificationTypeId,
+                            TagId = sender.ToHashId(),
+                            Silent = false,
+                        },
+                        notification.OdinContext);
                 }
             }
         }
