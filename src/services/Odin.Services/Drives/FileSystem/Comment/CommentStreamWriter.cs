@@ -53,13 +53,13 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, OdinContext odinContext)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata, OdinContext odinContext)
+        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
@@ -70,7 +70,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, OdinContext odinContext)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
@@ -103,13 +103,13 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, OdinContext odinContext)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
         return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
-        UploadFileDescriptor uploadDescriptor, OdinContext odinContext)
+        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {

@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
             var result = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage
-                .GetSharedSecretEncryptedHeader(MapToInternalFile(request), TheOdinContext);
+                .GetSharedSecretEncryptedHeader(MapToInternalFile(request), WebOdinContext);
 
             if (result == null)
             {
@@ -60,14 +60,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key, TheOdinContext);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.Key, WebOdinContext);
 
             if (!fileExists)
             {
                 return NotFound();
             }
 
-            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk, TheOdinContext);
+            var payloadStream = await fs.Storage.GetPayloadStream(file, request.Key, request.Chunk, WebOdinContext);
             if (payloadStream == null)
             {
                 return NotFound();
@@ -122,7 +122,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
-                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey, TheOdinContext);
+                await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeader(file, request.PayloadKey, WebOdinContext);
 
             if (!fileExists)
             {
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file,
-                request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, TheOdinContext, request.DirectMatchOnly);
+                request.Width, request.Height, request.PayloadKey, payloadDescriptor.Uid, WebOdinContext, request.DirectMatchOnly);
 
             if (thumbPayload == Stream.Null)
             {
@@ -174,8 +174,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
-                TheOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
             foreach (var request in batchRequest.Requests)
@@ -194,10 +194,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     MaxRecords = int.MaxValue
                 };
 
-                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
                 var queryResults = await GetHttpFileSystemResolver().ResolveFileSystem()
-                    .Query.GetBatch(driveId, qp, options, TheOdinContext);
+                    .Query.GetBatch(driveId, qp, options, WebOdinContext);
 
                 //
                 // Delete the batch resulting from the query
@@ -232,8 +232,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
-                TheOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
+                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+                WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
             var batchResult = await PerformDeleteFileIdBatch(batchRequest);
@@ -258,7 +258,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             return new DeletePayloadResult()
             {
-                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault(), TheOdinContext)
+                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key, request.VersionTag.GetValueOrDefault(), WebOdinContext)
             };
         }
 
@@ -281,7 +281,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private async Task<DeleteFileResult> PerformFileDelete(DeleteFileRequest request)
         {
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
             OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: true);
@@ -299,9 +299,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 LocalFileDeleted = false
             };
 
-            var fs = await fileSystemResolver.ResolveFileSystem(file, TheOdinContext);
+            var fs = await fileSystemResolver.ResolveFileSystem(file, WebOdinContext);
 
-            var header = await fs.Storage.GetServerFileHeader(file, TheOdinContext);
+            var header = await fs.Storage.GetServerFileHeader(file, WebOdinContext);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
@@ -324,12 +324,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal
                     },
-                    recipients, TheOdinContext);
+                    recipients, WebOdinContext);
 
                 result.RecipientStatus = responses;
             }
 
-            await fs.Storage.SoftDeleteLongTermFile(file, TheOdinContext);
+            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext);
             result.LocalFileDeleted = true;
             return result;
         }

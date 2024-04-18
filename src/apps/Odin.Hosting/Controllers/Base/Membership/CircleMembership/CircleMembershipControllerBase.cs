@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
         [HttpPost("list")]
         public Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
         {
-            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, TheOdinContext);
+            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, WebOdinContext);
             return Task.FromResult(result);
         }
     }

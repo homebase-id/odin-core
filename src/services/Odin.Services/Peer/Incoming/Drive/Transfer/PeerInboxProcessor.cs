@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
         /// </summary>
-        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, OdinContext odinContext, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
             logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);

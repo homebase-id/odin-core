@@ -20,7 +20,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         [HttpGet("context")]
         public Task<RedactedOdinContext> GetRemoteSecurityContext()
         {
-            return Task.FromResult(TheOdinContext.Redacted());
+            return Task.FromResult(WebOdinContext.Redacted());
         }
     }
 }

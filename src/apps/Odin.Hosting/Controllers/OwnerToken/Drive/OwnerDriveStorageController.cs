@@ -169,7 +169,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("harddelete")]
         public async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
 
             if (request.Recipients != null && request.Recipients.Any())
             {
@@ -182,7 +182,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, TheOdinContext);
+            await base.GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext);
             return Ok();
         }
     }

@@ -42,21 +42,21 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("system/IsEulaSignatureRequired")]
     public Task<bool> IsEulaSignatureRequired()
     {
-        var result = _tenantConfigService.IsEulaSignatureRequired(TheOdinContext);
+        var result = _tenantConfigService.IsEulaSignatureRequired(WebOdinContext);
         return Task.FromResult(result);
     }
 
     [HttpPost("system/GetRequiredEulaVersion")]
     public Task<EulaVersionResponse> GetRequiredEulaVersion()
     {
-        var result = _tenantConfigService.GetRequiredEulaVersion(TheOdinContext);
+        var result = _tenantConfigService.GetRequiredEulaVersion(WebOdinContext);
         return Task.FromResult(result);
     }
 
     [HttpPost("system/GetEulaSignatureHistory")]
     public Task<List<EulaSignature>> GetEulaSignatureHistory()
     {
-        var result = _tenantConfigService.GetEulaSignatureHistory(TheOdinContext);
+        var result = _tenantConfigService.GetEulaSignatureHistory(WebOdinContext);
         return Task.FromResult(result);
     }
 
@@ -64,7 +64,7 @@ public class ConfigurationController : OdinControllerBase
     public IActionResult MarkEulaSigned([FromBody] MarkEulaSignedRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        _tenantConfigService.MarkEulaSigned(request, TheOdinContext);
+        _tenantConfigService.MarkEulaSigned(request, WebOdinContext);
         return Ok();
     }
 
@@ -75,7 +75,7 @@ public class ConfigurationController : OdinControllerBase
     public async Task<bool> InitializeIdentity([FromBody] InitialSetupRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
-        await _tenantConfigService.EnsureInitialOwnerSetup(request, TheOdinContext);
+        await _tenantConfigService.EnsureInitialOwnerSetup(request, WebOdinContext);
         return true;
     }
 
@@ -89,7 +89,7 @@ public class ConfigurationController : OdinControllerBase
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.FlagName, nameof(request.FlagName));
 
-        await _tenantConfigService.UpdateSystemFlag(request, TheOdinContext);
+        await _tenantConfigService.UpdateSystemFlag(request, WebOdinContext);
 
         //todo: map to all the various flags
         return await Task.FromResult(false);
@@ -130,7 +130,7 @@ public class ConfigurationController : OdinControllerBase
     public async Task<bool> UpdateOwnerAppSetting([FromBody] OwnerAppSettings settings)
     {
         OdinValidationUtils.AssertNotNull(settings?.Settings, nameof(settings.Settings));
-        _tenantConfigService.UpdateOwnerAppSettings(settings, TheOdinContext);
+        _tenantConfigService.UpdateOwnerAppSettings(settings, WebOdinContext);
         return await Task.FromResult(true);
     }
 
@@ -140,7 +140,7 @@ public class ConfigurationController : OdinControllerBase
     [HttpPost("ownerapp/settings/list")]
     public OwnerAppSettings GetOwnerSettings()
     {
-        var settings = _tenantConfigService.GetOwnerAppSettings(TheOdinContext);
+        var settings = _tenantConfigService.GetOwnerAppSettings(WebOdinContext);
         return settings;
     }
 

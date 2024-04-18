@@ -27,14 +27,14 @@ public abstract class PayloadStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task StartUpload(Stream data, OdinContext odinContext)
+    public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
         await this.StartUpload(instructionSet, odinContext);
     }
 
-    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, OdinContext odinContext)
+    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
@@ -61,7 +61,7 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, OdinContext odinContext)
+    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -93,7 +93,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, OdinContext odinContext)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -145,7 +145,7 @@ public abstract class PayloadStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadPayloadResult> FinalizeUpload(OdinContext odinContext)
+    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext)
     {
         var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext);
 
@@ -180,12 +180,12 @@ public abstract class PayloadStreamWriterBase
     /// Performs the update of attachments on the file system
     /// </summary>
     /// <returns>The updated version tag on the metadata</returns>
-    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, OdinContext odinContext);
+    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext);
 
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, OdinContext odinContext)
+    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, IOdinContext odinContext)
     {
         // Validate the file exists by the Id
         if (!await FileSystem.Storage.FileExists(_package.InternalFile, odinContext))
@@ -213,7 +213,7 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, OdinContext odinContext)
+    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
     {
         return new InternalDriveFileId()
         {

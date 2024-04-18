@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, OdinContext odinContext)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -77,7 +77,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return await SendFileLater(internalFile, options, sfo, odinContext);
         }
 
-        public async Task ProcessOutbox(OdinContext odinContext)
+        public async Task ProcessOutbox(IOdinContext odinContext)
         {
             var batchSize = odinConfiguration.Transit.OutboxBatchSize;
 
@@ -102,7 +102,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
-            FileTransferOptions fileTransferOptions, IEnumerable<string> recipients, OdinContext odinContext)
+            FileTransferOptions fileTransferOptions, IEnumerable<string> recipients, IOdinContext odinContext)
         {
             var result = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -191,7 +191,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items, OdinContext odinContext)
+        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items, IOdinContext odinContext)
         {
             var sendFileTasks = new List<Task<OutboxProcessingResult>>();
             var results = new List<OutboxProcessingResult>();
@@ -231,7 +231,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             return results;
         }
 
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem, OdinContext odinContext)
+        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem, IOdinContext odinContext)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -431,7 +431,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             InternalDriveFileId internalFile,
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
 
@@ -492,7 +492,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
-            TransitOptions options, FileTransferOptions fileTransferOptions, OdinContext odinContext)
+            TransitOptions options, FileTransferOptions fileTransferOptions, IOdinContext odinContext)
         {
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
@@ -504,7 +504,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
-            TransitOptions transitOptions, FileTransferOptions fileTransferOptions, OdinContext odinContext)
+            TransitOptions transitOptions, FileTransferOptions fileTransferOptions, IOdinContext odinContext)
         {
             var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions, odinContext);
 

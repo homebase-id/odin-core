@@ -6,7 +6,26 @@ using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Base
 {
-    public class OdinContext
+    public interface IOdinContext
+    {
+        string AuthContext { get; }
+        OdinId Tenant { get; set; }
+        CallerContext Caller { get; set; }
+        PermissionContext PermissionsContext { get; }
+
+        /// <summary>
+        /// The age of the <see cref="ClientAuthenticationToken"/>
+        /// </summary>
+        UnixTimeUtc? AuthTokenCreated { get; set; }
+
+        OdinId GetCallerOdinIdOrFail();
+        void SetPermissionContext(PermissionContext pc);
+        void SetAuthContext(string authContext);
+        void AssertCanManageConnections();
+        RedactedOdinContext Redacted();
+    }
+
+    public class OdinContext : IOdinContext
     {
         private PermissionContext _permissionsContext;
         private string _authContext;

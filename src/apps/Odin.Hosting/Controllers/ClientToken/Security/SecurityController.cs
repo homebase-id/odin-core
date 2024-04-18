@@ -30,6 +30,6 @@ public class SecurityController : OdinControllerBase
     [HttpGet("context")]
     public RedactedOdinContext GetSecurityContext()
     {
-        return TheOdinContext.Redacted();
+        return WebOdinContext.Redacted();
     }
 }

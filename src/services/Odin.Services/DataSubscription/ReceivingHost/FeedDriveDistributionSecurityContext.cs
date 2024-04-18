@@ -9,12 +9,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost;
 
 public class FeedDriveDistributionSecurityContext : IDisposable
 {
-    private readonly OdinContext _odinContext;
+    private readonly IOdinContext _odinContext;
     private readonly SecurityGroupType _prevSecurityGroupType;
 
     private const string GroupName = "read_followers_only_for_distribution";
 
-    public FeedDriveDistributionSecurityContext(ref OdinContext odinContext)
+    public FeedDriveDistributionSecurityContext(ref IOdinContext odinContext)
     {
         _odinContext = odinContext;
 

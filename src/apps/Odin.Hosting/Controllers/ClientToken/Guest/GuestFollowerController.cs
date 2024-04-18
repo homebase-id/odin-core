@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("FollowerConfiguration")]
         public async Task<object> GetFollowerConfig()
         {
-            var follower = await base.GetFollower(TheOdinContext.Caller.OdinId);
+            var follower = await base.GetFollower(WebOdinContext.Caller.OdinId);
             return follower;
         }
 

@@ -30,7 +30,7 @@ public class PushNotificationOutbox
         
     }
 
-    public Task Add(PushNotificationOutboxRecord record, OdinContext odinContext)
+    public Task Add(PushNotificationOutboxRecord record, IOdinContext odinContext)
     {
         //PRIMARY KEY (fileId,recipient)
         var recipient = odinContext.Tenant;

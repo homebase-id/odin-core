@@ -23,7 +23,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Creates initial encryption keys
         /// </summary>
-        internal async Task CreateInitialKeys(OdinContext odinContext)
+        internal async Task CreateInitialKeys(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             var masterKey = odinContext.Caller.GetMasterKey();
@@ -31,7 +31,7 @@ namespace Odin.Services.Membership.Connections
             await Task.CompletedTask;
         }
 
-        public SensitiveByteArray GetDecryptedIcrKey(OdinContext odinContext)
+        public SensitiveByteArray GetDecryptedIcrKey(IOdinContext odinContext)
         {
             return this.GetDecryptedIcrKeyInternal(odinContext);
         }
@@ -42,7 +42,7 @@ namespace Odin.Services.Membership.Connections
             return masterKeyEncryptedIcrKey;
         }
 
-        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, OdinContext odinContext)
+        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey, IOdinContext odinContext)
         {
             var rawIcrKey = GetDecryptedIcrKeyInternal(odinContext);
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(encryptionKey, rawIcrKey);
@@ -50,7 +50,7 @@ namespace Odin.Services.Membership.Connections
             return encryptedIcrKey;
         }
 
-        public EncryptedClientAccessToken EncryptClientAccessTokenUsingIrcKey(ClientAccessToken clientAccessToken, OdinContext odinContext)
+        public EncryptedClientAccessToken EncryptClientAccessTokenUsingIrcKey(ClientAccessToken clientAccessToken, IOdinContext odinContext)
         {
             var rawIcrKey = GetDecryptedIcrKeyInternal(odinContext);
             var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
@@ -60,7 +60,7 @@ namespace Odin.Services.Membership.Connections
 
         //
 
-        private SensitiveByteArray GetDecryptedIcrKeyInternal(OdinContext odinContext)
+        private SensitiveByteArray GetDecryptedIcrKeyInternal(IOdinContext odinContext)
         {
             var masterKey = odinContext.Caller.GetMasterKey();
             var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();

@@ -100,7 +100,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
-        ref ReactionSummary targetFileReactionPreview, OdinContext odinContext)
+        ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
@@ -119,7 +119,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
         }
     }
 
-    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview, OdinContext odinContext)
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;

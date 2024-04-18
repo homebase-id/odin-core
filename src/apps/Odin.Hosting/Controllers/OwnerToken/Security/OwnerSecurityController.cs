@@ -35,33 +35,33 @@ public class OwnerSecurityController : OdinControllerBase
     [HttpGet("context")]
     public RedactedOdinContext GetSecurityContext()
     {
-        return TheOdinContext.Redacted();
+        return WebOdinContext.Redacted();
     }
 
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        return await _recoveryService.GetKey(TheOdinContext);
+        return await _recoveryService.GetKey(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        await _ss.ResetPassword(request, TheOdinContext);
+        await _ss.ResetPassword(request, WebOdinContext);
         return new OkResult();
     }
 
     [HttpGet("account-status")]
     public async Task<AccountStatusResponse> GetAccountStatus()
     {
-        return await _ownerAuthenticationService.GetAccountStatus(TheOdinContext);
+        return await _ownerAuthenticationService.GetAccountStatus(WebOdinContext);
     }
 
     [HttpPost("delete-account")]
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, TheOdinContext);
+        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 
@@ -69,7 +69,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> UndeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, TheOdinContext);
+        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 }

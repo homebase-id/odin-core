@@ -31,7 +31,7 @@ public class PeerReactionSenderService(
 {
 
     /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, OdinContext odinContext)
+    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId, odinContext);
 
@@ -55,7 +55,7 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, OdinContext odinContext)
+    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
@@ -79,7 +79,7 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, OdinContext odinContext)
+    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -102,7 +102,7 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, OdinContext odinContext)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -125,7 +125,7 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, OdinContext odinContext)
+    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -145,7 +145,7 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, OdinContext odinContext)
+    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
         var (token, client) = await CreateReactionContentClient(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
@@ -171,7 +171,7 @@ public class PeerReactionSenderService(
     /// <param name="sharedSecretEncryptedFileHeader"></param>
     /// <param name="icr"></param>
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
-        IdentityConnectionRegistration icr, OdinContext odinContext)
+        IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
@@ -190,7 +190,7 @@ public class PeerReactionSenderService(
         return sharedSecretEncryptedFileHeader;
     }
 
-    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, OdinContext odinContext)
+    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
         var newKey = odinContext.PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);

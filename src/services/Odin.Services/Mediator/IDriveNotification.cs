@@ -17,7 +17,7 @@ public interface IDriveNotification : INotification
 
     public ServerFileHeader ServerFileHeader { get; init; }
 
-    public OdinContext OdinContext { get; init; }
+    public IOdinContext OdinContext { get; init; }
     // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 }
 

@@ -26,9 +26,9 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, OdinContext odinContext)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var creator = new Func<Task<OdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token, odinContext);
@@ -48,7 +48,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
-        ClientAuthenticationToken token, OdinContext odinContext)
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext);
         var cc = new CallerContext(

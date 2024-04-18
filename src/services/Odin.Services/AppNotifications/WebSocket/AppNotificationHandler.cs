@@ -48,7 +48,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken, OdinContext odinContext)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -94,7 +94,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, OdinContext odinContext)
+        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
@@ -317,7 +317,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken, OdinContext odinContext)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             //process the command
             switch (command.Command)

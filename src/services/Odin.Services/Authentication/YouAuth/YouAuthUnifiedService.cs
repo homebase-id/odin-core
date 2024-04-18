@@ -53,7 +53,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
@@ -86,7 +86,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     //
 
     public async Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {
@@ -130,7 +130,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string publicKey,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -216,7 +216,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, OdinContext odinContext)
+    public async Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (!Guid.TryParse(clientIdOrDomain, out var appId))
         {
@@ -239,7 +239,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, OdinContext odinContext)
+    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest, IOdinContext odinContext)
     {
         if (clientType == ClientType.app)
         {

@@ -92,13 +92,13 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {
                 Alias = alias,
                 Type = type
             });
 
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: TheOdinContext);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
             return result;
         }
     }

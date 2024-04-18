@@ -21,7 +21,7 @@ namespace Odin.Services.DataSubscription.SendingHost
         IDriveAclAuthorizationService driveAcl,
         OdinConfiguration odinConfiguration)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,OdinContext odinContext)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext)
         {
             var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
             var header = await fs.Storage.GetServerFileHeader(file,odinContext);
@@ -70,7 +70,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, OdinContext odinContext)
+        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext)
         {
             var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
             var header = await fs.Storage.GetServerFileHeader(file,odinContext);

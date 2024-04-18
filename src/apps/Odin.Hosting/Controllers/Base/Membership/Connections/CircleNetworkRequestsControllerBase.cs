@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("pending/list")]
         public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
-            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), TheOdinContext);
+            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize), WebOdinContext);
             return result;
             // var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             // return new PagedResult<PendingConnectionRequestHeader>(result.Request, result.TotalPages, resp);
@@ -44,7 +44,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            var result = await _requestService.GetPendingRequest(id, TheOdinContext);
+            var result = await _requestService.GetPendingRequest(id, WebOdinContext);
 
             if (result == null)
             {
@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
             header.Validate();
-            await _requestService.AcceptConnectionRequest(header, TheOdinContext);
+            await _requestService.AcceptConnectionRequest(header, WebOdinContext);
             return true;
         }
 
@@ -80,7 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
             AssertIsValidOdinId(sender.OdinId, out var id);
-            await _requestService.DeletePendingRequest(id, TheOdinContext);
+            await _requestService.DeletePendingRequest(id, WebOdinContext);
             return true;
         }
 
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpGet("sent/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
-            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize), TheOdinContext);
+            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize), WebOdinContext);
             var resp = result.Results.Select(r => ConnectionRequestResponse.FromConnectionRequest(r, ConnectionRequestDirection.Outgoing)).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
@@ -109,7 +109,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            var result = await _requestService.GetSentRequest(id, TheOdinContext);
+            var result = await _requestService.GetSentRequest(id, WebOdinContext);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -129,7 +129,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
-            await _requestService.DeleteSentRequest(id, TheOdinContext);
+            await _requestService.DeleteSentRequest(id, WebOdinContext);
             return true;
         }
 
@@ -146,7 +146,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
             OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
 
-            await _requestService.SendConnectionRequest(requestHeader, TheOdinContext);
+            await _requestService.SendConnectionRequest(requestHeader, WebOdinContext);
             return true;
         }
     }

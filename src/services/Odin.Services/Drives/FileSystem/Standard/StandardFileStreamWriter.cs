@@ -43,19 +43,19 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, OdinContext odinContext)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -84,12 +84,12 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, OdinContext odinContext)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
         return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext);
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, OdinContext odinContext)
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {

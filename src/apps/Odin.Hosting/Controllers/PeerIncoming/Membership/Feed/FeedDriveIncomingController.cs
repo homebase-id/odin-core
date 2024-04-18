@@ -36,14 +36,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.AcceptUpdatedFileMetadata(payload,TheOdinContext);
+            return await perimeterService.AcceptUpdatedFileMetadata(payload,WebOdinContext);
         }
         
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.Delete(payload,TheOdinContext);
+            return await perimeterService.Delete(payload,WebOdinContext);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()

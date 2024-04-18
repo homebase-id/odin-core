@@ -92,18 +92,18 @@ namespace Odin.Hosting.Controllers.Home.Service
 
 
         /// <summary>
-        /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
+        /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
+        public async Task<IOdinContext?> GetDotYouContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
-            var creator = new Func<Task<OdinContext?>>(async delegate
+            var creator = new Func<Task<IOdinContext?>>(async delegate
             {
                 var dotYouContext = new OdinContext();
                 var (callerContext, permissionContext) = await GetPermissionContext(token, odinContext);
 
                 if (null == permissionContext || callerContext == null)
                 {
-                    return await Task.FromResult<OdinContext?>(null);
+                    return await Task.FromResult<IOdinContext?>(null);
                 }
 
                 dotYouContext.Caller = callerContext;
@@ -115,7 +115,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             return await _cache.GetOrAddContext(token, creator);
         }
 
-        public ValueTask<bool> DeleteSession(OdinContext odinContext)
+        public ValueTask<bool> DeleteSession(IOdinContext odinContext)
         {
             try
             {
@@ -140,7 +140,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
@@ -161,7 +161,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         }
 
         private async ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             /*
              * trying to determine if the icr token given was valid but was blocked
@@ -199,7 +199,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         }
 
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
-            ClientAuthenticationToken authToken, HomeAppClient client, OdinContext odinContext)
+            ClientAuthenticationToken authToken, HomeAppClient client, IOdinContext odinContext)
         {
             if (null == client)
             {
@@ -331,7 +331,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedPermissionContext(
-            ClientAuthenticationToken authToken, OdinContext odinContext)
+            ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             var client = _storage.GetClient(authToken.Id);
             if (client?.AccessRegistration == null)

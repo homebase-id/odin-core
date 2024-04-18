@@ -12,17 +12,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, OdinContext odinContext);
+        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext);
 
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
         /// </summary>
-        Task ProcessOutbox(OdinContext odinContext);
+        Task ProcessOutbox(IOdinContext odinContext);
 
         /// <summary>
         /// Notifies the recipients the file with the <param name="remoteGlobalTransitIdentifier"/> must be deleted
         /// </summary>
         Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, FileTransferOptions fileTransferOptions,
-            IEnumerable<string> recipients, OdinContext odinContext);
+            IEnumerable<string> recipients, IOdinContext odinContext);
     }
 }

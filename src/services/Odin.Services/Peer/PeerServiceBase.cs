@@ -40,7 +40,7 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, OdinContext odinContext, bool failIfNotConnected = true)
+        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext, bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
             odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
@@ -62,7 +62,7 @@ namespace Odin.Services.Peer
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, OdinContext odinContext,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext,
             FileSystemType? fileSystemType = null)
         {
             var token = await ResolveClientAccessToken(odinId, odinContext, false);
@@ -80,7 +80,7 @@ namespace Odin.Services.Peer
             }
         }
 
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
+        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
             var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
@@ -99,7 +99,7 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, OdinContext odinContext)
+        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
             var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext);
             return fileId;

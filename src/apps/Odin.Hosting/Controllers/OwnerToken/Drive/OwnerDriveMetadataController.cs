@@ -32,7 +32,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), TheOdinContext);
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()

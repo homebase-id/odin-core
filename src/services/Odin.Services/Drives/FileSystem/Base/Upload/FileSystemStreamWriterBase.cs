@@ -48,7 +48,7 @@ public abstract class FileSystemStreamWriterBase
 
     public FileUploadPackage Package { get; private set; }
 
-    public virtual async Task StartUpload(Stream data, OdinContext odinContext)
+    public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
@@ -57,7 +57,7 @@ public abstract class FileSystemStreamWriterBase
         await this.StartUpload(instructionSet, odinContext);
     }
 
-    public virtual async Task StartUpload(UploadInstructionSet instructionSet, OdinContext odinContext)
+    public virtual async Task StartUpload(UploadInstructionSet instructionSet, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
@@ -105,13 +105,13 @@ public abstract class FileSystemStreamWriterBase
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddMetadata(Stream data, OdinContext odinContext)
+    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
         // await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext);
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data, OdinContext odinContext)
+    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext)
     {
         if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
         {
@@ -144,7 +144,7 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, OdinContext odinContext)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext)
     {
         //Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -196,7 +196,7 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadResult> FinalizeUpload(OdinContext odinContext)
+    public async Task<UploadResult> FinalizeUpload(IOdinContext odinContext)
     {
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
@@ -281,34 +281,34 @@ public abstract class FileSystemStreamWriterBase
     protected abstract Task ValidateUploadDescriptor(UploadFileDescriptor uploadDescriptor);
 
     protected abstract Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        OdinContext odinContext);
+        IOdinContext odinContext);
 
     /// <summary>
     /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
     /// </summary>
     protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        OdinContext odinContext);
+        IOdinContext odinContext);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
     protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        OdinContext odinContext);
+        IOdinContext odinContext);
 
     /// <summary>
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, OdinContext odinContext);
+    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext);
 
     /// <summary>
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, OdinContext odinContext);
+    protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext);
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
@@ -331,7 +331,7 @@ public abstract class FileSystemStreamWriterBase
     }
 
     protected async Task<Dictionary<string, TransferStatus>> ProcessTransitBasic(FileUploadPackage package, FileSystemType fileSystemType,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
@@ -351,7 +351,7 @@ public abstract class FileSystemStreamWriterBase
 
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
         FileUploadPackage package,
-        UploadFileDescriptor uploadDescriptor, OdinContext odinContext)
+        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
@@ -379,7 +379,7 @@ public abstract class FileSystemStreamWriterBase
     }
 
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(FileUploadPackage package,
-        UploadFileDescriptor uploadDescriptor, OdinContext odinContext)
+        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
         {
@@ -492,7 +492,7 @@ public abstract class FileSystemStreamWriterBase
         }
     }
 
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, OdinContext odinContext)
+    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
     {
         return new InternalDriveFileId()
         {

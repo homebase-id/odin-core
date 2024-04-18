@@ -49,7 +49,7 @@ public class DriveManager
         LoadCache();
     }
 
-    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request, OdinContext odinContext)
+    public async Task<StorageDrive> CreateDrive(CreateDriveRequest request, IOdinContext odinContext)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -123,7 +123,7 @@ public class DriveManager
         return storageDrive;
     }
 
-    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous, OdinContext odinContext)
+    public async Task SetDriveReadMode(Guid driveId, bool allowAnonymous, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDrive(driveId);
@@ -156,7 +156,7 @@ public class DriveManager
         }
     }
 
-    public Task UpdateMetadata(Guid driveId, string metadata, OdinContext odinContext)
+    public Task UpdateMetadata(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
@@ -214,7 +214,7 @@ public class DriveManager
         return await Task.FromResult(drive.Id);
     }
 
-    public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions, OdinContext odinContext)
+    public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions, IOdinContext odinContext)
     {
         Func<StorageDrive, bool> predicate = drive => true;
         if (odinContext.Caller.IsAnonymous)
@@ -230,7 +230,7 @@ public class DriveManager
         // return await this.GetDrivesInternal(true, pageOptions);
     }
 
-    public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions, OdinContext odinContext)
+    public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions, IOdinContext odinContext)
     {
         Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 
@@ -245,7 +245,7 @@ public class DriveManager
         return results;
     }
 
-    public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions, OdinContext odinContext)
+    public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await this.GetDrivesInternal(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
@@ -255,7 +255,7 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, OdinContext odinContext)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext)
     {
         List<StorageDrive> allDrives;
 

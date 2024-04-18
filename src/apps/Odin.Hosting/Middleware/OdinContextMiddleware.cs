@@ -32,7 +32,7 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, OdinContext odinContext)
+        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -78,7 +78,7 @@ namespace Odin.Hosting.Middleware
             await _next(httpContext);
         }
 
-        private async Task LoadTransitContext(HttpContext httpContext, OdinContext odinContext)
+        private async Task LoadTransitContext(HttpContext httpContext, IOdinContext odinContext)
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Middleware
             await LoadPublicTransitContext(httpContext, odinContext);
         }
 
-        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, OdinContext odinContext)
+        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, IOdinContext odinContext)
         {
             //No token for now
             var user = httpContext.User;
@@ -140,7 +140,7 @@ namespace Odin.Hosting.Middleware
             throw new OdinSecurityException("Cannot load context");
         }
 
-        private async Task LoadFollowerContext(HttpContext httpContext, OdinContext odinContext)
+        private async Task LoadFollowerContext(HttpContext httpContext, IOdinContext odinContext)
         {
             //No token for now
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
@@ -162,7 +162,7 @@ namespace Odin.Hosting.Middleware
             throw new OdinSecurityException("Cannot load context");
         }
 
-        private async Task LoadPublicTransitContext(HttpContext httpContext, OdinContext odinContext)
+        private async Task LoadPublicTransitContext(HttpContext httpContext, IOdinContext odinContext)
         {
             var user = httpContext.User;
             var odinId = (OdinId)user.Identity!.Name;

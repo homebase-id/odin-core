@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, OdinContext odinContext, OdinId tenantOdinId)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId)
         {
             var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
             {

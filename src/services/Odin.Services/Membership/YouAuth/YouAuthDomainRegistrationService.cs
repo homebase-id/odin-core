@@ -59,7 +59,7 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Registers the domain as having access 
         /// </summary>
-        public async Task<RedactedYouAuthDomainRegistration> RegisterDomain(YouAuthDomainRegistrationRequest request, OdinContext odinContext)
+        public async Task<RedactedYouAuthDomainRegistration> RegisterDomain(YouAuthDomainRegistrationRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -102,7 +102,7 @@ namespace Odin.Services.Membership.YouAuth
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(
             AsciiDomainName domain,
             string friendlyName,
-            YouAuthDomainRegistrationRequest? request, OdinContext odinContext)
+            YouAuthDomainRegistrationRequest? request, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertNotNullOrEmpty(friendlyName, nameof(friendlyName));
             odinContext.Caller.AssertHasMasterKey();
@@ -128,7 +128,7 @@ namespace Odin.Services.Membership.YouAuth
             return (cat, reg.CorsHostName);
         }
 
-        public async Task<RedactedYouAuthDomainRegistration?> GetRegistration(AsciiDomainName domain, OdinContext odinContext)
+        public async Task<RedactedYouAuthDomainRegistration?> GetRegistration(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -139,7 +139,7 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Determines if the specified domain requires consent from the owner before ...
         /// </summary>
-        public async Task<bool> IsConsentRequired(AsciiDomainName domain, OdinContext odinContext)
+        public async Task<bool> IsConsentRequired(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -153,7 +153,7 @@ namespace Odin.Services.Membership.YouAuth
             return reg?.ConsentRequirements?.IsRequired() ?? true;
         }
 
-        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements, OdinContext odinContext)
+        public async Task UpdateConsentRequirements(AsciiDomainName domain, ConsentRequirements consentRequirements, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -171,7 +171,7 @@ namespace Odin.Services.Membership.YouAuth
             ResetPermissionContextCache();
         }
 
-        public async Task RevokeDomain(AsciiDomainName domain, OdinContext odinContext)
+        public async Task RevokeDomain(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -187,7 +187,7 @@ namespace Odin.Services.Membership.YouAuth
             ResetPermissionContextCache();
         }
 
-        public async Task RemoveDomainRevocation(AsciiDomainName domain, OdinContext odinContext)
+        public async Task RemoveDomainRevocation(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -203,7 +203,7 @@ namespace Odin.Services.Membership.YouAuth
             ResetPermissionContextCache();
         }
 
-        public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients(AsciiDomainName domain, OdinContext odinContext)
+        public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -224,7 +224,7 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an domain
         /// </summary>
-        public async Task DeleteCurrentYouAuthDomainClient(OdinContext odinContext)
+        public async Task DeleteCurrentYouAuthDomainClient(IOdinContext odinContext)
         {
             var context = odinContext;
             var accessRegistrationId = context.Caller.OdinClientContext?.AccessRegistrationId;
@@ -248,7 +248,7 @@ namespace Odin.Services.Membership.YouAuth
             await Task.CompletedTask;
         }
 
-        public async Task DeleteClient(GuidId accessRegistrationId, OdinContext odinContext)
+        public async Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -263,7 +263,7 @@ namespace Odin.Services.Membership.YouAuth
             await Task.CompletedTask;
         }
 
-        public async Task DeleteDomainRegistration(AsciiDomainName domain, OdinContext odinContext)
+        public async Task DeleteDomainRegistration(AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -290,7 +290,7 @@ namespace Odin.Services.Membership.YouAuth
             await Task.CompletedTask;
         }
 
-        public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains(OdinContext odinContext)
+        public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -302,7 +302,7 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Gives access to all resource granted by the specified circle to the YouAuthDomain
         /// </summary>
-        public async Task GrantCircle(GuidId circleId, AsciiDomainName domainName, OdinContext odinContext)
+        public async Task GrantCircle(GuidId circleId, AsciiDomainName domainName, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -336,7 +336,7 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Removes drives and permissions of the specified circle from the odinId
         /// </summary>
-        public async Task RevokeCircleAccess(GuidId circleId, AsciiDomainName domain, OdinContext odinContext)
+        public async Task RevokeCircleAccess(GuidId circleId, AsciiDomainName domain, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -361,9 +361,9 @@ namespace Odin.Services.Membership.YouAuth
 
         // 
 
-        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token, OdinContext currentOdinContext)
+        public async Task<IOdinContext?> GetDotYouContext(ClientAuthenticationToken token, IOdinContext currentOdinContext)
         {
-            async Task<OdinContext> Creator()
+            async Task<IOdinContext> Creator()
             {
                 var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token);
 
@@ -450,7 +450,7 @@ namespace Odin.Services.Membership.YouAuth
             return GuidId.FromString(domainName.DomainName);
         }
 
-        private void SaveRegistration(YouAuthDomainRegistration registration, OdinContext odinContext)
+        private void SaveRegistration(YouAuthDomainRegistration registration, IOdinContext odinContext)
         {
             var domain = new OdinId(registration.Domain);
 
@@ -480,10 +480,10 @@ namespace Odin.Services.Membership.YouAuth
             }
         }
 
-        private async Task<OdinContext> CreateAuthenticatedContextForYouAuthDomain(
+        private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomain(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
-            AccessRegistration accessReg, OdinContext odinContext)
+            AccessRegistration accessReg, IOdinContext odinContext)
         {
             if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
             {

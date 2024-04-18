@@ -18,27 +18,27 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 {
     public class PeerDriveQueryService(DriveManager driveManager, IDriveFileSystem fileSystem)
     {
-        public Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options, OdinContext odinContext)
+        public Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
             var results = fileSystem.Query.GetModified(driveId, qp, options, odinContext);
             return results;
         }
 
-        public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, OdinContext odinContext)
+        public Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext)
         {
             var results = fileSystem.Query.GetBatchCollection(request, odinContext);
             return results;
         }
 
-        public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, OdinContext odinContext)
+        public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
             var results = fileSystem.Query.GetBatch(driveId, qp, options, odinContext);
             return results;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId, OdinContext odinContext)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId, IOdinContext odinContext)
         {
             var file = new InternalDriveFileId()
             {
@@ -61,7 +61,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 Guid fileId,
                 string key,
                 FileChunk chunk,
-                OdinContext odinContext)
+                IOdinContext odinContext)
         {
             var file = new InternalDriveFileId()
             {
@@ -90,7 +90,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
                 string ContentType,
                 UnixTimeUtc LastModified,
                 Stream thumb)>
-            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey, OdinContext odinContext)
+            GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width, string payloadKey, IOdinContext odinContext)
         {
             var file = new InternalDriveFileId()
             {
@@ -118,7 +118,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, thumbnail.ContentType, payloadDescriptor.LastModified, thumb);
         }
 
-        public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType, OdinContext odinContext)
+        public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType, IOdinContext odinContext)
         {
             //filter drives by only returning those the caller can see
             var allDrives = await driveManager.GetDrives(driveType, PageOptions.All, odinContext);

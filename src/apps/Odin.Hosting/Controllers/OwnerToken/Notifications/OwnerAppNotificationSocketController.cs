@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 
             try
             {
-                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, TheOdinContext);
+                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
             }
             catch (OperationCanceledException)
             {

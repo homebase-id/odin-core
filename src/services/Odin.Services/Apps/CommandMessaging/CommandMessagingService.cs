@@ -34,7 +34,7 @@ public class CommandMessagingService
         _standardFileSystem = standardFileSystem;
     }
 
-    public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command, OdinContext odinContext)
+    public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command, IOdinContext odinContext)
     {
         var internalFile = await _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
@@ -92,7 +92,7 @@ public class CommandMessagingService
     /// Gets a list of commands ready to be processed along with their associated files
     /// </summary>
     /// <returns></returns>
-    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor, OdinContext odinContext)
+    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor, IOdinContext odinContext)
     {
         var commands = await _standardFileSystem.Commands.GetUnprocessedCommands(driveId, count: 100, odinContext);
         return new ReceivedCommandResultSet()
@@ -101,7 +101,7 @@ public class CommandMessagingService
         };
     }
 
-    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList, OdinContext odinContext)
+    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList, IOdinContext odinContext)
     {
         var list = new List<InternalDriveFileId>();
 

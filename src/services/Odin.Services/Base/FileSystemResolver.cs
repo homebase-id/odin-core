@@ -31,7 +31,7 @@ namespace Odin.Services.Base
         /// <summary>
         /// Gets the file system for the specified file
         /// </summary>
-        public async Task<IDriveFileSystem> ResolveFileSystem(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<IDriveFileSystem> ResolveFileSystem(InternalDriveFileId file, IOdinContext odinContext)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
@@ -49,7 +49,7 @@ namespace Odin.Services.Base
         }
 
         public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId,
-            OdinContext odinContext,
+            IOdinContext odinContext,
             bool tryCommentDrive = true)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 

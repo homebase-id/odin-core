@@ -46,7 +46,7 @@ public class CircleNetworkStorage
         return MapFromStorage(record);
     }
 
-    public void Upsert(IdentityConnectionRegistration icr, OdinContext odinContext)
+    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         var icrAccessRecord = new IcrAccessRecord()
         {

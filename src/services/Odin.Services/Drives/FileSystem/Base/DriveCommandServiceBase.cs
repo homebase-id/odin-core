@@ -29,7 +29,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
         await manager.AddCommandMessage(fileIds);
     }
 
-    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count, OdinContext odinContext)
+    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count, IOdinContext odinContext)
     {
         var manager = await TryGetOrLoadQueryManager(driveId);
         var unprocessedCommands = await manager.GetUnprocessedCommands(count);

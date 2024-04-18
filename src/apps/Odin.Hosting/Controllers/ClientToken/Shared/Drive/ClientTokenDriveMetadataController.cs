@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), TheOdinContext);
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()

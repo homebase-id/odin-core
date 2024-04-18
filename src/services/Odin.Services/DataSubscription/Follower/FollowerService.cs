@@ -64,7 +64,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
-        public async Task Follow(FollowRequest request, OdinContext odinContext)
+        public async Task Follow(FollowRequest request, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -148,7 +148,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Notifies the recipient you are no longer following them.  This means they
         /// should no longer send you updates/notifications
         /// </summary>
-        public async Task Unfollow(OdinId recipient, OdinContext odinContext)
+        public async Task Unfollow(OdinId recipient, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
@@ -163,7 +163,7 @@ namespace Odin.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
         }
 
-        public async Task<FollowerDefinition> GetFollower(OdinId odinId, OdinContext odinContext)
+        public async Task<FollowerDefinition> GetFollower(OdinId odinId, IOdinContext odinContext)
         {
             //a follower is allowed to read their own configuration
             if (odinId != odinContext.Caller.OdinId)
@@ -177,13 +177,13 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId, OdinContext odinContext)
+        public async Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
             return await GetIdentityIFollowInternal(odinId);
         }
 
-        public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor, OdinContext odinContext)
+        public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -201,7 +201,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor, OdinContext odinContext)
+        public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -223,7 +223,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets followers who want notifications for all channels
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor, OdinContext odinContext)
+        public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -241,7 +241,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor, OdinContext odinContext)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -254,7 +254,7 @@ namespace Odin.Services.DataSubscription.Follower
             return await Task.FromResult(result);
         }
 
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor, OdinContext odinContext)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -342,7 +342,7 @@ namespace Odin.Services.DataSubscription.Follower
             return new PermissionContext(groups, sharedSecret);
         }
 
-        public async Task AssertTenantFollowsTheCaller(OdinContext odinContext)
+        public async Task AssertTenantFollowsTheCaller(IOdinContext odinContext)
         {
             var odinId = odinContext.GetCallerOdinIdOrFail();
             var definition = await this.GetIdentityIFollowInternal(odinId);
@@ -353,7 +353,7 @@ namespace Odin.Services.DataSubscription.Follower
         }
 
 
-        public async Task SynchronizeChannelFiles(OdinId odinId, OdinContext odinContext)
+        public async Task SynchronizeChannelFiles(OdinId odinId, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
             var definition = await this.GetIdentityIFollowInternal(odinId);

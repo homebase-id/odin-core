@@ -59,7 +59,7 @@ public class StaticFileContentService
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
-        List<QueryParamSection> sections, OdinContext odinContext)
+        List<QueryParamSection> sections, IOdinContext odinContext)
     {
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization

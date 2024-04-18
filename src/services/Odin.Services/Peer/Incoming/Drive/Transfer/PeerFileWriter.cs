@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
@@ -100,7 +100,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, OdinContext odinContext)
+        private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)
         {
             AccessControlList targetAcl;
 
@@ -138,7 +138,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return targetAcl;
         }
 
-        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, OdinContext odinContext)
+        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
         {
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
             var file = new InternalDriveFileId()
@@ -154,7 +154,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Stores an incoming command message and updates the queue
         /// </summary>
         private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, OdinContext odinContext)
+            ServerMetadata serverMetadata, IOdinContext odinContext)
         {
             serverMetadata.DoNotIndex = true;
             await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, odinContext: odinContext, ignorePayload: false);
@@ -165,7 +165,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, OdinContext odinContext)
+            FileMetadata metadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext)
         {
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
 
@@ -314,7 +314,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             var existingFile = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
             return existingFile;

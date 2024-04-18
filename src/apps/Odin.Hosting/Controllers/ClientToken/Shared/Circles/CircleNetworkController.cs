@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentities(count, cursor,TheOdinContext);
+            var result = await _circleNetwork.GetConnectedIdentities(count, cursor,WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,

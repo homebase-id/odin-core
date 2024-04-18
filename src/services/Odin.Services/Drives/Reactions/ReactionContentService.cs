@@ -26,7 +26,7 @@ public class ReactionContentService
         _mediator = mediator;
     }
 
-    public async Task AddReaction(InternalDriveFileId file, string reactionContent, OdinContext odinContext)
+    public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
@@ -51,7 +51,7 @@ public class ReactionContentService
         }
     }
 
-    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, OdinContext odinContext)
+    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
@@ -75,7 +75,7 @@ public class ReactionContentService
         }
     }
 
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(InternalDriveFileId file, OdinContext odinContext)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(InternalDriveFileId file, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
@@ -94,7 +94,7 @@ public class ReactionContentService
         throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file, OdinContext odinContext)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
@@ -108,7 +108,7 @@ public class ReactionContentService
         throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
-    public async Task DeleteAllReactions(InternalDriveFileId file, OdinContext odinContext)
+    public async Task DeleteAllReactions(InternalDriveFileId file, IOdinContext odinContext)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
@@ -126,7 +126,7 @@ public class ReactionContentService
         }
     }
 
-    public async Task<GetReactionsResponse> GetReactions(InternalDriveFileId file, int cursor, int maxCount, OdinContext odinContext)
+    public async Task<GetReactionsResponse> GetReactions(InternalDriveFileId file, int cursor, int maxCount, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 

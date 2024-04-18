@@ -74,7 +74,7 @@ public class TenantConfigService
         return firstRunInfo != null;
     }
 
-    public bool IsEulaSignatureRequired(OdinContext odinContext)
+    public bool IsEulaSignatureRequired(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -88,7 +88,7 @@ public class TenantConfigService
         return signature == null;
     }
 
-    public EulaVersionResponse GetRequiredEulaVersion(OdinContext odinContext)
+    public EulaVersionResponse GetRequiredEulaVersion(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         return new EulaVersionResponse()
@@ -97,7 +97,7 @@ public class TenantConfigService
         };
     }
 
-    public List<EulaSignature> GetEulaSignatureHistory(OdinContext odinContext)
+    public List<EulaSignature> GetEulaSignatureHistory(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -106,7 +106,7 @@ public class TenantConfigService
         return signatures;
     }
 
-    public void MarkEulaSigned(MarkEulaSignedRequest request, OdinContext odinContext)
+    public void MarkEulaSigned(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -130,7 +130,7 @@ public class TenantConfigService
         _configStorage.Upsert(Eula.EulaSystemInfo.StorageKey, signatures);
     }
 
-    public async Task CreateInitialKeys(OdinContext odinContext)
+    public async Task CreateInitialKeys(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -144,7 +144,7 @@ public class TenantConfigService
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
     /// </summary>
-    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request, OdinContext odinContext)
+    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -188,7 +188,7 @@ public class TenantConfigService
         });
     }
 
-    public async Task UpdateSystemFlag(UpdateFlagRequest request, OdinContext odinContext)
+    public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -259,13 +259,13 @@ public class TenantConfigService
         return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
-    public OwnerAppSettings GetOwnerAppSettings(OdinContext odinContext)
+    public OwnerAppSettings GetOwnerAppSettings(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
-    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, OdinContext odinContext)
+    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
@@ -273,14 +273,14 @@ public class TenantConfigService
 
     //
 
-    private async Task RegisterBuiltInApps(OdinContext odinContext)
+    private async Task RegisterBuiltInApps(IOdinContext odinContext)
     {
         await RegisterChatApp(odinContext);
         await RegisterFeedApp(odinContext);
         // await RegisterPhotosApp();
     }
 
-    private async Task RegisterFeedApp(OdinContext odinContext)
+    private async Task RegisterFeedApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -348,7 +348,7 @@ public class TenantConfigService
     }
 
 
-    private async Task RegisterChatApp(OdinContext odinContext)
+    private async Task RegisterChatApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -417,7 +417,7 @@ public class TenantConfigService
         await _appRegistrationService.RegisterApp(request,odinContext);
     }
 
-    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, OdinContext odinContext)
+    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext)
     {
         var existingCircleDef = _circleMembershipService.GetCircle(request.Id,odinContext);
         if (null == existingCircleDef)
@@ -429,7 +429,7 @@ public class TenantConfigService
         return false;
     }
 
-    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request, OdinContext odinContext)
+    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request, IOdinContext odinContext)
     {
         var drive = await _driveManager.GetDriveIdByAlias(request.TargetDrive, false);
 
@@ -442,7 +442,7 @@ public class TenantConfigService
         return false;
     }
 
-    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, OdinContext odinContext)
+    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
         var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
 

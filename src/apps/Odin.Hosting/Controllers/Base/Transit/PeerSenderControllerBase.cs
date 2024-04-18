@@ -59,11 +59,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
 
-            await fileSystemWriter.StartUpload(uploadInstructionSet,TheOdinContext);
+            await fileSystemWriter.StartUpload(uploadInstructionSet,WebOdinContext);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await fileSystemWriter.AddMetadata(section!.Body,TheOdinContext);
+            await fileSystemWriter.AddMetadata(section!.Body,WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -72,19 +72,19 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream,TheOdinContext);
+                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream,WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream,TheOdinContext);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream,WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await fileSystemWriter.FinalizeUpload(TheOdinContext);
+            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext);
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     FileSystemType = request.FileSystemType,
                     TransferFileType = TransferFileType.Normal
                 },
-                request.Recipients,TheOdinContext);
+                request.Recipients,WebOdinContext);
 
             return new JsonResult(map);
         }

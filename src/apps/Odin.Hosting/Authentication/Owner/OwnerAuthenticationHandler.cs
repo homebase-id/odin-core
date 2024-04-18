@@ -64,7 +64,7 @@ namespace Odin.Hosting.Authentication.Owner
                     return AuthenticateResult.Fail("Empty authResult");
                 }
 
-                var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
+                var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
                 try
                 {
@@ -107,10 +107,10 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext OdinContext)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, OdinContext);
+            return await authService.UpdateOdinContext(token, odinContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

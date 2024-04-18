@@ -69,7 +69,7 @@ public class CircleMembershipService
         return circleMemberRecords.Where(r => r.DomainType == domainType).Select(r => r.CircleGrant);
     }
 
-    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, OdinContext odinContext, bool overrideHack = false)
+    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId, IOdinContext odinContext, bool overrideHack = false)
     {
         //TODO: need to figure out how to enforce this even when the call is
         //coming from EstablishConnection (i.e. we need some form of pre-authorized token)
@@ -130,7 +130,7 @@ public class CircleMembershipService
     }
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         // Always put identities in the system circle
         var list = circleIds ?? new List<GuidId>();
@@ -138,7 +138,7 @@ public class CircleMembershipService
         return await this.CreateCircleGrantList(list, keyStoreKey, odinContext);
     }
 
-    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, OdinContext odinContext)
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey, IOdinContext odinContext)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -170,7 +170,7 @@ public class CircleMembershipService
     }
 
     public (Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles) MapCircleGrantsToExchangeGrants(List<CircleGrant> circleGrants,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         //TODO: this code needs to be refactored to avoid all the mapping
 
@@ -216,7 +216,7 @@ public class CircleMembershipService
     /// Creates a circle definition
     /// </summary>
     /// <param name="request"></param>
-    public async Task CreateCircleDefinition(CreateCircleRequest request, OdinContext odinContext)
+    public async Task CreateCircleDefinition(CreateCircleRequest request, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -226,7 +226,7 @@ public class CircleMembershipService
     /// <summary>
     /// Gets a list of all circle definitions
     /// </summary>
-    public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle, OdinContext odinContext)
+    public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle, IOdinContext odinContext)
     {
         if (includeSystemCircle)
         {
@@ -238,7 +238,7 @@ public class CircleMembershipService
         return circles;
     }
 
-    public CircleDefinition GetCircle(GuidId circleId, OdinContext odinContext)
+    public CircleDefinition GetCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
         return _circleDefinitionService.GetCircle(circleId);
@@ -249,14 +249,14 @@ public class CircleMembershipService
         await _circleDefinitionService.AssertValidDriveGrants(driveGrants);
     }
 
-    public async Task Update(CircleDefinition circleDef, OdinContext odinContext)
+    public async Task Update(CircleDefinition circleDef, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
         await _circleDefinitionService.Update(circleDef);
     }
 
-    public async Task Delete(GuidId circleId, OdinContext odinContext)
+    public async Task Delete(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -267,7 +267,7 @@ public class CircleMembershipService
     /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
     /// </summary>
     /// <param name="circleId"></param>
-    public async Task DisableCircle(GuidId circleId, OdinContext odinContext)
+    public async Task DisableCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -281,7 +281,7 @@ public class CircleMembershipService
     /// Enables a circle
     /// </summary>
     /// <param name="circleId"></param>
-    public async Task EnableCircle(GuidId circleId, OdinContext odinContext)
+    public async Task EnableCircle(GuidId circleId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -295,7 +295,7 @@ public class CircleMembershipService
     /// Creates the system circle
     /// </summary>
     /// <returns></returns>
-    public async Task CreateSystemCircle(OdinContext odinContext)
+    public async Task CreateSystemCircle(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 

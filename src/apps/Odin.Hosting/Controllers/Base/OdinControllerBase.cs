@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.Base;
 /// </summary>
 public abstract class OdinControllerBase : ControllerBase
 {
-    private OdinContext _odinContext;
+    private IOdinContext _odinContext;
 
     /// <summary />
     protected FileSystemHttpRequestResolver GetHttpFileSystemResolver()
@@ -35,13 +35,13 @@ public abstract class OdinControllerBase : ControllerBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = TheOdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = WebOdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
 
     protected void AddGuestApiCacheHeader(int? minutes = null)
     {
-        if (TheOdinContext.AuthContext == YouAuthConstants.YouAuthScheme || TheOdinContext.AuthContext == YouAuthConstants.AppSchemeName)
+        if (WebOdinContext.AuthContext == YouAuthConstants.YouAuthScheme || WebOdinContext.AuthContext == YouAuthConstants.AppSchemeName)
         {
             var seconds = minutes == null ? TimeSpan.FromDays(365).TotalSeconds : TimeSpan.FromMinutes(minutes.GetValueOrDefault()).TotalSeconds;
             Response.Headers.TryAdd("Cache-Control", $"max-age={seconds}");
@@ -99,7 +99,7 @@ public abstract class OdinControllerBase : ControllerBase
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>
-    protected OdinContext TheOdinContext
+    protected IOdinContext WebOdinContext
     {
         get
         {
@@ -108,7 +108,7 @@ public abstract class OdinControllerBase : ControllerBase
                 return _odinContext;
             }
 
-            _odinContext = HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            _odinContext = HttpContext.RequestServices.GetRequiredService<IOdinContext>();
             if (string.IsNullOrEmpty(_odinContext.Tenant))
             {
                 Log.Error("");

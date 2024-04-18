@@ -59,7 +59,7 @@ public class PushNotificationService(
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, OdinContext odinContext, InternalDriveFileId? fileId = null)
+    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext, InternalDriveFileId? fileId = null)
     {
         //TODO: which security to check?
         //app permissions? I.e does the calling app on the recipient server have access to send notifications?
@@ -77,7 +77,7 @@ public class PushNotificationService(
         return Task.FromResult(true);
     }
 
-    public async Task ProcessBatch(OdinContext odinContext)
+    public async Task ProcessBatch(IOdinContext odinContext)
     {
         int batchSize = configuration.Host.PushNotificationBatchSize;
         var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
@@ -126,7 +126,7 @@ public class PushNotificationService(
         }
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, OdinContext odinContext)
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
     {
         if (appId == SystemAppConstants.OwnerAppId)
         {
@@ -142,7 +142,7 @@ public class PushNotificationService(
         return (appReg != null, appReg?.Name);
     }
 
-    public async Task Push(PushNotificationContent content, OdinContext odinContext)
+    public async Task Push(PushNotificationContent content, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -188,7 +188,7 @@ public class PushNotificationService(
         }
     }
 
-    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, OdinContext odinContext)
+    private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -270,7 +270,7 @@ public class PushNotificationService(
         }
     }
 
-    public Task AddDevice(PushNotificationSubscription subscription, OdinContext odinContext)
+    public Task AddDevice(PushNotificationSubscription subscription, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -283,21 +283,21 @@ public class PushNotificationService(
         return Task.CompletedTask;
     }
 
-    public Task<PushNotificationSubscription> GetDeviceSubscription(OdinContext odinContext)
+    public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(GetDeviceKey(odinContext)));
     }
 
-    public Task RemoveDevice(OdinContext odinContext)
+    public Task RemoveDevice(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         return this.RemoveDevice(GetDeviceKey(odinContext), odinContext);
     }
 
-    public Task RemoveDevice(Guid deviceKey, OdinContext odinContext)
+    public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -305,7 +305,7 @@ public class PushNotificationService(
         return Task.CompletedTask;
     }
 
-    public async Task RemoveAllDevices(OdinContext odinContext)
+    public async Task RemoveAllDevices(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         var subscriptions = await GetAllSubscriptions(odinContext);
@@ -315,7 +315,7 @@ public class PushNotificationService(
         }
     }
 
-    public Task<List<PushNotificationSubscription>> GetAllSubscriptions(OdinContext odinContext)
+    public Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -323,7 +323,7 @@ public class PushNotificationService(
         return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
     }
 
-    private Guid GetDeviceKey(OdinContext odinContext)
+    private Guid GetDeviceKey(IOdinContext odinContext)
     {
         //Transition code: we want to keep existing subscriptions so...
         var key = odinContext.Caller.OdinClientContext.DevicePushNotificationKey;
@@ -341,7 +341,7 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private void EnsureIdentityIsPending(OdinContext odinContext)
+    private void EnsureIdentityIsPending(IOdinContext odinContext)
     {
         var tenant = odinContext.Tenant;
         serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());

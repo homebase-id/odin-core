@@ -14,12 +14,12 @@ namespace Odin.Services.Authorization.Acl
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
-        public async Task AssertCallerHasPermission(AccessControlList acl, OdinContext odinContext)
+        public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
             ThrowWhenFalse(await CallerHasPermission(acl,odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, OdinContext odinContext)
+        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
         {
             //there must be an acl
             if (acl == null)
@@ -63,7 +63,7 @@ namespace Odin.Services.Authorization.Acl
             return false;
         }
 
-        public Task<bool> CallerHasPermission(AccessControlList acl, OdinContext odinContext)
+        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
             var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
@@ -117,7 +117,7 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private async Task<bool> CallerIsConnected(OdinContext odinContext)
+        private async Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
             //TODO: cache result - 
             return await Task.FromResult(odinContext.Caller.IsConnected);

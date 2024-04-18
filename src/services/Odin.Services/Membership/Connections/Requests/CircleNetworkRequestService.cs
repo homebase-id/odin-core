@@ -84,7 +84,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Gets a pending request by its sender
         /// </summary>
-        public async Task<ConnectionRequest> GetPendingRequest(OdinId sender, OdinContext odinContext)
+        public async Task<ConnectionRequest> GetPendingRequest(OdinId sender, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
             var header = _pendingRequestValueStorage.Get<PendingConnectionRequestHeader>(MakePendingRequestsKey(sender));
@@ -117,7 +117,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, OdinContext odinContext)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequests(PageOptions pageOptions, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByCategory<PendingConnectionRequestHeader>(_pendingRequestsDataType);
@@ -128,7 +128,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Get outgoing requests awaiting approval by their recipient
         /// </summary>
         /// <returns></returns>
-        public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions, OdinContext odinContext)
+        public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _sentRequestValueStorage.GetByCategory<ConnectionRequest>(_sentRequestsDataType);
@@ -139,7 +139,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-        public async Task SendConnectionRequest(ConnectionRequestHeader header, OdinContext odinContext)
+        public async Task SendConnectionRequest(ConnectionRequestHeader header, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
 
@@ -245,7 +245,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Stores an new pending/incoming request that is not yet accepted.
         /// </summary>
-        public async Task ReceiveConnectionRequest(RsaEncryptedPayload payload, OdinContext odinContext)
+        public async Task ReceiveConnectionRequest(RsaEncryptedPayload payload, IOdinContext odinContext)
         {
             //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the odin network
             //_context.GetCurrent().AssertCanManageConnections();
@@ -277,7 +277,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a connection request sent to the specified recipient
         /// </summary>
         /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
-        public async Task<ConnectionRequest> GetSentRequest(OdinId recipient, OdinContext odinContext)
+        public async Task<ConnectionRequest> GetSentRequest(OdinId recipient, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
 
@@ -292,7 +292,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         /// <param name="recipient"></param>
         /// <param name="odinContext"></param>
-        public Task DeleteSentRequest(OdinId recipient, OdinContext odinContext)
+        public Task DeleteSentRequest(OdinId recipient, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
             return DeleteSentRequestInternal(recipient);
@@ -324,7 +324,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        public async Task AcceptConnectionRequest(AcceptRequestHeader header, OdinContext odinContext)
+        public async Task AcceptConnectionRequest(AcceptRequestHeader header, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             header.Validate();
@@ -414,7 +414,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Establishes a connection between two individuals.  This must be called
         /// from a recipient who has accepted a sender's connection request
         /// </summary>
-        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, OdinContext odinContext)
+        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64, IOdinContext odinContext)
         {
             // Note: This method runs under the Transit Context because it's called by another identity
             // therefore, all operations that require master key or owner access must have already been completed
@@ -474,7 +474,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
-        public Task DeletePendingRequest(OdinId sender, OdinContext odinContext)
+        public Task DeletePendingRequest(OdinId sender, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
             return DeletePendingRequestInternal(sender);

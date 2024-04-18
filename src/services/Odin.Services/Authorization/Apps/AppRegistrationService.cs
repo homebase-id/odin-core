@@ -53,7 +53,7 @@ namespace Odin.Services.Authorization.Apps
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, OdinContext odinContext)
+        public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -104,7 +104,7 @@ namespace Odin.Services.Authorization.Apps
             return appReg.Redacted();
         }
 
-        public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request, OdinContext odinContext)
+        public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -143,7 +143,7 @@ namespace Odin.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, OdinContext odinContext)
+        public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -173,7 +173,7 @@ namespace Odin.Services.Authorization.Apps
         }
 
         public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPk(GuidId appId, byte[] clientPublicKey,
-            string friendlyName, OdinContext odinContext)
+            string friendlyName, IOdinContext odinContext)
         {
             var (cat, corsHostName) = await this.RegisterClient(appId, friendlyName, odinContext);
 
@@ -193,7 +193,7 @@ namespace Odin.Services.Authorization.Apps
             return (response, corsHostName);
         }
 
-        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, OdinContext odinContext)
+        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(GuidId appId, string friendlyName, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -211,15 +211,15 @@ namespace Odin.Services.Authorization.Apps
             return (cat, appReg.CorsHostName);
         }
 
-        public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, OdinContext odinContext)
+        public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext)
         {
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
         }
 
-        public async Task<OdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, OdinContext odinContext)
+        public async Task<IOdinContext?> GetAppPermissionContext(ClientAuthenticationToken token, IOdinContext odinContext)
         {
-            async Task<OdinContext> Creator()
+            async Task<IOdinContext> Creator()
             {
                 var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token, odinContext);
 
@@ -265,7 +265,7 @@ namespace Odin.Services.Authorization.Apps
         }
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(
-            ClientAuthenticationToken authToken, OdinContext odinContext)
+            ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
             if (null == appClient)
@@ -288,7 +288,7 @@ namespace Odin.Services.Authorization.Apps
             return (true, appClient.AccessRegistration, appReg);
         }
 
-        public async Task RevokeApp(GuidId appId, OdinContext odinContext)
+        public async Task RevokeApp(GuidId appId, IOdinContext odinContext)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
@@ -303,7 +303,7 @@ namespace Odin.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task RemoveAppRevocation(GuidId appId, OdinContext odinContext)
+        public async Task RemoveAppRevocation(GuidId appId, IOdinContext odinContext)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
@@ -317,7 +317,7 @@ namespace Odin.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, OdinContext odinContext)
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients(GuidId appId, IOdinContext odinContext)
         {
             var list = _appClientValueStorage.GetByCategory<AppClient>(_appClientDataType);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
@@ -333,7 +333,7 @@ namespace Odin.Services.Authorization.Apps
             return await Task.FromResult(resp);
         }
 
-        public async Task RevokeClient(GuidId accessRegistrationId, OdinContext odinContext)
+        public async Task RevokeClient(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
@@ -351,7 +351,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
-        public async Task DeleteCurrentAppClient(OdinContext odinContext)
+        public async Task DeleteCurrentAppClient(IOdinContext odinContext)
         {
             var context = odinContext;
             var accessRegistrationId = context.Caller.OdinClientContext?.AccessRegistrationId;
@@ -375,7 +375,7 @@ namespace Odin.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task DeleteClient(GuidId accessRegistrationId, OdinContext odinContext)
+        public async Task DeleteClient(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -390,7 +390,7 @@ namespace Odin.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task AllowClient(GuidId accessRegistrationId, OdinContext odinContext)
+        public async Task AllowClient(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -406,7 +406,7 @@ namespace Odin.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task DeleteApp(GuidId appId, OdinContext odinContext)
+        public async Task DeleteApp(GuidId appId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -436,7 +436,7 @@ namespace Odin.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task<List<RedactedAppRegistration>> GetRegisteredApps(OdinContext odinContext)
+        public async Task<List<RedactedAppRegistration>> GetRegisteredApps(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -456,7 +456,7 @@ namespace Odin.Services.Authorization.Apps
             return await Task.FromResult(appReg);
         }
 
-        private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration, OdinContext odinContext)
+        private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration, IOdinContext odinContext)
         {
             await _mediator.Publish(new AppRegistrationChangedNotification()
             {

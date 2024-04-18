@@ -122,7 +122,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             try
             {
-                await _ss.ResetPasswordUsingRecoveryKey(reply, TheOdinContext);
+                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext);
             }
             catch (BIP39Exception e)
             {

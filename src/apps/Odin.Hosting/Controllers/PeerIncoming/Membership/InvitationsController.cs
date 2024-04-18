@@ -25,7 +25,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            await circleNetworkRequestService.ReceiveConnectionRequest(payload, TheOdinContext);
+            await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext);
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -33,7 +33,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload, string authenticationToken64)
         {
-            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, TheOdinContext);
+            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext);
             return new JsonResult(new NoResultResponse(true));
         }
     }

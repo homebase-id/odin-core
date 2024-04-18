@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.System
         [HttpPost("process")]
         public async Task<IActionResult> ProcessBatch()
         {
-            await _notificationService.ProcessBatch(TheOdinContext);
+            await _notificationService.ProcessBatch(WebOdinContext);
             return Ok();
         }
     }

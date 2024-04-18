@@ -16,7 +16,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     {
         private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 
-        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, OdinContext odinContext)
+        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
@@ -45,7 +45,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await Task.FromResult(item);
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, OdinContext odinContext)
+        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext)
         {
             var item = await this.GetStateItem(transferStateItemId);
             await fileSystem.Storage.WriteTempStream(item.TempFile, fileExtension, data,odinContext);

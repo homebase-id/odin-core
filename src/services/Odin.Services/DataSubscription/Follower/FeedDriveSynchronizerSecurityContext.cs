@@ -17,10 +17,10 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
 
-    private readonly OdinContext _odinContext;
+    private readonly IOdinContext _odinContext;
     private const string GroupName = "patch_in_temp_icrkey";
     
-    public FeedDriveSynchronizerSecurityContext(ref OdinContext context, Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    public FeedDriveSynchronizerSecurityContext(ref IOdinContext context, Guid feedDriveId, SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {

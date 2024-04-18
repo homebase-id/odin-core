@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [Produces("application/json")]
         public async Task<IActionResult> GetInfo()
         {
-            var tenant = TheOdinContext.Tenant;
+            var tenant = WebOdinContext.Tenant;
             HttpContext.Response.Headers.Append("Access-Control-Allow-Origin", "*");
 
             if (string.IsNullOrEmpty(tenant))

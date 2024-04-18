@@ -223,7 +223,7 @@ namespace Odin.Services.EncryptionKeyService
             };
         }
 
-        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload, OdinContext odinContext)
+        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload, IOdinContext odinContext)
         {
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext);
 
@@ -258,7 +258,7 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Gets the Ecc key from the storage based on the CRC
         /// </summary>
-        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32, OdinContext odinContext)
+        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveOnlineEccKeyForDecryption(uint crc32, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -285,7 +285,7 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Creates the initial set of RSA keys required by an identity
         /// </summary>
-        internal async Task CreateInitialKeys(OdinContext odinContext)
+        internal async Task CreateInitialKeys(IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -309,7 +309,7 @@ namespace Odin.Services.EncryptionKeyService
             }
         }
 
-        private async Task<(bool, KeyHeader)> RsaDecryptKeyHeader(RsaKeyType keyType, byte[] encryptedData, uint publicKeyCrc32, OdinContext odinContext,
+        private async Task<(bool, KeyHeader)> RsaDecryptKeyHeader(RsaKeyType keyType, byte[] encryptedData, uint publicKeyCrc32, IOdinContext odinContext,
             bool failIfNoMatchingPublicKey = true)
         {
             var (rsaKey, decryptionKey) = await ResolveRsaKeyForDecryption(keyType, publicKeyCrc32, odinContext);
@@ -337,7 +337,7 @@ namespace Odin.Services.EncryptionKeyService
         }
 
         private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryption(RsaKeyType keyType, uint crc32,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             RsaFullKeyListData keyList;
             SensitiveByteArray decryptionKey;

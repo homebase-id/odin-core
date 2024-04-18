@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeQueuedMetadataItems(TheOdinContext);
+            await _distributionService.DistributeQueuedMetadataItems(WebOdinContext);
             return true;
         }
     }

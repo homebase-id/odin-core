@@ -26,7 +26,7 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, OdinContext odinContext,
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
         bool forceIncludeServerMetadata = false)
     {
         if (header == null)
@@ -94,7 +94,7 @@ public static class DriveFileUtility
     public static EncryptedKeyHeader GetPayloadEncryptedKeyHeader(
         ServerFileHeader header,
         PayloadDescriptor payloadDescriptor,
-        OdinContext odinContext)
+        IOdinContext odinContext)
     {
         if (header == null)
         {

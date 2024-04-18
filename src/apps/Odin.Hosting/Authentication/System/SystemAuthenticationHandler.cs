@@ -54,7 +54,7 @@ namespace Odin.Hosting.Authentication.System
                         new Claim(OdinClaimTypes.IsSystemProcess, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
                     };
 
-                    var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
+                    var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
                     dotYouContext.Caller = new CallerContext(
                         odinId: (OdinId)domain,
                         masterKey: null,

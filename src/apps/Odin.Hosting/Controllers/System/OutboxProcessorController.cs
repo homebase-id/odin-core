@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
         {
-            await peerOutgoingTransfer.ProcessOutbox(TheOdinContext);
+            await peerOutgoingTransfer.ProcessOutbox(WebOdinContext);
             return true;
         }
 

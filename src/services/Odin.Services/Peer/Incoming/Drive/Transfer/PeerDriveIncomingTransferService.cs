@@ -46,18 +46,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem);
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, OdinContext odinContext)
+        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
             return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet, odinContext);
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, OdinContext odinContext)
+        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
             await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, fileExtension, data, odinContext);
         }
 
-        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata, OdinContext odinContext)
+        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata, IOdinContext odinContext)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -96,7 +96,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
 
@@ -158,7 +158,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         //
 
-        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata, OdinContext odinContext)
+        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata, IOdinContext odinContext)
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
             await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext);
@@ -174,7 +174,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await RouteToInbox(stateItem, odinContext);
         }
 
-        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, OdinContext odinContext)
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
             await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext);
 
@@ -222,7 +222,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return false;
         }
 
-        private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, OdinContext odinContext)
+        private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader, IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
@@ -232,7 +232,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, OdinContext odinContext)
+        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext)
         {
             var item = new TransferInboxItem()
             {

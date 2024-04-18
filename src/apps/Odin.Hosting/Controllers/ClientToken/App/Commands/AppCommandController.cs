@@ -20,13 +20,13 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
             OdinValidationUtils.AssertValidRecipientList(request.Command.Recipients);
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.Command, nameof(request.Command));
             OdinValidationUtils.AssertIsTrue(request.Command.IsValid(), "Command is invalid");
-            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command, TheOdinContext);
+            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command, WebOdinContext);
             return results;
         }
 
@@ -38,21 +38,21 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         [HttpPost("unprocessed")]
         public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnprocessedCommandsRequest request)
         {
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
-            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor, TheOdinContext);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor, WebOdinContext);
             return result;
         }
 
         [HttpPost("markcompleted")]
         public async Task<bool> MarkCommandsCompleted([FromBody] MarkCommandsCompleteRequest request)
         {
-            var driveId = TheOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
 
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));
             OdinValidationUtils.AssertIsTrue(request.CommandIdList.Count() > 0, "The command list is empty");
 
-            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList(), TheOdinContext);
+            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList(), WebOdinContext);
             return true;
         }
     }

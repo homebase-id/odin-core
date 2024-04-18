@@ -105,7 +105,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken,
             Dictionary<Guid, ExchangeGrant>? grants,
             AccessRegistration accessReg,
-            OdinContext odinContext,
+            IOdinContext odinContext,
             List<int>? additionalPermissionKeys = null,
             bool includeAnonymousDrives = false,
             DrivePermission anonymousDrivePermission = DrivePermission.Read)
@@ -156,7 +156,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a permission group of anonymous drives
         /// </summary>
-        private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions, OdinContext odinContext)
+        private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions, IOdinContext odinContext)
         {
             var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All, odinContext);
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, permissions, null, null));

@@ -20,7 +20,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request, OdinContext odinContext)
+        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request, IOdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
 
@@ -48,7 +48,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, OdinContext odinContext)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -99,7 +99,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             };
         }
 
-        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, OdinContext odinContext)
+        public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, IOdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
             using (new FeedDriveDistributionSecurityContext(ref odinContext))
@@ -126,7 +126,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, OdinContext odinContext)
+        private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
             var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, tryCommentDrive: false);
             return fileId;

@@ -183,7 +183,7 @@ namespace Odin.Services.DataSubscription
             return true;
         }
 
-        public async Task DistributeQueuedMetadataItems(OdinContext odinContext)
+        public async Task DistributeQueuedMetadataItems(IOdinContext odinContext)
         {
             async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(FeedDistributionOutboxRecord record)
             {
@@ -273,7 +273,7 @@ namespace Odin.Services.DataSubscription
             // return followers.Except(connectedFollowers).ToList();
         }
 
-        private async Task<List<OdinId>> GetFollowers(Guid driveId, OdinContext odinContext)
+        private async Task<List<OdinId>> GetFollowers(Guid driveId, IOdinContext odinContext)
         {
             int maxRecords = 100000; //TODO: cursor thru batches instead
 
@@ -291,7 +291,7 @@ namespace Odin.Services.DataSubscription
             return recipients;
         }
 
-        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, OdinContext odinContext)
+        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext)
         {
             var file = header.FileMetadata.File;
 
@@ -333,7 +333,7 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, OdinContext odinContext)
+        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext)
         {
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {

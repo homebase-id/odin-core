@@ -43,7 +43,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         public abstract FileSystemType GetFileSystemType();
 
-        public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file, IOdinContext odinContext)
         {
             var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
             if (serverFileHeader == null)
@@ -59,7 +59,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Gets an EncryptedKeyHeader for a given payload using the payload's IV
         /// </summary>
         public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool fileExists)>
-            GetPayloadSharedSecretEncryptedKeyHeader(InternalDriveFileId file, string payloadKey, OdinContext odinContext)
+            GetPayloadSharedSecretEncryptedKeyHeader(InternalDriveFileId file, string payloadKey, IOdinContext odinContext)
         {
             var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
             if (serverFileHeader == null)
@@ -93,7 +93,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return df;
         }
 
-        public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, OdinContext odinContext, bool raiseEvent = false)
+        public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext, bool raiseEvent = false)
         {
             if (!header.IsValid())
             {
@@ -150,7 +150,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
-        public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, OdinContext odinContext, bool raiseEvent = false)
+        public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext, bool raiseEvent = false)
         {
             if (!header.IsValid())
             {
@@ -187,7 +187,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream, OdinContext odinContext)
+        public async Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var tsm = await GetTempStorageManager(file.DriveId);
@@ -198,7 +198,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
         /// <returns></returns>
-        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension, OdinContext odinContext)
+        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await this.AssertCanReadDrive(file.DriveId, odinContext);
             var tsm = await GetTempStorageManager(file.DriveId);
@@ -206,21 +206,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             return bytes;
         }
 
-        public async Task<byte[]> GetAllFileBytesForWriting(InternalDriveFileId file, string extension, OdinContext odinContext)
+        public async Task<byte[]> GetAllFileBytesForWriting(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var tsm = await GetTempStorageManager(file.DriveId);
             return await tsm.GetAllFileBytes(file.FileId, extension);
         }
 
-        public async Task DeleteTempFile(InternalDriveFileId file, string extension, OdinContext odinContext)
+        public async Task DeleteTempFile(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var tsm = await GetTempStorageManager(file.DriveId);
             await tsm.EnsureDeleted(file.FileId, extension);
         }
 
-        public async Task DeleteTempFiles(InternalDriveFileId file, OdinContext odinContext)
+        public async Task DeleteTempFiles(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
@@ -230,7 +230,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
-            string payloadKey, UnixTimeUtcUnique payloadUid, OdinContext odinContext, bool directMatchOnly = false)
+            string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, bool directMatchOnly = false)
         {
             await AssertCanReadDrive(file.DriveId, odinContext);
 
@@ -304,7 +304,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid versionTag, OdinContext odinContext)
+        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid versionTag, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
@@ -337,12 +337,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, OdinContext odinContext)
+            ServerMetadata serverMetadata, IOdinContext odinContext)
         {
             return await CreateServerHeaderInternal(file, keyHeader, metadata, serverMetadata, odinContext);
         }
 
-        private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, OdinContext odinContext)
+        private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
         {
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
 
@@ -352,7 +352,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
-        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             var lts = await GetLongTermStorageManager(file.DriveId);
             var header = await lts.GetServerFileHeader(file.FileId);
@@ -365,7 +365,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
         }
 
-        public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanReadDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file,odinContext);
@@ -383,7 +383,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
         /// permission; allowing you to determine the file system type when you don't have it.
         /// </summary>
-        public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanReadOrWriteToDrive(file.DriveId, odinContext);
 
@@ -391,7 +391,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
-        public async Task<PayloadStream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk, OdinContext odinContext)
+        public async Task<PayloadStream> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk, IOdinContext odinContext)
         {
             await AssertCanReadDrive(file.DriveId, odinContext);
             DriveFileUtility.AssertValidPayloadKey(key);
@@ -429,14 +429,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<bool> FileExists(InternalDriveFileId file, OdinContext odinContext)
+        public async Task<bool> FileExists(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanReadOrWriteToDrive(file.DriveId, odinContext);
             var lts = await GetLongTermStorageManager(file.DriveId);
             return await lts.HeaderFileExists(file.FileId);
         }
 
-        public async Task SoftDeleteLongTermFile(InternalDriveFileId file, OdinContext odinContext)
+        public async Task SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
@@ -445,7 +445,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await WriteDeletedFileHeader(existingHeader, odinContext);
         }
 
-        public async Task HardDeleteLongTermFile(InternalDriveFileId file, OdinContext odinContext)
+        public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
@@ -466,7 +466,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-            bool? ignorePayload, OdinContext odinContext)
+            bool? ignorePayload, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
@@ -521,7 +521,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
-            ServerMetadata serverMetadata, bool? ignorePayload, OdinContext odinContext)
+            ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
@@ -616,7 +616,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId tempSourceFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads,
-            OdinContext odinContext)
+            IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
@@ -684,7 +684,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public async Task OverwriteMetadata(InternalDriveFileId targetFile, FileMetadata newMetadata, ServerMetadata newServerMetadata, OdinContext odinContext)
+        public async Task OverwriteMetadata(InternalDriveFileId targetFile, FileMetadata newMetadata, ServerMetadata newServerMetadata, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
@@ -730,7 +730,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary, OdinContext odinContext)
+        public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasAtLeastOneDrivePermission(
                 targetFile.DriveId, DrivePermission.React, DrivePermission.Comment);
@@ -758,7 +758,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         // Feed drive hacks
 
-        public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata, OdinContext odinContext)
+        public async Task WriteNewFileToFeedDrive(KeyHeader keyHeader, FileMetadata fileMetadata, IOdinContext odinContext)
         {
             // Method assumes you ensured the file was unique by some other method
 
@@ -776,7 +776,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await this.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
         }
 
-        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, OdinContext odinContext,
+        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, IOdinContext odinContext,
             bool bypassCallerCheck = false)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -803,7 +803,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await this.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
         }
 
-        public async Task RemoveFeedDriveFile(InternalDriveFileId file, OdinContext odinContext)
+        public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file,odinContext);
@@ -824,7 +824,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await WriteDeletedFileHeader(header, odinContext);
         }
 
-        public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary, OdinContext odinContext)
+        public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
@@ -925,7 +925,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return file.DriveId != (await DriveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive));
         }
 
-        private async Task WriteDeletedFileHeader(ServerFileHeader existingHeader, OdinContext odinContext)
+        private async Task WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext)
         {
             var file = existingHeader.FileMetadata.File;
 
@@ -960,7 +960,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata, OdinContext odinContext)
+            ServerMetadata serverMetadata, IOdinContext odinContext)
         {
             serverMetadata.FileSystemType = GetFileSystemType();
 
@@ -973,7 +973,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, OdinContext odinContext)
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, IOdinContext odinContext)
         {
             var mgr = await GetLongTermStorageManager(file.DriveId);
 

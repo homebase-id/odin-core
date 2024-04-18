@@ -18,7 +18,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage)
 {
     private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
 
-    public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, OdinContext odinContext)
+    public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         
@@ -40,7 +40,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage)
         });
     }
 
-    public Task<NotificationsListResult> GetList(GetNotificationListRequest request, OdinContext odinContext)
+    public Task<NotificationsListResult> GetList(GetNotificationListRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -62,7 +62,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage)
         return Task.FromResult(nr);
     }
 
-    public Task Delete(DeleteNotificationsRequest request, OdinContext odinContext)
+    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
@@ -75,7 +75,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage)
     }
 
 
-    public async Task UpdateNotifications(UpdateNotificationListRequest request, OdinContext odinContext)
+    public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 

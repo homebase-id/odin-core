@@ -35,7 +35,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
             OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
 
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload, TheOdinContext);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload, WebOdinContext);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
@@ -46,7 +46,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
 
-            await _followerPerimeterService.AcceptFollower(request, TheOdinContext);
+            await _followerPerimeterService.AcceptFollower(request, WebOdinContext);
 
             return Ok();
         }
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
-            await _followerPerimeterService.AcceptUnfollowRequest(TheOdinContext);
+            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext);
             return Ok();
         }
     }

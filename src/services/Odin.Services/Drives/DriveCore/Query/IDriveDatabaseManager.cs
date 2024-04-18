@@ -23,7 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryModifiedResultOptions options);
 
 
@@ -33,7 +33,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryBatchResultOptions options);
 
         /// <summary>

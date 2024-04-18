@@ -33,7 +33,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options, OdinContext odinContext)
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext)
         {
             await AssertCanReadDrive(driveId, odinContext);
 
@@ -59,14 +59,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, OdinContext odinContext,
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
             await AssertCanReadDrive(driveId, odinContext);
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, OdinContext odinContext,
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, IOdinContext odinContext,
             bool excludePreviewThumbnail = true)
         {
             await AssertCanReadDrive(driveId, odinContext);
@@ -89,7 +89,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, OdinContext odinContext,
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
             if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
@@ -131,7 +131,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, OdinContext odinContext,
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, IOdinContext odinContext,
             bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
@@ -153,7 +153,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, OdinContext odinContext)
+        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
             await AssertCanReadOrWriteToDrive(driveId, odinContext);
@@ -196,7 +196,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
-            IEnumerable<Guid> fileIdList, ResultOptions options, OdinContext odinContext, bool forceIncludeServerMetadata = false)
+            IEnumerable<Guid> fileIdList, ResultOptions options, IOdinContext odinContext, bool forceIncludeServerMetadata = false)
         {
             var results = new List<SharedSecretEncryptedFileHeader>();
 
@@ -282,7 +282,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Gets the file Id a file by its <see cref="GlobalTransitIdFileIdentifier"/>
         /// </summary>
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
-        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, OdinContext odinContext,
+        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
             var queryManager = await TryGetOrLoadQueryManager(driveId);
