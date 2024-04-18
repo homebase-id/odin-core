@@ -12,7 +12,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
-using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.Peer;
@@ -33,30 +32,30 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, OdinContext OdinContext)
+        public async Task Invoke(HttpContext httpContext, OdinContext odinContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
 
-            OdinContext.Tenant = (OdinId)tenant?.Name;
+            odinContext.Tenant = (OdinId)tenant?.Name;
 
             if (string.IsNullOrEmpty(authType))
             {
-                OdinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
+                odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                 await _next(httpContext);
                 return;
             }
 
             if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
-                await LoadTransitContext(httpContext, OdinContext);
+                await LoadTransitContext(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
 
             if (authType == PeerAuthConstants.FeedAuthScheme)
             {
-                await LoadIdentitiesIFollowContext(httpContext, OdinContext);
+                await LoadIdentitiesIFollowContext(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
@@ -71,7 +70,7 @@ namespace Odin.Hosting.Middleware
 
             if (authType == PeerAuthConstants.PublicTransitAuthScheme)
             {
-                await LoadPublicTransitContext(httpContext, OdinContext);
+                await LoadPublicTransitContext(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
@@ -79,14 +78,14 @@ namespace Odin.Hosting.Middleware
             await _next(httpContext);
         }
 
-        private async Task LoadTransitContext(HttpContext httpContext, OdinContext OdinContext)
+        private async Task LoadTransitContext(HttpContext httpContext, OdinContext odinContext)
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 //TODO: this appears to be a dead code path
                 if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
-                    await LoadFollowerContext(httpContext, OdinContext);
+                    await LoadFollowerContext(httpContext, odinContext);
                     return;
                 }
 
@@ -95,13 +94,13 @@ namespace Odin.Hosting.Middleware
                     var user = httpContext.User;
                     var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
                     var callerOdinId = (OdinId)user.Identity!.Name;
-                    var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
+                    var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken,odinContext);
 
                     if (ctx != null)
                     {
-                        OdinContext.Caller = ctx.Caller;
-                        OdinContext.SetPermissionContext(ctx.PermissionsContext);
-                        OdinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
+                        odinContext.Caller = ctx.Caller;
+                        odinContext.SetPermissionContext(ctx.PermissionsContext);
+                        odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
                         return;
                     }
                 }
@@ -119,10 +118,10 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
-            await LoadPublicTransitContext(httpContext, OdinContext);
+            await LoadPublicTransitContext(httpContext, odinContext);
         }
 
-        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, OdinContext OdinContext)
+        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, OdinContext odinContext)
         {
             //No token for now
             var user = httpContext.User;
@@ -131,9 +130,9 @@ namespace Odin.Hosting.Middleware
             var ctx = await authService.GetDotYouContext(odinId, null);
             if (ctx != null)
             {
-                OdinContext.Caller = ctx.Caller;
-                OdinContext.SetPermissionContext(ctx.PermissionsContext);
-                OdinContext.SetAuthContext(PeerAuthConstants.FeedAuthScheme);
+                odinContext.Caller = ctx.Caller;
+                odinContext.SetPermissionContext(ctx.PermissionsContext);
+                odinContext.SetAuthContext(PeerAuthConstants.FeedAuthScheme);
 
                 return;
             }
@@ -141,7 +140,7 @@ namespace Odin.Hosting.Middleware
             throw new OdinSecurityException("Cannot load context");
         }
 
-        private async Task LoadFollowerContext(HttpContext httpContext, OdinContext OdinContext)
+        private async Task LoadFollowerContext(HttpContext httpContext, OdinContext odinContext)
         {
             //No token for now
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
@@ -153,9 +152,9 @@ namespace Odin.Hosting.Middleware
 
                 if (ctx != null)
                 {
-                    OdinContext.Caller = ctx.Caller;
-                    OdinContext.SetPermissionContext(ctx.PermissionsContext);
-                    OdinContext.SetAuthContext(PeerAuthConstants.FollowerCertificateAuthScheme);
+                    odinContext.Caller = ctx.Caller;
+                    odinContext.SetPermissionContext(ctx.PermissionsContext);
+                    odinContext.SetAuthContext(PeerAuthConstants.FollowerCertificateAuthScheme);
                     return;
                 }
             }
@@ -163,18 +162,18 @@ namespace Odin.Hosting.Middleware
             throw new OdinSecurityException("Cannot load context");
         }
 
-        private async Task LoadPublicTransitContext(HttpContext httpContext, OdinContext OdinContext)
+        private async Task LoadPublicTransitContext(HttpContext httpContext, OdinContext odinContext)
         {
             var user = httpContext.User;
             var odinId = (OdinId)user.Identity!.Name;
 
-            OdinContext.Caller = new CallerContext(
+            odinContext.Caller = new CallerContext(
                 odinId: odinId,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
 
             var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
-            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All);
+            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All,odinContext);
 
             if (!anonymousDrives.Results.Any())
             {
@@ -204,13 +203,13 @@ namespace Odin.Hosting.Middleware
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(permissionKeys), anonDriveGrants, null, null) },
             };
 
-            OdinContext.SetPermissionContext(
+            odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
                     sharedSecretKey: null
                 ));
 
-            OdinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
+            odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
         }
     }
 }

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.DataSubscription;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Controllers.Base;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.System
 {
@@ -13,7 +15,7 @@ namespace Odin.Hosting.Controllers.System
     [ApiController]
     [Route(OwnerApiPathConstants.FollowersV1 + "/system/distribute")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
-    public class FeedDistributionSystemController : ControllerBase
+    public class FeedDistributionSystemController : OdinControllerBase
     {
         private readonly FeedDriveDistributionRouter _distributionService;
 
@@ -25,7 +27,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeQueuedMetadataItems();
+            await _distributionService.DistributeQueuedMetadataItems(TheOdinContext);
             return true;
         }
     }

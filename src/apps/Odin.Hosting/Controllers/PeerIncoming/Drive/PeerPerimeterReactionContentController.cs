@@ -23,40 +23,40 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent(SharedSecretEncryptedTransitPayload payload)
         {
-            await reactionService.AddReaction(payload);
+            await reactionService.AddReaction(payload, TheOdinContext);
             return NoContent();
         }
 
         [HttpPost("list")]
         public async Task<GetReactionsPerimeterResponse> GetAllReactions(SharedSecretEncryptedTransitPayload payload)
         {
-            return await reactionService.GetReactions(payload);
+            return await reactionService.GetReactions(payload, TheOdinContext);
         }
 
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            await reactionService.DeleteReaction(payload);
+            await reactionService.DeleteReaction(payload, TheOdinContext);
             return NoContent();
         }
 
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            await reactionService.DeleteAllReactions(payload);
+            await reactionService.DeleteAllReactions(payload, TheOdinContext);
             return NoContent();
         }
 
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            return await reactionService.GetReactionCountsByFile(payload);
+            return await reactionService.GetReactionCountsByFile(payload, TheOdinContext);
         }
 
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] SharedSecretEncryptedTransitPayload payload)
         {
-            return await reactionService.GetReactionsByIdentityAndFile(payload);
+            return await reactionService.GetReactionsByIdentityAndFile(payload, TheOdinContext);
         }
     }
 }

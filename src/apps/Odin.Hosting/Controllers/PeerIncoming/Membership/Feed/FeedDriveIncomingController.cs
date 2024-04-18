@@ -19,7 +19,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
     public class FeedDriveIncomingController : OdinControllerBase
     {
-        private readonly OdinContext _contextAccessor;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
@@ -37,14 +36,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.AcceptUpdatedFileMetadata(payload);
+            return await perimeterService.AcceptUpdatedFileMetadata(payload,TheOdinContext);
         }
         
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.Delete(payload);
+            return await perimeterService.Delete(payload,TheOdinContext);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()
