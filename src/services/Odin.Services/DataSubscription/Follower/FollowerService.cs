@@ -473,8 +473,7 @@ namespace Odin.Services.DataSubscription.Follower
                             DriveId = feedDriveId
                         };
 
-                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, bypassCallerCheck: true,
-                            odinContext: odinContext);
+                        await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, bypassCallerCheck: true);
                     }
                 }
             }

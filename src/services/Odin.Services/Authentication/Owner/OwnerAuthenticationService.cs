@@ -54,7 +54,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        
+
 
         private readonly SingleKeyValueStorage _nonceDataStorage;
         private readonly SingleKeyValueStorage _serverTokenStorage;
@@ -64,7 +64,7 @@ namespace Odin.Services.Authentication.Owner
             TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry,
-             OdinConfiguration configuration)
+            OdinConfiguration configuration)
         {
             _logger = logger;
             _secretService = secretService;
@@ -74,7 +74,7 @@ namespace Odin.Services.Authentication.Owner
             _tenantConfigService = tenantConfigService;
             _httpContextAccessor = httpContextAccessor;
             _identityRegistry = identityRegistry;
-            
+
             _configuration = configuration;
 
             //TODO: does this need to mwatch owner secret service?
@@ -133,7 +133,7 @@ namespace Odin.Services.Authentication.Owner
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
             var odinContext = _httpContextAccessor!.HttpContext!.RequestServices.GetRequiredService<OdinContext>();
             await this.UpdateOdinContext(token, odinContext);
-            await EnsureFirstRunOperations(token);
+            await EnsureFirstRunOperations(odinContext);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
@@ -192,7 +192,8 @@ namespace Odin.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token)
+        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token,
+            OdinContext odinContext)
         {
             if (await IsValidToken(token.Id))
             {
@@ -200,7 +201,7 @@ namespace Odin.Services.Authentication.Owner
 
                 var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
 
-                var allDrives = await _driveManager.GetDrives(PageOptions.All);
+                var allDrives = await _driveManager.GetDrives(PageOptions.All, odinContext);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
@@ -228,12 +229,12 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
             {
                 var dotYouContext = new OdinContext();
-                var (masterKey, permissionContext) = await GetPermissionContext(token);
+                var (masterKey, permissionContext) = await GetPermissionContext(token, odinContext);
 
                 if (null == permissionContext || masterKey.IsEmpty())
                 {
@@ -344,7 +345,7 @@ namespace Odin.Services.Authentication.Owner
                     DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                 });
 
-            OdinContext ctx = await this.GetDotYouContext(token);
+            OdinContext ctx = await this.GetDotYouContext(token, odinContext);
 
             if (null == ctx)
             {
@@ -359,20 +360,22 @@ namespace Odin.Services.Authentication.Owner
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
             //experimental:tell the system the owner is online
-            var mediator = context.RequestServices.GetRequiredService<IMediator>();
-            await mediator.Publish(new OwnerIsOnlineNotification() { });
+            // var mediator = context.RequestServices.GetRequiredService<IMediator>();
+            // await mediator.Publish(new OwnerIsOnlineNotification()
+            // {
+            // });
 
             return true;
         }
 
         //
 
-        private async Task EnsureFirstRunOperations(ClientAuthenticationToken token)
+        private async Task EnsureFirstRunOperations(OdinContext odinContext)
         {
             var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
             if (fli == null)
             {
-                await _tenantConfigService.CreateInitialKeys();
+                await _tenantConfigService.CreateInitialKeys(odinContext);
 
                 _firstRunInfoStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
                 {
@@ -381,7 +384,7 @@ namespace Odin.Services.Authentication.Owner
             }
         }
 
-        public async Task MarkForDeletion(PasswordReply currentPasswordReply)
+        public async Task MarkForDeletion(PasswordReply currentPasswordReply, OdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             var _ = await this.AssertValidPassword(currentPasswordReply);
@@ -391,7 +394,7 @@ namespace Odin.Services.Authentication.Owner
             tc.Update(tc);
         }
 
-        public async Task UnmarkForDeletion(PasswordReply currentPasswordReply)
+        public async Task UnmarkForDeletion(PasswordReply currentPasswordReply, OdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             var _ = await this.AssertValidPassword(currentPasswordReply);
@@ -401,7 +404,7 @@ namespace Odin.Services.Authentication.Owner
             tc.Update(tc);
         }
 
-        public async Task<AccountStatusResponse> GetAccountStatus()
+        public async Task<AccountStatusResponse> GetAccountStatus(OdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 

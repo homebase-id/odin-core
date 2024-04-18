@@ -120,7 +120,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile);
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile,odinContext);
             metadata.Created = existingHeader.FileMetadata.Created;
             metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingHeader.FileMetadata.FileState;
@@ -141,6 +141,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         File = targetFile,
                         ServerFileHeader = header,
+                        OdinContext = odinContext
                     });
                 }
             }
@@ -180,6 +181,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         File = targetFile,
                         ServerFileHeader = header,
+                        OdinContext = odinContext
                     });
                 }
             }
@@ -350,7 +352,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return encryptedKeyHeader;
         }
 
-        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file)
+        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, OdinContext odinContext)
         {
             var lts = await GetLongTermStorageManager(file.DriveId);
             var header = await lts.GetServerFileHeader(file.FileId);
@@ -360,13 +362,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return false;
             }
 
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList);
+            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, OdinContext odinContext)
         {
             await AssertCanReadDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file);
+            var header = await GetServerFileHeaderInternal(file,odinContext);
 
             if (header == null)
             {
@@ -385,7 +387,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanReadOrWriteToDrive(file.DriveId, odinContext);
 
-            var header = await GetServerFileHeaderInternal(file);
+            var header = await GetServerFileHeaderInternal(file,odinContext);
             return header.ServerMetadata.FileSystemType;
         }
 
@@ -457,7 +459,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     IsHardDelete = true,
                     File = file,
                     ServerFileHeader = null,
-                    SharedSecretEncryptedFileHeader = null
+                    SharedSecretEncryptedFileHeader = null,
+                    OdinContext = odinContext
                 });
             }
         }
@@ -512,6 +515,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
+                    OdinContext = odinContext
                 });
             }
         }
@@ -603,6 +607,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
+                    OdinContext = odinContext
                 });
             }
         }
@@ -672,6 +677,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
+                    OdinContext = odinContext
                 });
             }
 
@@ -719,6 +725,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
+                    OdinContext = odinContext
                 });
             }
         }
@@ -743,7 +750,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext)
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext),
+                    OdinContext = odinContext
                 });
             }
         }
@@ -772,7 +780,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool bypassCallerCheck = false)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file);
+            var header = await GetServerFileHeaderInternal(file,odinContext);
             AssertValidFileSystemType(header.ServerMetadata);
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
 
@@ -798,7 +806,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task RemoveFeedDriveFile(InternalDriveFileId file, OdinContext odinContext)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file);
+            var header = await GetServerFileHeaderInternal(file,odinContext);
             AssertValidFileSystemType(header.ServerMetadata);
             var feedDriveId = await DriveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
 
@@ -847,7 +855,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext)
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext),
+                    OdinContext = odinContext
                 });
             }
         }
@@ -944,7 +953,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     IsHardDelete = false,
                     File = file,
                     ServerFileHeader = deletedServerFileHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, odinContext)
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, odinContext),
+                    OdinContext = odinContext
                 });
             }
         }
@@ -963,7 +973,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file, OdinContext odinContext)
         {
             var mgr = await GetLongTermStorageManager(file.DriveId);
 
@@ -984,7 +994,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+            await driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
 
             return header;
         }

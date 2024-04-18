@@ -143,7 +143,7 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
+            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName, odinContext))
             {
                 return false;
             }
@@ -361,7 +361,7 @@ namespace Odin.Services.Membership.YouAuth
 
         // 
 
-        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token, OdinContext currentOdinContext)
         {
             async Task<OdinContext> Creator()
             {
@@ -376,13 +376,13 @@ namespace Odin.Services.Membership.YouAuth
                 // If the domain is from an odin identity that is connected, upgrade their permissions
                 //
                 var odinId = (OdinId)domainRegistration.Domain.DomainName;
-                var odinContext = await _circleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg);
+                var odinContext = await _circleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg, currentOdinContext);
                 if (null != odinContext)
                 {
                     return odinContext;
                 }
 
-                return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg, odinContext);
+                return await CreateAuthenticatedContextForYouAuthDomain(token, domainRegistration, accessReg, currentOdinContext);
             }
 
             var result = await _cache.GetOrAddContext(token, Creator);
@@ -496,12 +496,14 @@ namespace Odin.Services.Membership.YouAuth
             var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
             var anonymousDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
 
-            var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.CircleGrants.Values.ToList(), odinContext);
+            var (grants, enabledCircles) =
+                _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.CircleGrants.Values.ToList(), odinContext);
 
             var permissionContext = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
+                odinContext: odinContext,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonymousDrivePermissions);

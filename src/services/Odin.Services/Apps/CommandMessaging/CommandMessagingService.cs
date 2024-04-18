@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -34,7 +34,7 @@ public class CommandMessagingService
         _standardFileSystem = standardFileSystem;
     }
 
-    public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
+    public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command, OdinContext odinContext)
     {
         var internalFile = await _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
@@ -65,8 +65,8 @@ public class CommandMessagingService
             DoNotIndex = true
         };
 
-        var serverFileHeader = await _standardFileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
-        await _standardFileSystem.Storage.WriteNewFileHeader(internalFile, serverFileHeader);
+        var serverFileHeader = await _standardFileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata,odinContext);
+        await _standardFileSystem.Storage.WriteNewFileHeader(internalFile, serverFileHeader,odinContext);
 
         //TODO: with the introduction of file system type, we can probably make commands a file system type
         var transferResult = await _peerOutgoingTransferService.SendFile(
@@ -79,7 +79,8 @@ public class CommandMessagingService
                 Schedule = ScheduleOptions.SendNowAwaitResponse //TODO: let the caller specify this
             },
             transferFileType: TransferFileType.CommandMessage,
-            FileSystemType.Standard);
+            FileSystemType.Standard,
+            odinContext);
 
         return new CommandMessageResult()
         {
@@ -91,16 +92,16 @@ public class CommandMessagingService
     /// Gets a list of commands ready to be processed along with their associated files
     /// </summary>
     /// <returns></returns>
-    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor)
+    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor, OdinContext odinContext)
     {
-        var commands = await _standardFileSystem.Commands.GetUnprocessedCommands(driveId, count: 100);
+        var commands = await _standardFileSystem.Commands.GetUnprocessedCommands(driveId, count: 100, odinContext);
         return new ReceivedCommandResultSet()
         {
             ReceivedCommands = commands
         };
     }
 
-    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList)
+    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList, OdinContext odinContext)
     {
         var list = new List<InternalDriveFileId>();
 
@@ -115,7 +116,7 @@ public class CommandMessagingService
 
         foreach (var internalDriveFileId in list)
         {
-            await _standardFileSystem.Storage.HardDeleteLongTermFile(internalDriveFileId);
+            await _standardFileSystem.Storage.HardDeleteLongTermFile(internalDriveFileId, odinContext);
         }
 
         await _standardFileSystem.Commands.MarkCommandsProcessed(driveId, commandIdList.ToList());

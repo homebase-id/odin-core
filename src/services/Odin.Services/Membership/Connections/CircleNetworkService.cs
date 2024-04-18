@@ -22,7 +22,6 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
 using Serilog;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
-using PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
 {
@@ -135,8 +134,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
-        /// <param name="odinId"></param>
-        /// <returns></returns>
         public async Task<bool> Disconnect(OdinId odinId, OdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
@@ -148,7 +145,8 @@ namespace Odin.Services.Membership.Connections
 
                 await _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
                 {
-                    OdinId = odinId
+                    OdinId = odinId,
+                    OdinContext = odinContext
                 });
 
                 return true;
@@ -160,8 +158,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Blocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        /// <param name="odinId"></param>
-        /// <returns></returns>
         public async Task<bool> Block(OdinId odinId, OdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
@@ -173,7 +169,7 @@ namespace Odin.Services.Membership.Connections
             if (null != info && info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
-                this.SaveIcr(info,odinContext);
+                this.SaveIcr(info, odinContext);
                 return true;
             }
 
@@ -199,8 +195,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        /// <param name="odinId"></param>
-        /// <returns></returns>
         public async Task<bool> Unblock(OdinId odinId, OdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
@@ -220,6 +214,7 @@ namespace Odin.Services.Membership.Connections
         /// Gets the current connection info
         /// </summary>
         /// <param name="odinId"></param>
+        /// <param name="odinContext"></param>
         /// <param name="overrideHack"></param>
         /// <returns></returns>
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, OdinContext odinContext, bool overrideHack = false)
@@ -278,8 +273,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Determines if the specified odinId is connected 
         /// </summary>
-        /// <param name="odinId"></param>
-        /// <returns></returns>
         public async Task<bool> IsConnected(OdinId odinId, OdinContext odinContext)
         {
             //allow the caller to see if s/he is connected, otherwise
@@ -306,6 +299,7 @@ namespace Odin.Services.Membership.Connections
         /// Throws an exception if the odinId is blocked.
         /// </summary>
         /// <param name="odinId"></param>
+        /// <param name="odinContext"></param>
         /// <returns></returns>
         public async Task AssertConnectionIsNoneOrValid(OdinId odinId, OdinContext odinContext)
         {
@@ -320,6 +314,7 @@ namespace Odin.Services.Membership.Connections
         /// <param name="accessGrant">The access to be given to this connection</param>
         /// <param name="encryptedCat">The keys used when accessing the remote identity</param>
         /// <param name="contactData"></param>
+        /// <param name="odinContext"></param>
         /// <returns></returns>
         public Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData,
             OdinContext odinContext)
@@ -391,7 +386,7 @@ namespace Odin.Services.Membership.Connections
             // Check the apps.  If the circle being granted is authorized by an app
             // ensure the new member gets the permissions given by the app
             //
-            var allApps = await _appRegistrationService.GetRegisteredApps();
+            var allApps = await _appRegistrationService.GetRegisteredApps(odinContext);
             var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
             foreach (var app in appsThatGrantThisCircle)
@@ -401,7 +396,7 @@ namespace Odin.Services.Membership.Connections
             }
 
             keyStoreKey.Wipe();
-            this.SaveIcr(icr,odinContext);
+            this.SaveIcr(icr, odinContext);
         }
 
         /// <summary>
@@ -431,7 +426,7 @@ namespace Odin.Services.Membership.Connections
                 appCircleGrants.Remove(circleId.Value);
             }
 
-            this.SaveIcr(icr,odinContext);
+            this.SaveIcr(icr, odinContext);
         }
 
 
@@ -440,7 +435,7 @@ namespace Odin.Services.Membership.Connections
         {
             var masterKey = odinContext.Caller.GetMasterKey();
 
-            var allApps = await _appRegistrationService.GetRegisteredApps();
+            var allApps = await _appRegistrationService.GetRegisteredApps(odinContext);
             var appGrants = new Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>();
 
             foreach (var circleId in circleIds)
@@ -524,7 +519,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
-            var odinContext = ??
+            var odinContext = notification.OdinContext;
             if (notification.IsNewDrive)
             {
                 await HandleDriveAdded(notification.Drive, odinContext);
@@ -537,16 +532,17 @@ namespace Odin.Services.Membership.Connections
 
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
-            var odinContext = ??
+            var odinContext = notification.OdinContext;
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration, odinContext);
         }
 
-        public async Task RevokeConnection(OdinId odinId)
+        public async Task RevokeConnection(OdinId odinId, OdinContext odinContext)
         {
             _storage.Delete(odinId);
             await _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
             {
-                OdinId = odinId
+                OdinId = odinId,
+                OdinContext = odinContext
             });
         }
 
@@ -711,6 +707,7 @@ namespace Odin.Services.Membership.Connections
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
+                odinContext: odinContext,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true,
                 anonymousDrivePermission: anonDrivePermissions);
@@ -778,7 +775,8 @@ namespace Odin.Services.Membership.Connections
             //notify anyone caching data for this identity, we need to reset the cache
             _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
             {
-                OdinId = icr.OdinId
+                OdinId = icr.OdinId,
+                OdinContext = odinContext
             });
         }
 

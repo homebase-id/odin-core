@@ -192,6 +192,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            var odinContext = notification.OdinContext;
             var hasSharedSecret = null != odinContext.PermissionsContext.SharedSecretKey;
 
             var data = OdinSystemSerializer.Serialize(new

@@ -17,9 +17,8 @@ public class PeerReactionService(
     ReactionContentService reactionContentService,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    
     FileSystemResolver fileSystemResolver)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService,  fileSystemResolver)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
 {
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
     {
@@ -30,7 +29,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        await reactionContentService.AddReaction(fileId.Value, request.Reaction);
+        await reactionContentService.AddReaction(fileId.Value, request.Reaction, odinContext);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
@@ -43,7 +42,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        await reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
+        await reactionContentService.DeleteReaction(fileId.Value, request.Reaction, odinContext);
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
@@ -56,7 +55,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        return await reactionContentService.GetReactionCountsByFile(fileId.Value);
+        return await reactionContentService.GetReactionCountsByFile(fileId.Value, odinContext);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
@@ -69,7 +68,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
+        return await reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value, odinContext);
     }
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
@@ -82,7 +81,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        await reactionContentService.DeleteAllReactions(fileId.Value);
+        await reactionContentService.DeleteAllReactions(fileId.Value, odinContext);
     }
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload, OdinContext odinContext)
@@ -95,7 +94,7 @@ public class PeerReactionService(
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        var list = await reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords);
+        var list = await reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords, odinContext);
 
         return new GetReactionsPerimeterResponse()
         {

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -34,7 +33,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private readonly byte[] _sentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
 
-        
+
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
@@ -52,7 +51,6 @@ namespace Odin.Services.Membership.Connections.Requests
 
 
         public CircleNetworkRequestService(
-            
             CircleNetworkService cns,
             ILogger<CircleNetworkRequestService> logger,
             IOdinHttpClientFactory odinHttpClientFactory,
@@ -63,7 +61,6 @@ namespace Odin.Services.Membership.Connections.Requests
             ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService,
             DriveManager driveManager, FollowerService followerService)
         {
-            
             _cns = cns;
             _logger = logger;
             _odinHttpClientFactory = odinHttpClientFactory;
@@ -75,7 +72,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _circleMembershipService = circleMembershipService;
             _driveManager = driveManager;
             _followerService = followerService;
-            
+
 
             const string pendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
             _pendingRequestValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(pendingContextKey));
@@ -103,7 +100,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 return null;
             }
 
-            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OnlineKey, header.Payload);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OnlineKey, header.Payload, odinContext);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -145,7 +142,7 @@ namespace Odin.Services.Membership.Connections.Requests
         public async Task SendConnectionRequest(ConnectionRequestHeader header, OdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
-            
+
             header.ContactData?.Validate();
 
             if (header.Recipient == odinContext.Caller.OdinId)
@@ -269,7 +266,8 @@ namespace Odin.Services.Membership.Connections.Requests
             await _mediator.Publish(new ConnectionRequestReceived()
             {
                 Sender = request.SenderOdinId,
-                Recipient = recipient
+                Recipient = recipient,
+                OdinContext = odinContext
             });
 
             await Task.CompletedTask;
@@ -293,6 +291,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// This does not notify the original recipient
         /// </summary>
         /// <param name="recipient"></param>
+        /// <param name="odinContext"></param>
         public Task DeleteSentRequest(OdinId recipient, OdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
@@ -335,7 +334,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 throw new OdinClientException($"No pending request was found from sender [{header.Sender}]");
             }
-            
+
             pendingRequest.Validate();
 
             var senderOdinId = (OdinId)pendingRequest.SenderOdinId;
@@ -405,7 +404,7 @@ namespace Odin.Services.Membership.Connections.Requests
             await this.DeleteSentRequest(senderOdinId, odinContext);
 
             // eww to this coupling
-            await _followerService.SynchronizeChannelFiles(senderOdinId);
+            await _followerService.SynchronizeChannelFiles(senderOdinId, odinContext);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -444,7 +443,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(tempKey);
             var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
 
-            await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData,odinContext);
+            await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData, odinContext);
 
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             //since i have the icr key, i could create a client and make a request across the wire to pull
@@ -454,7 +453,7 @@ namespace Odin.Services.Membership.Connections.Requests
                        originalRequest.TempEncryptedIcrKey))
             {
                 // eww to this coupling
-                await _followerService.SynchronizeChannelFiles(recipient);
+                await _followerService.SynchronizeChannelFiles(recipient, odinContext);
             }
 
             rawIcrKey.Wipe();
@@ -466,7 +465,8 @@ namespace Odin.Services.Membership.Connections.Requests
             await _mediator.Publish(new ConnectionRequestAccepted()
             {
                 Sender = (OdinId)originalRequest.SenderOdinId,
-                Recipient = recipient
+                Recipient = recipient,
+                OdinContext = odinContext
             });
         }
 

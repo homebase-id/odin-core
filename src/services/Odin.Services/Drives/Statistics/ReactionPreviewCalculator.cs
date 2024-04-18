@@ -15,7 +15,7 @@ namespace Odin.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, OdinConfiguration config)
+public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, OdinConfiguration config)
     : INotificationHandler<IDriveNotification>,
         INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
         INotificationHandler<AllReactionsByFileDeleted>
@@ -23,8 +23,7 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
     {
         //TODO: handle encrypted content?
-        
-        var odinContext = ??
+        var odinContext = notification.OdinContext;
 
         var updatedFileHeader = notification.ServerFileHeader;
 
@@ -56,7 +55,7 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
 
         // var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
         var referenceFileDriveId = odinContext.PermissionsContext.GetDriveId(referencedFile.TargetDrive);
-        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
+        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId, odinContext);
         var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
@@ -79,7 +78,8 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
                 FileId = referencedFileHeader.FileId,
                 DriveId = referenceFileDriveId
             },
-            referencedFileReactionPreview);
+            referencedFileReactionPreview,
+            odinContext);
     }
 
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
@@ -145,8 +145,9 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
     public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
+        var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
-        var header = await fs.Storage.GetServerFileHeader(targetFile);
+        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
         var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
@@ -165,14 +166,15 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
 
         preview.Reactions = dict;
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview);
+        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext);
     }
 
     public async Task Handle(ReactionDeletedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
+        var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
-        var header = await fs.Storage.GetServerFileHeader(targetFile);
+        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header?.FileMetadata.ReactionPreview;
 
         if (null == preview)
@@ -203,14 +205,15 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
 
         preview.Reactions = dict;
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview);
+        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext);
     }
 
     public async Task Handle(AllReactionsByFileDeleted notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.FileId;
+        var odinContext = notification.OdinContext;
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile);
-        var header = await fs.Storage.GetServerFileHeader(targetFile);
+        var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header?.FileMetadata.ReactionPreview;
 
         if (null == preview)
@@ -223,6 +226,6 @@ public class ReactionPreviewCalculator( FileSystemResolver fileSystemResolver, O
             preview.Reactions.Clear();
         }
 
-        await fs.Storage.UpdateReactionPreview(targetFile, preview);
+        await fs.Storage.UpdateReactionPreview(targetFile, preview, odinContext);
     }
 }

@@ -242,7 +242,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var header = await fs.Storage.GetServerFileHeader(outboxItem.File, odinContext);
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
+            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
             {
                 return new OutboxProcessingResult()
                 {

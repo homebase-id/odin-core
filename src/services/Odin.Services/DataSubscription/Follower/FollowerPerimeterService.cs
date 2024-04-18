@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
+
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -15,14 +16,14 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerPerimeterService
     {
         private readonly TenantSystemStorage _tenantStorage;
-
+        
         private readonly IMediator _mediator;
 
 
         public FollowerPerimeterService(TenantSystemStorage tenantStorage, IMediator mediator)
         {
             _tenantStorage = tenantStorage;
-
+            
             _mediator = mediator;
         }
 
@@ -30,7 +31,7 @@ namespace Odin.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimeterFollowRequest request, OdinContext odinContext)
+        public Task AcceptFollower(PerimeterFollowRequest request,OdinContext odinContext)
         {
             //
             //TODO: where to store the request.ClientAuthToken ??
@@ -80,7 +81,8 @@ namespace Odin.Services.DataSubscription.Follower
 
             _mediator.Publish(new NewFollowerNotification()
             {
-                OdinId = (OdinId)request.OdinId
+                OdinId = (OdinId)request.OdinId,
+                OdinContext = odinContext
             });
 
             return Task.CompletedTask;

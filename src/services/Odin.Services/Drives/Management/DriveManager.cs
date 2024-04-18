@@ -116,7 +116,8 @@ public class DriveManager
         await _mediator.Publish(new DriveDefinitionAddedNotification()
         {
             IsNewDrive = true,
-            Drive = storageDrive
+            Drive = storageDrive,
+            OdinContext = odinContext
         });
 
         return storageDrive;
@@ -149,7 +150,8 @@ public class DriveManager
             await _mediator.Publish(new DriveDefinitionAddedNotification()
             {
                 IsNewDrive = false,
-                Drive = storageDrive
+                Drive = storageDrive,
+                OdinContext = odinContext
             });
         }
     }

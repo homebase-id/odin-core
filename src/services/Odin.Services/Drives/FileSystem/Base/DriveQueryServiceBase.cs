@@ -208,7 +208,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     FileId = fileId
                 };
 
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file);
+                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file, odinContext);
                 if (!hasPermissionToFile)
                 {
                     // throw new OdinSystemException($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +

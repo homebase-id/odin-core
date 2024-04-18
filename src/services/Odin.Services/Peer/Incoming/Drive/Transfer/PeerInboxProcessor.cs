@@ -54,7 +54,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
                             // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration");
-                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
+                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender,odinContext, overrideHack: true);
                             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
 
                             // logger.LogDebug("Processing Inbox -> DecryptAesToKeyHeader");
@@ -65,7 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                             {
-                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
+                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,odinContext);
                             });
 
                             logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
@@ -73,7 +73,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
                             // logger.LogDebug("Processing Inbox -> DeleteFile from sender:{sender}", inboxItem.Sender);
-                            await writer.DeleteFile(fs, inboxItem);
+                            await writer.DeleteFile(fs, inboxItem,odinContext);
                             // logger.LogDebug("Processing Inbox -> DeleteFile done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)

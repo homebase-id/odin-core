@@ -95,7 +95,7 @@ public class PushNotificationService(
 
             foreach (var record in group)
             {
-                var (validAppName, appName) = await TryResolveAppName(record.Options.AppId);
+                var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext);
 
                 if (validAppName)
                 {
@@ -126,7 +126,7 @@ public class PushNotificationService(
         }
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId)
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, OdinContext odinContext)
     {
         if (appId == SystemAppConstants.OwnerAppId)
         {
@@ -138,7 +138,7 @@ public class PushNotificationService(
             return (true, "Homebase Feed");
         }
 
-        var appReg = await appRegistrationService.GetAppRegistration(appId);
+        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
         return (appReg != null, appReg?.Name);
     }
 
@@ -349,25 +349,29 @@ public class PushNotificationService(
 
     public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.Recipient, odinContext, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.Recipient.ToHashId(),
-            Silent = false
-        });
+        var odinContext = notification.OdinContext;
+        this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Recipient.ToHashId(),
+                Silent = false
+            },
+            odinContext);
         return Task.CompletedTask;
     }
 
     public Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
     {
-        this.EnqueueNotification(notification.Sender, odinContext, new AppNotificationOptions()
-        {
-            AppId = SystemAppConstants.OwnerAppId,
-            TypeId = notification.NotificationTypeId,
-            TagId = notification.Sender.ToHashId(),
-            Silent = false
-        });
+        var odinContext = notification.OdinContext;
+        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Sender.ToHashId(),
+                Silent = false
+            },
+            odinContext);
 
         return Task.CompletedTask;
     }

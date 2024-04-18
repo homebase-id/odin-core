@@ -17,7 +17,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
         /// </summary>
-        /// <param name="odinContext"></param>
         Task ProcessOutbox(OdinContext odinContext);
 
         /// <summary>

@@ -51,7 +51,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryModifiedResponse = await httpClient.QueryModified(request); });
 
-            await HandleInvalidResponse(odinId, queryModifiedResponse);
+            await HandleInvalidResponse(odinId, queryModifiedResponse, odinContext);
 
             var response = queryModifiedResponse.Content;
 
@@ -85,7 +85,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatchCollection(request); });
 
-            await HandleInvalidResponse(odinId, queryBatchResponse);
+            await HandleInvalidResponse(odinId, queryBatchResponse, odinContext);
 
             var batch = queryBatchResponse.Content;
             return batch;
@@ -112,7 +112,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
 
-            await HandleInvalidResponse(odinId, queryBatchResponse);
+            await HandleInvalidResponse(odinId, queryBatchResponse, odinContext);
 
             var batch = queryBatchResponse.Content;
             return new QueryBatchResult()
@@ -151,7 +151,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response, odinContext);
 
             var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
@@ -252,7 +252,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response, odinContext);
             return response.Content;
         }
         catch (TryRetryException t)
@@ -283,7 +283,7 @@ public class PeerDriveQueryService(
                 return null;
             }
 
-            await HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response, odinContext);
 
             var header = TransformSharedSecret(response.Content, icr, odinContext);
             return header;
@@ -382,7 +382,7 @@ public class PeerDriveQueryService(
                 CancellationToken.None,
                 async () => { response = await httpClient.GetRemoteDotYouContext(); });
 
-            await HandleInvalidResponse(odinId, response);
+            await HandleInvalidResponse(odinId, response, odinContext);
 
             return response.Content;
         }
@@ -431,8 +431,6 @@ public class PeerDriveQueryService(
     /// <summary>
     /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
     /// </summary>
-    /// <param name="sharedSecretEncryptedFileHeader"></param>
-    /// <param name="icr"></param>
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, OdinContext odinContext)
     {
@@ -464,7 +462,7 @@ public class PeerDriveQueryService(
         return newEncryptedKeyHeader;
     }
 
-    private async Task HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response)
+    private async Task HandleInvalidResponse<T>(OdinId odinId, ApiResponse<T> response, OdinContext odinContext)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
@@ -473,7 +471,7 @@ public class PeerDriveQueryService(
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
                 if (icrIssueHeaderExists && isIcrIssue)
                 {
-                    await circleNetworkService.RevokeConnection(odinId);
+                    await circleNetworkService.RevokeConnection(odinId, odinContext);
                 }
             }
 
@@ -504,7 +502,7 @@ public class PeerDriveQueryService(
             return (null, default, null, null, Stream.Null);
         }
 
-        await HandleInvalidResponse(odinId, response);
+        await HandleInvalidResponse(odinId, response, odinContext);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
@@ -544,7 +542,7 @@ public class PeerDriveQueryService(
             return (null, default, null);
         }
 
-        await HandleInvalidResponse(odinId, response);
+        await HandleInvalidResponse(odinId, response, odinContext);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());

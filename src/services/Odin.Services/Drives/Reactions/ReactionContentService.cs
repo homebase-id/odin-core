@@ -16,14 +16,13 @@ namespace Odin.Services.Drives.Reactions;
 /// </summary>
 public class ReactionContentService
 {
-    
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly IMediator _mediator;
 
     public ReactionContentService(DriveDatabaseHost driveDatabaseHost, IMediator mediator)
     {
         _driveDatabaseHost = driveDatabaseHost;
-        
+
         _mediator = mediator;
     }
 
@@ -46,7 +45,8 @@ public class ReactionContentService
                     Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
                     ReactionContent = reactionContent,
                     FileId = file
-                }
+                },
+                OdinContext = odinContext
             });
         }
     }
@@ -69,7 +69,8 @@ public class ReactionContentService
                     Created = default,
                     ReactionContent = reactionContent,
                     FileId = file
-                }
+                },
+                OdinContext = odinContext
             });
         }
     }
@@ -119,7 +120,8 @@ public class ReactionContentService
 
             await _mediator.Publish(new AllReactionsByFileDeleted()
             {
-                FileId = file
+                FileId = file,
+                OdinContext = odinContext
             });
         }
     }

@@ -55,14 +55,14 @@ namespace Odin.Services.DataSubscription
         public Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
-
+            var odinContext = notification.OdinContext;
             pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.FeedAppId,
                 TypeId = typeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
-            });
+            }, odinContext);
 
             return Task.CompletedTask;
         }
@@ -82,12 +82,13 @@ namespace Odin.Services.DataSubscription
                 && sender != tenantContext.HostOdinId)
             {
                 pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = CommentNotificationTypeId,
-                    TagId = sender.ToHashId(),
-                    Silent = false,
-                });
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = sender.ToHashId(),
+                        Silent = false,
+                    },
+                    notification.OdinContext);
             }
 
             return Task.CompletedTask;
@@ -101,7 +102,7 @@ namespace Odin.Services.DataSubscription
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.OdinId.ToHashId(),
                 Silent = false
-            });
+            }, notification.OdinContext);
 
             return Task.CompletedTask;
         }

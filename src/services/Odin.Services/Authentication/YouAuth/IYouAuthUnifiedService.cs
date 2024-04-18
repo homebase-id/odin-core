@@ -19,23 +19,26 @@ public enum ClientType
 
 public interface IYouAuthUnifiedService
 {
-    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest);
+    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, OdinContext odinContext);
 
     Task<bool> NeedConsent(
         string tenant,
         ClientType clientType,
         string clientIdOrDomain,
         string permissionRequest,
-        string redirectUri);
+        string redirectUri,
+        OdinContext odinContext);
 
-    Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements);
+    Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
+        OdinContext odinContext);
 
     Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
         ClientType clientType,
         string clientId,
         string clientInfo,
         string permissionRequest,
-        string publicKey);
+        string publicKey,
+        OdinContext odinContext);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
 }

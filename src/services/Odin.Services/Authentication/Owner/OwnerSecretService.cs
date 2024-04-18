@@ -181,9 +181,9 @@ namespace Odin.Services.Authentication.Owner
             await Task.CompletedTask;
         }
 
-        public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request)
+        public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request, OdinContext odinContext)
         {
-            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, request.EncryptedRecoveryKey);
+            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext);
 
             if (!isValidPublicKey)
             {
@@ -195,7 +195,7 @@ namespace Odin.Services.Authentication.Owner
             await SavePassword(request.PasswordReply, masterKey);
         }
 
-        public async Task ResetPassword(ResetPasswordRequest request)
+        public async Task ResetPassword(ResetPasswordRequest request, OdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
             

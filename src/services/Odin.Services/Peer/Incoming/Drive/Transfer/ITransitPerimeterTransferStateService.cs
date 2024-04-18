@@ -15,8 +15,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Creates a tracker for an coming file
         /// </summary>
-        /// <param name="transferInstructionSet"></param>
-        /// <returns></returns>
         Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, OdinContext odinContext);
 
         /// <summary>
@@ -26,7 +24,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <returns></returns>
         Task<IncomingTransferStateItem> GetStateItem(Guid id);
 
-        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
+        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, OdinContext odinContext);
 
         Task RemoveStateItem(Guid transferStateItemId);
     }

@@ -43,7 +43,7 @@ public class RecoveryService
         masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
-    public async Task CreateInitialKey()
+    public async Task CreateInitialKey(OdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
@@ -53,12 +53,12 @@ public class RecoveryService
         }
 
         var keyBytes = ByteArrayUtil.GetRndByteArray(16);
-        SaveKey(keyBytes.ToSensitiveByteArray());
+        SaveKey(keyBytes.ToSensitiveByteArray(), odinContext);
 
         await Task.CompletedTask;
     }
 
-    public Task<DecryptedRecoveryKey> GetKey()
+    public Task<DecryptedRecoveryKey> GetKey(OdinContext odinContext)
     {
         var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
@@ -101,7 +101,7 @@ public class RecoveryService
         return existingKey;
     }
 
-    private void SaveKey(SensitiveByteArray recoveryKey)
+    private void SaveKey(SensitiveByteArray recoveryKey, OdinContext odinContext)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 

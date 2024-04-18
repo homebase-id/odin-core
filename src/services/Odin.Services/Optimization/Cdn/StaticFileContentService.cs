@@ -95,7 +95,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _fileSystem.Query.GetBatch(driveId, qp, options);
+            var results = await _fileSystem.Query.GetBatch(driveId, qp, options,odinContext);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -124,7 +124,7 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null);
+                        var ps = await _fileSystem.Storage.GetPayloadStream(internalFileId, pd.Key, null,odinContext);
                         try
                         {
                             payloads.Add(new PayloadStaticFileResponse()
