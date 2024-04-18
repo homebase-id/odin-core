@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Drives;
@@ -10,22 +8,20 @@ using Odin.Services.Drives.FileSystem.Standard;
 
 namespace Odin.Services.Base
 {
-    public class FileSystemResolver
+    public class FileSystemResolver(StandardFileSystem standardFileSystem, CommentFileSystem commentFileSystem)
     {
-
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
-            var ctx = _contextAccessor.HttpContext;
 
             if (fileSystemType == FileSystemType.Standard)
             {
-                return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
+                return standardFileSystem;
             }
 
             if (fileSystemType == FileSystemType.Comment)
             {
-                return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
+                return commentFileSystem;
             }
 
             throw new OdinClientException("Invalid file system type or could not parse instruction set",

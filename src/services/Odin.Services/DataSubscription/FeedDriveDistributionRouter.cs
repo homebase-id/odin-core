@@ -126,7 +126,8 @@ namespace Odin.Services.DataSubscription
                 FeedDistroType = FeedDistroType.FileMetadata
             };
 
-            using (new FeedDriveDistributionSecurityContext(_contextAccessor))
+            var odinContext = notification.OdinContext;
+            using (new FeedDriveDistributionSecurityContext(ref odinContext))
             {
                 await EnqueueFollowers(notification, item);
                 EnqueueCronJob();
@@ -258,7 +259,7 @@ namespace Odin.Services.DataSubscription
 
             if (connectedFollowers.Any())
             {
-                var fs = await _fileSystemResolver.ResolveFileSystem(file,odinContext);
+                var fs = await _fileSystemResolver.ResolveFileSystem(file, odinContext);
                 var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)

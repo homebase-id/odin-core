@@ -17,15 +17,15 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
 
+    private readonly OdinContext _odinContext;
     private const string GroupName = "patch_in_temp_icrkey";
-
-    public FeedDriveSynchronizerSecurityContext(Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    
+    public FeedDriveSynchronizerSecurityContext(ref OdinContext context, Guid feedDriveId, SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        var ctx = odinodinContext;
-
-        _prevSecurityGroupType = ctx.Caller.SecurityLevel;
+        _odinContext = context;
+        _prevSecurityGroupType = context.Caller.SecurityLevel;
 
         //
         // Upgrade access briefly to perform functions
@@ -41,8 +41,8 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
             KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey
         };
 
-        ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
-        ctx.PermissionsContext.PermissionGroups.Add(GroupName,
+        _odinContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+        _odinContext.PermissionsContext.PermissionGroups.Add(GroupName,
             new PermissionGroup(
                 new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
                 new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
@@ -50,7 +50,7 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
 
     public void Dispose()
     {
-        _odinodinContext.Caller.SecurityLevel = _prevSecurityGroupType;
-        _odinodinContext.PermissionsContext.PermissionGroups.Remove(GroupName);
+        _odinContext.Caller.SecurityLevel = _prevSecurityGroupType;
+        _odinContext.PermissionsContext.PermissionGroups.Remove(GroupName);
     }
 }

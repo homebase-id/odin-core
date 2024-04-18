@@ -30,7 +30,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Invalid drive specified for reaction preview update");
             }
 
-            using (new FeedDriveDistributionSecurityContext(contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(ref odinContext))
             {
                 var fileId = await this.ResolveInternalFile(request.FileId,odinContext);
 
@@ -56,7 +56,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            using (new FeedDriveDistributionSecurityContext(contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(ref odinContext))
             {
                 var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
@@ -102,7 +102,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, OdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
-            using (new FeedDriveDistributionSecurityContext(contextAccessor))
+            using (new FeedDriveDistributionSecurityContext(ref odinContext))
             {
                 var fileId = await this.ResolveInternalFile(request.FileId, odinContext);
                 if (null == fileId)
