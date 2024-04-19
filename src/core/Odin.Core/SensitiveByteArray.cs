@@ -32,14 +32,27 @@ namespace Odin.Core
             SetKey(Convert.FromBase64String(data64));
         }
 
-        ~SensitiveByteArray()
+        public SensitiveByteArray(SensitiveByteArray other)
         {
-            //Wipe();
+            if (other._key == null)
+            {
+                _key = null;
+            }
+            else
+            {
+                _key = new byte[other._key.Length];
+                Array.Copy(other._key, _key, _key.Length);
+            }
         }
 
         public void Dispose()
         {
-            this.Wipe();
+            Wipe();
+        }
+
+        public SensitiveByteArray Clone()
+        {
+            return new SensitiveByteArray(this);
         }
 
         public void Wipe()
@@ -49,7 +62,6 @@ namespace Odin.Core
 
             _key = null;
         }
-
 
         public void SetKey(byte[] data)
         {

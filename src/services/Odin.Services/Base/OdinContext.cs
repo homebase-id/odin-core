@@ -1,4 +1,3 @@
-using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
@@ -18,6 +17,8 @@ namespace Odin.Services.Base
         /// </summary>
         UnixTimeUtc? AuthTokenCreated { get; set; }
 
+        IOdinContext Clone();
+
         OdinId GetCallerOdinIdOrFail();
         void SetPermissionContext(PermissionContext pc);
         void SetAuthContext(string authContext);
@@ -25,64 +26,58 @@ namespace Odin.Services.Base
         RedactedOdinContext Redacted();
     }
 
+    //
+
     public class OdinContext : IOdinContext
     {
-        private PermissionContext _permissionsContext;
-        private string _authContext;
-
-        public string AuthContext
-        {
-            get
-            {
-                return _authContext;
-            }
-        }
-
+        public PermissionContext PermissionsContext { get; private set; }
+        public string AuthContext { get; private set; }
         public OdinId Tenant { get; set; }
-        
+        public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
+
+        public IOdinContext Clone()
+        {
+            return new OdinContext
+            {
+                Tenant = Tenant.Clone(),
+                Caller = Caller?.Clone(),
+                PermissionsContext = PermissionsContext?.Clone(),
+                AuthContext = AuthContext,
+                AuthTokenCreated = AuthTokenCreated?.Clone()
+            };
+        }
 
         public OdinId GetCallerOdinIdOrFail()
         {
             return Caller.OdinId ?? throw new OdinSystemException("Invalid Caller");
         }
 
-        public PermissionContext PermissionsContext
-        {
-            get { return _permissionsContext; }
-        }
-
-
-        /// <summary>
-        /// The age of the <see cref="ClientAuthenticationToken"/>
-        /// </summary>
-        public UnixTimeUtc? AuthTokenCreated { get; set; }
-
         public void SetPermissionContext(PermissionContext pc)
         {
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware
-            if (null != _permissionsContext)
+            if (null != PermissionsContext)
             {
                 throw new OdinSecurityException("Cannot set permission context");
             }
 
-            _permissionsContext = pc;
+            PermissionsContext = pc;
         }
 
         public void SetAuthContext(string authContext)
         {
             //This is only exist to ensure we only set auth context in the DotYouContextMiddleware
-            if (null != _authContext)
+            if (null != AuthContext)
             {
                 throw new OdinSecurityException("Cannot reset auth context");
             }
 
-            _authContext = authContext;
+            AuthContext = authContext;
         }
         
         public void AssertCanManageConnections()
         {
-            if (this.Caller.IsOwner && this.Caller.HasMasterKey)
+            if (Caller.IsOwner && Caller.HasMasterKey)
             {
                 return;
             }
@@ -93,10 +88,10 @@ namespace Odin.Services.Base
 
         public RedactedOdinContext Redacted()
         {
-            return new RedactedOdinContext()
+            return new RedactedOdinContext
             {
-                Caller = this.Caller.Redacted(),
-                PermissionContext = this.PermissionsContext.Redacted()
+                Caller = Caller.Redacted(),
+                PermissionContext = PermissionsContext.Redacted()
             };
         }
         

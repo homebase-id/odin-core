@@ -10,33 +10,6 @@ public class GuidId
     // public byte[] Value { get; init; }
     public Guid Value { get; init; }
 
-    protected bool Equals(GuidId other)
-    {
-        return Equals(Value, other.Value);
-    }
-
-    public override bool Equals(object obj)
-    {
-        if (ReferenceEquals(null, obj)) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
-        return Equals((GuidId)obj);
-    }
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            int hash = 17;
-            foreach (byte element in Value.ToByteArray())
-            {
-                hash = hash * 31 + element.GetHashCode();
-            }
-
-            return hash;
-        }
-    }
-
     public GuidId()
     {
     }
@@ -62,6 +35,38 @@ public class GuidId
     {
         AssertIsValid(id);
         Value = new Guid(id);
+    }
+
+    public GuidId Clone()
+    {
+        return new GuidId(Value);
+    }
+
+    protected bool Equals(GuidId other)
+    {
+        return Equals(Value, other.Value);
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((GuidId)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            int hash = 17;
+            foreach (byte element in Value.ToByteArray())
+            {
+                hash = hash * 31 + element.GetHashCode();
+            }
+
+            return hash;
+        }
     }
 
     public override string ToString()
