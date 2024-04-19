@@ -62,7 +62,7 @@ namespace Odin.Hosting.Multitenant
             }
             finally
             {
-                //scope?.Dispose(); // SEB:TODO enable this when the turtles are aligned
+                scope?.Dispose();
             }
         }
     }
