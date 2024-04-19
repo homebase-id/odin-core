@@ -24,11 +24,10 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
     public class PeerOutboxProcessor(
-        PeerOutbox peerOutbox,
+        IPeerOutbox peerOutbox,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessor> logger,
-        IDriveFileSystem fileSystem,
         FileSystemResolver fileSystemResolver)
     {
         public async Task StartOutboxProcessingAsync(IOdinContext odinContext)
@@ -116,8 +115,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext)
         {
+            var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+
             var worker = new SendFileOutboxWorker(item,
-                fileSystem,
+                fs,
                 logger,
                 peerOutbox,
                 odinConfiguration,
@@ -130,8 +131,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             await Task.CompletedTask;
             throw new NotImplementedException();
-            await peerOutbox.MarkComplete(item.Marker);
-            return null;
+            // await peerOutbox.MarkComplete(item.Marker);
+            // return null;
         }
     }
 
@@ -139,7 +140,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         OutboxItem item,
         IDriveFileSystem fileSystem,
         ILogger<PeerOutboxProcessor> logger,
-        PeerOutbox peerOutbox,
+        IPeerOutbox peerOutbox,
         OdinConfiguration odinConfiguration,
         IOdinHttpClientFactory odinHttpClientFactory)
     {
@@ -148,6 +149,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             try
             {
                 var result = await SendOutboxFileItemAsync(item, odinContext);
+                logger.LogDebug("Send file item RecipientPeerResponseCode: {d}", result.RecipientPeerResponseCode);
+
                 await peerOutbox.MarkComplete(item.Marker);
                 return result;
             }
