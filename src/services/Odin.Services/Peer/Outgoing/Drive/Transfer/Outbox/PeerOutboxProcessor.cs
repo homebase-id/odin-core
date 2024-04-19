@@ -106,13 +106,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     throw new ArgumentOutOfRangeException();
             }
         }
-
-        private async Task<OutboxProcessingResult> SendReactionItem(OutboxItem item, IOdinContext odinContext)
-        {
-            await Task.CompletedTask;
-            throw new NotImplementedException("todo - support reactions in the outbox");
-        }
-
+        
         private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext)
         {
             var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
@@ -134,6 +128,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             // await peerOutbox.MarkComplete(item.Marker);
             // return null;
         }
+        
+        private async Task<OutboxProcessingResult> SendReactionItem(OutboxItem item, IOdinContext odinContext)
+        {
+            await Task.CompletedTask;
+            throw new NotImplementedException("todo - support reactions in the outbox");
+        }
+
     }
 
     public class SendFileOutboxWorker(
