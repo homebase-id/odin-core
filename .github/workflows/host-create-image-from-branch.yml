@@ -1,0 +1,70 @@
+name: "Host: Create image from branch"
+
+on:
+  workflow_dispatch:
+    inputs:
+      fe_ref:
+        description: "Frontend branch/commit to include"
+        required: true
+        default: "main"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4 
+        with:
+          path: dotyoucore
+
+      #
+      # Build Frontend
+      #
+
+      - name: Build frontend
+        uses: ./dotyoucore/.github/actions/host/build-frontend
+        with:
+          dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_ref: ${{ github.event.inputs.fe_ref }}
+
+      #
+      # Build docker image
+      #
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5.5.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Combine Docker tags
+        run: |
+          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}__${{ github.event.inputs.fe_ref }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5.3.0
+        with:
+          context: ./dotyoucore
+          file: ./dotyoucore/docker/Dockerfile-identity-host
+          push: true
+          tags: ${{ env.IMAGE_TAGS }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
