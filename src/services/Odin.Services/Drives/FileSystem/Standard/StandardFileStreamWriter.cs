@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Base;
@@ -19,10 +18,10 @@ namespace Odin.Services.Drives.FileSystem.Standard;
 public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
+    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)
+        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
     {
     }
 
@@ -43,25 +42,28 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+        IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+        IOdinContext odinContext)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
             await FileSystem.Storage.OverwriteMetadata(
                 targetFile: package.InternalFile,
                 newMetadata: metadata,
-                newServerMetadata: serverMetadata);
+                newServerMetadata: serverMetadata,
+                odinContext: odinContext);
 
             return;
         }
@@ -73,7 +75,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
-                ignorePayload: false);
+                ignorePayload: false,
+                odinContext: odinContext);
 
             return;
         }
@@ -81,12 +84,12 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Standard);
+        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext);
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor)
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {

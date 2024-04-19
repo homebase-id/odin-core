@@ -14,16 +14,14 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly DriveStorageServiceBase _storage;
 
-    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, OdinContextAccessor contextAccessor, DriveManager driveManager)
+    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, DriveManager driveManager)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _storage = storage;
-        ContextAccessor = contextAccessor;
         DriveManager = driveManager;
     }
 
     protected override DriveManager DriveManager { get; }
-    protected override OdinContextAccessor ContextAccessor { get; }
 
     public async Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
     {
@@ -31,7 +29,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
         await manager.AddCommandMessage(fileIds);
     }
 
-    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count)
+    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count, IOdinContext odinContext)
     {
         var manager = await TryGetOrLoadQueryManager(driveId);
         var unprocessedCommands = await manager.GetUnprocessedCommands(count);
@@ -46,12 +44,13 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
                 FileId = cmd.Id
             };
 
-            var serverFileHeader = await _storage.GetServerFileHeader(file);
+            var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext);
             if (null == serverFileHeader)
             {
                 continue;
             }
-            var commandFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
+
+            var commandFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, odinContext);
             var command = OdinSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.Content);
 
             result.Add(new ReceivedCommand()

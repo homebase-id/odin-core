@@ -39,7 +39,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerIncomingDriveUpdateController : OdinControllerBase
     {
-        private readonly OdinContextAccessor _contextAccessor;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -50,10 +49,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private Guid _stateItemId;
 
         /// <summary />
-        public PeerIncomingDriveUpdateController(OdinContextAccessor contextAccessor, DriveManager driveManager,
+        public PeerIncomingDriveUpdateController(DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
-            _contextAccessor = contextAccessor;
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
@@ -86,12 +84,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
 
             //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
             //End Optimizations
 
             _incomingTransferService = GetPerimeterService(_fileSystem);
-            _stateItemId = await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet);
+            _stateItemId = await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext);
 
             //
 
@@ -121,7 +119,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             //
 
-            return await _incomingTransferService.FinalizeTransfer(this._stateItemId, metadata);
+            return await _incomingTransferService.FinalizeTransfer(this._stateItemId, metadata, WebOdinContext);
         }
 
         [HttpPost("deletelinkedfile")]
@@ -132,14 +130,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return await perimeterService.AcceptDeleteLinkedFileRequest(
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
-                request.FileSystemType);
+                request.FileSystemType,
+                WebOdinContext);
         }
 
         private Task ValidateCaller()
         {
             //TODO: later add check to see if this is from an introduction?
 
-            var dotYouContext = _contextAccessor.GetCurrent();
+            var dotYouContext = WebOdinContext;
             var isValidCaller = dotYouContext.Caller.IsConnected || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider;
             if (!isValidCaller)
             {
@@ -199,7 +198,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var json = await new StreamReader(section.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", metadataStream);
+            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", metadataStream, WebOdinContext);
             return metadata;
         }
 
@@ -215,7 +214,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream);
+            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Payload, extension, fileSection.FileStream, WebOdinContext);
         }
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata)
@@ -240,7 +239,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
-            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension, fileSection.FileStream);
+            await _incomingTransferService.AcceptPart(this._stateItemId, MultipartHostTransferParts.Thumbnail, extension, fileSection.FileStream,
+                WebOdinContext);
         }
 
         private void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection, out string payloadKey)
@@ -346,7 +346,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
         {
-            return new PeerDriveIncomingTransferService(_contextAccessor,
+            return new PeerDriveIncomingTransferService(
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

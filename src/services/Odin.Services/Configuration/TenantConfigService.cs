@@ -29,7 +29,7 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private readonly CircleNetworkService _cns;
-    private readonly OdinContextAccessor _contextAccessor;
+
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
@@ -40,7 +40,7 @@ public class TenantConfigService
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
 
-    public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
+    public TenantConfigService(CircleNetworkService cns,
         TenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry,
         DriveManager driveManager,
@@ -51,7 +51,7 @@ public class TenantConfigService
         IAppRegistrationService appRegistrationService)
     {
         _cns = cns;
-        _contextAccessor = contextAccessor;
+
         _tenantContext = tenantContext;
         _registry = registry;
         _driveManager = driveManager;
@@ -74,9 +74,9 @@ public class TenantConfigService
         return firstRunInfo != null;
     }
 
-    public bool IsEulaSignatureRequired()
+    public bool IsEulaSignatureRequired(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         var info = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey);
         if (info == null || !info.Any())
@@ -88,27 +88,27 @@ public class TenantConfigService
         return signature == null;
     }
 
-    public EulaVersionResponse GetRequiredEulaVersion()
+    public EulaVersionResponse GetRequiredEulaVersion(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         return new EulaVersionResponse()
         {
             Version = EulaSystemInfo.RequiredVersion
         };
     }
 
-    public List<EulaSignature> GetEulaSignatureHistory()
+    public List<EulaSignature> GetEulaSignatureHistory(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
         return signatures;
     }
 
-    public void MarkEulaSigned(MarkEulaSignedRequest request)
+    public void MarkEulaSigned(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNullOrEmpty(request.Version, nameof(request.Version));
@@ -130,23 +130,23 @@ public class TenantConfigService
         _configStorage.Upsert(Eula.EulaSystemInfo.StorageKey, signatures);
     }
 
-    public async Task CreateInitialKeys()
+    public async Task CreateInitialKeys(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
-        await _recoverService.CreateInitialKey();
+        await _recoverService.CreateInitialKey(odinContext);
 
-        await _publicPrivateKeyService.CreateInitialKeys();
+        await _publicPrivateKeyService.CreateInitialKeys(odinContext);
 
-        await _icrKeyService.CreateInitialKeys();
+        await _icrKeyService.CreateInitialKeys(odinContext);
     }
 
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
     /// </summary>
-    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request)
+    public async Task EnsureInitialOwnerSetup(InitialSetupRequest request, IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         if (request.FirstRunToken.HasValue)
         {
@@ -155,30 +155,30 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCircle();
+        await _circleMembershipService.CreateSystemCircle(odinContext);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest,odinContext);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest,odinContext);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest,odinContext);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
-            await CreateDriveIfNotExists(rd);
+            await CreateDriveIfNotExists(rd,odinContext);
         }
 
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await CreateCircleIfNotExists(rc);
+            await CreateCircleIfNotExists(rc,odinContext);
         }
 
-        await this.RegisterBuiltInApps();
+        await this.RegisterBuiltInApps(odinContext);
 
         _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
 
@@ -188,9 +188,9 @@ public class TenantConfigService
         });
     }
 
-    public async Task UpdateSystemFlag(UpdateFlagRequest request)
+    public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
@@ -211,7 +211,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -224,7 +224,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -259,28 +259,28 @@ public class TenantConfigService
         return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
-    public OwnerAppSettings GetOwnerAppSettings()
+    public OwnerAppSettings GetOwnerAppSettings(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
-    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
+    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
     //
 
-    private async Task RegisterBuiltInApps()
+    private async Task RegisterBuiltInApps(IOdinContext odinContext)
     {
-        await RegisterChatApp();
-        await RegisterFeedApp();
+        await RegisterChatApp(odinContext);
+        await RegisterFeedApp(odinContext);
         // await RegisterPhotosApp();
     }
 
-    private async Task RegisterFeedApp()
+    private async Task RegisterFeedApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -344,11 +344,11 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request);
+        await _appRegistrationService.RegisterApp(request,odinContext);
     }
 
 
-    private async Task RegisterChatApp()
+    private async Task RegisterChatApp(IOdinContext odinContext)
     {
         var request = new AppRegistrationRequest()
         {
@@ -414,37 +414,37 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request);
+        await _appRegistrationService.RegisterApp(request,odinContext);
     }
 
-    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
+    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext)
     {
-        var existingCircleDef = _circleMembershipService.GetCircle(request.Id);
+        var existingCircleDef = _circleMembershipService.GetCircle(request.Id,odinContext);
         if (null == existingCircleDef)
         {
-            await _circleMembershipService.CreateCircleDefinition(request);
+            await _circleMembershipService.CreateCircleDefinition(request,odinContext);
             return true;
         }
 
         return false;
     }
 
-    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request)
+    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request, IOdinContext odinContext)
     {
         var drive = await _driveManager.GetDriveIdByAlias(request.TargetDrive, false);
 
         if (null == drive)
         {
-            await _driveManager.CreateDrive(request);
+            await _driveManager.CreateDrive(request,odinContext);
             return true;
         }
 
         return false;
     }
 
-    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey)
+    private async Task UpdateSystemCirclePermission(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
-        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId);
+        var systemCircle = _circleMembershipService.GetCircle(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
 
         if (shouldGrantKey)
         {
@@ -461,6 +461,6 @@ public class TenantConfigService
             }
         }
 
-        await _cns.UpdateCircleDefinition(systemCircle);
+        await _cns.UpdateCircleDefinition(systemCircle, odinContext);
     }
 }

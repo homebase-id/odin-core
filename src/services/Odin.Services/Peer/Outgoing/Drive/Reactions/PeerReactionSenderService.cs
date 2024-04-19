@@ -23,18 +23,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 public class PeerReactionSenderService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    OdinContextAccessor contextAccessor,
+    
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
     : PeerServiceBase(odinHttpClientFactory,
-        circleNetworkService, contextAccessor, fileSystemResolver)
+        circleNetworkService, fileSystemResolver)
 {
-    private readonly OdinContextAccessor _contextAccessor = contextAccessor;
 
     /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
+    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         ApiResponse<HttpContent> response = null;
@@ -56,9 +55,9 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
+    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -80,9 +79,9 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
+    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -103,9 +102,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -126,9 +125,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
+    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId,odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         try
         {
@@ -146,9 +145,9 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
+    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId);
+        var (token, client) = await CreateReactionContentClient(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
@@ -172,14 +171,14 @@ public class PeerReactionSenderService(
     /// <param name="sharedSecretEncryptedFileHeader"></param>
     /// <param name="icr"></param>
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
-        IdentityConnectionRegistration icr)
+        IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
         {
-            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+            var currentKey = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader, odinContext);
         }
         else
         {
@@ -191,9 +190,9 @@ public class PeerReactionSenderService(
         return sharedSecretEncryptedFileHeader;
     }
 
-    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader)
+    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
     {
-        var newKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+        var newKey = odinContext.PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
         var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
         keyHeader.AesKey.Wipe();

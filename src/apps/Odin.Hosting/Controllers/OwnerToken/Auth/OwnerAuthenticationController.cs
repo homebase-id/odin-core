@@ -11,12 +11,13 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AuthV1)]
-    public class OwnerAuthenticationController : Controller
+    public class OwnerAuthenticationController : OdinControllerBase
     {
         private readonly OwnerAuthenticationService _authService;
         private readonly OwnerSecretService _ss;
@@ -57,7 +58,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var (result, sharedSecret) = await _authService.Authenticate(package);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
-            
+
             //TODO: need to encrypt shared secret using client public key
             return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
 
@@ -121,13 +122,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             try
             {
-                await _ss.ResetPasswordUsingRecoveryKey(reply);
+                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext);
             }
             catch (BIP39Exception e)
             {
                 _logger.LogDebug("BIP39 failed: {message}", e.Message);
                 return new UnauthorizedResult();
             }
+
             return new OkResult();
         }
 

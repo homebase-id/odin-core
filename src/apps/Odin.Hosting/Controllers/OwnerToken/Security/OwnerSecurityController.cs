@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 
@@ -12,18 +13,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityV1)]
 [AuthorizeValidOwnerToken]
-public class OwnerSecurityController : Controller
+public class OwnerSecurityController : OdinControllerBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
 
     /// <summary />
-    public OwnerSecurityController(OdinContextAccessor contextAccessor, RecoveryService recoveryService, OwnerSecretService ss,
+    public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
         OwnerAuthenticationService ownerAuthenticationService)
     {
-        _contextAccessor = contextAccessor;
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
@@ -36,41 +35,41 @@ public class OwnerSecurityController : Controller
     [HttpGet("context")]
     public RedactedOdinContext GetSecurityContext()
     {
-        return _contextAccessor.GetCurrent().Redacted();
+        return WebOdinContext.Redacted();
     }
 
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        return await _recoveryService.GetKey();
+        return await _recoveryService.GetKey(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        await _ss.ResetPassword(request);
+        await _ss.ResetPassword(request, WebOdinContext);
         return new OkResult();
     }
 
     [HttpGet("account-status")]
     public async Task<AccountStatusResponse> GetAccountStatus()
     {
-        return await _ownerAuthenticationService.GetAccountStatus();
+        return await _ownerAuthenticationService.GetAccountStatus(WebOdinContext);
     }
-    
+
     [HttpPost("delete-account")]
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply);
+        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
-    
+
     [HttpPost("undelete-account")]
     public async Task<IActionResult> UndeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply);
+        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 }

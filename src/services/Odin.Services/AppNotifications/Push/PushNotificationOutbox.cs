@@ -22,18 +22,18 @@ public class PushNotificationOutbox
     private readonly Guid _notificationBoxId = Guid.Parse(NotificationBoxId);
 
     private readonly TenantSystemStorage _tenantSystemStorage;
-    private readonly OdinContextAccessor _contextAccessor;
+    
 
-    public PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+    public PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
     {
         _tenantSystemStorage = tenantSystemStorage;
-        _contextAccessor = contextAccessor;
+        
     }
 
-    public Task Add(PushNotificationOutboxRecord record)
+    public Task Add(PushNotificationOutboxRecord record, IOdinContext odinContext)
     {
         //PRIMARY KEY (fileId,recipient)
-        var recipient = _contextAccessor.GetCurrent().Tenant;
+        var recipient = odinContext.Tenant;
 
         //TODO: do i need to capture the sender as part of the outbox structure is the state alone ok?
         var fileId = record.Options.TagId;

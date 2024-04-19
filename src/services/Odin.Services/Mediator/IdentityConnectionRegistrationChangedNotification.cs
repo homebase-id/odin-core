@@ -3,7 +3,7 @@ using Odin.Core.Identity;
 
 namespace Odin.Services.Mediator;
 
-public class IdentityConnectionRegistrationChangedNotification : INotification
+public class IdentityConnectionRegistrationChangedNotification : MediatorNotificationBase
 {
-    public OdinId OdinId { get; set; }
+    public OdinId OdinId { get; init; }
 }

@@ -33,7 +33,6 @@ using Refit;
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
     public class PeerOutgoingOutgoingTransferService(
-        OdinContextAccessor contextAccessor,
         IPeerOutbox peerOutbox,
         TenantSystemStorage tenantSystemStorage,
         IOdinHttpClientFactory odinHttpClientFactory,
@@ -46,17 +45,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         ServerSystemStorage serverSystemStorage,
         ILogger<PeerOutgoingOutgoingTransferService> logger)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService,
-            contextAccessor, fileSystemResolver), IPeerOutgoingTransferService
+            fileSystemResolver), IPeerOutgoingTransferService
     {
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
         private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService = new(tenantSystemStorage);
-        private readonly OdinContextAccessor _contextAccessor = contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory = odinHttpClientFactory;
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
             OdinValidationUtils.AssertIsTrue(options.Recipients.TrueForAll(r => r != tenantContext.HostOdinId), "You cannot send a file to yourself");
             OdinValidationUtils.AssertValidRecipientList(options.Recipients);
@@ -67,29 +65,29 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 FileSystemType = fileSystemType
             };
 
-            var tenant = _contextAccessor.GetCurrent().Tenant;
+            var tenant = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(tenant, CronJobType.ReconcileInboxOutbox, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
 
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
                 //send now
-                return await SendFileNow(internalFile, options, sfo);
+                return await SendFileNow(internalFile, options, sfo, odinContext);
             }
 
-            return await SendFileLater(internalFile, options, sfo);
+            return await SendFileLater(internalFile, options, sfo, odinContext);
         }
 
-        public async Task ProcessOutbox()
+        public async Task ProcessOutbox(IOdinContext odinContext)
         {
             var batchSize = odinConfiguration.Transit.OutboxBatchSize;
 
             //Note: here we can prioritize outbox processing by drive if need be
-            var page = await driveManager.GetDrives(PageOptions.All);
+            var page = await driveManager.GetDrives(PageOptions.All, odinContext);
 
             foreach (var drive in page.Results)
             {
                 var batch = await peerOutbox.GetBatchForProcessing(drive.Id, batchSize);
-                await SendOutboxItemsBatchToPeers(batch);
+                await SendOutboxItemsBatchToPeers(batch, odinContext);
 
                 // Results will be a set of outbox processing results
                 // these have not been converted to client codes we we have to decide what
@@ -104,7 +102,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         public async Task<Dictionary<string, DeleteLinkedFileStatus>> SendDeleteFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
-            FileTransferOptions fileTransferOptions, IEnumerable<string> recipients)
+            FileTransferOptions fileTransferOptions, IEnumerable<string> recipients, IOdinContext odinContext)
         {
             var result = new Dictionary<string, DeleteLinkedFileStatus>();
 
@@ -112,7 +110,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             {
                 var r = (OdinId)recipient;
 
-                var clientAccessToken = await ResolveClientAccessToken(r);
+                var clientAccessToken = await ResolveClientAccessToken(r, odinContext);
 
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: fileTransferOptions.FileSystemType);
@@ -193,12 +191,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items)
+        private async Task<List<OutboxProcessingResult>> SendOutboxItemsBatchToPeers(IEnumerable<TransitOutboxItem> items, IOdinContext odinContext)
         {
             var sendFileTasks = new List<Task<OutboxProcessingResult>>();
             var results = new List<OutboxProcessingResult>();
 
-            sendFileTasks.AddRange(items.Select(SendOutboxItemAsync));
+            sendFileTasks.AddRange(items.Select(i => SendOutboxItemAsync(i, odinContext)));
 
             await Task.WhenAll(sendFileTasks);
 
@@ -227,13 +225,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in filesForDeletion)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                await fs.Storage.HardDeleteLongTermFile(item.File);
+                await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
             }
 
             return results;
         }
 
-        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem)
+        private async Task<OutboxProcessingResult> SendOutboxItemAsync(TransitOutboxItem outboxItem, IOdinContext odinContext)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -241,10 +239,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            var header = await fs.Storage.GetServerFileHeader(outboxItem.File);
+            var header = await fs.Storage.GetServerFileHeader(outboxItem.File, odinContext);
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
+            if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
             {
                 return new OutboxProcessingResult()
                 {
@@ -336,7 +334,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     string contentType = "application/unknown";
 
                     //TODO: consider what happens if the payload has been delete from disk
-                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null);
+                    var p = await fs.Storage.GetPayloadStream(file, payloadKey, null, odinContext);
                     var payloadStream = p.Stream;
 
                     var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -345,7 +343,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var (thumbStream, thumbHeader) =
-                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
+                            await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid, odinContext);
 
                         var thumbnailKey =
                             $"{payloadKey}" +
@@ -432,7 +430,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<(Dictionary<string, bool> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
             InternalDriveFileId internalFile,
             TransitOptions options,
-            FileTransferOptions fileTransferOptions)
+            FileTransferOptions fileTransferOptions,
+            IOdinContext odinContext)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
 
@@ -446,8 +445,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
-            var header = await fs.Storage.GetServerFileHeader(internalFile);
-            var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
+            var header = await fs.Storage.GetServerFileHeader(internalFile, odinContext);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
 
             var keyHeader = header.FileMetadata.IsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
@@ -458,7 +457,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 try
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    var clientAuthToken = await ResolveClientAccessToken(recipient);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext);
 
                     //TODO: apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
@@ -493,26 +492,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
-            TransitOptions options, FileTransferOptions fileTransferOptions)
+            TransitOptions options, FileTransferOptions fileTransferOptions, IOdinContext odinContext)
         {
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
 
-            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions);
+            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, fileTransferOptions, odinContext);
             await peerOutbox.Add(outboxItems);
 
             return await MapOutboxCreationResult(outboxStatus);
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
-            TransitOptions transitOptions, FileTransferOptions fileTransferOptions)
+            TransitOptions transitOptions, FileTransferOptions fileTransferOptions, IOdinContext odinContext)
         {
-            var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions);
+            var (outboxCreationStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, fileTransferOptions, odinContext);
 
             //first map the outbox creation status for any that might have failed
             var transferStatus = await MapOutboxCreationResult(outboxCreationStatus);
 
-            var sendResults = await SendOutboxItemsBatchToPeers(outboxItems);
+            var sendResults = await SendOutboxItemsBatchToPeers(outboxItems, odinContext);
             foreach (var result in sendResults)
             {
                 if (result.TransferResult == TransferResult.Success)

@@ -13,14 +13,14 @@ namespace Odin.Services.Authentication.Owner;
 
 public class RecoveryService
 {
-    private readonly OdinContextAccessor _contextAccessor;
+    
     private readonly SingleKeyValueStorage _storage;
     private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private readonly OdinConfiguration _odinConfiguration;
 
-    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, OdinConfiguration odinConfiguration)
+    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinConfiguration odinConfiguration)
     {
-        _contextAccessor = contextAccessor;
+        
         _odinConfiguration = odinConfiguration;
 
         const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
@@ -43,9 +43,9 @@ public class RecoveryService
         masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
-    public async Task CreateInitialKey()
+    public async Task CreateInitialKey(IOdinContext odinContext)
     {
-        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertHasMasterKey();
         var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
         if (null != keyRecord)
         {
@@ -53,14 +53,14 @@ public class RecoveryService
         }
 
         var keyBytes = ByteArrayUtil.GetRndByteArray(16);
-        SaveKey(keyBytes.ToSensitiveByteArray());
+        SaveKey(keyBytes.ToSensitiveByteArray(), odinContext);
 
         await Task.CompletedTask;
     }
 
-    public Task<DecryptedRecoveryKey> GetKey()
+    public Task<DecryptedRecoveryKey> GetKey(IOdinContext odinContext)
     {
-        var ctx = _contextAccessor.GetCurrent();
+        var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
 
         if (ctx.AuthTokenCreated == null)
@@ -80,7 +80,7 @@ public class RecoveryService
         }
 
         var keyRecord = GetKeyInternal();
-        var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+        var masterKey = odinContext.Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
         var readableText = BIP39Util.GenerateBIP39(recoverKey.GetKey());
@@ -101,9 +101,9 @@ public class RecoveryService
         return existingKey;
     }
 
-    private void SaveKey(SensitiveByteArray recoveryKey)
+    private void SaveKey(SensitiveByteArray recoveryKey, IOdinContext odinContext)
     {
-        var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+        var masterKey = odinContext.Caller.GetMasterKey();
 
         //TODO: what validations are needed here?
         var record = new RecoveryKeyRecord()

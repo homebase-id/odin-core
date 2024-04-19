@@ -15,7 +15,6 @@ using Odin.Services.Peer.Outgoing.Drive;
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerInboxProcessor(
-        OdinContextAccessor contextAccessor,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,
@@ -27,9 +26,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
         /// </summary>
-        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, int batchSize = 1)
+        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+            var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
             logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
@@ -55,8 +54,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
                             // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration");
-                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
-                            var sharedSecret = icr.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
+                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender,odinContext, overrideHack: true);
+                            var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
 
                             // logger.LogDebug("Processing Inbox -> DecryptAesToKeyHeader");
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
@@ -66,7 +65,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                             {
-                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet);
+                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,odinContext);
                             });
 
                             logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
@@ -74,7 +73,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
                             // logger.LogDebug("Processing Inbox -> DeleteFile from sender:{sender}", inboxItem.Sender);
-                            await writer.DeleteFile(fs, inboxItem);
+                            await writer.DeleteFile(fs, inboxItem,odinContext);
                             // logger.LogDebug("Processing Inbox -> DeleteFile done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)

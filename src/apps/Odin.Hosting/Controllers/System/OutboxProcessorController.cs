@@ -6,6 +6,7 @@ using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -22,12 +23,12 @@ namespace Odin.Hosting.Controllers.System
         OdinConfiguration config,
         IPeerOutgoingTransferService peerOutgoingTransfer,
         IPeerOutbox outbox,
-        TransitInboxBoxStorage inbox) : ControllerBase
+        TransitInboxBoxStorage inbox) : OdinControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
         {
-            await peerOutgoingTransfer.ProcessOutbox();
+            await peerOutgoingTransfer.ProcessOutbox(WebOdinContext);
             return true;
         }
 

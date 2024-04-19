@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -51,6 +52,7 @@ public class DefaultCronSchedule(
 public class DefaultCronJob(
     ICorrelationContext correlationContext,
     ILogger<DefaultCronJob> logger,
+    ILoggerFactory loggerFactory,
     ServerSystemStorage serverSystemStorage,
     OdinConfiguration config,
     ISystemHttpClient systemHttpClient) : AbstractJob(correlationContext)
@@ -88,7 +90,7 @@ public class DefaultCronJob(
 
         if (record.type == (Int32)CronJobType.FeedDistribution)
         {
-            var job = new FeedDistributionJob(config, systemHttpClient);
+            var job = new FeedDistributionJob(loggerFactory.CreateLogger<FeedDistributionJob>(), config, systemHttpClient);
             success = await job.Execute(record);
         }
 
@@ -114,24 +116,48 @@ public class DefaultCronJob(
         {
             var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
             var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-            var response = await svc.ReconcileInboxOutbox();
-            return response.IsSuccessStatusCode;
+            try
+            {
+                var response = await svc.ReconcileInboxOutbox();
+                return response.IsSuccessStatusCode;
+            }
+            catch (HttpRequestException e)
+            {
+                logger.LogDebug("Error reconciling inbox/outbox: {identity}. Error: {error}", identity, e.Message);
+            }
         }
-
         return false;
     }
 
     private async Task<bool> ProcessPeerTransferOutbox(OdinId identity)
     {
         var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        var response = await svc.ProcessOutbox();
-        return response.IsSuccessStatusCode;
+        try
+        {
+            var response = await svc.ProcessOutbox();
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException e)
+        {
+            logger.LogDebug("Process peer transfer: {identity}. Error: {error}", identity, e.Message);
+        }
+
+        return false;
     }
 
     private async Task<bool> PushNotifications(OdinId identity)
     {
         var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        var response = await svc.ProcessPushNotifications();
-        return response.IsSuccessStatusCode;
+        try
+        {
+            var response = await svc.ProcessPushNotifications();
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException e)
+        {
+            logger.LogDebug("Process push notification: {identity}. Error: {error}", identity, e.Message);
+        }
+
+        return false;
     }
 }

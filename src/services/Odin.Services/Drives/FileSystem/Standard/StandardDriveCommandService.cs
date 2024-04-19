@@ -12,36 +12,36 @@ public class StandardDriveCommandService : DriveCommandServiceBase
     public StandardDriveCommandService(
         DriveDatabaseHost driveDatabaseHost,
         StandardFileDriveStorageService storage,
-        OdinContextAccessor contextAccessor,
+        
         DriveManager driveManager) :
-        base(driveDatabaseHost, storage, contextAccessor, driveManager)
+        base(driveDatabaseHost, storage,  driveManager)
     {
     }
 
-    public override async Task AssertCanReadDrive(Guid driveId)
+    public override async Task AssertCanReadDrive(Guid driveId, IOdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
         }
     }
 
-    public override async Task AssertCanWriteToDrive(Guid driveId)
+    public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
         }
     }
 
-    public override async Task AssertCanReadOrWriteToDrive(Guid driveId)
+    public override async Task AssertCanReadOrWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
         var drive = await DriveManager.GetDrive(driveId, true);
         if (!drive.AllowAnonymousReads)
         {
-            var pc = ContextAccessor.GetCurrent().PermissionsContext;
+            var pc = odinContext.PermissionsContext;
             var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
                                  pc.HasDrivePermission(driveId, DrivePermission.Read);
 

@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
-using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -18,19 +16,16 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
     private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
-        OdinContextAccessor contextAccessor,
         IPeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, peerOutgoingTransferService)
+        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
     {
-        _contextAccessor = contextAccessor;
         _peerOutgoingTransferService = peerOutgoingTransferService;
     }
 
@@ -58,24 +53,24 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override Task ValidateUnpackedData(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata)
+        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
@@ -86,7 +81,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             await FileSystem.Storage.OverwriteMetadata(
                 targetFile: targetFile,
                 newMetadata: metadata,
-                newServerMetadata: serverMetadata);
+                newServerMetadata: serverMetadata,
+                odinContext: odinContext);
 
             return;
         }
@@ -98,7 +94,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
-                ignorePayload: false);
+                ignorePayload: false,
+                odinContext: odinContext);
 
             return;
         }
@@ -106,13 +103,13 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Comment);
+        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
-        UploadFileDescriptor uploadDescriptor)
+        UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {
@@ -140,7 +137,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            SenderOdinId = odinContext.Caller.OdinId,
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 

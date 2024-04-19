@@ -22,7 +22,7 @@ public class OdinContextCache
         _dotYouContextCache = new CachingService();
     }
 
-    public async Task<OdinContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<OdinContext>> dotYouContextFactory)
+    public async Task<IOdinContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<IOdinContext>> dotYouContextFactory)
     {
         var key = token.AsKey().ToString().ToLower();
         var policy = new MemoryCacheEntryOptions()
@@ -31,7 +31,7 @@ public class OdinContextCache
         };
 
         policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
-        var result = await _dotYouContextCache.GetOrAddAsync<OdinContext>(key, dotYouContextFactory, policy);
+        var result = await _dotYouContextCache.GetOrAddAsync<IOdinContext>(key, dotYouContextFactory, policy);
 
         //TODO: Need some locking on _identitiesRequiringReset
         // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.OdinId);

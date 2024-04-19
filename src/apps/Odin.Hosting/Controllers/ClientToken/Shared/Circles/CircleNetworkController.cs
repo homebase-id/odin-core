@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
@@ -12,7 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
     [Route(GuestApiPathConstants.CirclesV1 + "/connections")]
     [AuthorizeValidGuestOrAppToken]
-    public class CircleNetworkController : ControllerBase
+    public class CircleNetworkController : OdinControllerBase
     {
         private readonly CircleNetworkService _circleNetwork;
 
@@ -29,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentities(count, cursor);
+            var result = await _circleNetwork.GetConnectedIdentities(count, cursor,WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,

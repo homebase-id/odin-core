@@ -10,14 +10,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
-using Odin.Services.Membership.YouAuth;
 using Odin.Services.Tenant;
 using Odin.Hosting.ApiExceptions.Client;
+using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Extensions;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
@@ -26,7 +25,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.YouAuthV1)]
-    public class YouAuthUnifiedController : Controller
+    public class YouAuthUnifiedController : OdinControllerBase
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
@@ -90,7 +89,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientId,
-                    authorize.PermissionRequest);
+                    authorize.PermissionRequest,
+                    WebOdinContext);
 
                 if (mustRegister)
                 {
@@ -112,7 +112,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientType,
                 authorize.ClientId,
                 authorize.PermissionRequest,
-                authorize.RedirectUri);
+                authorize.RedirectUri,
+                WebOdinContext);
 
             if (needConsent)
             {
@@ -141,7 +142,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientId,
                 authorize.ClientInfo,
                 authorize.PermissionRequest,
-                authorize.PublicKey);
+                authorize.PublicKey,
+                WebOdinContext);
 
             //
             // [080] Return authorization code, public key and salt to client
@@ -213,7 +215,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
             }
 
-            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements);
+            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext);
 
             // Redirect back to authorize
             _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);

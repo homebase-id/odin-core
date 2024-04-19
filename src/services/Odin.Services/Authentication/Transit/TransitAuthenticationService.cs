@@ -2,9 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -28,12 +26,12 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var creator = new Func<Task<OdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -49,9 +47,10 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
         return await _cache.GetOrAddContext(token, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token);
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
