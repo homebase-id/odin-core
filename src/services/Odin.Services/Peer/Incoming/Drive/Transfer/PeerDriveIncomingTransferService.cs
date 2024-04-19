@@ -16,6 +16,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -84,7 +85,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (null != notificationOptions)
                     {
                         var senderId = odinContext.GetCallerOdinIdOrFail();
-                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, odinContext);
+                        using (new UpgradeToPeerTransferSecurityContext(odinContext))
+                        {
+                            await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, odinContext);
+                        }
                     }
                 }
 

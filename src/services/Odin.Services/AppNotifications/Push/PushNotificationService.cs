@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -21,12 +20,10 @@ using Odin.Core.X509;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Apps;
-using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
-using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
@@ -40,9 +37,7 @@ public class PushNotificationService(
     TenantSystemStorage storage,
     PublicPrivateKeyService keyService,
     TenantSystemStorage tenantSystemStorage,
-    ServerSystemStorage serverSystemStorage,
     NotificationListService notificationListService,
-    IAppRegistrationService appRegistrationService,
     IHttpClientFactory httpClientFactory,
     ICertificateCache certificateCache,
     OdinConfiguration configuration)
@@ -59,88 +54,91 @@ public class PushNotificationService(
     /// <summary>
     /// Adds a notification to the outbox
     /// </summary>
-    public Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext, InternalDriveFileId? fileId = null)
+    public async Task<bool> EnqueueNotification(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
-        //TODO: which security to check?
-        //app permissions? I.e does the calling app on the recipient server have access to send notifications?
-
-        var item = new PushNotificationOutboxRecord()
-        {
-            SenderId = senderId,
-            Options = options
-        };
-
-        _pushNotificationOutbox.Add(item, odinContext);
-
-        this.EnsureIdentityIsPending(odinContext);
-
-        return Task.FromResult(true);
+        //validate the calling app on the recipient server have access to send notifications
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        return await EnqueueNotificationInternal(senderId, options, odinContext);
     }
 
-    public async Task ProcessBatch(IOdinContext odinContext)
+
+    public Task AddDevice(PushNotificationSubscription subscription, IOdinContext odinContext)
     {
-        int batchSize = configuration.Host.PushNotificationBatchSize;
-        var list = await _pushNotificationOutbox.GetBatchForProcessing(batchSize);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        //TODO: add throttling
-        //group by appId + typeId
-        var groupings = list.GroupBy(r => new Guid(ByteArrayUtil.EquiByteArrayXor(r.Options.AppId.ToByteArray(), r.Options.TypeId.ToByteArray())));
+        //TODO: validate expiration time
 
-        foreach (var group in groupings)
+        subscription.AccessRegistrationId = GetDeviceKey(odinContext);
+        subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
+
+        _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+        return Task.CompletedTask;
+    }
+
+    public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(GetDeviceKey(odinContext)));
+    }
+
+    public Task RemoveDevice(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        return this.RemoveDevice(GetDeviceKey(odinContext), odinContext);
+    }
+
+    public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        _deviceSubscriptionStorage.Delete(deviceKey);
+        return Task.CompletedTask;
+    }
+
+    public async Task RemoveAllDevices(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        var subscriptions = await GetAllSubscriptions(odinContext);
+        foreach (var sub in subscriptions)
         {
-            var pushContent = new PushNotificationContent()
+            _deviceSubscriptionStorage.Delete(sub.AccessRegistrationId);
+        }
+    }
+
+    public Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(_deviceStorageDataType);
+        return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
+    }
+
+    public async Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
+    {
+        await this.EnqueueNotificationInternal(notification.Recipient, new AppNotificationOptions()
             {
-                Payloads = new List<PushNotificationPayload>()
-            };
-
-            foreach (var record in group)
-            {
-                var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext);
-
-                if (validAppName)
-                {
-                    pushContent.Payloads.Add(new PushNotificationPayload()
-                    {
-                        AppDisplayName = appName,
-                        Options = record.Options,
-                        SenderId = record.SenderId,
-                        Timestamp = record.Timestamp,
-                    });
-
-                    //add to system list
-                    await notificationListService.AddNotification(record.SenderId, new AddNotificationRequest()
-                    {
-                        Timestamp = record.Timestamp,
-                        AppNotificationOptions = record.Options,
-                    }, odinContext);
-
-                    await _pushNotificationOutbox.MarkComplete(record.Marker);
-                }
-                else
-                {
-                    logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
-                }
-            }
-
-            await this.Push(pushContent, odinContext);
-        }
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Recipient.ToHashId(),
+                Silent = false
+            },
+            notification.OdinContext);
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
+    public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
     {
-        if (appId == SystemAppConstants.OwnerAppId)
-        {
-            return (true, "Homebase Owner");
-        }
-
-        if (appId == SystemAppConstants.FeedAppId)
-        {
-            return (true, "Homebase Feed");
-        }
-
-        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
-        return (appReg != null, appReg?.Name);
+        await this.EnqueueNotificationInternal(notification.Sender, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Sender.ToHashId(),
+                Silent = false
+            },
+            notification.OdinContext);
     }
+
 
     public async Task Push(PushNotificationContent content, IOdinContext odinContext)
     {
@@ -270,58 +268,7 @@ public class PushNotificationService(
         }
     }
 
-    public Task AddDevice(PushNotificationSubscription subscription, IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        //TODO: validate expiration time
-
-        subscription.AccessRegistrationId = GetDeviceKey(odinContext);
-        subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
-
-        _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
-        return Task.CompletedTask;
-    }
-
-    public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(GetDeviceKey(odinContext)));
-    }
-
-    public Task RemoveDevice(IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        return this.RemoveDevice(GetDeviceKey(odinContext), odinContext);
-    }
-
-    public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        _deviceSubscriptionStorage.Delete(deviceKey);
-        return Task.CompletedTask;
-    }
-
-    public async Task RemoveAllDevices(IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-        var subscriptions = await GetAllSubscriptions(odinContext);
-        foreach (var sub in subscriptions)
-        {
-            _deviceSubscriptionStorage.Delete(sub.AccessRegistrationId);
-        }
-    }
-
-    public Task<List<PushNotificationSubscription>> GetAllSubscriptions(IOdinContext odinContext)
-    {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(_deviceStorageDataType);
-        return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
-    }
+    //
 
     private Guid GetDeviceKey(IOdinContext odinContext)
     {
@@ -341,38 +288,25 @@ public class PushNotificationService(
         throw new OdinSystemException("The access registration id was not set on the context");
     }
 
-    private void EnsureIdentityIsPending(IOdinContext odinContext)
+    private async Task<bool> EnqueueNotificationInternal(OdinId senderId, AppNotificationOptions options, IOdinContext odinContext)
     {
-        var tenant = odinContext.Tenant;
-        serverSystemStorage.EnqueueJob(tenant, CronJobType.PushNotification, tenant.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
-    }
+        var timestamp = UnixTimeUtc.Now().milliseconds;
+        var item = new PushNotificationOutboxRecord()
+        {
+            SenderId = senderId,
+            Options = options,
+            Timestamp = timestamp
+        };
 
-    public Task Handle(ConnectionRequestAccepted notification, CancellationToken cancellationToken)
-    {
-        var odinContext = notification.OdinContext;
-        this.EnqueueNotification(notification.Recipient, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.OwnerAppId,
-                TypeId = notification.NotificationTypeId,
-                TagId = notification.Recipient.ToHashId(),
-                Silent = false
-            },
-            odinContext);
-        return Task.CompletedTask;
-    }
+        //add to system list
+        await notificationListService.AddNotificationInternal(senderId, new AddNotificationRequest()
+        {
+            Timestamp = timestamp,
+            AppNotificationOptions = options
+        });
 
-    public Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
-    {
-        var odinContext = notification.OdinContext;
-        this.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.OwnerAppId,
-                TypeId = notification.NotificationTypeId,
-                TagId = notification.Sender.ToHashId(),
-                Silent = false
-            },
-            odinContext);
 
-        return Task.CompletedTask;
+        await _pushNotificationOutbox.Add(item, odinContext);
+        return true;
     }
 }

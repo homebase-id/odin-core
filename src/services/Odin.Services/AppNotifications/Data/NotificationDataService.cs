@@ -18,10 +18,14 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage)
 {
     private readonly TableAppNotifications _storage = tenantSystemStorage.AppNotifications;
 
-    public Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
+    public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        
+        return await AddNotificationInternal(senderId, request);
+    }
+
+    internal Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request)
+    {
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
         {

@@ -206,6 +206,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                     outboxItems.Add(new OutboxItem()
                     {
+                        Marker = default, //marker is added when actually store the item
                         Priority = priority,
                         Type = OutboxItemType.File,
                         IsTransientFile = options.IsTransient,
