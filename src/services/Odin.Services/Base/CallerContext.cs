@@ -45,6 +45,21 @@ namespace Odin.Services.Base
             this.OdinClientContext = odinClientContext;
         }
 
+        public CallerContext(CallerContext other)
+        {
+            this.OdinId = other.OdinId?.Clone();
+            this._masterKey = other._masterKey?.Clone();
+            this.SecurityLevel = other.SecurityLevel;
+            this.Circles = other.Circles?.ToList();
+            this.ClientTokenType = other.ClientTokenType;
+            this.OdinClientContext = other.OdinClientContext?.Clone();
+        }
+
+        public CallerContext Clone()
+        {
+            return new CallerContext(this);
+        }
+
         public bool HasMasterKey => this._masterKey != null && !this._masterKey.IsEmpty();
 
         /// <summary>

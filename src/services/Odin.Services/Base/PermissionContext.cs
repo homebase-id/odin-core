@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
@@ -11,7 +12,7 @@ namespace Odin.Services.Base
 {
     public class PermissionContext
     {
-        private readonly bool _isSystem ;
+        private readonly bool _isSystem = false;
         public SensitiveByteArray SharedSecretKey { get; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
@@ -23,6 +24,18 @@ namespace Odin.Services.Base
             SharedSecretKey = sharedSecretKey;
             PermissionGroups = permissionGroups;
             _isSystem = isSystem;
+        }
+
+        public PermissionContext(PermissionContext other)
+        {
+            SharedSecretKey = other.SharedSecretKey?.Clone();
+            PermissionGroups = new Dictionary<string, PermissionGroup>(other.PermissionGroups);
+            _isSystem = other._isSystem;
+        }
+
+        public PermissionContext Clone()
+        {
+            return new PermissionContext(this);
         }
 
         public SensitiveByteArray GetIcrKey()
