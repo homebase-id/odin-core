@@ -70,11 +70,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(Guid marker, UnixTimeUtc nextRun)
+        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun)
         {
-            
             tenantSystemStorage.Outbox.CheckInAsCancelled(marker, nextRun);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public Task RecoverDead(UnixTimeUtc time)

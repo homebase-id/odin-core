@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -17,7 +20,6 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
-using SQLitePCL;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
@@ -26,29 +28,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessor> logger,
-        IDriveFileSystem fileSystem)
+        IDriveFileSystem fileSystem,
+        FileSystemResolver fileSystemResolver)
     {
-        public async Task ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext)
-        {
-            foreach (var item in items)
-            {
-                await ProcessItem(item, odinContext);
-            }
-        }
-
-        public async Task ProcessItem(OutboxItem item, IOdinContext odinContext)
-        {
-            _ = new ProcessOutboxItemWorker(item,
-                fileSystem,
-                logger,
-                peerOutbox,
-                odinConfiguration,
-                odinHttpClientFactory).ProcessOutboxItem(odinContext);
-
-            await Task.CompletedTask;
-        }
-
-        public async Task StartOutboxProcessing(IOdinContext odinContext)
+        public async Task StartOutboxProcessingAsync(IOdinContext odinContext)
         {
             var item = await peerOutbox.GetNextItem();
 
@@ -59,17 +42,52 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 item = await peerOutbox.GetNextItem();
             }
         }
-    }
 
-    public class ProcessOutboxItemWorker(
-        OutboxItem item,
-        IDriveFileSystem fileSystem,
-        ILogger<PeerOutboxProcessor> logger,
-        PeerOutbox peerOutbox,
-        OdinConfiguration odinConfiguration,
-        IOdinHttpClientFactory odinHttpClientFactory)
-    {
-        public async Task ProcessOutboxItem(IOdinContext odinContext)
+        /// <summary>
+        /// 
+        /// </summary>
+        public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext)
+        {
+            var sendFileTasks = new List<Task<OutboxProcessingResult>>();
+            var results = new List<OutboxProcessingResult>();
+
+            sendFileTasks.AddRange(items.Select(i => ProcessItem(i, odinContext)));
+
+            await Task.WhenAll(sendFileTasks);
+
+            List<OutboxItem> filesForDeletion = new List<OutboxItem>();
+            sendFileTasks.ForEach(task =>
+            {
+                var sendResult = task.Result;
+                results.Add(sendResult);
+
+                if (sendResult.TransferResult == TransferResult.Success)
+                {
+                    if (sendResult.OutboxItem.IsTransientFile)
+                    {
+                        filesForDeletion.Add(sendResult.OutboxItem);
+                    }
+
+                    peerOutbox.MarkComplete(sendResult.OutboxItem.Marker);
+                }
+                else
+                {
+                    var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
+                    peerOutbox.MarkFailure(sendResult.OutboxItem.Marker, nextRun);
+                }
+            });
+
+            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
+            foreach (var item in filesForDeletion)
+            {
+                var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
+            }
+
+            return results;
+        }
+
+        public async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext)
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
@@ -77,39 +95,61 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             switch (item.Type)
             {
                 case OutboxItemType.PushNotification:
-                    await SendPushNotification();
-                    break;
+                    return await SendPushNotification(item, odinContext);
 
                 case OutboxItemType.File:
-                    await SendFileOutboxItem(odinContext);
-                    break;
+                    return await SendFileOutboxItem(item, odinContext);
 
                 case OutboxItemType.Reaction:
-                    await SendReactionItem();
-                    break;
+                    return await SendReactionItem(item, odinContext);
 
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        private async Task SendReactionItem()
+        private async Task<OutboxProcessingResult> SendReactionItem(OutboxItem item, IOdinContext odinContext)
         {
             await Task.CompletedTask;
             throw new NotImplementedException("todo - support reactions in the outbox");
         }
 
-        private async Task SendPushNotification()
+        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext)
         {
-            await peerOutbox.MarkComplete(item.Marker);
+            var worker = new SendFileOutboxWorker(item,
+                fileSystem,
+                logger,
+                peerOutbox,
+                odinConfiguration,
+                odinHttpClientFactory);
+
+            return await worker.SendFileOutboxItem(odinContext);
         }
 
-        private async Task SendFileOutboxItem(IOdinContext odinContext)
+        private async Task<OutboxProcessingResult> SendPushNotification(OutboxItem item, IOdinContext odinContext)
+        {
+            await Task.CompletedTask;
+            throw new NotImplementedException();
+            await peerOutbox.MarkComplete(item.Marker);
+            return null;
+        }
+    }
+
+    public class SendFileOutboxWorker(
+        OutboxItem item,
+        IDriveFileSystem fileSystem,
+        ILogger<PeerOutboxProcessor> logger,
+        PeerOutbox peerOutbox,
+        OdinConfiguration odinConfiguration,
+        IOdinHttpClientFactory odinHttpClientFactory)
+    {
+        public async Task<OutboxProcessingResult> SendFileOutboxItem(IOdinContext odinContext)
         {
             try
             {
-                var versionTag = await SendOutboxFileItemAsync(item, odinContext);
+                var result = await SendOutboxFileItemAsync(item, odinContext);
                 await peerOutbox.MarkComplete(item.Marker);
+                return result;
             }
             catch (OdinOutboxProcessingException)
             {
@@ -120,62 +160,78 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 await peerOutbox.MarkComplete(item.Marker);
             }
+
+            return null;
         }
 
-        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext)
+        private async Task<OutboxProcessingResult> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext)
         {
             OdinId recipient = outboxItem.Recipient;
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
             var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext);
-            var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
-            // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList))
+            // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
             // {
-            //     throw new OdinOutboxProcessingException($"Recipient does not have permission to file ACL during send process")
+            //     return new OutboxProcessingResult()
             //     {
-            //         ProblemStatus = LatestProblemStatus.RecipientDoesNotHavePermissionToSourceFile,
-            //         VersionTag = versionTag,
+            //         File = file,
             //         Recipient = recipient,
-            //         File = file
+            //         Timestamp = UnixTimeUtc.Now().milliseconds,
+            //         TransferResult = TransferResult.RecipientDoesNotHavePermissionToFileAcl,
+            //         OutboxItem = outboxItem
             //     };
             // }
 
-            if (header.ServerMetadata.AllowDistribution == false)
+            //look up transfer key
+            var transferInstructionSet = outboxItem.TransferInstructionSet;
+            if (null == transferInstructionSet)
             {
-                throw new OdinOutboxProcessingException("File does not allow distribution")
+                return new OutboxProcessingResult()
                 {
-                    // ProblemStatus = LatestProblemStatus.SourceFileDoesNotAllowDistribution,
-                    VersionTag = versionTag,
+                    File = file,
                     Recipient = recipient,
-                    File = file
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    TransferResult = TransferResult.EncryptedTransferInstructionSetNotAvailable,
+                    OutboxItem = outboxItem
                 };
             }
 
             var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
+
             var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
             var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
             decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
             if (options.UseAppNotification)
             {
-                outboxItem.TransferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
+                transferInstructionSet.AppNotificationOptions = options.AppNotificationOptions;
             }
 
-            var transferInstructionSetBytes = OdinSystemSerializer.Serialize(outboxItem.TransferInstructionSet).ToUtf8ByteArray();
+            var transferInstructionSetBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
             var transferKeyHeaderStream = new StreamPart(
                 new MemoryStream(transferInstructionSetBytes),
                 "transferInstructionSet.encrypted", "application/json",
                 Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
+            if (header.ServerMetadata.AllowDistribution == false)
+            {
+                return new OutboxProcessingResult()
+                {
+                    File = file,
+                    Recipient = recipient,
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    TransferResult = TransferResult.FileDoesNotAllowDistribution,
+                    OutboxItem = outboxItem
+                };
+            }
+
             var sourceMetadata = header.FileMetadata;
 
-            // redact the info by explicitly stating what we will keep
-            // therefore, if a new attribute is added, it must be considered
-            // if it should be sent to the recipient
-            // DO NOT randomly add attributes here
+            //redact the info by explicitly stating what we will keep
+            //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
             var redactedMetadata = new FileMetadata()
             {
                 //TODO: here I am removing the file and drive id from the stream but we need
@@ -189,7 +245,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 ReactionPreview = sourceMetadata.ReactionPreview,
                 SenderOdinId = sourceMetadata.SenderOdinId,
                 ReferencedFile = sourceMetadata.ReferencedFile,
-                VersionTag = versionTag,
+                VersionTag = sourceMetadata.VersionTag,
                 Payloads = sourceMetadata.Payloads,
                 FileState = sourceMetadata.FileState,
             };
@@ -243,42 +299,64 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             try
             {
-                ApiResponse<PeerTransferResponse> response = null;
+                PeerResponseCode peerCode = PeerResponseCode.Unknown;
+                TransferResult transferResult = TransferResult.UnknownError;
 
                 await TryRetry.WithDelayAsync(
                     odinConfiguration.Host.PeerOperationMaxAttempts,
                     odinConfiguration.Host.PeerOperationDelayMs,
                     CancellationToken.None,
-                    async () => { response = await TrySendFile(); });
+                    async () => { (peerCode, transferResult) = MapPeerResponseCode(await TrySendFile()); });
 
-                if (response.IsSuccessStatusCode)
+                return new OutboxProcessingResult()
                 {
-                    return versionTag;
-                }
-
-                throw new OdinOutboxProcessingException("Failed while sending the request")
-                {
-                    // ProblemStatus = MapPeerResponseHttpStatus(response),
-                    VersionTag = versionTag,
+                    File = file,
                     Recipient = recipient,
-                    File = file
+                    RecipientPeerResponseCode = peerCode,
+                    TransferResult = transferResult,
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    OutboxItem = outboxItem
                 };
             }
-            catch (TryRetryException)
+            catch (TryRetryException ex)
             {
-                // var e = ex.InnerException;
-                // var problemStatus = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
-                //     ? LatestProblemStatus.RecipientServerNotResponding
-                //     : LatestProblemStatus.UnknownServerError;
+                var e = ex.InnerException;
+                var tr = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
+                    ? TransferResult.RecipientServerNotResponding
+                    : TransferResult.UnknownError;
 
-                throw new OdinOutboxProcessingException("Failed sending to recipient")
+                return new OutboxProcessingResult()
                 {
-                    // ProblemStatus = problemStatus,
-                    VersionTag = versionTag,
+                    File = file,
                     Recipient = recipient,
-                    File = file
+                    RecipientPeerResponseCode = null,
+                    TransferResult = tr,
+                    Timestamp = UnixTimeUtc.Now().milliseconds,
+                    OutboxItem = outboxItem
                 };
             }
+        }
+
+        private (PeerResponseCode peerCode, TransferResult transferResult) MapPeerResponseCode(ApiResponse<PeerTransferResponse> response)
+        {
+            //TODO: needs more work to bring clarity to response code
+
+            if (response.IsSuccessStatusCode)
+            {
+                return (response!.Content!.Code, TransferResult.Success);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return (PeerResponseCode.Unknown, TransferResult.RecipientServerReturnedAccessDenied);
+            }
+
+            if (response.StatusCode == HttpStatusCode.InternalServerError)
+            {
+                return (PeerResponseCode.Unknown, TransferResult.RecipientServerError);
+            }
+
+            return (PeerResponseCode.Unknown, TransferResult.UnknownError);
         }
     }
 }
