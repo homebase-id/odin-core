@@ -1,18 +1,12 @@
 ﻿#nullable enable
-namespace Odin.Services.Tenant
+namespace Odin.Services.Tenant;
+
+public class Tenant(string name)
 {
-    public class Tenant
+    public string Name { get; } = name;
+
+    public override string ToString()
     {
-        public string Name { get; init; }
-
-        public Tenant(string name)
-        {
-            Name = name;
-        }
-
-        public override string ToString()
-        {
-            return Name;
-        }
+        return Name;
     }
 }

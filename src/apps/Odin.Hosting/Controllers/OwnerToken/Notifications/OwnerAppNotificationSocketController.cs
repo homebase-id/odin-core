@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
+using Odin.Hosting.Controllers.Base;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authentication.Owner;
 
@@ -14,7 +15,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     [ApiController]
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.NotificationsV1)]
-    public class OwnerAppNotificationSocketController : Controller
+    public class OwnerAppNotificationSocketController : OdinControllerBase
     {
         private readonly AppNotificationHandler _notificationHandler;
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
@@ -49,7 +50,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
 
             try
             {
-                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token);
+                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
             }
             catch (OperationCanceledException)
             {

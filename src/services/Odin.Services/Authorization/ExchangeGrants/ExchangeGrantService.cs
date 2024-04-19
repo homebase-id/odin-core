@@ -29,7 +29,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
             _logger = logger;
             _driveManager = driveManager;
         }
-        
+
         /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
@@ -89,7 +89,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
             }
 
             // grant.KeyStoreKeyEncryptedIcrKey
-                
+
             var token = await this.CreateClientAccessToken(grantKeyStoreKey, tokenType);
             grantKeyStoreKey?.Wipe();
             return token;
@@ -105,6 +105,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken,
             Dictionary<Guid, ExchangeGrant>? grants,
             AccessRegistration accessReg,
+            IOdinContext odinContext,
             List<int>? additionalPermissionKeys = null,
             bool includeAnonymousDrives = false,
             DrivePermission anonymousDrivePermission = DrivePermission.Read)
@@ -118,8 +119,9 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 foreach (var key in grants.Keys)
                 {
                     var exchangeGrant = grants[key];
-                        
-                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey, exchangeGrant.KeyStoreKeyEncryptedIcrKey);
+
+                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey,
+                        exchangeGrant.KeyStoreKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);
 
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
@@ -132,11 +134,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
             if (includeAnonymousDrives)
             {
-                //MergeAnonymousDrives
-                var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
-
                 //TODO: remove any anonymous drives which are explicitly granted above
-                var anonPg = await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission);
+                var anonPg = await this.CreateAnonymousDrivePermissionGroup(anonymousDrivePermission, odinContext);
                 permissionGroupMap.Add("anonymous_drives", anonPg);
             }
 
@@ -157,9 +156,9 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a permission group of anonymous drives
         /// </summary>
-        private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions)
+        private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions, IOdinContext odinContext)
         {
-            var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
+            var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All, odinContext);
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, permissions, null, null));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null);
         }
@@ -228,6 +227,5 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
             return Task.FromResult((reg, cat));
         }
-
     }
 }

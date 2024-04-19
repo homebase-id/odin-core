@@ -11,8 +11,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -29,18 +27,16 @@ namespace Odin.Services.AppNotifications.WebSocket
         INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
-        private readonly OdinContextAccessor _contextAccessor;
+
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly DriveManager _driveManager;
         private readonly ILogger<AppNotificationHandler> _logger;
 
         public AppNotificationHandler(
-            OdinContextAccessor contextAccessor,
             PeerInboxProcessor peerInboxProcessor,
             DriveManager driveManager,
             ILogger<AppNotificationHandler> logger)
         {
-            _contextAccessor = contextAccessor;
             _peerInboxProcessor = peerInboxProcessor;
             _driveManager = driveManager;
             _logger = logger;
@@ -52,7 +48,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -63,7 +59,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Socket = webSocket,
                 };
                 _deviceSocketCollection.AddSocket(deviceSocket);
-                await AwaitCommands(deviceSocket, cancellationToken);
+                await AwaitCommands(deviceSocket, cancellationToken, odinContext);
             }
             catch (OperationCanceledException)
             {
@@ -98,7 +94,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken)
+        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
@@ -117,7 +113,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
                 {
                     var completeMessage = ms.ToArray();
-                    var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                    var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
                     byte[] decryptedBytes;
                     try
@@ -152,7 +148,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         try
                         {
-                            await ProcessCommand(deviceSocket, command, cancellationToken);
+                            await ProcessCommand(deviceSocket, command, cancellationToken, odinContext);
                         }
                         catch (OperationCanceledException)
                         {
@@ -195,13 +191,14 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var hasSharedSecret = null != _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var odinContext = notification.OdinContext;
+            var hasSharedSecret = null != odinContext.PermissionsContext.SharedSecretKey;
 
             var data = OdinSystemSerializer.Serialize(new
             {
                 TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
                 Header = hasSharedSecret
-                    ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, _contextAccessor)
+                    ? DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(notification.ServerFileHeader, odinContext)
                     : null
             });
 
@@ -213,7 +210,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
-            var notificationDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
+            var notificationDriveId = notification.OdinContext.PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
@@ -283,7 +280,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
                     }
 
-                    // var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                    // var key = odinContext.PermissionsContext.SharedSecretKey;
                     var key = deviceSocket.SharedSecretKey;
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
                     message = OdinSystemSerializer.Serialize(encryptedPayload);
@@ -320,7 +317,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             //process the command
             switch (command.Command)
@@ -329,16 +326,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                     try
                     {
                         var drivesRequest = OdinSystemSerializer.Deserialize<List<TargetDrive>>(command.Data);
-                        var dotYouContext = _contextAccessor.GetCurrent();
                         var drives = new List<Guid>();
                         foreach (var td in drivesRequest)
                         {
-                            var driveId = dotYouContext.PermissionsContext.GetDriveId(td);
-                            dotYouContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }
 
-                        deviceSocket.SharedSecretKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                        deviceSocket.SharedSecretKey = odinContext.PermissionsContext.SharedSecretKey;
                         deviceSocket.DeviceAuthToken = null; //TODO: where is the best place to get the cookie?
                         deviceSocket.Drives = drives;
                     }
@@ -355,12 +351,12 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive);
+                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext);
                     break;
 
                 case SocketCommandType.ProcessInbox:
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, request.BatchSize);
                     break;
 
                 case SocketCommandType.Ping:

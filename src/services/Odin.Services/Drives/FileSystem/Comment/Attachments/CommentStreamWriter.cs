@@ -11,9 +11,8 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
     public CommentPayloadStreamWriter(
-        CommentFileSystem fileSystem,
-        OdinContextAccessor contextAccessor)
-        : base(fileSystem, contextAccessor)
+        CommentFileSystem fileSystem)
+        : base(fileSystem)
     {
     }
 
@@ -22,12 +21,13 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header)
+    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext)
     {
         return await FileSystem.Storage.UpdatePayloads(
             // package.InternalFile,
             package.TempFile,
             targetFile: package.InternalFile,
-            incomingPayloads: package.GetFinalPayloadDescriptors());
+            incomingPayloads: package.GetFinalPayloadDescriptors(),
+            odinContext);
     }
 }

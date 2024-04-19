@@ -8,11 +8,11 @@ using Odin.Services.Peer;
 
 namespace Odin.Services.Mediator;
 
-public class TransitFileReceivedNotification : EventArgs, INotification
+public class TransitFileReceivedNotification : MediatorNotificationBase
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.TransitFileReceived;
 
-    public ExternalFileIdentifier TempFile { get; set; }
-    public FileSystemType FileSystemType { get; set; }
-    public TransferFileType TransferFileType { get; set; }
+    public ExternalFileIdentifier TempFile { get; init; }
+    public FileSystemType FileSystemType { get; init; }
+    public TransferFileType TransferFileType { get; init; }
 }

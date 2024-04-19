@@ -16,34 +16,35 @@ namespace Odin.Services.AppNotifications.Push;
 /// <summary>
 /// The outbox of notifications that need to be pushed to all subscribed devices
 /// </summary>
-public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
 {
+    
     const string NotificationBoxId = "21a409e0-7cc2-4e97-b28d-93ef04c94a9c";
     private readonly Guid _notificationBoxId = Guid.Parse(NotificationBoxId);
 
-    public Task Add(PushNotificationOutboxRecord record)
+    public Task Add(PushNotificationOutboxRecord record, IOdinContext odinContext)
     {
         //PRIMARY KEY (fileId,recipient)
-        var recipient = contextAccessor.GetCurrent().Tenant;
+        var recipient = odinContext.Tenant;
 
         //TODO: do i need to capture the sender as part of the outbox structure is the state alone ok?
         var fileId = record.Options.TagId;
 
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
 
-        tenantSystemStorage.Outbox.Upsert(new OutboxRecord()
+        tenantSystemStorage.Outbox.Insert(new OutboxRecord()
         {
             driveId = _notificationBoxId,
             recipient = recipient,
             fileId = fileId,
-            priority = 10,
+            priority = 0, //super high priority to ensure these are sent quickly
             type = (int)OutboxItemType.PushNotification,
             value = state
         });
-        
+
         return Task.CompletedTask;
     }
-
+    
     public Task MarkComplete(Guid marker)
     {
         tenantSystemStorage.Outbox.CompleteAndRemove(marker);

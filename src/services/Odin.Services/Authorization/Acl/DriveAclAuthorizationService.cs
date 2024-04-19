@@ -10,17 +10,16 @@ using Odin.Services.Membership.Connections;
 namespace Odin.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService(
-        OdinContextAccessor contextAccessor,
         CircleNetworkService circleNetwork,
         ILogger<DriveAclAuthorizationService> logger)
         : IDriveAclAuthorizationService
     {
-        public async Task AssertCallerHasPermission(AccessControlList acl)
+        public async Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
-            ThrowWhenFalse(await CallerHasPermission(acl));
+            ThrowWhenFalse(await CallerHasPermission(acl,odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl)
+        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
         {
             //there must be an acl
             if (acl == null)
@@ -32,7 +31,7 @@ namespace Odin.Services.Authorization.Acl
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, true);
+                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, true);
                 var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
@@ -58,15 +57,15 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, true)).IsConnected();
+                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, true)).IsConnected();
             }
 
             return false;
         }
 
-        public Task<bool> CallerHasPermission(AccessControlList acl)
+        public Task<bool> CallerHasPermission(AccessControlList acl, IOdinContext odinContext)
         {
-            var caller = contextAccessor.GetCurrent().Caller;
+            var caller = odinContext.Caller;
             if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
@@ -104,12 +103,12 @@ namespace Odin.Services.Authorization.Acl
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
                 case SecurityGroupType.Connected:
-                    return CallerIsConnected();
+                    return CallerIsConnected(odinContext);
             }
 
             return Task.FromResult(false);
         }
-        
+
         private void ThrowWhenFalse(bool eval)
         {
             if (eval == false)
@@ -118,10 +117,10 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private async Task<bool> CallerIsConnected()
+        private async Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
             //TODO: cache result - 
-            return await Task.FromResult(contextAccessor.GetCurrent().Caller.IsConnected);
+            return await Task.FromResult(odinContext.Caller.IsConnected);
         }
     }
 }

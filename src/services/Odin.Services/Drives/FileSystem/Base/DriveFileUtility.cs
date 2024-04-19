@@ -26,7 +26,7 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, OdinContextAccessor contextAccessor,
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
         bool forceIncludeServerMetadata = false)
     {
         if (header == null)
@@ -37,9 +37,9 @@ public static class DriveFileUtility
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
         if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-            var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
         }
         else
@@ -70,7 +70,7 @@ public static class DriveFileUtility
         var clientFileHeader = new SharedSecretEncryptedFileHeader()
         {
             FileId = header.FileMetadata.File.FileId,
-            TargetDrive = contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId),
+            TargetDrive = odinContext.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId),
             FileState = header.FileMetadata.FileState,
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
@@ -80,7 +80,7 @@ public static class DriveFileUtility
         };
 
         //add additional info
-        if (contextAccessor.GetCurrent().Caller.IsOwner || forceIncludeServerMetadata)
+        if (odinContext.Caller.IsOwner || forceIncludeServerMetadata)
         {
             clientFileHeader.ServerMetadata = header.ServerMetadata;
         }
@@ -94,7 +94,7 @@ public static class DriveFileUtility
     public static EncryptedKeyHeader GetPayloadEncryptedKeyHeader(
         ServerFileHeader header,
         PayloadDescriptor payloadDescriptor,
-        OdinContextAccessor contextAccessor)
+        IOdinContext odinContext)
     {
         if (header == null)
         {
@@ -103,7 +103,7 @@ public static class DriveFileUtility
 
         if (header.FileMetadata.IsEncrypted)
         {
-            var storageKey = contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+            var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             // The design is such that the client uses a different iv for each payload but the same aesKey;
 
@@ -115,7 +115,7 @@ public static class DriveFileUtility
             //TODO: consider falling back
 
             keyHeader.Iv = payloadDescriptor.Iv;
-            var clientSharedSecret = contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             return EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref clientSharedSecret);
         }
 

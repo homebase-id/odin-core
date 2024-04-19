@@ -13,6 +13,9 @@ namespace Odin.Core.Identity
         private readonly AsciiDomainName _domainName;
         private readonly Guid _hash;
 
+        [JsonIgnore] public string DomainName => _domainName.DomainName;
+        [JsonIgnore] public AsciiDomainName AsciiDomain => _domainName;
+
         /// <summary>
         /// Guaranteed to hold a trimmed, RFC compliant domain name and unique HASH of the name
         /// </summary>
@@ -38,9 +41,16 @@ namespace Odin.Core.Identity
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
+        public OdinId(OdinId other)
+        {
+            _domainName = other._domainName.Clone();
+            _hash = other._hash;
+        }
 
-        [JsonIgnore] public string DomainName => _domainName.DomainName;
-        [JsonIgnore] public AsciiDomainName AsciiDomain => _domainName;
+        public OdinId Clone()
+        {
+            return new OdinId(this);
+        }
 
         public bool HasValue()
         {

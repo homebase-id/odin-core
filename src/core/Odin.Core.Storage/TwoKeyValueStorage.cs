@@ -12,23 +12,23 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class TwoKeyValueStorage
 {
-    private readonly TableKeyTwoValue _db;
+    private readonly IdentityDatabase _db;
     private readonly Guid _contextKey;
 
-    public TwoKeyValueStorage(TableKeyTwoValue table, Guid contextKey)
+    public TwoKeyValueStorage(IdentityDatabase db, Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
             throw new OdinSystemException("Invalid context key for storage");
         }
 
-        _db = table;
+        _db = db;
         _contextKey = contextKey;
     }
 
     public T Get<T>(Guid key) where T : class
     {
-        var record = _db.Get(MakeStorageKey(key));
+        var record = _db.tblKeyTwoValue.Get(MakeStorageKey(key));
         if (null == record)
         {
             return null;
@@ -39,7 +39,7 @@ public class TwoKeyValueStorage
 
     public IEnumerable<T> GetByDataType<T>(byte[] key2) where T : class
     {
-        var list = _db.GetByKeyTwo(key2);
+        var list = _db.tblKeyTwoValue.GetByKeyTwo(key2);
         if (null == list)
         {
             return new List<T>();
@@ -51,12 +51,12 @@ public class TwoKeyValueStorage
     public void Upsert<T>(Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _db.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        _db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid id)
     {
-        _db.Delete(MakeStorageKey(id));
+        _db.tblKeyTwoValue.Delete(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

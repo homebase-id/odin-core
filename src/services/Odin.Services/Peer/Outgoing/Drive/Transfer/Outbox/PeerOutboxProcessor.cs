@@ -28,31 +28,33 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILogger<PeerOutboxProcessor> logger,
         IDriveFileSystem fileSystem)
     {
-        public async Task ProcessItemsSync(IEnumerable<OutboxItem> items)
+        public async Task ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext)
         {
             foreach (var item in items)
             {
-                await ProcessItem(item);
+                await ProcessItem(item, odinContext);
             }
         }
-        
-        public async Task ProcessItem(OutboxItem item)
+
+        public async Task ProcessItem(OutboxItem item, IOdinContext odinContext)
         {
             _ = new ProcessOutboxItemWorker(item,
                 fileSystem,
                 logger,
                 peerOutbox,
                 odinConfiguration,
-                odinHttpClientFactory).ProcessOutboxItem();
+                odinHttpClientFactory).ProcessOutboxItem(odinContext);
+
+            await Task.CompletedTask;
         }
 
-        public async Task StartOutboxProcessing()
+        public async Task StartOutboxProcessing(IOdinContext odinContext)
         {
             var item = await peerOutbox.GetNextItem();
 
             while (item != null)
             {
-                _ = this.ProcessItem(item);
+                _ = this.ProcessItem(item, odinContext);
 
                 item = await peerOutbox.GetNextItem();
             }
@@ -67,7 +69,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         OdinConfiguration odinConfiguration,
         IOdinHttpClientFactory odinHttpClientFactory)
     {
-        public async Task ProcessOutboxItem()
+        public async Task ProcessOutboxItem(IOdinContext odinContext)
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
@@ -79,7 +81,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     break;
 
                 case OutboxItemType.File:
-                    await SendFileOutboxItem();
+                    await SendFileOutboxItem(odinContext);
                     break;
 
                 case OutboxItemType.Reaction:
@@ -102,14 +104,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await peerOutbox.MarkComplete(item.Marker);
         }
 
-        private async Task SendFileOutboxItem()
+        private async Task SendFileOutboxItem(IOdinContext odinContext)
         {
             try
             {
-                var versionTag = await SendOutboxFileItemAsync(item);
+                var versionTag = await SendOutboxFileItemAsync(item, odinContext);
                 await peerOutbox.MarkComplete(item.Marker);
             }
-            catch (OdinOutboxProcessingException e)
+            catch (OdinOutboxProcessingException)
             {
                 var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
                 await peerOutbox.MarkFailure(item.Marker, nextRun);
@@ -120,13 +122,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem)
+        private async Task<Guid> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext)
         {
             OdinId recipient = outboxItem.Recipient;
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
-            var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File);
+            var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext);
             var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
 
             // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
@@ -207,7 +209,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     string contentType = "application/unknown";
 
                     //TODO: consider what happens if the payload has been delete from disk
-                    var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null);
+                    var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext);
                     var payloadStream = p.Stream;
 
                     var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -216,7 +218,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var (thumbStream, thumbHeader) =
-                            await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid);
+                            await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
+                                odinContext);
 
                         var thumbnailKey =
                             $"{payloadKey}" +
@@ -261,7 +264,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     File = file
                 };
             }
-            catch (TryRetryException ex)
+            catch (TryRetryException)
             {
                 // var e = ex.InnerException;
                 // var problemStatus = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)

@@ -229,9 +229,8 @@ namespace Odin.Hosting.Middleware
 
         private SensitiveByteArray GetSharedSecret(HttpContext context)
         {
-            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
-            var dotYouContext = accessor.GetCurrent();
-            var key = dotYouContext.PermissionsContext?.SharedSecretKey;
+            var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
+            var key = dotYouContext.PermissionsContext.SharedSecretKey;
             return key;
         }
 
@@ -287,8 +286,7 @@ namespace Odin.Hosting.Middleware
 
         private bool CallerMustHaveSharedSecret(HttpContext context)
         {
-            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
-            var dotYouContext = accessor.GetCurrent();
+            var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
     }

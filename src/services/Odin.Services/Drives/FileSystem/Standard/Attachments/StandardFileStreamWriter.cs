@@ -10,8 +10,7 @@ namespace Odin.Services.Drives.FileSystem.Standard.Attachments;
 public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
 {
     /// <summary />
-    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem, OdinContextAccessor contextAccessor)
-        : base(fileSystem, contextAccessor)
+    public StandardFilePayloadStreamWriter(StandardFileSystem fileSystem) : base(fileSystem)
     {
     }
 
@@ -20,12 +19,13 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
         return Task.CompletedTask;
     }
 
-    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header)
+    protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header,IOdinContext odinContext)
     {
         return await FileSystem.Storage.UpdatePayloads(
             // package.InternalFile,
             package.TempFile,
             targetFile: package.InternalFile,
-            incomingPayloads: package.GetFinalPayloadDescriptors());
+            incomingPayloads: package.GetFinalPayloadDescriptors(),
+            odinContext);
     }
 }

@@ -12,23 +12,23 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class ThreeKeyValueStorage
 {
-    private readonly TableKeyThreeValue _table;
+    private readonly IdentityDatabase _db;
     private readonly Guid _contextKey;
 
-    public ThreeKeyValueStorage(TableKeyThreeValue table, Guid contextKey)
+    public ThreeKeyValueStorage(IdentityDatabase database, Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
             throw new OdinSystemException("Invalid context key for storage");
         }
 
-        _table = table;
+        _db = database;
         _contextKey = contextKey;
     }
 
     public T Get<T>(Guid key) where T : class
     {
-        var bytes = _table.Get(MakeStorageKey(key));
+        var bytes = _db.TblKeyThreeValue.Get(MakeStorageKey(key));
 
         if (null == bytes)
         {
@@ -41,17 +41,17 @@ public class ThreeKeyValueStorage
     public void Upsert<T>(Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _table.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
+        _db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid id)
     {
-        _table.Delete(MakeStorageKey(id));
+        _db.TblKeyThreeValue.Delete(MakeStorageKey(id));
     }
 
     public IEnumerable<T> GetByDataType<T>(byte[] dataType) where T : class
     {
-        var list = _table.GetByKeyTwo(dataType);
+        var list = _db.TblKeyThreeValue.GetByKeyTwo(dataType);
         if (null == list)
         {
             return new List<T>();
@@ -62,7 +62,7 @@ public class ThreeKeyValueStorage
 
     public IEnumerable<T> GetByCategory<T>(byte[] categoryKey) where T : class
     {
-        var list = _table.GetByKeyThree(categoryKey);
+        var list = _db.TblKeyThreeValue.GetByKeyThree(categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -73,7 +73,7 @@ public class ThreeKeyValueStorage
 
     public IEnumerable<T> GetByKey2And3<T>(byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
-        var list = _table.GetByKeyTwoThree(dataTypeKey, categoryKey);
+        var list = _db.TblKeyThreeValue.GetByKeyTwoThree(dataTypeKey, categoryKey);
         if (null == list)
         {
             return new List<T>();

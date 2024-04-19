@@ -13,21 +13,18 @@ namespace Odin.Services.DataSubscription.Follower;
 /// <summary>
 /// Patches in the icr key during the EstablishConnection process so we can synchronize feed items
 /// </summary>
-public class FeedDriveSynchronizerSecurityContext : IDisposable
+public static class FeedDriveSynchronizerSecurityContext
 {
-    private readonly SecurityGroupType _prevSecurityGroupType;
-    private readonly OdinContextAccessor _odinContextAccessor;
-
     private const string GroupName = "patch_in_temp_icrkey";
 
-    public FeedDriveSynchronizerSecurityContext(OdinContextAccessor odinContextAccessor, Guid feedDriveId, SensitiveByteArray keyStoreKey,
+    public static IOdinContext PatchInIcrKey(
+        IOdinContext context,
+        Guid feedDriveId,
+        SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        _odinContextAccessor = odinContextAccessor;
-        var ctx = odinContextAccessor.GetCurrent();
-
-        _prevSecurityGroupType = ctx.Caller.SecurityLevel;
+        var patchedContext = context.Clone();
 
         //
         // Upgrade access briefly to perform functions
@@ -43,16 +40,13 @@ public class FeedDriveSynchronizerSecurityContext : IDisposable
             KeyStoreKeyEncryptedStorageKey = encryptedFeedDriveStorageKey
         };
 
-        ctx.Caller.SecurityLevel = SecurityGroupType.Owner;
-        ctx.PermissionsContext.PermissionGroups.Add(GroupName,
+        patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+        patchedContext.PermissionsContext.PermissionGroups.Add(GroupName,
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.UseTransitRead,PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
+                new PermissionSet(new[] { PermissionKeys.UseTransitRead, PermissionKeys.ManageFeed, PermissionKeys.ReadConnections }), //to allow sending files
                 new List<DriveGrant>() { feedDriveGrant }, keyStoreKey, encryptedIcrKey));
+
+        return patchedContext;
     }
 
-    public void Dispose()
-    {
-        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
-        _odinContextAccessor.GetCurrent().PermissionsContext.PermissionGroups.Remove(GroupName);
-    }
 }

@@ -7,10 +7,10 @@ namespace Odin.Core.Storage;
 
 public class SingleKeyValueStorage
 {
-    private readonly TableKeyValue _table;
+    private readonly IdentityDatabase _database;
     private readonly Guid _contextKey;
 
-    public SingleKeyValueStorage(TableKeyValue table, Guid contextKey)
+    public SingleKeyValueStorage(IdentityDatabase database, Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
@@ -18,7 +18,7 @@ public class SingleKeyValueStorage
         }
 
         _contextKey = contextKey;
-        _table = table;
+        _database = database;
     }
 
     /// <summary>
@@ -29,7 +29,7 @@ public class SingleKeyValueStorage
     /// <returns></returns>
     public T Get<T>(Guid key) where T : class
     {
-        var item = _table.Get(MakeStorageKey(key));
+        var item = _database.tblKeyValue.Get(MakeStorageKey(key));
         if (null == item)
         {
             return null;
@@ -46,12 +46,12 @@ public class SingleKeyValueStorage
     public void Upsert<T>(Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        _table.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        _database.tblKeyValue.Upsert(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid key)
     {
-        _table.Delete(MakeStorageKey(key));
+        _database.tblKeyValue.Delete(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

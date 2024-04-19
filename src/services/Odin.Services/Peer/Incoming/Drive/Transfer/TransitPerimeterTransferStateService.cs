@@ -12,13 +12,13 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
-    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor) : ITransitPerimeterTransferStateService
+    public class TransitPerimeterTransferStateService(IDriveFileSystem fileSystem) : ITransitPerimeterTransferStateService
     {
         private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 
-        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet)
+        public async Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
             // Notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();
@@ -27,7 +27,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
+            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream,odinContext);
             
             this.Save(item);
             return id;
@@ -45,10 +45,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await Task.FromResult(item);
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
+        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext)
         {
             var item = await this.GetStateItem(transferStateItemId);
-            await fileSystem.Storage.WriteTempStream(item.TempFile, fileExtension, data);
+            await fileSystem.Storage.WriteTempStream(item.TempFile, fileExtension, data,odinContext);
             this.Save(item);
         }
 

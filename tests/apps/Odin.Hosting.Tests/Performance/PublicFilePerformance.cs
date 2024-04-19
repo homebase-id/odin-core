@@ -219,7 +219,7 @@ TaskPerformanceTest
 
             _getUniversalStaticFileSvc = client.StaticFilePublisher;
 
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
         }
 
         private WebScaffold _scaffold;

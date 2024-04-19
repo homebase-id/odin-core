@@ -4,8 +4,8 @@ using Odin.Services.Authorization.Apps;
 
 namespace Odin.Services.Mediator;
 
-public class AppRegistrationChangedNotification : EventArgs, INotification
+public class AppRegistrationChangedNotification : MediatorNotificationBase
 {
-    public AppRegistration NewAppRegistration { get; set; }
-    public AppRegistration OldAppRegistration { get; set; }
+    public AppRegistration NewAppRegistration { get; init; }
+    public AppRegistration OldAppRegistration { get; init; }
 }

@@ -1,5 +1,7 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -15,11 +17,13 @@ namespace Odin.Services.Background.FeedDistributionApp
     [DisallowConcurrentExecution]
     public class FeedDistributionJob
     {
+        private readonly ILogger<FeedDistributionJob> _logger;
         private readonly OdinConfiguration _config;
         private readonly ISystemHttpClient _systemHttpClient;
 
-        public FeedDistributionJob(OdinConfiguration config, ISystemHttpClient systemHttpClient)
+        public FeedDistributionJob(ILogger<FeedDistributionJob> logger, OdinConfiguration config, ISystemHttpClient systemHttpClient)
         {
+            _logger = logger;
             _config = config;
             _systemHttpClient = systemHttpClient;
         }
@@ -38,8 +42,17 @@ namespace Odin.Services.Background.FeedDistributionApp
         private async Task<bool> DistributeFeedFileMetadata(FeedDistributionInfo info)
         {
             var svc = _systemHttpClient.CreateHttps<IFeedDistributionCronClient>(info.OdinId);
-            var response = await svc.DistributeFiles();
-            return response.IsSuccessStatusCode;
+            try
+            {
+                var response = await svc.DistributeFiles();
+                return response.IsSuccessStatusCode;
+            }
+            catch (HttpRequestException e)
+            {
+                _logger.LogDebug("Error reconciling inbox/outbox: {identity}. Error: {error}", info.OdinId, e.Message);
+            }
+
+            return false;
         }
     }
 }

@@ -18,7 +18,7 @@ namespace Odin.Hosting.Middleware
             _next = next;
         }
 
-        public Task Invoke(HttpContext context, OdinContext odinContext)
+        public Task Invoke(HttpContext context, IOdinContext odinContext)
         {
             if (context.Request.Method == "OPTIONS")
             {

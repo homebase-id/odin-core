@@ -55,9 +55,9 @@ namespace Odin.Hosting.Tests.Performance
           */
 
         [Test]
-        public void TaskPerformanceTest_Ident()
+        public async Task TaskPerformanceTest_Ident()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoIdent);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoIdent);
             Assert.Pass();
         }
 
@@ -127,9 +127,9 @@ namespace Odin.Hosting.Tests.Performance
          */
 
         [Test, Explicit]
-        public void TaskPerformanceTest_PingAsOwner()
+        public async Task TaskPerformanceTest_PingAsOwner()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OwnerPing);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, OwnerPing);
             Assert.Pass();
         }
 
@@ -156,9 +156,9 @@ namespace Odin.Hosting.Tests.Performance
 
 
         [Test, Explicit]
-        public void TaskPerformanceTest_PingHttpOnly()
+        public async Task TaskPerformanceTest_PingHttpOnly()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, HttpOnlyPing);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, HttpOnlyPing);
             Assert.Pass();
         }
 

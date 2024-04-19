@@ -14,13 +14,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [ApiController]
     [Route(PeerApiPathConstants.SecurityV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerPerimeterSecurityController(OdinContextAccessor contextAccessor) : OdinControllerBase
+    public class PeerPerimeterSecurityController() : OdinControllerBase
     {
         /// <summary />
         [HttpGet("context")]
         public Task<RedactedOdinContext> GetRemoteSecurityContext()
         {
-            return Task.FromResult(contextAccessor.GetCurrent().Redacted());
+            return Task.FromResult(WebOdinContext.Redacted());
         }
     }
 }

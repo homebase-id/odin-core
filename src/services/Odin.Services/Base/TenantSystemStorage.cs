@@ -76,12 +76,12 @@ namespace Odin.Services.Base
         /// </summary>
         public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
         {
-            return new SingleKeyValueStorage(IdentityDatabase.tblKeyValue, contextKey);
+            return new SingleKeyValueStorage(IdentityDatabase, contextKey);
         }
 
         public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
         {
-            return new TwoKeyValueStorage(IdentityDatabase.tblKeyTwoValue, contextKey);
+            return new TwoKeyValueStorage(IdentityDatabase, contextKey);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Odin.Services.Base
         /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
         public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
         {
-            return new ThreeKeyValueStorage(IdentityDatabase.TblKeyThreeValue, contextKey);
+            return new ThreeKeyValueStorage(IdentityDatabase, contextKey);
         }
 
         public void Dispose()

@@ -12,28 +12,31 @@ namespace Odin.Services.Base
 {
     public class PermissionContext
     {
-        private readonly Dictionary<string, PermissionGroup> _permissionGroups;
         private readonly bool _isSystem = false;
-
-        // private Guid _instanceId;
+        public SensitiveByteArray SharedSecretKey { get; }
+        internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
             bool isSystem = false)
         {
-            this.SharedSecretKey = sharedSecretKey;
-            // IcrKey = icrKey;
-
-            _permissionGroups = permissionGroups;
-
-            // _instanceId = new Guid();
+            SharedSecretKey = sharedSecretKey;
+            PermissionGroups = permissionGroups;
             _isSystem = isSystem;
         }
 
-        public SensitiveByteArray SharedSecretKey { get; }
+        public PermissionContext(PermissionContext other)
+        {
+            SharedSecretKey = other.SharedSecretKey?.Clone();
+            PermissionGroups = new Dictionary<string, PermissionGroup>(other.PermissionGroups);
+            _isSystem = other._isSystem;
+        }
 
-        internal Dictionary<string, PermissionGroup> PermissionGroups => _permissionGroups;
+        public PermissionContext Clone()
+        {
+            return new PermissionContext(this);
+        }
 
         public SensitiveByteArray GetIcrKey()
         {

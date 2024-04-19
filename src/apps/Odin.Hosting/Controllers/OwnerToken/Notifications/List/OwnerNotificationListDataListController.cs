@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.Base;
 using Odin.Hosting.Controllers.Base.Notifications;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
@@ -11,8 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     [AuthorizeValidOwnerToken]
     public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
-        public OwnerNotificationListDataListController(NotificationListService notificationService, OdinContextAccessor contextAccessor) : base(notificationService,
-            contextAccessor)
+        public OwnerNotificationListDataListController(NotificationListService notificationService ) : base(notificationService)
         {
         }
     }

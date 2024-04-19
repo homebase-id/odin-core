@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
@@ -18,35 +17,32 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class PayloadStreamWriterBase
 {
-    private readonly OdinContextAccessor _contextAccessor;
-
     private PayloadOnlyPackage _package;
 
     /// <summary />
-    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor)
+    protected PayloadStreamWriterBase(IDriveFileSystem fileSystem)
     {
         FileSystem = fileSystem;
-        _contextAccessor = contextAccessor;
     }
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task StartUpload(Stream data)
+    public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
     {
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = OdinSystemSerializer.Deserialize<UploadPayloadInstructionSet>(json);
-        await this.StartUpload(instructionSet);
+        await this.StartUpload(instructionSet, odinContext);
     }
 
-    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet)
+    public virtual async Task StartUpload(UploadPayloadInstructionSet instructionSet, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
 
-        InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile);
+        InternalDriveFileId file = MapToInternalFile(instructionSet!.TargetFile, odinContext);
 
         //bail earlier to save some bandwidth
-        if (!await FileSystem.Storage.FileExists(file))
+        if (!await FileSystem.Storage.FileExists(file, odinContext))
         {
             throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
@@ -60,12 +56,12 @@ public abstract class PayloadStreamWriterBase
                 pd.PayloadUid = UnixTimeUtcUnique.Now();
             }
         }
-        
+
         this._package = new PayloadOnlyPackage(file, instructionSet!);
         await Task.CompletedTask;
     }
 
-    public virtual async Task AddPayload(string key, string contentType, Stream data)
+    public virtual async Task AddPayload(string key, string contentType, Stream data, IOdinContext odinContext)
     {
         var descriptor = _package.InstructionSet.Manifest?.PayloadDescriptors.SingleOrDefault(pd => pd.PayloadKey == key);
 
@@ -80,7 +76,7 @@ public abstract class PayloadStreamWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile, extension, data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(new PackagePayloadDescriptor()
@@ -97,7 +93,7 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentType, Stream data, IOdinContext odinContext)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -135,7 +131,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight);
 
-        await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data);
+        await FileSystem.Storage.WriteTempStream(_package.TempFile, extenstion, data, odinContext);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -149,15 +145,15 @@ public abstract class PayloadStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadPayloadResult> FinalizeUpload()
+    public async Task<UploadPayloadResult> FinalizeUpload(IOdinContext odinContext)
     {
-        var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile);
+        var serverHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile, odinContext);
 
-        await this.ValidateUploadCore(serverHeader);
+        await this.ValidateUploadCore(serverHeader, odinContext);
 
         await this.ValidatePayloads(_package, serverHeader);
 
-        var latestVersionTag = await this.UpdatePayloads(_package, serverHeader);
+        var latestVersionTag = await this.UpdatePayloads(_package, serverHeader, odinContext);
 
         if (_package.InstructionSet.Recipients?.Any() ?? false)
         {
@@ -184,15 +180,15 @@ public abstract class PayloadStreamWriterBase
     /// Performs the update of attachments on the file system
     /// </summary>
     /// <returns>The updated version tag on the metadata</returns>
-    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header);
+    protected abstract Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header, IOdinContext odinContext);
 
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader)
+    private async Task ValidateUploadCore(ServerFileHeader existingServerFileHeader, IOdinContext odinContext)
     {
         // Validate the file exists by the Id
-        if (!await FileSystem.Storage.FileExists(_package.InternalFile))
+        if (!await FileSystem.Storage.FileExists(_package.InternalFile, odinContext))
         {
             throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
         }
@@ -217,12 +213,12 @@ public abstract class PayloadStreamWriterBase
         await Task.CompletedTask;
     }
 
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
+    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
     {
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
 }

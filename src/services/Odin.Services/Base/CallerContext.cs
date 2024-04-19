@@ -17,6 +17,19 @@ namespace Odin.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
+        /// <summary>
+        /// The level of access assigned to this caller
+        /// </summary>
+        public SecurityGroupType SecurityLevel { get; set; }
+        public ClientTokenType ClientTokenType { get; set; } = ClientTokenType.Other;
+        public IEnumerable<GuidId> Circles { get; set; }
+
+        /// <summary>
+        /// Specifies the <see cref="Odin.Core.Identity.OdinId"/> of the individual calling the API
+        /// </summary>
+        public OdinId? OdinId { get; }
+        public OdinClientContext OdinClientContext { get; init; }
+
         public CallerContext(OdinId? odinId,
             SensitiveByteArray masterKey,
             SecurityGroupType securityLevel,
@@ -32,34 +45,28 @@ namespace Odin.Services.Base
             this.OdinClientContext = odinClientContext;
         }
 
-        /// <summary>
-        /// The level of access assigned to this caller
-        /// </summary>
-        public SecurityGroupType SecurityLevel { get; set; }
-
-        public ClientTokenType ClientTokenType { get; set; } = ClientTokenType.Other;
-
-        public IEnumerable<GuidId> Circles { get; set; }
-
-        /// <summary>
-        /// Specifies the <see cref="Odin.Core.Identity.OdinId"/> of the individual calling the API
-        /// </summary>
-        public OdinId? OdinId { get; }
-
-        public OdinClientContext OdinClientContext { get; init; }
-
-        public bool HasMasterKey
+        public CallerContext(CallerContext other)
         {
-            get => this._masterKey != null && !this._masterKey.IsEmpty();
+            this.OdinId = other.OdinId?.Clone();
+            this._masterKey = other._masterKey?.Clone();
+            this.SecurityLevel = other.SecurityLevel;
+            this.Circles = other.Circles?.ToList();
+            this.ClientTokenType = other.ClientTokenType;
+            this.OdinClientContext = other.OdinClientContext?.Clone();
         }
+
+        public CallerContext Clone()
+        {
+            return new CallerContext(this);
+        }
+
+        public bool HasMasterKey => this._masterKey != null && !this._masterKey.IsEmpty();
 
         /// <summary>
         /// Specifies if the caller to the service is the owner of the OdinId being acted upon.
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
-
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
-
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
 
         public void AssertHasMasterKey()

@@ -25,20 +25,20 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerIncomingDriveQueryController(OdinContextAccessor contextAccessor, DriveManager driveManager) : OdinControllerBase
+    public class PeerIncomingDriveQueryController(DriveManager driveManager) : OdinControllerBase
     {
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.QueryBatchCollection(request);
+            return await perimeterService.QueryBatchCollection(request, WebOdinContext);
         }
 
         [HttpPost("querymodified")]
         public async Task<QueryModifiedResponse> QueryModified(QueryModifiedRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions);
+            var result = await perimeterService.QueryModified(request.QueryParams, request.ResultOptions, WebOdinContext);
             return QueryModifiedResponse.FromResult(result);
         }
 
@@ -47,7 +47,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var perimeterService = GetPerimeterService();
             var options = request.ResultOptionsRequest ?? QueryBatchResultOptionsRequest.Default;
-            var batch = await perimeterService.QueryBatch(request.QueryParams, options.ToQueryBatchResultOptions());
+            var batch = await perimeterService.QueryBatch(request.QueryParams, options.ToQueryBatchResultOptions(), WebOdinContext);
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -58,7 +58,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             var perimeterService = GetPerimeterService();
-            SharedSecretEncryptedFileHeader result = await perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
+            SharedSecretEncryptedFileHeader result = await perimeterService.GetFileHeader(request.TargetDrive, request.FileId, WebOdinContext);
 
             //404 is possible
             if (result == null)
@@ -81,7 +81,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                     request.File.TargetDrive,
                     request.File.FileId,
                     request.Key,
-                    request.Chunk);
+                    request.Chunk,
+                    WebOdinContext);
 
             if (payloadStream == null)
             {
@@ -93,7 +94,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             {
                 return StatusCode((int)HttpStatusCode.Gone);
             }
-            
+
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
@@ -113,7 +114,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var perimeterService = GetPerimeterService();
 
             var (encryptedKeyHeader64, isEncrypted, _, decryptedContentType, lastModified, thumb) =
-                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey);
+                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width, request.PayloadKey,
+                    WebOdinContext);
 
             if (thumb == null)
             {
@@ -131,7 +133,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
             var perimeterService = GetPerimeterService();
-            var drives = await perimeterService.GetDrives(request.DriveType);
+            var drives = await perimeterService.GetDrives(request.DriveType, WebOdinContext);
             return drives;
         }
 
@@ -250,7 +252,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(new TargetDrive()
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
             {
                 Alias = file.TargetDrive.Alias,
                 Type = file.TargetDrive.Type
@@ -258,23 +260,23 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
-            contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
-            var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, excludePreviewThumbnail: false);
+            WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
+            var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, WebOdinContext, excludePreviewThumbnail: false);
             return result;
         }
 
         private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
         {
-            var driveId = contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(targetDrive);
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, WebOdinContext, excludePreviewThumbnail: false);
             return result;
         }
 
         private PeerDriveQueryService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            return new PeerDriveQueryService(contextAccessor, driveManager, fileSystem);
+            return new PeerDriveQueryService(driveManager, fileSystem);
         }
     }
 }

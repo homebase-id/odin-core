@@ -46,7 +46,7 @@ public class CircleNetworkStorage
         return MapFromStorage(record);
     }
 
-    public void Upsert(IdentityConnectionRegistration icr)
+    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         var icrAccessRecord = new IcrAccessRecord()
         {
@@ -63,7 +63,7 @@ public class CircleNetworkStorage
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, overrideHack: true);
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true);
                 var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)

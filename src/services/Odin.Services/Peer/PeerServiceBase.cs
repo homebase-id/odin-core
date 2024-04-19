@@ -21,12 +21,8 @@ namespace Odin.Services.Peer
     public abstract class PeerServiceBase(
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
-        OdinContextAccessor contextAccessor,
         FileSystemResolver fileSystemResolver)
     {
-
-        protected OdinContext OdinContext => contextAccessor.GetCurrent();
-
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
@@ -44,32 +40,32 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, bool failIfNotConnected = true)
+        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext, bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
-            contextAccessor.GetCurrent().PermissionsContext.AssertHasAtLeastOnePermission(
+            odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead);
-            
+
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, overrideHack: true);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
                 {
                     throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
                 }
-                
+
                 return null;
             }
 
-            return icr!.CreateClientAccessToken(contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());
-
+            return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, FileSystemType? fileSystemType = null)
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext,
+            FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, false);
+            var token = await ResolveClientAccessToken(odinId, odinContext, false);
 
             if (token == null)
             {
@@ -78,14 +74,15 @@ namespace Odin.Services.Peer
             }
             else
             {
-                var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                var httpClient =
+                    odinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
                 return (token, httpClient);
             }
         }
 
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
+        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
         {
-            var caller = OdinContext.Caller.OdinId;
+            var caller = odinContext.Caller.OdinId;
             OdinValidationUtils.AssertIsTrue(caller.HasValue, "Caller OdinId missing");
 
             //TODO: put decryption back in place
@@ -102,9 +99,9 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
+        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
-            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext);
             return fileId;
         }
     }

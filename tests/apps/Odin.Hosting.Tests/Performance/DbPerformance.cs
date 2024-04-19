@@ -36,9 +36,9 @@ namespace Odin.Hosting.Tests.Performance
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
-            _db = new IdentityDatabase("");
+            _db = new IdentityDatabase(":memory:");
             _db.CreateDatabase();
-            storage = new SingleKeyValueStorage(_db.tblKeyValue, testContextKey);
+            storage = new SingleKeyValueStorage(_db, testContextKey);
 
             for (int i = 0; i < KEYS; i++)
             {
@@ -105,9 +105,9 @@ namespace Odin.Hosting.Tests.Performance
          */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
-        public void TaskPerformanceTest_Db_SingleThread()
+        public async Task TaskPerformanceTest_Db_SingleThread()
         {
-            PerformanceFramework.ThreadedTest(1, MAXITERATIONS, DoDb);
+            await PerformanceFramework.ThreadedTestAsync(1, MAXITERATIONS, DoDb);
             Assert.Pass();
         }
 
@@ -152,13 +152,13 @@ TaskPerformanceTest_Db_MultiThread
         */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
-        public void TaskPerformanceTest_Db_MultiThread()
+        public async Task TaskPerformanceTest_Db_MultiThread()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoDb);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoDb);
             Assert.Pass();
         }
 
-        public Task<(long, long[])> DoDb(int threadno, int iterations)
+        public async Task<(long, long[])> DoDb(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -174,7 +174,9 @@ TaskPerformanceTest_Db_MultiThread
                 timers[count] = sw.ElapsedMilliseconds;
             }
 
-            return Task.FromResult((0L, timers));
+            await Task.Delay(0);
+
+            return (0L, timers);
         }
 
 
@@ -199,9 +201,9 @@ TaskPerformanceTest_DbWrapper_SingleThread
          */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
-        public void TaskPerformanceTest_DbWrapper_SingleThread()
+        public async Task TaskPerformanceTest_DbWrapper_SingleThread()
         {
-            PerformanceFramework.ThreadedTest(1, MAXITERATIONS, DoWrapperDb);
+            await PerformanceFramework.ThreadedTestAsync(1, MAXITERATIONS, DoWrapperDb);
             Assert.Pass();
         }
 
@@ -226,13 +228,13 @@ TaskPerformanceTest_DbWrapper_MultiThread
          */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
-        public void TaskPerformanceTest_DbWrapper_MultiThread()
+        public async Task TaskPerformanceTest_DbWrapper_MultiThread()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoWrapperDb);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoWrapperDb);
             Assert.Pass();
         }
 
-        public Task<(long, long[])> DoWrapperDb(int threadno, int iterations)
+        public async Task<(long, long[])> DoWrapperDb(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -249,7 +251,9 @@ TaskPerformanceTest_DbWrapper_MultiThread
                 timers[count] = sw.ElapsedMilliseconds;
             }
 
-            return Task.FromResult((0L, timers));
+            await Task.Delay(0);
+
+            return (0L, timers);
         }
     }
 }

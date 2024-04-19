@@ -76,9 +76,9 @@ namespace Odin.Hosting.Tests.Performance.DotYouContext
                 DB Opened 4, Closed 0
          */
         [Test]
-        public void AppPingTest()
+        public async Task AppPingTest()
         {
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, AppPing);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, AppPing);
             Assert.Pass();
         }
 

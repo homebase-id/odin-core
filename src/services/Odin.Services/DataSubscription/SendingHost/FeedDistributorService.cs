@@ -21,10 +21,10 @@ namespace Odin.Services.DataSubscription.SendingHost
         IDriveAclAuthorizationService driveAcl,
         OdinConfiguration odinConfiguration)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file);
-            var header = await fs.Storage.GetServerFileHeader(file);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)
             {
@@ -33,7 +33,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList);
+                header.ServerMetadata.AccessControlList,odinContext);
 
             if (!authorized)
             {
@@ -70,10 +70,10 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
+        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file);
-            var header = await fs.Storage.GetServerFileHeader(file);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)
             {
@@ -82,7 +82,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList);
+                header.ServerMetadata.AccessControlList,odinContext);
 
             if (!authorized)
             {

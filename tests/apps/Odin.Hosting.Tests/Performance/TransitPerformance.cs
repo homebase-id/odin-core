@@ -128,7 +128,7 @@ TaskPerformanceTest_Transit
             _frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
             _samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
 
-            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoChat);
+            await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoChat);
         }
 
 

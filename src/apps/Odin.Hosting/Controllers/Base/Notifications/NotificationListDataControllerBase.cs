@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.AppNotifications.Data;
-using Odin.Services.Base;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
@@ -11,14 +10,13 @@ namespace Odin.Hosting.Controllers.Base.Notifications
     /// <summary>
     /// Handles reading/writing of app notifications
     /// </summary>
-    public abstract class NotificationListDataControllerBase(NotificationListService notificationService, OdinContextAccessor contextAccessor)
-        : OdinControllerBase
+    public abstract class NotificationListDataControllerBase(NotificationListService notificationService) : OdinControllerBase
     {
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            var sender = contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-            return await notificationService.AddNotification(sender, request);
+            var sender = WebOdinContext.GetCallerOdinIdOrFail();
+            return await notificationService.AddNotification(sender, request, WebOdinContext);
         }
 
         [HttpGet("list")]
@@ -28,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             {
                 Count = count,
                 Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
-            });
+            }, WebOdinContext);
         }
 
         [HttpPut("list")]
@@ -39,14 +37,14 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid request");
             }
 
-            await notificationService.UpdateNotifications(request);
+            await notificationService.UpdateNotifications(request, WebOdinContext);
             return Ok();
         }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
-            await notificationService.Delete(request);
+            await notificationService.Delete(request, WebOdinContext);
             return Ok();
         }
     }

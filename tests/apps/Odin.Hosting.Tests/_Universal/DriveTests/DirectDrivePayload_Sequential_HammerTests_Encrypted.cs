@@ -67,7 +67,7 @@ public class DirectDrivePayload_Sequential_HammerTests_Encrypted
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         Assert.IsNotNull(headerBeforeUpload);
 
-        PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OverwritePayload);
+        await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, OverwritePayload);
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)

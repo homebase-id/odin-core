@@ -32,7 +32,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(OdinContext odinContext, FileSystemType fileSystemType,
+    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
         var callerContext = odinContext.Caller;
@@ -64,7 +64,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(OdinContext odinContext,
+    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
@@ -99,7 +99,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return GetBatchExplicitOrdering(odinContext, fileSystemType, qp, options);
     }
 
-    private List<Guid> GetAcl(OdinContext odinContext)
+    private List<Guid> GetAcl(IOdinContext odinContext)
     {
         var callerContext = odinContext.Caller;
 
@@ -324,7 +324,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return (results, nextCursor);
     }
 
-    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,
+    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);

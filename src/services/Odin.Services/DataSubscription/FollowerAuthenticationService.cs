@@ -30,7 +30,7 @@ public class FollowerAuthenticationService
     /// <summary>
     /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -45,7 +45,7 @@ public class FollowerAuthenticationService
             ClientTokenType = ClientTokenType.DataProvider
         };
 
-        var creator = new Func<Task<OdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken);

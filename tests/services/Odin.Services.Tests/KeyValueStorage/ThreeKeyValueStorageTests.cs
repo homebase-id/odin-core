@@ -15,7 +15,7 @@ public class ThreeKeyValueStorageTests
         var db = new IdentityDatabase(finalPath);
         db.CreateDatabase(false);
 
-        Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(db.TblKeyThreeValue, Guid.Empty); });
+        Assert.Throws<OdinSystemException>(() => { new ThreeKeyValueStorage(db, Guid.Empty); });
         db.Dispose();
     }
 
@@ -29,7 +29,7 @@ public class ThreeKeyValueStorageTests
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();
         var dataCategoryKey = Guid.NewGuid().ToByteArray();
-        var kvp1 = new ThreeKeyValueStorage(db.TblKeyThreeValue, contextKey1);
+        var kvp1 = new ThreeKeyValueStorage(db, contextKey1);
 
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
@@ -41,7 +41,7 @@ public class ThreeKeyValueStorageTests
         Assert.IsTrue(kvp1.Get<string>(pk) == null);
 
         var contextKey2 = Guid.NewGuid();
-        var kvp2 = new ThreeKeyValueStorage(db.TblKeyThreeValue, contextKey2);
+        var kvp2 = new ThreeKeyValueStorage(db, contextKey2);
         const string expectedValue2 = "another value";
         kvp2.Upsert(pk, dataTypeKey, dataCategoryKey, expectedValue2);
         Assert.IsTrue(kvp2.Get<string>(pk) == expectedValue2);
