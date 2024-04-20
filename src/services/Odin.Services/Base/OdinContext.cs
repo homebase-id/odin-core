@@ -17,8 +17,6 @@ namespace Odin.Services.Base
         /// </summary>
         UnixTimeUtc? AuthTokenCreated { get; set; }
 
-        IOdinContext Clone();
-
         OdinId GetCallerOdinIdOrFail();
         void SetPermissionContext(PermissionContext pc);
         void SetAuthContext(string authContext);
@@ -35,18 +33,6 @@ namespace Odin.Services.Base
         public OdinId Tenant { get; set; }
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
-
-        public IOdinContext Clone()
-        {
-            return new OdinContext
-            {
-                Tenant = Tenant.Clone(),
-                Caller = Caller?.Clone(),
-                PermissionsContext = PermissionsContext?.Clone(),
-                AuthContext = AuthContext,
-                AuthTokenCreated = AuthTokenCreated?.Clone()
-            };
-        }
 
         public OdinId GetCallerOdinIdOrFail()
         {

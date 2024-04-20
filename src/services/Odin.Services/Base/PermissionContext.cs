@@ -26,18 +26,6 @@ namespace Odin.Services.Base
             _isSystem = isSystem;
         }
 
-        public PermissionContext(PermissionContext other)
-        {
-            SharedSecretKey = other.SharedSecretKey?.Clone();
-            PermissionGroups = new Dictionary<string, PermissionGroup>(other.PermissionGroups);
-            _isSystem = other._isSystem;
-        }
-
-        public PermissionContext Clone()
-        {
-            return new PermissionContext(this);
-        }
-
         public SensitiveByteArray GetIcrKey()
         {
             foreach (var group in PermissionGroups.Values)

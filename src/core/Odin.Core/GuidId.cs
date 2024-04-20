@@ -37,11 +37,6 @@ public class GuidId
         Value = new Guid(id);
     }
 
-    public GuidId Clone()
-    {
-        return new GuidId(Value);
-    }
-
     protected bool Equals(GuidId other)
     {
         return Equals(Value, other.Value);

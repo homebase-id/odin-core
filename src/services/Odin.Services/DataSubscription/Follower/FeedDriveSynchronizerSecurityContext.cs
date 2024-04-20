@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Force.DeepCloner;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Acl;
@@ -24,7 +25,7 @@ public static class FeedDriveSynchronizerSecurityContext
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        var patchedContext = context.Clone();
+        var patchedContext = context.DeepClone();
 
         //
         // Upgrade access briefly to perform functions

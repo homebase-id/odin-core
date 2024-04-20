@@ -78,11 +78,6 @@ namespace Odin.Core.Time
             _milliseconds = dto.ToUnixTimeMilliseconds();
         }
 
-        public UnixTimeUtc Clone()
-        {
-            return new UnixTimeUtc(_milliseconds);
-        }
-
         // Define cast to Int64
         public static implicit operator UnixTimeUtc(Int64 milliseconds)
         {
