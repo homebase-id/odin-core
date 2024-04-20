@@ -216,7 +216,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
+        public int CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
             lock (_outboxLock)
             {
@@ -241,7 +241,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pcancelparam1.Value = checkOutStamp.ToByteArray();
                 _pcancelparam2.Value = nextRunTime.milliseconds;
 
-                _database.ExecuteNonQuery(_popCancelCommand);
+                return _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -251,7 +251,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CompleteAndRemove(Guid checkOutStamp)
+        public int CompleteAndRemove(Guid checkOutStamp)
         {
             lock (_outboxLock)
             {
@@ -270,7 +270,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitparam1.Value = checkOutStamp.ToByteArray();
 
-                _database.ExecuteNonQuery(_popCommitCommand);
+                return _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
 

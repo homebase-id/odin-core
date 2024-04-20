@@ -570,5 +570,71 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
             // That would recover all popped items that have not been committed or cancelled.
         }
+
+
+        /// <summary>
+        /// Todd requested that the Empty guid does nothing
+        /// </summary>
+        [TestCase()]
+        public void EmptyTests()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+
+            var r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
+
+            var n = db.tblOutbox.CheckInAsCancelled(Guid.Empty, UnixTimeUtc.Now().AddSeconds(2));
+            Assert.IsTrue(n == 0);
+
+            n = db.tblOutbox.CompleteAndRemove(Guid.Empty);
+            Assert.IsTrue(n == 0);
+        }
+
+
+        /// <summary>
+        /// Todd requested that non existing guids do nothing
+        /// </summary>
+        [TestCase()]
+        public void NonExistingTests()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var driveId = SequentialGuid.CreateGuid();
+
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+
+            var r1 = db.tblOutbox.CheckOutItem();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
+
+            var n = db.tblOutbox.CheckInAsCancelled(Guid.NewGuid(), UnixTimeUtc.Now().AddSeconds(2));
+            Assert.IsTrue(n == 0);
+
+            n = db.tblOutbox.CompleteAndRemove(Guid.NewGuid());
+            Assert.IsTrue(n == 0);
+        }
     }
 }
