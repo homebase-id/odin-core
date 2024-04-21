@@ -10,7 +10,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetSizeTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CannotInsertZeroSizeTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -145,7 +145,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertRowDuplicateTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -205,7 +205,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void UpdateRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

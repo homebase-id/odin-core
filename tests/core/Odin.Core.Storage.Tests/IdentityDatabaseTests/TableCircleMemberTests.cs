@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -34,7 +34,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             var c1 = Guid.NewGuid();
             using (var myc = db.CreateDisposableConnection())
@@ -64,7 +64,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertEmptyTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -91,7 +91,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertMultipleMembersTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -120,7 +120,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertMultipleCirclesTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -161,7 +161,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void RemoveMembersTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -209,7 +209,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteMembersEmptyTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteMembersTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -275,7 +275,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetMembersCirclesAndDataTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

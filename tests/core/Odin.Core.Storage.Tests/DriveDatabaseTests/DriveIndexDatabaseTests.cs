@@ -25,7 +25,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void FileLineTest()
         {
-            IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             _testDatabase.CreateDatabase(myc);
             _testDatabase = null;
         }*/
@@ -34,7 +34,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsEmpty01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -138,7 +138,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch03Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -203,7 +203,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch04Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -278,7 +278,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch05Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -362,7 +362,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBoundaryTest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -404,7 +404,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsUDBoundaryTest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -444,7 +444,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBoundaryTest02()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -484,7 +484,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsUDBoundaryTest02()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -522,7 +522,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void FileStateTest()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -579,7 +579,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void ArchivalStatusTest()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -659,7 +659,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch06Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -729,7 +729,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsBatch07ExampleTest()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -829,7 +829,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchCursorNewestHasRows01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -865,7 +865,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorNewestHasRows01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -901,7 +901,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchCursorOldestHasRows01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -937,7 +937,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorOldestHasRows01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -973,7 +973,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchCursorNewest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1011,7 +1011,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorNewest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1052,7 +1052,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchCursorOldest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1091,7 +1091,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchUserDateCursorOldest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             var driveId = Guid.NewGuid();
 
             using (var myc = _testDatabase.CreateDisposableConnection())
@@ -1132,7 +1132,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void QueryBatchCursorOldestNewest01()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1164,7 +1164,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TestQueryBatchStartPointGuid()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1216,7 +1216,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TestQueryBatchStartPointTime()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1272,7 +1272,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TestQueryBatchUserDateStartPointTime()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1327,7 +1327,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TestQueryBatchStopBoundaryGuid()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1389,7 +1389,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void TestQueryBatchStopBoundaryTime()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1455,7 +1455,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsModified01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1497,7 +1497,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void CursorsModified02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1544,7 +1544,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void RequiredSecurityGroupBatch01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1608,7 +1608,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void RequiredSecurityGroupModified02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1676,7 +1676,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void SecurityGroupAndAclBatch01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1754,7 +1754,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void SecurityGroupAndAclBatch02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -1901,7 +1901,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void SecurityGroupAndAclBatch02ModifiedTest()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2061,7 +2061,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add one and retrieve it
         public void GlobalTransitId01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2090,7 +2090,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add two and retrieve them
         public void GlobalTransitId02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2126,7 +2126,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test that we cannot add a duplicate
         public void GlobalTransitId03Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2157,7 +2157,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can handle NULL
         public void GlobalTransitId04Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2186,7 +2186,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void GlobalTransitId05Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2225,7 +2225,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void GlobalTransitId06Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2261,7 +2261,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add one and retrieve it
         public void UniqueId01Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2290,7 +2290,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add two and retrieve them
         public void UniqueId02Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2326,7 +2326,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test that we cannot add a duplicate
         public void UniqueId03Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2357,7 +2357,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can handle NULL
         public void UniqueId04Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2386,7 +2386,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void UniqueId05Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2425,7 +2425,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void UniqueId06Test()
         {
-            using IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            using IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -2715,7 +2715,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             Utils.DummyTypes(aclMembers, 1000);
             Utils.DummyTypes(tags, 1000);
 
-            IdentityDatabase _testDatabase = new IdentityDatabase($"");
+            IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
 
             var myc = _testDatabase.CreateDisposableConnection();
             {

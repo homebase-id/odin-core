@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertValidConnectionTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -102,7 +102,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteValidConnectionTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase(myc);
@@ -134,7 +134,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void PagingByCreatedBothTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -204,7 +204,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetConnectionsValidConnectionsTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

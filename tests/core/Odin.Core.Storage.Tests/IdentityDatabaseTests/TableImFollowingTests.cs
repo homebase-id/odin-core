@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertValidFollowerTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -97,7 +97,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertInvalidFollowerTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -140,7 +140,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteFollowerTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -171,7 +171,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteFollowerDriveTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -212,7 +212,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersInvalidTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -236,7 +236,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetFollowersPagedTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -321,7 +321,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetAllFollowersPagedTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

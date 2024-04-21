@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertGetTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -34,7 +34,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertPageTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

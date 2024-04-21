@@ -42,7 +42,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase($"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -96,7 +96,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase($"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase($"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             var driveId = Guid.NewGuid();
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
@@ -208,7 +208,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
-            using var _testDatabase = new IdentityDatabase($"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -299,7 +299,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase($"mydatabase.db");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"mydatabase.db");
 
             using (var myc = _testDatabase.CreateDisposableConnection())
             {

@@ -15,7 +15,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertCannotInsertDuplicateIdForSameRecipient()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -86,7 +86,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertCanInsertDuplicateIdForTwoRecipients()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -114,7 +114,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void GetByTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -139,7 +139,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PriorityTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void NextRunTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -316,7 +316,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void DependencyTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -384,7 +384,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -433,7 +433,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -464,7 +464,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void NextRunTest2()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -501,7 +501,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -548,7 +548,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

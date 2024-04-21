@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read two aclmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same aclmember key twice on the same key
         public void InsertDuplicateAclMemberTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -122,7 +122,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert the same aclmember on two different keys
         public void InsertDoubleAclMemberTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -183,7 +183,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

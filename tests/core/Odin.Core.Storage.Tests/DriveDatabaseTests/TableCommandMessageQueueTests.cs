@@ -13,7 +13,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Usage example
         public void ExampleUsageTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -107,7 +107,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -151,7 +151,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -185,7 +185,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -217,7 +217,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

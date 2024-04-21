@@ -20,7 +20,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void MemoryDatabaseDualConnectionTest()
         {
-            using var db = new IdentityDatabase(":memory:");
+            using var db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void DualConnectionPreparedStatementTest()
         {
-            using var db = new IdentityDatabase("disco");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "disco");
 
             var k1 = Guid.NewGuid().ToByteArray();
             var k2 = Guid.NewGuid().ToByteArray();

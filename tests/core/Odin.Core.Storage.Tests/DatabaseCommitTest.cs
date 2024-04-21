@@ -15,7 +15,7 @@ namespace Odin.Core.Storage.Tests
         public void LogicCommitUnit1Test()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
                 Debug.Assert(myc._counter.ReadyToCommit() == true);
@@ -48,7 +48,7 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public async Task LogicCommitUnit1TestWithMultipleTasks()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
             var tasks = new List<Task>();
 
             for (int i = 0; i < 10; i++)
@@ -94,7 +94,7 @@ namespace Odin.Core.Storage.Tests
         public void Test4()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase(myc);
@@ -122,7 +122,7 @@ namespace Odin.Core.Storage.Tests
         public void Test5()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
             using (var myc = db.CreateDisposableConnection())
             {
                 db.CreateDatabase(myc);

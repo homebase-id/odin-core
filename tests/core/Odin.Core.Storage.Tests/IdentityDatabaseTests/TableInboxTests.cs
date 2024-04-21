@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -53,7 +53,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -160,7 +160,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -206,7 +206,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCommitListTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -289,7 +289,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopCancelListTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -333,7 +333,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -373,7 +373,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void DualBoxTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -439,7 +439,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {

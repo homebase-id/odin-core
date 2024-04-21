@@ -10,7 +10,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {   
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             var c1 = SequentialGuid.CreateGuid();
             var d1 = Guid.NewGuid().ToByteArray();

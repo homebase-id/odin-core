@@ -64,12 +64,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         public readonly TableConnections tblConnections = null;
         public readonly TableAppNotifications tblAppNotificationsTable = null;
 
+        // Other
+        private readonly Guid _identityId;
         public readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
 
-        public IdentityDatabase(string databasePath, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(databasePath)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="identityId">The unique GUID representing an Identity</param>
+        /// <param name="databasePath">The path to the database file</param>
+        /// <param name="file">Leave default</param>
+        /// <param name="line">Leave default</param>
+        public IdentityDatabase(Guid identityId, string databasePath, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(databasePath)
         {
+            if (identityId == Guid.Empty)
+                throw new ArgumentException("identityId cannot be Empty Guid");
+
             // Drive
             tblDriveMainIndex = new TableDriveMainIndex(this, _cache);
             tblDriveAclIndex = new TableDriveAclIndex(this, _cache);
@@ -94,6 +106,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             _file = file;
             _line = line;
+            _identityId = identityId;
         }
 
 

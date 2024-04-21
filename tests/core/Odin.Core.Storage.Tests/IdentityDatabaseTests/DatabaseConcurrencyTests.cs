@@ -14,7 +14,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase("");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     db.tblKeyValue.Get(myc, Rows[i]);
             }
 
-            using var db = new IdentityDatabase(""); // 1ms commit frequency
+            using var db = new IdentityDatabase(Guid.NewGuid(), ""); // 1ms commit frequency
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -119,7 +119,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 }
             }
 
-            using var db = new IdentityDatabase(""); // 1ms commit frequency
+            using var db = new IdentityDatabase(Guid.NewGuid(), ""); // 1ms commit frequency
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -149,14 +149,14 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test, Explicit]
         public void TwoInstanceLockingTest()
         {
-            using var db1 = new IdentityDatabase("DataSource=mansi.db");
+            using var db1 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");
 
             using (var myc = db1.CreateDisposableConnection())
             {
                 db1.CreateDatabase(myc);
                 try
                 {
-                    using var db2 = new IdentityDatabase("DataSource=mansi.db");
+                    using var db2 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");
                     Assert.Fail("It's supposed to do a database lock");
                 }
                 catch (Exception ex)
