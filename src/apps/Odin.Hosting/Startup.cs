@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -47,18 +48,11 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Hosting
 {
-    public class Startup
+    public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
-        private IConfiguration Configuration { get; }
-
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
         public void ConfigureServices(IServiceCollection services)
         {
-            var config = new OdinConfiguration(Configuration);
+            var config = new OdinConfiguration(configuration);
             services.AddSingleton(config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
@@ -270,7 +264,6 @@ namespace Odin.Hosting
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
-            var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
 
             // Note 1: see NotificationSocketController
             // Note 2: UseWebSockets must be before UseLoggingMiddleware
@@ -455,9 +448,28 @@ namespace Odin.Hosting
 
             lifetime.ApplicationStarted.Register(() =>
             {
+                var services = app.ApplicationServices;
+                var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
-                var services = app.ApplicationServices;
+                // SEB:TODO delete this when all outboxes are recreated
+                if (args.Contains("--recreate-outbox-table"))
+                {
+                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
+                    var identities = registry.GetList().Result;
+                    foreach (var identity in identities.Results)
+                    {
+                        var tenantScope = tenantContainer.GetTenantScope(identity.PrimaryDomainName);
+                        var storage = tenantScope.Resolve<TenantSystemStorage>();
+                        if (storage == null)
+                        {
+                            throw new OdinSystemException("Could not resolve TenantSystemStorage");
+                        }
+                        logger.LogWarning("Updating tblOutbox on {identity}", identity.PrimaryDomainName);
+                        storage.IdentityDatabase.tblOutbox.EnsureTableExists(true);
+                    }
+                }
+
                 if (config.Job.Enabled)
                 {
                     var jobManager = services.GetRequiredService<IJobManager>();
