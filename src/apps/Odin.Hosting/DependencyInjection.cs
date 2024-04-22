@@ -83,6 +83,7 @@ namespace Odin.Hosting
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
+                .As<INotificationHandler<AppNotificationAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

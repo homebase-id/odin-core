@@ -36,7 +36,7 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
 
         _storage.Insert(record);
 
-        await mediator.Publish(new AppNotificationAdded(request.AppNotificationOptions.TypeId)
+        await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
             Id = id,
             SenderId = senderId,

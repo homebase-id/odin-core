@@ -7,7 +7,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Mediator;
 
-public class AppNotificationAdded(Guid typeId) : MediatorNotificationBase, IClientNotification
+public class AppNotificationAddedNotification(Guid typeId) : MediatorNotificationBase, IClientNotification
 {
     public Guid Id { get; set; }
     public OdinId SenderId { get; set; }
