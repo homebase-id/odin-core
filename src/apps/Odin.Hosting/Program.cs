@@ -196,7 +196,7 @@ namespace Odin.Hosting
                                     options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
                         })
-                        .UseStartup<Startup>();
+                        .UseStartup(context => new Startup(context.Configuration, args));
                 });
 
             return builder;
