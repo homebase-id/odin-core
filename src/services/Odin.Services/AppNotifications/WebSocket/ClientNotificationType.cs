@@ -20,6 +20,7 @@ public enum ClientNotificationType
     ReactionContentAdded = 2003,
     ReactionContentDeleted = 2004,
     AllReactionsByFileDeleted = 2005,
+    AppNotificationAdded = 3001,
 
-    Error = 0xBADBEEF
+    Error = 0xBADBEEF,
 }
