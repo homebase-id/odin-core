@@ -24,14 +24,6 @@ namespace Odin.Core.Util
             DomainName = punyDomainName.ToLower();
         }
 
-        public AsciiDomainName Clone()
-        {
-            return new AsciiDomainName
-            {
-                DomainName = DomainName
-            };
-        }
-
         // Get the IDN representation of the puny domain
         public string ToIDN()
         {

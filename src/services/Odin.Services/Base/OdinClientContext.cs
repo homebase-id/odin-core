@@ -18,15 +18,4 @@ public class OdinClientContext
     public Guid? DevicePushNotificationKey { get; init; }
 
     public string ClientIdOrDomain { get; set; }
-
-    public OdinClientContext Clone()
-    {
-        return new OdinClientContext
-        {
-            CorsHostName = CorsHostName,
-            AccessRegistrationId = AccessRegistrationId?.Clone(),
-            DevicePushNotificationKey = DevicePushNotificationKey,
-            ClientIdOrDomain = ClientIdOrDomain
-        };
-    }
 }

@@ -41,17 +41,6 @@ namespace Odin.Core.Identity
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
-        public OdinId(OdinId other)
-        {
-            _domainName = other._domainName.Clone();
-            _hash = other._hash;
-        }
-
-        public OdinId Clone()
-        {
-            return new OdinId(this);
-        }
-
         public bool HasValue()
         {
             return this._hash != Guid.Empty;
