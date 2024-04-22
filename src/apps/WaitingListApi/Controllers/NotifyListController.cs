@@ -1,21 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
-using Serilog;
 using WaitingListApi.Data;
 
 namespace WaitingListApi.Controllers;
 
 [ApiController]
 [Route("api/notify")]
-public class NotifyListController : ControllerBase
+public class NotifyListController(WaitingListStorage storage, ILogger<NotifyListController> logger) : ControllerBase
 {
-    private readonly WaitingListStorage _storage;
-
-    public NotifyListController(WaitingListStorage storage)
-    {
-        _storage = storage;
-    }
-
     [HttpPost("add")]
     public IActionResult AddNotificationInfo([FromBody] NotificationInfo info)
     {
@@ -26,8 +18,8 @@ public class NotifyListController : ControllerBase
 
         try
         {
-            _storage.Insert(info);
-            Log.Information("Added email address to the list");
+            storage.Insert(info);
+            logger.LogInformation("Added email address to the list");
         }
         catch (SqliteException sqliteException)
         {
