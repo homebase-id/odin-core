@@ -300,10 +300,12 @@ public class PushNotificationService(
 
         //add to system list
         await notificationListService.AddNotificationInternal(senderId, new AddNotificationRequest()
-        {
-            Timestamp = timestamp,
-            AppNotificationOptions = options
-        });
+            {
+                Timestamp = timestamp,
+                AppNotificationOptions = options,
+            },
+            odinContext
+        );
 
 
         await _pushNotificationOutbox.Add(item, odinContext);

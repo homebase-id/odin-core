@@ -18,7 +18,6 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
-using Serilog;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -332,7 +331,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var regFilePath = GetRegFilePath(registration.Id);
         await File.WriteAllTextAsync(regFilePath, json);
 
-        Log.Information($"Write registration file for [{registration.Id}]");
+        _logger.LogInformation("Write registration file for [{registrationId}]", registration.Id);
 
         Cache(registration);
     }
@@ -420,25 +419,24 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 var potentialId = path.Split(Path.DirectorySeparatorChar).Last();
                 if (!Guid.TryParse(potentialId, out var id))
                 {
-                    Log.Warning($"Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next");
+                    _logger.LogWarning(
+                        "Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next", potentialId);
                     continue;
                 }
 
                 var registration = LoadRegistration(id);
-                if (null == registration)
+                if (registration == null)
                 {
-                    Log.Warning($"Identity Registry: could not find reg file for Id: [{id.ToString()}]; moving to next");
+                    _logger.LogWarning("Identity Registry: could not find reg file for Id: [{id}]; moving to next", id.ToString());
                     continue;
                 }
 
+                _logger.LogInformation("Loaded Identity {identity}", registration.PrimaryDomainName);
                 Cache(registration);
             }
             catch (Exception e)
             {
-                //TODO: log as startup error with details.
-                string message = $"Identity Registry: Failed to load identity at path [{dir}]";
-                Log.Error(e, message);
-                continue;
+                _logger.LogError(e, "Identity Registry: Failed to load identity at path {dir}", dir);
             }
         }
     }
@@ -494,13 +492,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         catch (TaskCanceledException)
         {
-            Log.Warning("InitializeCertificate took too long to complete and the http request was cancelled");
+            _logger.LogWarning("InitializeCertificate took too long to complete and the http request was cancelled");
         }
         catch (HttpRequestException e)
         {
             // This can happen if a new identity gets created, but the DNS server the backed uses does not yet
             // know the domain
-            Log.Warning("InitializeCertificate: {error}. Will retry on next request to the domain.", e.Message);
+            _logger.LogWarning("InitializeCertificate: {error}. Will retry on next request to the domain.", e.Message);
         }
     }
 

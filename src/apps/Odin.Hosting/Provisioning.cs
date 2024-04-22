@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
 
 namespace Odin.Hosting;
 
@@ -25,7 +24,7 @@ public static class Provisioning
         
         if (env.IsDevelopment())
         {
-            Log.Information("using development route for provisioning");
+            logger.LogInformation("using development route for provisioning");
             provApp.UseSwagger();
             provApp.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Provisioning Api v1"));
             provApp.MapWhen(ctx => true,
