@@ -455,7 +455,7 @@ namespace Odin.Hosting
 
             lifetime.ApplicationStarted.Register(() =>
             {
-                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
+                DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
                 var services = app.ApplicationServices;
                 if (config.Job.Enabled)
