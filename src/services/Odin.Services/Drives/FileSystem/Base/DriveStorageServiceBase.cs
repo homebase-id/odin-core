@@ -51,7 +51,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var result = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, odinContext);
+            var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
             return result;
         }
 
@@ -750,7 +750,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext),
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
                     OdinContext = odinContext
                 });
             }
@@ -855,7 +855,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, odinContext),
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
                     OdinContext = odinContext
                 });
             }
@@ -953,7 +953,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     IsHardDelete = false,
                     File = file,
                     ServerFileHeader = deletedServerFileHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, odinContext),
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(deletedServerFileHeader, odinContext),
                     OdinContext = odinContext
                 });
             }

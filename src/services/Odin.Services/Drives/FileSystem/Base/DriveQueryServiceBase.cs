@@ -226,7 +226,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
                     if (shouldReceiveFile)
                     {
-                        var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(
+                        var header = DriveFileUtility.CreateClientFileHeader(
                             serverFileHeader,
                             odinContext,
                             forceIncludeServerMetadata);
