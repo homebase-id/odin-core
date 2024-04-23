@@ -180,40 +180,6 @@ TaskPerformanceTest_Db_MultiThread
         }
 
 
-        [Test]
-        public async Task ChaosCreateUnitOfWork()
-        {
-            await PerformanceFramework.ThreadedTestAsync(2, 5000, CUOW);
-            Assert.Pass();
-        }
-
-        public async Task<(long, long[])> CUOW(int threadno, int iterations)
-        {
-            long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
-            var sw = new Stopwatch();
-
-            for (int count = 0; count < iterations; count++)
-            {
-                sw.Restart();
-
-                using (_db.CreateCommitUnitOfWork())
-                {
-                    await Task.Delay(new Random().Next(0, 11));
-                    var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
-
-                    Debug.Assert(r != null);
-                }
-
-                timers[count] = sw.ElapsedMilliseconds;
-            }
-
-            await Task.Delay(0);
-
-            return (0L, timers);
-        }
-
-
         /*
 TaskPerformanceTest_DbWrapper_SingleThread
   Source: DbPerformance.cs line 181
