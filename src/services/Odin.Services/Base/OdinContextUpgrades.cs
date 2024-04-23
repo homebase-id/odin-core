@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Force.DeepCloner;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Acl;
@@ -14,24 +13,26 @@ public static class OdinContextUpgrades
 {
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
-        var patchedContext = odinContext.DeepClone();
+        // var patchedContext = odinContext.DeepClone();
+        var patchedContext = odinContext;
         //Note TryAdd because this might have already been added when multiple files are coming in
         patchedContext.PermissionsContext.PermissionGroups.TryAdd("send_notifications_for_peer_transfer",
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.SendPushNotifications }),
-                new List<DriveGrant>() { }, null, null));
+                new PermissionSet([PermissionKeys.SendPushNotifications]),
+                new List<DriveGrant>(), null, null));
 
         return patchedContext;
     }
 
     public static IOdinContext PatchInIcrKey(
-        IOdinContext context,
+        IOdinContext odinContext,
         Guid feedDriveId,
         SensitiveByteArray keyStoreKey,
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        var patchedContext = context.DeepClone();
+        // var patchedContext = odinContext.DeepClone();
+        var patchedContext = odinContext;
 
         //
         // Upgrade access briefly to perform functions
@@ -60,7 +61,9 @@ public static class OdinContextUpgrades
 
     public static IOdinContext UpgradeToReadFollowersForDistribution(IOdinContext odinContext)
     {
-        var patchedContext = odinContext.DeepClone();
+        // var patchedContext = odinContext.DeepClone();
+        var patchedContext = odinContext;
+
         //
         // Upgrade access briefly to perform functions
         //
@@ -70,8 +73,8 @@ public static class OdinContextUpgrades
 
         patchedContext.PermissionsContext.PermissionGroups.TryAdd("read_followers_only_for_distribution",
             new PermissionGroup(
-                new PermissionSet(new[] { PermissionKeys.ReadMyFollowers }),
-                new List<DriveGrant>() { }, null, null));
+                new PermissionSet([PermissionKeys.ReadMyFollowers]),
+                new List<DriveGrant>(), null, null));
 
         return patchedContext;
     }
