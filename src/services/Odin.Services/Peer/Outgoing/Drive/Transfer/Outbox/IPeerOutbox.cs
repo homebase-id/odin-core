@@ -15,8 +15,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        /// <param name="item"></param>
-        Task Add(OutboxItem item);
+        Task Add(OutboxItem item, bool useUpsert = false);
 
         Task Add(IEnumerable<OutboxItem> items);
 

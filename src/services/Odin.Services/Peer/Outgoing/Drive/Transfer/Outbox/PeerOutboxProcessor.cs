@@ -37,10 +37,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             foreach (var item in items)
             {
                 var result = await ProcessItem(item, odinContext);
+                results.Add(result);
                 if (result.TransferResult != TransferResult.Success)
                 {
                     //enqueue into the outbox since it was never added before
-                    await peerOutbox.Add(item);
+                    await peerOutbox.Add(item, useUpsert: true); //useUpsert just in-case
                 }
             }
 

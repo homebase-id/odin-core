@@ -20,8 +20,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        /// <param name="item"></param>
-        public Task Add(OutboxItem item)
+        public Task Add(OutboxItem item, bool useUpsert = false)
         {
             var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
@@ -33,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
 
-            tenantSystemStorage.Outbox.Insert(new OutboxRecord()
+            var record = new OutboxRecord()
             {
                 driveId = item.File.DriveId,
                 recipient = item.Recipient,
@@ -41,7 +40,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 type = (int)OutboxItemType.File,
                 priority = item.Priority,
                 value = state
-            });
+            };
+            if (useUpsert)
+            {
+                tenantSystemStorage.Outbox.Upsert(record);
+
+            }
+            else
+            {
+                tenantSystemStorage.Outbox.Insert(record);
+            }
 
             var sender = tenantContext.HostOdinId;
             serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray(), UnixTimeUtc.Now());
