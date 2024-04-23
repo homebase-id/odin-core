@@ -23,9 +23,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <param name="item"></param>
         public Task Add(OutboxItem item)
         {
-            //TODO: change to use batching inserts
-
-            //TODO: value should also include transfer attempts, etc.
             var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
                 Recipient = item.Recipient,
@@ -35,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 OriginalTransitOptions = item.OriginalTransitOptions,
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
-
+            
             tenantSystemStorage.Outbox.Insert(new OutboxRecord()
             {
                 driveId = item.File.DriveId,

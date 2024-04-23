@@ -43,7 +43,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await Task.WhenAll(sendFileTasks);
 
             var filesForDeletion = new List<OutboxItem>();
-            sendFileTasks.ForEach(task =>
+        
+            sendFileTasks.ForEach(task => 
             {
                 var sendResult = task.Result;
                 results.Add(sendResult);
@@ -63,7 +64,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     peerOutbox.MarkFailure(sendResult.OutboxItem.Marker, nextRun);
                 }
             });
-
+                
+            //
+            // TODO: Here i need to see if the file is ready to be deleted; it might be stuck in the outbox.
+            //
+            
             //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
             foreach (var item in filesForDeletion)
             {
