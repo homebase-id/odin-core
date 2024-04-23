@@ -128,7 +128,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         return; // hangup!
                     }
 
-                    SocketCommand command = null;
+                    SocketCommand command;
                     var errorText = "Error deserializing socket command";
                     try
                     {
@@ -176,7 +176,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             var json = OdinSystemSerializer.Serialize(new
             {
-                NotificationType = notification.NotificationType,
+                notification.NotificationType,
                 Data = notification.GetClientData()
             });
 
@@ -191,21 +191,35 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var odinContext = notification.OdinContext;
-            var hasSharedSecret = null != odinContext.PermissionsContext.SharedSecretKey;
+            var sockets = _deviceSocketCollection.GetAll().Values
+                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
-            var data = OdinSystemSerializer.Serialize(new
+            foreach (var deviceSocket in sockets)
             {
-                TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
-                Header = hasSharedSecret
-                    ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, odinContext)
-                    : null
-            });
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    var deviceOdinContext = deviceSocket.DeviceOdinContext;
+                    var hasSharedSecret = null != deviceOdinContext.PermissionsContext.SharedSecretKey;
 
-            var translated = new TranslatedClientNotification(notification.NotificationType, data);
-            await SerializeSendToAllDevicesForDrive(notification.File.DriveId, translated, cancellationToken);
+                    var data = OdinSystemSerializer.Serialize(new
+                    {
+                        TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
+                        Header = hasSharedSecret
+                            ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
+                            : null
+                    });
+
+                    var translated = new TranslatedClientNotification(notification.NotificationType, data);
+                    var json = OdinSystemSerializer.Serialize(new
+                    {
+                        notification.NotificationType,
+                        Data = translated.GetClientData()
+                    });
+
+                    await SendMessageAsync(deviceSocket, json, cancellationToken);
+                }
+            }
         }
-
         //
 
         public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
@@ -215,8 +229,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                 OdinSystemSerializer.Serialize(new
                 {
                     ExternalFileIdentifier = notification.TempFile,
-                    TransferFileType = notification.TransferFileType,
-                    FileSystemType = notification.FileSystemType
+                    notification.TransferFileType,
+                    notification.FileSystemType
                 }));
 
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
@@ -232,7 +246,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var json = OdinSystemSerializer.Serialize(new
             {
-                NotificationType = notification.NotificationType,
+                notification.NotificationType,
                 Data = notification.GetClientData()
             });
 
@@ -335,7 +349,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         }
 
                         deviceSocket.SharedSecretKey = odinContext.PermissionsContext.SharedSecretKey;
-                        deviceSocket.DeviceAuthToken = null; //TODO: where is the best place to get the cookie?
+                        deviceSocket.DeviceOdinContext = odinContext; //TODO: clone this
                         deviceSocket.Drives = drives;
                     }
                     catch (OdinSecurityException e)

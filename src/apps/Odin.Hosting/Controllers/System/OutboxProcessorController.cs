@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.System
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
         {
-            await outboxProcessor.StartOutboxProcessingAsync(WebOdinContext);
+            await outboxProcessor.StartOutboxProcessing(WebOdinContext);
             return true;
         }
 

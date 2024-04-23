@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver)
     {
-        public async Task StartOutboxProcessingAsync(IOdinContext odinContext)
+        public async Task StartOutboxProcessing(IOdinContext odinContext)
         {
             var item = await peerOutbox.GetNextItem();
 
@@ -33,9 +33,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext)
         {
             var sendFileTasks = new List<Task<OutboxProcessingResult>>();
