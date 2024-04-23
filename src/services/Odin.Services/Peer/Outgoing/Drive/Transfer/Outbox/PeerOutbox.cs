@@ -41,6 +41,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 driveId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,
+                type = (int)OutboxItemType.File,
                 priority = item.Priority,
                 value = state
             });

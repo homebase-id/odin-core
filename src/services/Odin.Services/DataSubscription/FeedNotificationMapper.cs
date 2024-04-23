@@ -106,12 +106,12 @@ namespace Odin.Services.DataSubscription
             var odinContext = notification.OdinContext;
             using (new UpgradeToPeerTransferSecurityContext(odinContext))
             {
-                await pushNotificationService.EnqueueNotification(notification.OdinId,
+                await pushNotificationService.EnqueueNotification(notification.Sender,
                     new AppNotificationOptions()
                     {
                         AppId = SystemAppConstants.OwnerAppId,
                         TypeId = notification.NotificationTypeId,
-                        TagId = notification.OdinId.ToHashId(),
+                        TagId = notification.Sender.ToHashId(),
                         Silent = false
                     }, odinContext);
             }

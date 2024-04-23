@@ -23,10 +23,11 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
         var recipient = odinContext.Tenant;
         var fileId = record.Options.TagId;
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
-
+        
         tenantSystemStorage.Outbox.Insert(new OutboxRecord()
         {
-            driveId = _notificationBoxId,
+            // driveId = _notificationBoxId,
+            driveId = Guid.NewGuid(),
             recipient = recipient,
             fileId = fileId,
             priority = 0, //super high priority to ensure these are sent quickly

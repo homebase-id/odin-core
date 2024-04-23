@@ -27,7 +27,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             while (item != null)
             {
-                _ = this.ProcessItem(item, odinContext);
+                // _ = this.ProcessItem(item, odinContext);
+                await this.ProcessItem(item, odinContext);
                 item = await peerOutbox.GetNextItem();
             }
         }
