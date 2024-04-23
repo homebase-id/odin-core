@@ -32,10 +32,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         Task<OutboxItem> GetNextItem();
 
         /// <summary>
-        /// Removes the outbox item for the given recipient and file
+        /// Checks if this outbox item exists and is of type OutboxItemType.File
         /// </summary>
-        /// <returns></returns>
-        Task Remove(OdinId recipient, InternalDriveFileId file);
-
+        Task<bool> HasOutboxFileItem(OutboxItem arg);
     }
 }

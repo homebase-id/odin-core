@@ -16,15 +16,14 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
 
-namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 
 public class SendFileOutboxWorker(
     OutboxItem item,
-    IDriveFileSystem fileSystem,
+    FileSystemResolver fileSystemResolver,
     ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox,
     OdinConfiguration odinConfiguration,
@@ -37,7 +36,37 @@ public class SendFileOutboxWorker(
             var result = await SendOutboxFileItemAsync(item, odinContext);
             logger.LogDebug("Send file item RecipientPeerResponseCode: {d}", result.RecipientPeerResponseCode);
 
-            await peerOutbox.MarkComplete(item.Marker);
+            // Try to clean up the transient file
+            if (result.TransferResult == TransferResult.Success)
+            {
+                await peerOutbox.MarkComplete(item.Marker);
+
+                if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item))
+                {
+                    var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                    await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
+                }
+            }
+            else
+            {
+                switch (result.TransferResult)
+                {
+                    case TransferResult.RecipientServerReturnedAccessDenied:
+                    case TransferResult.UnknownError:
+                    case TransferResult.EncryptedTransferInstructionSetNotAvailable:
+                    case TransferResult.FileDoesNotAllowDistribution:
+                    case TransferResult.RecipientDoesNotHavePermissionToFileAcl:
+                        await peerOutbox.MarkComplete(item.Marker);
+                        break;
+
+                    case TransferResult.RecipientServerNotResponding:
+                    case TransferResult.RecipientServerError:
+                        var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
+                        await peerOutbox.MarkFailure(item.Marker, nextRun);
+                        break;
+                }
+            }
+
             return result;
         }
         catch (OdinOutboxProcessingException)
@@ -58,6 +87,8 @@ public class SendFileOutboxWorker(
         OdinId recipient = outboxItem.Recipient;
         var file = outboxItem.File;
         var options = outboxItem.OriginalTransitOptions;
+
+        var fileSystem = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
 
         var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext);
 

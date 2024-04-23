@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 OriginalTransitOptions = item.OriginalTransitOptions,
                 EncryptedClientAuthToken = item.EncryptedClientAuthToken
             }).ToUtf8ByteArray();
-            
+
             tenantSystemStorage.Outbox.Insert(new OutboxRecord()
             {
                 driveId = item.File.DriveId,
@@ -111,11 +111,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             return await Task.FromResult(item);
         }
-        
-        public Task Remove(OdinId recipient, InternalDriveFileId file)
+
+        public Task<bool> HasOutboxFileItem(OutboxItem item)
         {
-            //TODO: need to make a better queue here
-            throw new NotImplementedException("Sqllite outbox needs ability to query by recipient");
+            var record = tenantSystemStorage.Outbox.Get(item.File.FileId, item.File.DriveId);
+            var hasRecord = record.Any(r => r.type == (int)OutboxItemType.File);
+            return Task.FromResult(hasRecord);
         }
     }
 }
