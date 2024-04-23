@@ -448,7 +448,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             //since i have the icr key, i could create a client and make a request across the wire to pull
 
-            var patchedContext = FeedDriveSynchronizerSecurityContext.PatchInIcrKey(
+            var patchedContext = OdinContextUpgrades.PatchInIcrKey(
                 odinContext,
                 feedDriveId.GetValueOrDefault(),
                 tempKey,

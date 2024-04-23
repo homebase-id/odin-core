@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
@@ -12,7 +11,7 @@ namespace Odin.Services.Base
 {
     public class PermissionContext
     {
-        private readonly bool _isSystem = false;
+        private readonly bool _isSystem ;
         public SensitiveByteArray SharedSecretKey { get; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 

@@ -41,17 +41,15 @@ namespace Odin.Services.DataSubscription
                 if (sender != tenantContext.HostOdinId)
                 {
                     var odinContext = notification.OdinContext;
-                    using (new UpgradeToPeerTransferSecurityContext(odinContext))
-                    {
-                        await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                            {
-                                AppId = SystemAppConstants.FeedAppId,
-                                TypeId = notification.NotificationTypeId,
-                                TagId = sender.ToHashId(),
-                                Silent = false,
-                            },
-                            odinContext);
-                    }
+                    var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                    await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                        {
+                            AppId = SystemAppConstants.FeedAppId,
+                            TypeId = notification.NotificationTypeId,
+                            TagId = sender.ToHashId(),
+                            Silent = false,
+                        },
+                        newContext);
                 }
             }
         }
@@ -60,16 +58,15 @@ namespace Odin.Services.DataSubscription
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
             var odinContext = notification.OdinContext;
-            using (new UpgradeToPeerTransferSecurityContext(odinContext))
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+
+            await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
-                await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = typeId,
-                    TagId = notification.Sender.ToHashId(),
-                    Silent = false,
-                }, odinContext);
-            }
+                AppId = SystemAppConstants.FeedAppId,
+                TypeId = typeId,
+                TagId = notification.Sender.ToHashId(),
+                Silent = false,
+            }, newContext);
         }
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
@@ -87,34 +84,30 @@ namespace Odin.Services.DataSubscription
                 && sender != tenantContext.HostOdinId)
             {
                 var odinContext = notification.OdinContext;
-                using (new UpgradeToPeerTransferSecurityContext(odinContext))
-                {
-                    await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                        {
-                            AppId = SystemAppConstants.FeedAppId,
-                            TypeId = CommentNotificationTypeId,
-                            TagId = sender.ToHashId(),
-                            Silent = false,
-                        },
-                        odinContext);
-                }
+                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = sender.ToHashId(),
+                        Silent = false,
+                    },
+                    newContext);
             }
         }
 
         public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
-            var odinContext = notification.OdinContext;
-            using (new UpgradeToPeerTransferSecurityContext(odinContext))
-            {
-                await pushNotificationService.EnqueueNotification(notification.Sender,
-                    new AppNotificationOptions()
-                    {
-                        AppId = SystemAppConstants.OwnerAppId,
-                        TypeId = notification.NotificationTypeId,
-                        TagId = notification.Sender.ToHashId(),
-                        Silent = false
-                    }, odinContext);
-            }
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext);
+            await pushNotificationService.EnqueueNotification(notification.Sender,
+                new AppNotificationOptions()
+                {
+                    AppId = SystemAppConstants.OwnerAppId,
+                    TypeId = notification.NotificationTypeId,
+                    TagId = notification.Sender.ToHashId(),
+                    Silent = false
+                },
+                newContext);
         }
 
         private async Task<bool> IsFeedDriveRelated(Guid driveId)

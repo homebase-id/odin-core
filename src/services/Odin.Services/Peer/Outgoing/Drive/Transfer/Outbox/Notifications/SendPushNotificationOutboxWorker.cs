@@ -23,12 +23,11 @@ public class SendPushNotificationOutboxWorker(
     {
         try
         {
-            //TODO: change to odinContext.Clone()
-            using (new UpgradeToPeerTransferSecurityContext(odinContext))
-            {
-                var results = await this.PushItem(odinContext);
-                await peerOutbox.MarkComplete(item.Marker);
-            }
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+            var results = await this.PushItem(newContext);
+            await peerOutbox.MarkComplete(item.Marker);
+
+            return results;
         }
         catch (OdinOutboxProcessingException)
         {
@@ -72,7 +71,7 @@ public class SendPushNotificationOutboxWorker(
         {
             logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
         }
-        
+
         await pushNotificationService.Push(pushContent, odinContext);
 
         return new OutboxProcessingResult

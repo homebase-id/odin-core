@@ -85,10 +85,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (null != notificationOptions)
                     {
                         var senderId = odinContext.GetCallerOdinIdOrFail();
-                        using (new UpgradeToPeerTransferSecurityContext(odinContext))
-                        {
-                            await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, odinContext);
-                        }
+                        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);
                     }
                 }
 
