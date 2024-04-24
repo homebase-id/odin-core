@@ -273,6 +273,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _get0Command?.Dispose();
             _get0Command = null;
             _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)

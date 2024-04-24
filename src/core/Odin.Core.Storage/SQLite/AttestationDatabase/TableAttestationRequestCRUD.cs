@@ -101,6 +101,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _getPaging1Command?.Dispose();
             _getPaging1Command = null;
             _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
