@@ -15,27 +15,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        /// <param name="item"></param>
-        Task Add(TransitOutboxItem item);
+        Task Add(OutboxItem item, bool useUpsert = false);
 
-        Task Add(IEnumerable<TransitOutboxItem> items);
+        Task Add(IEnumerable<OutboxItem> items);
 
         Task MarkComplete(Guid marker);
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        Task MarkFailure(Guid marker, TransferResult reason);
+        Task MarkFailure(Guid marker, UnixTimeUtc nextRun);
 
         Task RecoverDead(UnixTimeUtc time);
 
-        Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize);
+        Task<OutboxItem> GetNextItem();
 
         /// <summary>
-        /// Removes the outbox item for the given recipient and file
+        /// Checks if this outbox item exists and is of type OutboxItemType.File
         /// </summary>
-        /// <returns></returns>
-        Task Remove(OdinId recipient, InternalDriveFileId file);
+        Task<bool> HasOutboxFileItem(OutboxItem arg);
 
+        Task<OutboxStatus> GetOutboxStatus(Guid driveId);
     }
 }

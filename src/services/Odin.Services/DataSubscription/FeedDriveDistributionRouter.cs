@@ -15,7 +15,6 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Services.DataSubscription.ReceivingHost;
 using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -126,17 +125,16 @@ namespace Odin.Services.DataSubscription
                 FeedDistroType = FeedDistroType.FileMetadata
             };
 
-            var odinContext = notification.OdinContext;
-            using (new FeedDriveDistributionSecurityContext(ref odinContext))
+
+            var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(notification.OdinContext);
             {
-                await EnqueueFollowers(notification, item);
+                await EnqueueFollowers(notification, item, newContext);
                 EnqueueCronJob();
             }
         }
 
-        private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item)
+        private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item, IOdinContext odinContext)
         {
-            var odinContext = notification.OdinContext;
             var recipients = await GetFollowers(notification.File.DriveId, odinContext);
             if (!recipients.Any())
             {

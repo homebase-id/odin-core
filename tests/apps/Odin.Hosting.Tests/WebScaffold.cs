@@ -195,6 +195,12 @@ namespace Odin.Hosting.Tests
 
             this.DeleteData();
             this.DeleteLogs();
+
+            // This will trigger any finalizers that are waiting to be run.
+            // This is useful to verify that all db's are correctly disposed.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
 
         public OwnerApiTestUtils OldOwnerApi =>

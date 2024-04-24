@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 
 namespace Odin.Core.Identity
@@ -8,10 +9,13 @@ namespace Odin.Core.Identity
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
     [JsonConverter(typeof(OdinIdConverter))]
-    public readonly struct OdinId
+    public readonly struct OdinId : IGenericCloneable<OdinId>
     {
         private readonly AsciiDomainName _domainName;
         private readonly Guid _hash;
+
+        [JsonIgnore] public string DomainName => _domainName.DomainName;
+        [JsonIgnore] public AsciiDomainName AsciiDomain => _domainName;
 
         /// <summary>
         /// Guaranteed to hold a trimmed, RFC compliant domain name and unique HASH of the name
@@ -38,9 +42,16 @@ namespace Odin.Core.Identity
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
+        public OdinId(OdinId other)
+        {
+            _domainName = other._domainName.Clone();
+            _hash = other._hash;
+        }
 
-        [JsonIgnore] public string DomainName => _domainName.DomainName;
-        [JsonIgnore] public AsciiDomainName AsciiDomain => _domainName;
+        public OdinId Clone()
+        {
+            return new OdinId(this);
+        }
 
         public bool HasValue()
         {

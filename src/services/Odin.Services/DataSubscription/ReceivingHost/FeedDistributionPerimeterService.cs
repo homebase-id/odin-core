@@ -30,16 +30,16 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Invalid drive specified for reaction preview update");
             }
 
-            using (new FeedDriveDistributionSecurityContext(ref odinContext))
+            var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var fileId = await this.ResolveInternalFile(request.FileId,odinContext);
+                var fileId = await this.ResolveInternalFile(request.FileId, newContext);
 
                 if (null == fileId)
                 {
                     throw new OdinClientException("Invalid File");
                 }
 
-                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview,odinContext);
+                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview, newContext);
             }
 
             return new PeerTransferResponse()
@@ -56,11 +56,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            using (new FeedDriveDistributionSecurityContext(ref odinContext))
+            var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
                 var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
-                var fileId = await this.ResolveInternalFile(request.FileId,odinContext);
+                var fileId = await this.ResolveInternalFile(request.FileId, newContext);
 
                 if (null == fileId)
                 {
@@ -75,21 +75,21 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
 
                     request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    var serverFileHeader =
-                        await fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata, odinContext);
+                    var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
+                        internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, raiseEvent: true);
 
                     await mediator.Publish(new NewFeedItemReceived()
                     {
                         Sender = odinContext.GetCallerOdinIdOrFail(),
-                        OdinContext = odinContext
+                        OdinContext = newContext
                     });
                 }
                 else
                 {
                     // perform update
-                    request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, odinContext);
+                    request.FileMetadata.SenderOdinId = newContext.GetCallerOdinIdOrFail();
+                    await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext);
                 }
             }
 
@@ -102,9 +102,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         public async Task<PeerTransferResponse> Delete(DeleteFeedFileMetadataRequest request, IOdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
-            using (new FeedDriveDistributionSecurityContext(ref odinContext))
+            var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var fileId = await this.ResolveInternalFile(request.FileId, odinContext);
+                var fileId = await this.ResolveInternalFile(request.FileId, newContext);
                 if (null == fileId)
                 {
                     //TODO: what's the right status code here
@@ -114,7 +114,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
                 }
 
-                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value, odinContext);
+                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value, newContext);
 
                 return new PeerTransferResponse()
                 {

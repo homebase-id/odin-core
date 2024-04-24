@@ -25,6 +25,16 @@ namespace Odin.Services.Authorization.Permissions
             Keys = new List<int>(pk);
         }
 
+        public PermissionSet(PermissionSet other)
+        {
+            Keys = other.Keys.ToList();
+        }
+
+        public PermissionSet Clone()
+        {
+            return new PermissionSet(this);
+        }
+
         public bool HasKey(int key)
         {
             return Keys?.Any(k => k == key) ?? false;
