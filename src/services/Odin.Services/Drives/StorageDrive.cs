@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -26,7 +27,7 @@ namespace Odin.Services.Drives
             _driveFolderName = this.Id.ToString("N");
             _longTermHeaderRootPath = Path.Combine(longTermHeaderRootPath, _driveFolderName);
             _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
-            
+
             // value = \data\tenant\payloads\p1\{driveId}\
             // note: p1 is the CIFS mapped drive.
             _longTermPayloadPath = Path.Combine(longTermPayloadPath, _driveFolderName);
@@ -94,12 +95,18 @@ namespace Odin.Services.Drives
             set => _inner.AllowAnonymousReads = value;
         }
 
+        public override Dictionary<string, string> Attributes
+        {
+            get => _inner.Attributes ?? new Dictionary<string, string>();
+            set => _inner.Attributes = value;
+        }
+
         public override bool OwnerOnly
         {
             get => _inner.OwnerOnly;
             set { }
         }
-        
+
         public string GetLongTermHeaderStoragePath()
         {
             return Path.Combine(_longTermHeaderRootPath, "files");
@@ -183,5 +190,7 @@ namespace Odin.Services.Drives
         /// for a drive to be marked OwnerOnly == true and AllowSubscriptions === true
         /// </summary>
         public virtual bool AllowSubscriptions { get; set; }
+
+        public virtual Dictionary<string, string> Attributes { get; set; }
     }
 }

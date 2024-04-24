@@ -35,6 +35,8 @@ namespace Odin.Services.DataSubscription
     /// </summary>
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
+        public const string IsGroupChannel = "IsGroupChannel";
+
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
@@ -108,6 +110,12 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
+                    }
+
+                    var drive = await _driveManager.GetDrive(notification.File.DriveId);
+                    if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
+                    {
+                        await this.DistributeToConnectedFollowersUsingTransit(notification);
                     }
                 }
 
