@@ -142,6 +142,8 @@ public class PushNotificationService(
 
     public async Task Push(PushNotificationContent content, IOdinContext odinContext)
     {
+        logger.LogDebug("Attempting push notification");
+
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var subscriptions = await GetAllSubscriptions(odinContext);
@@ -168,6 +170,8 @@ public class PushNotificationService(
 
     private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
     {
+        logger.LogDebug("Attempting WebPush Notification");
+
         var pushSubscription = new PushSubscription(subscription.Endpoint, subscription.P256DH, subscription.Auth);
         var vapidDetails = new VapidDetails(configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
 
@@ -181,13 +185,18 @@ public class PushNotificationService(
         }
         catch (WebPushException exception)
         {
-            logger.LogWarning("Failed sending web push notification {notification}", exception.PushSubscription);
+            logger.LogError("Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
+                exception.HttpResponseMessage.StatusCode,
+                exception.HttpResponseMessage.Content);
+            
             //TODO: collect all errors and send back to client or do something with it
         }
     }
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
     {
+        logger.LogDebug("Attempting DevicePush Notification");
+
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var title = string.IsNullOrWhiteSpace(payload.AppDisplayName)
@@ -208,7 +217,7 @@ public class PushNotificationService(
             return;
         }
 
-        logger.LogDebug("Sending push notication to {deviceToken}", subscription.FirebaseDeviceToken);
+        logger.LogDebug("Sending push notification to {deviceToken}", subscription.FirebaseDeviceToken);
 
         try
         {
