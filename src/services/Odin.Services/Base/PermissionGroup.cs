@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -15,7 +16,7 @@ namespace Odin.Services.Base;
 /// <summary>
 /// Specifies a set of permissions.  This allows an identity's permissions to come from multiple sources such as circles.
 /// </summary>
-public class PermissionGroup
+public class PermissionGroup : IGenericCloneable<PermissionGroup>
 {
     private readonly PermissionSet _permissionSet;
     private readonly IEnumerable<DriveGrant>? _driveGrants;

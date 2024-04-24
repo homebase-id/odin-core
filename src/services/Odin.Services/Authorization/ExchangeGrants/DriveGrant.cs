@@ -1,9 +1,10 @@
 using System;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 
 namespace Odin.Services.Authorization.ExchangeGrants
 {
-    public class DriveGrant
+    public class DriveGrant : IGenericCloneable<DriveGrant>
     {
         /// <summary>
         /// The internal drive id being granted access

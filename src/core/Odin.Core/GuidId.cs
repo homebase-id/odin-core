@@ -1,11 +1,12 @@
 using System;
 using System.Text.Json.Serialization;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
 namespace Odin.Core;
 
 [JsonConverter(typeof(GuidIdConverter))]
-public class GuidId
+public class GuidId : IGenericCloneable<GuidId>
 {
     // public byte[] Value { get; init; }
     public Guid Value { get; init; }

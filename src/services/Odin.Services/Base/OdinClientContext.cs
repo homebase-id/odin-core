@@ -1,9 +1,10 @@
 using System;
 using Odin.Core;
+using Odin.Core.Serialization;
 
 namespace Odin.Services.Base;
 
-public class OdinClientContext
+public class OdinClientContext : IGenericCloneable<OdinClientContext>
 {
     /// <summary>
     /// The host name used for CORS, if any

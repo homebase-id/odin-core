@@ -1,11 +1,12 @@
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Base
 {
-    public interface IOdinContext
+    public interface IOdinContext : IGenericCloneable<IOdinContext>
     {
         string AuthContext { get; }
         OdinId Tenant { get; set; }
@@ -16,8 +17,6 @@ namespace Odin.Services.Base
         /// The age of the <see cref="ClientAuthenticationToken"/>
         /// </summary>
         UnixTimeUtc? AuthTokenCreated { get; set; }
-
-        IOdinContext Clone();
 
         OdinId GetCallerOdinIdOrFail();
         void SetPermissionContext(PermissionContext pc);
@@ -94,7 +93,6 @@ namespace Odin.Services.Base
                 PermissionContext = PermissionsContext.Redacted()
             };
         }
-        
     }
     
     public class RedactedOdinContext

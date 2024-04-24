@@ -2,13 +2,14 @@
 using System;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Data
 {
     /// <summary>
     /// Holding an encrypted symmetric key (AES key)
     /// </summary>
-    public class SymmetricKeyEncryptedAes
+    public class SymmetricKeyEncryptedAes : IGenericCloneable<SymmetricKeyEncryptedAes>
     {
         public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyIV { get; set; }        // IV used for AES encryption of the key

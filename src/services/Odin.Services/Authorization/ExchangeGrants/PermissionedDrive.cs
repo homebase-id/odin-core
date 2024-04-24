@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Serialization;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Authorization.ExchangeGrants;
@@ -6,7 +7,7 @@ namespace Odin.Services.Authorization.ExchangeGrants;
 /// <summary>
 /// Basis for a drive which has been assigned a permission, even if it has not been granted
 /// </summary>
-public class PermissionedDrive : IEquatable<PermissionedDrive>
+public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneable<PermissionedDrive>
 {
     /// <summary>
     /// The drive being granted the permission.

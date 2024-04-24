@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 
 namespace Odin.Core.Identity
@@ -8,7 +9,7 @@ namespace Odin.Core.Identity
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
     [JsonConverter(typeof(OdinIdConverter))]
-    public readonly struct OdinId
+    public readonly struct OdinId : IGenericCloneable<OdinId>
     {
         private readonly AsciiDomainName _domainName;
         private readonly Guid _hash;

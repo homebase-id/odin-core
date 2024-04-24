@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
+using Odin.Core.Serialization;
 
 namespace Odin.Core
 {
@@ -12,7 +13,7 @@ namespace Odin.Core
     /// TODO write tests.
     /// </summary>
     [DebuggerDisplay("Key={string.Join(\"-\", _key)}")]
-    public sealed class SensitiveByteArray: IDisposable
+    public sealed class SensitiveByteArray: IDisposable, IGenericCloneable<SensitiveByteArray>
     {
         // TODO Move this to secure memory
         [JsonIgnore] private byte[] _key;

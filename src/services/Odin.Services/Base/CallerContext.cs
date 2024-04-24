@@ -4,6 +4,7 @@ using System.Linq;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Membership.Circles;
@@ -13,7 +14,7 @@ namespace Odin.Services.Base
     /// <summary>
     /// Contains information about the OdinId calling a given service
     /// </summary>
-    public class CallerContext
+    public class CallerContext : IGenericCloneable<CallerContext>
     {
         private readonly SensitiveByteArray _masterKey;
 

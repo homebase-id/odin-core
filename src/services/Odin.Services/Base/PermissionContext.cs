@@ -4,13 +4,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Util;
 using Serilog;
 
 namespace Odin.Services.Base
 {
-    public class PermissionContext
+    public class PermissionContext : IGenericCloneable<PermissionContext>
     {
         private readonly bool _isSystem = false;
         public SensitiveByteArray SharedSecretKey { get; }
