@@ -34,5 +34,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// Checks if this outbox item exists and is of type OutboxItemType.File
         /// </summary>
         Task<bool> HasOutboxFileItem(OutboxItem arg);
+
+        Task<OutboxStatus> GetOutboxStatus(Guid driveId);
     }
 }

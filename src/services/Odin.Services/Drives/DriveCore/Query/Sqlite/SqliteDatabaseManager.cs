@@ -12,25 +12,16 @@ using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
-using Serilog;
 using QueryBatchCursor = Odin.Core.Storage.SQLite.IdentityDatabase.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
 
-public class SqliteDatabaseManager : IDriveDatabaseManager
+public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, StorageDrive drive, ILogger<object> logger)
+    : IDriveDatabaseManager
 {
-    private readonly ILogger<object> _logger;
+    private readonly IdentityDatabase _db = tenantSystemStorage.IdentityDatabase;
 
-    private readonly IdentityDatabase _db;
-
-    public SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, StorageDrive drive, ILogger<object> logger)
-    {
-        Drive = drive;
-        _logger = logger;
-        _db = tenantSystemStorage.IdentityDatabase;
-    }
-
-    public StorageDrive Drive { get; init; }
+    public StorageDrive Drive { get; init; } = drive;
 
     public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
@@ -121,7 +112,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         if (null == header)
         {
-            _logger.LogWarning("UpdateCurrentIndex called on null server file header");
+            logger.LogWarning("UpdateCurrentIndex called on null server file header");
             return Task.CompletedTask;
         }
 
@@ -326,6 +317,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return (results, nextCursor);
     }
 
+    public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo()
+    {
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(Drive.Id);
+        return Task.FromResult((count, size));
+    }
+    
     private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(IOdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {

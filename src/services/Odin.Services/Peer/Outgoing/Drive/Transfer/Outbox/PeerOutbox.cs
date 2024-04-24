@@ -125,5 +125,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
         }
+        
+        /// <summary>
+        /// Gets the status of the specified Drive
+        /// </summary>
+        public async Task<OutboxStatus> GetOutboxStatus(Guid driveId)
+        {
+            var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(driveId);
+            return await Task.FromResult<OutboxStatus>(new OutboxStatus()
+            {
+                CheckedOutCount = poppedCount,
+                TotalItems = totalCount,
+                NextItemRun = utc
+            });
+        }
     }
 }

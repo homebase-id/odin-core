@@ -25,6 +25,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return Task.CompletedTask;
         }
 
+        public async Task<InboxStatus> GetStatus(Guid driveId)
+        {
+            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
+
+            return await Task.FromResult(new InboxStatus()
+            {
+                TotalItems = p.totalCount,
+                PoppedCount = p.poppedCount,
+                OldestItemTimestamp = p.oldestItemTime,
+            });
+        }
+
+        
         public InboxStatus GetPendingCount(Guid driveId)
         {
             var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
