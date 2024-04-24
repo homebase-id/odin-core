@@ -112,9 +112,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        // logger.LogDebug("Processing Inbox -> failed with exception: {message}", e.Message);
+                        logger.LogError("Processing Inbox -> MarkFailure (general Exception): Failed with exception: {message}", e.Message);
                         logger.LogError("Processing Inbox -> MarkFailure (general Exception): marker/popStamp: {marker} for drive: {driveId}",
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                             Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
