@@ -13,12 +13,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
-
-
         public void InsertRows(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)

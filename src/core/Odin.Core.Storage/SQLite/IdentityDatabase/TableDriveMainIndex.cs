@@ -73,6 +73,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _sizeCommand = null;
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

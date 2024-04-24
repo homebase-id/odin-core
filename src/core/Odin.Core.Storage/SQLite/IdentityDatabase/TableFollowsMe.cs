@@ -42,6 +42,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _select3Command = null;
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

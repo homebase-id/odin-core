@@ -27,11 +27,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
-
         public List<ConnectionsRecord> PagingByIdentity(DatabaseBase.DatabaseConnection conn, int count, Int32 statusFilter, string inCursor, out string nextCursor)
         {
             if (count < 1)

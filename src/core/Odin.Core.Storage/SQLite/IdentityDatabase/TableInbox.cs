@@ -73,6 +73,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _popRecoverCommand = null;
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public override int Insert(DatabaseBase.DatabaseConnection conn, InboxRecord item)

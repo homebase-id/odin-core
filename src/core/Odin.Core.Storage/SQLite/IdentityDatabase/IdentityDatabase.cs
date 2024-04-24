@@ -149,6 +149,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblAppNotificationsTable.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

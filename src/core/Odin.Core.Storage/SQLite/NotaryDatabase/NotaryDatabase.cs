@@ -48,6 +48,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             tblNotaryChain.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

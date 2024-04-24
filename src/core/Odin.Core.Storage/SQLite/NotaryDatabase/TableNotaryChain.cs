@@ -83,10 +83,5 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 } // using
             } // lock
         }
-
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
     }
 }

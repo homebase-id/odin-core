@@ -52,6 +52,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             tblAttestationStatus.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

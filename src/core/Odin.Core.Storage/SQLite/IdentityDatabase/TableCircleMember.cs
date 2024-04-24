@@ -13,12 +13,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
-
-
         public new virtual List<CircleMemberRecord> GetCircleMembers(DatabaseBase.DatabaseConnection conn, Guid circleId)
         {
             var r = base.GetCircleMembers(conn, circleId);

@@ -46,6 +46,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             _popRecoverCommand = null;
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public override int Insert(DatabaseBase.DatabaseConnection conn, CronRecord item)

@@ -67,6 +67,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             _popRecoverCommand = null;
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

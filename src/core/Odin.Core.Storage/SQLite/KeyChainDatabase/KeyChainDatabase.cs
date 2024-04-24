@@ -48,6 +48,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             tblKeyChain.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 

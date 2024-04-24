@@ -13,11 +13,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
-
         public void DeleteByIdentity(DatabaseConnection conn, Guid odinHashId)
         {
             var r = GetByOdinHashId(conn, odinHashId);

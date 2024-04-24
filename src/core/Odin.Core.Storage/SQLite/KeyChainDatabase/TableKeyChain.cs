@@ -115,10 +115,5 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 } // using
             } // lock
         }
-
-        public override void Dispose()
-        {
-            base.Dispose();
-        }
     }
 }

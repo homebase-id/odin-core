@@ -41,9 +41,10 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public override void Dispose()
         {
-            tblCron.Dispose();;
+            tblCron.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 
