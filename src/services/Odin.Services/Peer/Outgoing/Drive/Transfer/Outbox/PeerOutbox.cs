@@ -44,7 +44,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             if (useUpsert)
             {
                 tenantSystemStorage.Outbox.Upsert(record);
-
             }
             else
             {
@@ -122,8 +121,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public Task<bool> HasOutboxFileItem(OutboxItem item)
         {
-            var record = tenantSystemStorage.Outbox.Get(item.File.FileId, item.File.DriveId);
-            var hasRecord = record.Any(r => r.type == (int)OutboxItemType.File);
+            var records = tenantSystemStorage.Outbox.Get(item.File.DriveId, item.File.FileId);
+            var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
         }
     }

@@ -29,7 +29,7 @@ public class SendFileOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient)
     {
         try
         {
@@ -39,13 +39,17 @@ public class SendFileOutboxWorker(
             // Try to clean up the transient file
             if (result.TransferResult == TransferResult.Success)
             {
+                if(tryDeleteTransient)
+                {
+                    if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item))
+                    {
+                        var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                        await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
+                    }
+                }
+
                 await peerOutbox.MarkComplete(item.Marker);
 
-                if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item))
-                {
-                    var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
-                }
             }
             else
             {
