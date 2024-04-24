@@ -18,7 +18,7 @@ namespace Odin.Services.Base;
 /// </summary>
 public class PermissionGroup : IGenericCloneable<PermissionGroup>
 {
-    private readonly PermissionSet _permissionSet;
+    private readonly PermissionSet? _permissionSet;
     private readonly IEnumerable<DriveGrant>? _driveGrants;
     private readonly SensitiveByteArray? _keyStoreKey;
     private readonly SymmetricKeyEncryptedAes? _encryptedIcrKey;
@@ -34,7 +34,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
     public PermissionGroup(PermissionGroup other)
     {
-        _permissionSet = other._permissionSet.Clone();
+        _permissionSet = other._permissionSet?.Clone();
         _driveGrants = other._driveGrants?.Select(dg => dg.Clone());
         _keyStoreKey = other._keyStoreKey?.Clone();
         _encryptedIcrKey = other._encryptedIcrKey?.Clone();
