@@ -349,7 +349,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         }
 
                         deviceSocket.SharedSecretKey = odinContext.PermissionsContext.SharedSecretKey;
-                        deviceSocket.DeviceOdinContext = odinContext; //TODO: clone this
+                        deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
                     }
                     catch (OdinSecurityException e)
