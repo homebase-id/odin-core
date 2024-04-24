@@ -246,8 +246,10 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void Dispose()
     {
-        _db.Commit();
-        _db.Dispose();
+        GC.SuppressFinalize(this);
+        // NO! Database is not owned by this class
+        // _db.Commit();
+        // _db.Dispose();
     }
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction)
