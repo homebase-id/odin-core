@@ -114,11 +114,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     catch (Exception e)
                     {
-                        logger.LogError("Processing Inbox -> MarkFailure (general Exception): Failed with exception: {message}", e.Message);
-                        logger.LogError("Processing Inbox -> MarkFailure (general Exception): marker/popStamp: {marker} for drive: {driveId}",
+                        logger.LogError("Processing Inbox -> Marking Complete (Catch-all Exception): Failed with exception: {message}", e.Message);
+                        logger.LogError(
+                            "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): Marking Complete PopStamp (hex): {marker} for drive (hex): {driveId}",
+                            e.GetType().Name,
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                             Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                        await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        // await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                 }
             }
