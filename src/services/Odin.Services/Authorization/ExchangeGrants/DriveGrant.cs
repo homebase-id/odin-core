@@ -9,10 +9,18 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// The internal drive id being granted access
         /// </summary>
         public Guid DriveId { get; set; }
-        
         public PermissionedDrive PermissionedDrive { get; set; }
-        
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
+
+        public DriveGrant Clone()
+        {
+            return new DriveGrant
+            {
+                DriveId = DriveId,
+                PermissionedDrive = PermissionedDrive.Clone(),
+                KeyStoreKeyEncryptedStorageKey = KeyStoreKeyEncryptedStorageKey?.Clone()
+            };
+        }
 
         public RedactedDriveGrant Redacted()
         {

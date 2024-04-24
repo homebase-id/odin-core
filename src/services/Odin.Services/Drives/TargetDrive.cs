@@ -14,6 +14,15 @@ public class TargetDrive : IEquatable<TargetDrive>
     public GuidId Alias { get; set; }
     public GuidId Type { get; set; }
 
+    public TargetDrive Clone()
+    {
+        return new TargetDrive
+        {
+            Alias = Alias.Clone(),
+            Type = Type.Clone()
+        };
+    }
+
     public byte[] ToKey()
     {
         return ByteArrayUtil.Combine(Type, Alias);

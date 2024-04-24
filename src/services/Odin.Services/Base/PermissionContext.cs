@@ -28,9 +28,13 @@ namespace Odin.Services.Base
 
         public PermissionContext(PermissionContext other)
         {
-            SharedSecretKey = other.SharedSecretKey?.Clone();
-            PermissionGroups = new Dictionary<string, PermissionGroup>(other.PermissionGroups);
             _isSystem = other._isSystem;
+            SharedSecretKey = other.SharedSecretKey?.Clone();
+            PermissionGroups = new Dictionary<string, PermissionGroup>();
+            foreach (var (key, value) in other.PermissionGroups)
+            {
+                PermissionGroups[key] = value.Clone();
+            }
         }
 
         public PermissionContext Clone()

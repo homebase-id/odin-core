@@ -18,6 +18,15 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>
     /// </summary>
     public DrivePermission Permission { get; set; }
 
+    public PermissionedDrive Clone()
+    {
+        return new PermissionedDrive
+        {
+            Drive = Drive.Clone(),
+            Permission = Permission
+        };
+    }
+
     public static bool operator ==(PermissionedDrive pd1, PermissionedDrive pd2)
     {
         if (ReferenceEquals(pd1, pd2))

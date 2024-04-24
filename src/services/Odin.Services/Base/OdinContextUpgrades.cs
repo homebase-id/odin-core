@@ -13,8 +13,8 @@ public static class OdinContextUpgrades
 {
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
-        // var patchedContext = odinContext.DeepClone();
-        var patchedContext = odinContext;
+        var patchedContext = odinContext.Clone();
+
         //Note TryAdd because this might have already been added when multiple files are coming in
         patchedContext.PermissionsContext.PermissionGroups.TryAdd("send_notifications_for_peer_transfer",
             new PermissionGroup(
@@ -31,8 +31,7 @@ public static class OdinContextUpgrades
         SymmetricKeyEncryptedAes encryptedFeedDriveStorageKey,
         SymmetricKeyEncryptedAes encryptedIcrKey)
     {
-        // var patchedContext = odinContext.DeepClone();
-        var patchedContext = odinContext;
+        var patchedContext = odinContext.Clone();
 
         //
         // Upgrade access briefly to perform functions
@@ -61,8 +60,7 @@ public static class OdinContextUpgrades
 
     public static IOdinContext UpgradeToReadFollowersForDistribution(IOdinContext odinContext)
     {
-        // var patchedContext = odinContext.DeepClone();
-        var patchedContext = odinContext;
+        var patchedContext = odinContext.Clone();
 
         //
         // Upgrade access briefly to perform functions

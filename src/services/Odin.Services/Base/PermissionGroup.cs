@@ -31,6 +31,19 @@ public class PermissionGroup
         _encryptedIcrKey = encryptedIcrKey;
     }
 
+    public PermissionGroup(PermissionGroup other)
+    {
+        _permissionSet = other._permissionSet.Clone();
+        _driveGrants = other._driveGrants?.Select(dg => dg.Clone());
+        _keyStoreKey = other._keyStoreKey?.Clone();
+        _encryptedIcrKey = other._encryptedIcrKey?.Clone();
+    }
+
+    public PermissionGroup Clone()
+    {
+        return new PermissionGroup(this);
+    }
+
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
         // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);

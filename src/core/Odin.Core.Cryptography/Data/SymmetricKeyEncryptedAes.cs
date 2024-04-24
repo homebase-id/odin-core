@@ -1,4 +1,5 @@
 ﻿
+using System;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 
@@ -17,6 +18,16 @@ namespace Odin.Core.Cryptography.Data
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
+        }
+
+        public SymmetricKeyEncryptedAes(SymmetricKeyEncryptedAes other)
+        {
+            KeyEncrypted = new byte[other.KeyEncrypted.Length];
+            Array.Copy(other.KeyEncrypted, KeyEncrypted, KeyEncrypted.Length);
+            KeyIV = new byte[other.KeyIV.Length];
+            Array.Copy(other.KeyIV, KeyIV, KeyIV.Length);
+            KeyHash = new byte[other.KeyHash.Length];
+            Array.Copy(other.KeyHash, KeyHash, KeyHash.Length);
         }
 
         /// <summary>
@@ -39,6 +50,11 @@ namespace Odin.Core.Cryptography.Data
         public SymmetricKeyEncryptedAes(SensitiveByteArray secret, SensitiveByteArray dataToEncrypt)
         {
             EncryptKey(secret, dataToEncrypt);
+        }
+
+        public SymmetricKeyEncryptedAes Clone()
+        {
+            return new SymmetricKeyEncryptedAes(this);
         }
 
         private byte[] CalcKeyHash(SensitiveByteArray key)
