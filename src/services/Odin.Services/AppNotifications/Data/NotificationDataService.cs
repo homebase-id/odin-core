@@ -38,7 +38,10 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        _storage.Insert(record);
+        using (var cn = tenantSystemStorage.CreateConnection())
+        {
+            _storage.Insert(cn, record);
+        }
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {

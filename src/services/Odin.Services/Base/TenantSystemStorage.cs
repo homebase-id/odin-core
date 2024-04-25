@@ -7,9 +7,9 @@ using Odin.Core.Util;
 
 namespace Odin.Services.Base
 {
-    public class TenantSystemStorage : IDisposable
+    public sealed class TenantSystemStorage : IDisposable
     {
-        public IdentityDatabase IdentityDatabase { get; }
+        public IdentityDatabase IdentityDatabase { get; } // SEB:TODO make this private
 
         public TenantSystemStorage(TenantContext tenantContext)
         {
@@ -42,7 +42,6 @@ namespace Odin.Services.Base
             Connections = IdentityDatabase.tblConnections;
             CircleMemberStorage = IdentityDatabase.tblCircleMember;
             AppGrants = IdentityDatabase.tblAppGrants;
-
             Outbox = IdentityDatabase.tblOutbox;
             Inbox = IdentityDatabase.tblInbox;
             WhoIFollow = IdentityDatabase.tblImFollowing;
@@ -51,28 +50,26 @@ namespace Odin.Services.Base
             AppNotifications = IdentityDatabase.tblAppNotificationsTable;
         }
 
-        public TableAppGrants AppGrants { get; }
-
-        public TableConnections Connections { get; }
-
-        public TableAppNotifications AppNotifications { get; }
-
-        public TableFeedDistributionOutbox Feedbox { get; }
-
-        public TableOutbox Outbox { get; }
-
-        public TableInbox Inbox { get; }
-
-        public TableImFollowing WhoIFollow { get; }
-
-        public TableFollowsMe Followers { get; }
-
-        public TableCircleMember CircleMemberStorage { get; }
-
-        public DatabaseBase.UnitOfWorkTracker CreateCommitUnitOfWork()
+        public void Dispose()
         {
-            return IdentityDatabase.CreateCommitUnitOfWork();
+            IdentityDatabase.Dispose();
         }
+
+        public DatabaseBase.DatabaseConnection CreateConnection()
+        {
+            return IdentityDatabase.CreateDisposableConnection();
+        }
+
+        // SEB:TODO we should probably get rid of these
+        public TableAppGrants AppGrants { get; }
+        public TableConnections Connections { get; }
+        public TableAppNotifications AppNotifications { get; }
+        public TableFeedDistributionOutbox Feedbox { get; }
+        public TableOutbox Outbox { get; }
+        public TableInbox Inbox { get; }
+        public TableImFollowing WhoIFollow { get; }
+        public TableFollowsMe Followers { get; }
+        public TableCircleMember CircleMemberStorage { get; }
 
         /// <summary>
         /// Store values using a single key
@@ -96,9 +93,5 @@ namespace Odin.Services.Base
             return new ThreeKeyValueStorage(IdentityDatabase, contextKey);
         }
 
-        public void Dispose()
-        {
-            IdentityDatabase.Dispose();
-        }
     }
 }
