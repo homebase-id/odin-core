@@ -173,7 +173,7 @@ public class PushNotificationService(
 
     private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
     {
-        logger.LogDebug("Attempting WebPush Notification");
+        logger.LogDebug("Attempting WebPush Notification - start");
 
         var pushSubscription = new PushSubscription(subscription.Endpoint, subscription.P256DH, subscription.Auth);
         var vapidDetails = new VapidDetails(configuration.Host.PushNotificationSubject, keys.PublicKey64, keys.PrivateKey64);
@@ -188,12 +188,21 @@ public class PushNotificationService(
         }
         catch (WebPushException exception)
         {
-            logger.LogError("Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
+            logger.LogError(exception,"Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
+            return;
 
             //TODO: collect all errors and send back to client or do something with it
         }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to send web push notification");
+            return;
+        }
+        
+        logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
+
     }
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
