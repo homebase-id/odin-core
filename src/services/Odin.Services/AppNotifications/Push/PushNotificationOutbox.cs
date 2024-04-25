@@ -26,12 +26,8 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
         
         tenantSystemStorage.Outbox.Insert(new OutboxRecord()
         {
-<<<<<<< HEAD
-            driveId = _notificationBoxId,
-=======
             // driveId = _notificationBoxId,
             driveId = Guid.NewGuid(),
->>>>>>> main
             recipient = recipient,
             fileId = fileId,
             priority = 0, //super high priority to ensure these are sent quickly

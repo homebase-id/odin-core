@@ -71,7 +71,10 @@ public class PushNotificationService(
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+        using (var conn = odinContext.dbCreateDisposableConnection())
+        {
+            _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+        }
         return Task.CompletedTask;
     }
 

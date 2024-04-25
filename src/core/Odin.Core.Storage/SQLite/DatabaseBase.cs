@@ -107,6 +107,9 @@ namespace Odin.Core.Storage.SQLite
 
         public int ExecuteNonQuery(DatabaseConnection connection, SqliteCommand command)
         {
+            if (connection.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             command.Connection = connection._connection;
             command.Transaction = connection._transaction;
             var r = command.ExecuteNonQuery();
@@ -116,6 +119,9 @@ namespace Odin.Core.Storage.SQLite
 
         public SqliteDataReader ExecuteReader(DatabaseConnection connection, SqliteCommand command, CommandBehavior behavior)
         {
+            if (connection.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             command.Connection = connection._connection;
             command.Transaction = connection._transaction;
             var r = command.ExecuteReader();
