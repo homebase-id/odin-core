@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                         db1.CreateDatabase(myc2);
                         Assert.Fail();
                     }
-                    catch (ArgumentException ex)
+                    catch (ArgumentException)
                     {
                         Assert.Pass();
                     }
