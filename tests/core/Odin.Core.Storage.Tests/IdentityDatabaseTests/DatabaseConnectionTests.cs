@@ -53,6 +53,32 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             }
         }
 
+        /// <summary>
+        /// Ensure that the memory DB doesn't become empty on the second connection
+        /// while the first connection is still open
+        /// </summary>
+        [Test]
+        public void ConnectionDatabaseIncorrectTest()
+        {
+            using var db1 = new IdentityDatabase(Guid.NewGuid(), ":memory:");
+            using var db2 = new IdentityDatabase(Guid.NewGuid(), ":memory:");
+
+            using (var myc1 = db1.CreateDisposableConnection())
+            {
+                using (var myc2 = db2.CreateDisposableConnection())
+                {
+                    try
+                    {
+                        db1.CreateDatabase(myc2);
+                        Assert.Fail();
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        Assert.Pass();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Ensure that we can reuse prepared statments over two connections

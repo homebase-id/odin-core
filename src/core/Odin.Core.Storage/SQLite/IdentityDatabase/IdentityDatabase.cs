@@ -158,6 +158,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             // Drives
             tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
             tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
@@ -215,6 +218,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             Int32 fileSystemType = (int)FileSystemType.Standard,
             Int32 fileState = 0)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
@@ -259,6 +265,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> addTagIdList = null,
             List<Guid> deleteTagIdList = null)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             using (conn.CreateCommitUnitOfWork())
             {
                 tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
@@ -293,6 +302,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagIdList = null,
             Int32 fileSystemType = 0)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             using (conn.CreateCommitUnitOfWork())
             {
                 tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
@@ -446,6 +458,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             if (null == fileSystemType)
             {
                 throw new OdinSystemException("fileSystemType required in Query Batch");
@@ -614,6 +629,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
             var (result, moreRows) =
@@ -756,6 +774,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             if (null == fileSystemType)
             {
                 throw new OdinSystemException("fileSystemType required in Query Modified");

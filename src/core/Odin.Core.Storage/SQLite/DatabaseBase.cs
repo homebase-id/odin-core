@@ -132,6 +132,9 @@ namespace Odin.Core.Storage.SQLite
 
         public SqliteCommand CreateCommand(DatabaseConnection connection)
         {
+            if (connection.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             var cmd = new SqliteCommand();
             cmd.Connection = connection._connection;
 

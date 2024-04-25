@@ -53,6 +53,9 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// </summary>
         public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
         {
+            if (conn.db != this)
+                throw new ArgumentException("connection and database object mismatch");
+
             tblCron.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
                 Vacuum();
