@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 
 namespace Odin.Core.Storage.SQLite
@@ -107,19 +108,23 @@ namespace Odin.Core.Storage.SQLite
                 if (_disposed == true)
                     return;
 
-                _disposed = true;
+                lock (_counter._lock)
+                {
+                    _disposed = true;
 
-                Commit(); // _transaction will become null
+                    if (_transaction != null )
+                    {
+                        Serilog.Log.Error("Connection {DatabaseSource} Disposed with an open transaction, rolling back changes.", db._databaseSource);
+                        _transaction.Rollback();
+                    }
 
-                if (_counter.Count() > 0)
-                    throw new Exception("Commit counter not zero");
+                    _transaction?.Dispose();
+                    _connection.Close();
+                    _connection?.Dispose();
+                    _transaction = null;
 
-                _transaction?.Dispose();
-                _connection.Close();
-                _connection?.Dispose();
-                _transaction = null;
-
-                GC.SuppressFinalize(this);
+                    GC.SuppressFinalize(this);
+                }
             }
 
             public int CommitsCount()
@@ -181,8 +186,8 @@ namespace Odin.Core.Storage.SQLite
             public UnitOfWorkTracker(DatabaseConnection connection, IntCounter counter)
             {
                 _counterObject = counter;
-                _counterObject.Increment();
                 _connection = connection;
+                _counterObject.Increment();
             }
 
             ~UnitOfWorkTracker()
