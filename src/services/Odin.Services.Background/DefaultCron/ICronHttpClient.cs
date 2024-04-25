@@ -11,10 +11,7 @@ namespace Odin.Services.Background.DefaultCron
 
         [Post(TransitRootEndpoint + "/process")]
         Task<ApiResponse<HttpContent>> ProcessOutbox();
-
-        [Post($"{OwnerApiPathConstants.PushNotificationsV1}/process")]
-        Task<ApiResponse<HttpContent>> ProcessPushNotifications();
-
+        
         [Post($"{TransitRootEndpoint}/reconcile")]
         Task<ApiResponse<HttpContent>> ReconcileInboxOutbox();
     }

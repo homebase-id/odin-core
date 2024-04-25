@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -35,6 +36,8 @@ public class PushNotificationService(
     ILogger<PushNotificationService> logger,
     ICorrelationContext correlationContext,
     TenantSystemStorage storage,
+    ServerSystemStorage serverSystemStorage,
+    TenantContext tenantContext,
     PublicPrivateKeyService keyService,
     TenantSystemStorage tenantSystemStorage,
     NotificationListService notificationListService,
@@ -188,7 +191,7 @@ public class PushNotificationService(
             logger.LogError("Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
-            
+
             //TODO: collect all errors and send back to client or do something with it
         }
     }
@@ -316,6 +319,10 @@ public class PushNotificationService(
             odinContext
         );
 
+        serverSystemStorage.EnqueueJob(tenantContext.HostOdinId,
+            CronJobType.PendingTransitTransfer,
+            tenantContext.HostOdinId.DomainName.ToLower().ToUtf8ByteArray(),
+            UnixTimeUtc.Now());
 
         await _pushNotificationOutbox.Add(item, odinContext);
         return true;
