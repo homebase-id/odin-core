@@ -7,6 +7,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Refit;
 using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
@@ -15,9 +16,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 {
     public interface IUniversalDriveHttpClientApi
     {
-        private const string RootStorageEndpoint = "/drive/files";
-        private const string RootQueryEndpoint = "/drive/query";
-
+        private const string RootDriveEndpoint = "/drive";
+        private const string RootStorageEndpoint = RootDriveEndpoint + "/files";
+        private const string RootQueryEndpoint = RootDriveEndpoint + "/query";
+        
         [Post("/transit/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
@@ -70,5 +72,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body]QueryBatchCollectionRequest request);
+        
+        [Get(RootDriveEndpoint + "/status")]
+        Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
     }
 }

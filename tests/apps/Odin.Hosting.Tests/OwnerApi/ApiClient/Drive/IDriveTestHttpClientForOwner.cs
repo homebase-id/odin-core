@@ -12,6 +12,7 @@ using Odin.Services.Peer.Incoming;
 using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.Status;
 using Refit;
 using QueryModifiedRequest = Odin.Services.Drives.QueryModifiedRequest;
 
@@ -82,5 +83,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
 
         [Post(OwnerApiPathConstants.PeerV1 + "/inbox/processor/process")]
         Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
+        
+        [Get(OwnerApiPathConstants.DriveV1 + "/status")]
+        Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
     }
 }

@@ -1,9 +1,10 @@
 using System;
 using Odin.Core;
+using Odin.Core.Serialization;
 
 namespace Odin.Services.Base;
 
-public class OdinClientContext
+public class OdinClientContext : IGenericCloneable<OdinClientContext>
 {
     /// <summary>
     /// The host name used for CORS, if any
@@ -18,4 +19,15 @@ public class OdinClientContext
     public Guid? DevicePushNotificationKey { get; init; }
 
     public string ClientIdOrDomain { get; set; }
+
+    public OdinClientContext Clone()
+    {
+        return new OdinClientContext
+        {
+            CorsHostName = CorsHostName,
+            AccessRegistrationId = AccessRegistrationId?.Clone(),
+            DevicePushNotificationKey = DevicePushNotificationKey,
+            ClientIdOrDomain = ClientIdOrDomain
+        };
+    }
 }

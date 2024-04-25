@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using NodaTime;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
 namespace Odin.Core.Time
 {
@@ -49,7 +50,7 @@ namespace Odin.Core.Time
     /// Simply a Int64 in a fancy class.
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
-    public struct UnixTimeUtc
+    public struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
 
@@ -78,6 +79,10 @@ namespace Odin.Core.Time
             _milliseconds = dto.ToUnixTimeMilliseconds();
         }
 
+        public UnixTimeUtc Clone()
+        {
+            return new UnixTimeUtc(_milliseconds);
+        }
 
         // Define cast to Int64
         public static implicit operator UnixTimeUtc(Int64 milliseconds)

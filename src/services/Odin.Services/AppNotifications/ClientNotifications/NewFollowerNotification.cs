@@ -12,13 +12,13 @@ public class NewFollowerNotification : MediatorNotificationBase, IClientNotifica
 
     public Guid NotificationTypeId { get; } = Guid.Parse("2cc468af-109b-4216-8119-542401e32f4d");
 
-    public OdinId OdinId { get; init; }
+    public OdinId Sender { get; init; }
 
     public string GetClientData()
     {
         return OdinSystemSerializer.Serialize(new
         {
-            Sender = this.OdinId.DomainName
+            Sender = this.Sender.DomainName
         });
     }
 }

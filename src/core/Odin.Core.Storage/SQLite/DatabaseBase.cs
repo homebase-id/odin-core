@@ -33,6 +33,7 @@ namespace Odin.Core.Storage.SQLite
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(20); // Max 20 concurrent connections
  
         protected bool _wasDisposed = false;
+        protected readonly string _databaseSource;
 
         public DatabaseBase(string dataSource)
         {
@@ -46,6 +47,7 @@ namespace Odin.Core.Storage.SQLite
 
             // Generate the connection string
             _connectionString = builder.ToString();
+            _databaseSource = dataSource;
 
             RsaKeyManagement.noDBOpened++;
         }

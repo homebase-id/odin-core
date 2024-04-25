@@ -1,13 +1,15 @@
 ﻿
+using System;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Data
 {
     /// <summary>
     /// Holding an encrypted symmetric key (AES key)
     /// </summary>
-    public class SymmetricKeyEncryptedAes
+    public class SymmetricKeyEncryptedAes : IGenericCloneable<SymmetricKeyEncryptedAes>
     {
         public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyIV { get; set; }        // IV used for AES encryption of the key
@@ -17,6 +19,16 @@ namespace Odin.Core.Cryptography.Data
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
+        }
+
+        public SymmetricKeyEncryptedAes(SymmetricKeyEncryptedAes other)
+        {
+            KeyEncrypted = new byte[other.KeyEncrypted.Length];
+            Array.Copy(other.KeyEncrypted, KeyEncrypted, KeyEncrypted.Length);
+            KeyIV = new byte[other.KeyIV.Length];
+            Array.Copy(other.KeyIV, KeyIV, KeyIV.Length);
+            KeyHash = new byte[other.KeyHash.Length];
+            Array.Copy(other.KeyHash, KeyHash, KeyHash.Length);
         }
 
         /// <summary>
@@ -39,6 +51,11 @@ namespace Odin.Core.Cryptography.Data
         public SymmetricKeyEncryptedAes(SensitiveByteArray secret, SensitiveByteArray dataToEncrypt)
         {
             EncryptKey(secret, dataToEncrypt);
+        }
+
+        public SymmetricKeyEncryptedAes Clone()
+        {
+            return new SymmetricKeyEncryptedAes(this);
         }
 
         private byte[] CalcKeyHash(SensitiveByteArray key)

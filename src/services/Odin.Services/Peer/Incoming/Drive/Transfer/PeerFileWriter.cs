@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -141,6 +140,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
         {
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
+
+            if (clientFileHeader == null)
+            {
+                // this is bad error.
+                Log.Error("While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ", item.GlobalTransitId, item.DriveId);
+                throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
+            }
+
             var file = new InternalDriveFileId()
             {
                 FileId = clientFileHeader.FileId,

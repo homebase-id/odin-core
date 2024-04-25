@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using Odin.Core;
+using Odin.Core.Serialization;
 
 namespace Odin.Services.Drives;
 
@@ -9,10 +10,19 @@ namespace Odin.Services.Drives;
 ///  A drive specifier for incoming requests to perform actions on a drive.  (essentially, this hides the internal DriveId).
 /// </summary>
 [DebuggerDisplay("{ToString()}")]
-public class TargetDrive : IEquatable<TargetDrive>
+public class TargetDrive : IEquatable<TargetDrive>, IGenericCloneable<TargetDrive>
 {
     public GuidId Alias { get; set; }
     public GuidId Type { get; set; }
+
+    public TargetDrive Clone()
+    {
+        return new TargetDrive
+        {
+            Alias = Alias.Clone(),
+            Type = Type.Clone()
+        };
+    }
 
     public byte[] ToKey()
     {

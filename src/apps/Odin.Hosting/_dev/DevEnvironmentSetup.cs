@@ -2,27 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
-using Odin.Core.Util;
-using Serilog;
 
 namespace Odin.Hosting._dev
 {
     public static class DevEnvironmentSetup
     {
-        public static void RegisterPreconfiguredDomains(OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
+        public static void RegisterPreconfiguredDomains(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
         {
             Dictionary<Guid, string> certificates = new();
             if (odinConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
             {
                 foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
                 {
-                    Log.Information($"Preconfigured domain added:[]{domain}");
-                    
+                    logger.LogInformation("Preconfigured domain added: {domain}", domain);
                     certificates.Add(ByteArrayUtil.ReduceSHA256Hash(domain), domain);
                 }
             }
@@ -65,14 +63,15 @@ namespace Odin.Hosting._dev
         /// <summary>
         /// Sets up development or demo environment
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="odinConfiguration"></param>
         /// <param name="registry"></param>
-        public static void ConfigureIfPresent(OdinConfiguration odinConfiguration, IIdentityRegistry registry)
+        public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry)
         {
             if (odinConfiguration.Development != null)
             {
                 ConfigureSystemSsl(odinConfiguration);
-                RegisterPreconfiguredDomains(odinConfiguration, registry);
+                RegisterPreconfiguredDomains(logger, odinConfiguration, registry);
             }
         }
 

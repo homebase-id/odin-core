@@ -100,7 +100,7 @@ namespace Odin.Hosting.Tests.AppAPI.CommandSender
             {
                 Code = 100,
                 JsonMessage = OdinSystemSerializer.Serialize(new { reaction = ":)" }),
-                GlobalTransitIdList = new List<Guid>() { originalFileSendResult.GlobalTransitId.GetValueOrDefault() },
+                GlobalTransitIdList = [originalFileSendResult.GlobalTransitId.GetValueOrDefault()],
                 Recipients = instructionSet.TransitOptions.Recipients // same as we sent the file
             };
 

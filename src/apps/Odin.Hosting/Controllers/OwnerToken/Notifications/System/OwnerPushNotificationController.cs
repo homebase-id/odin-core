@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,9 +25,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.System
 
         /// <summary />
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessBatch()
+        public IActionResult ProcessBatch()
         {
-            await _notificationService.ProcessBatch(WebOdinContext);
+            // throw new NotImplementedException("no need to push notifications");
+            // await _notificationService.ProcessBatch(WebOdinContext);
             return Ok();
         }
     }

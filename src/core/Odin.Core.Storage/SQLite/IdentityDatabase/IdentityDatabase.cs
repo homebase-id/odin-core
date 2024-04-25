@@ -124,7 +124,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            // Commit();
+            Serilog.Log.Information($"IdentityDatabase Dispose() called {_databaseSource}.", _databaseSource);
 
             // Drives
             tblDriveMainIndex.Dispose();
