@@ -18,10 +18,12 @@ namespace Odin.Core.Storage.SQLite
             private bool _disposed = false;
             public readonly DatabaseBase db;
 
-            public readonly SqliteConnection _connection;
+            private SqliteConnection _connection;
             public SqliteTransaction _transaction = null;
             public IntCounter _counter = new IntCounter(); // The UnitOfWork counter is local to the connection
             public int _commitsCount = 0;
+
+            public SqliteConnection Connection { get { return _connection; } }
 
             public DatabaseConnection(DatabaseBase db, string connectionString)
             {
@@ -47,17 +49,21 @@ namespace Odin.Core.Storage.SQLite
 #endif
             }
 
-            public void BeginTransaction()
+            private void BeginTransaction()
             {
                 lock (_counter._lock)
                 {
-                    Commit();
                     Debug.Assert(_transaction == null);
                     Debug.Assert(_connection != null);
                     _transaction = _connection.BeginTransaction();
                 }
             }
 
+
+            /// <summary>
+            /// Don't call this function directly, use using (CreateCommitUnitOfWork()) instead
+            /// </summary>
+            /// <returns>True if transaction was committed</returns>
             public bool Commit()
             {
                 lock (_counter._lock)
@@ -86,11 +92,9 @@ namespace Odin.Core.Storage.SQLite
             ///     write one row
             ///     write another row
             /// }
-            /// If you want to ensure that the data is subsequently flushed to the DB (will slow it down)
-            /// and you don't want to wait for the timer, then use the:
-            /// db.Commit()
-            /// Calling db.Commit() will be futile while one or more logic commit units are in progress.
-            /// If you forget to Dispose a LogicCommitUnit you're totally screwed. Use with thought.
+            /// Having them nested means data will commit when the outer-most transaction is disposed
+            /// NOTE: The memory cache updates individual rows immediately and doesn't adhere to 
+            /// transactions but does get cleared in a Rollback().
             /// </summary>
             /// <returns>LogicCommitUnit disposable object</returns>
             public UnitOfWorkTracker CreateCommitUnitOfWork()
@@ -116,12 +120,14 @@ namespace Odin.Core.Storage.SQLite
                     {
                         Serilog.Log.Error("Connection {DatabaseSource} Disposed with an open transaction, rolling back changes.", db._databaseSource);
                         _transaction.Rollback();
+                        db.ClearCache();
                     }
 
                     _transaction?.Dispose();
                     _connection.Close();
                     _connection?.Dispose();
                     _transaction = null;
+                    _connection = null;
 
                     GC.SuppressFinalize(this);
                 }

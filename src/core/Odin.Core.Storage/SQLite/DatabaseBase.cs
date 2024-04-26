@@ -65,6 +65,9 @@ namespace Odin.Core.Storage.SQLite
 #endif
         }
 
+        public virtual void ClearCache()
+        {
+        }
 
         public DatabaseConnection CreateDisposableConnection()
         {
@@ -79,7 +82,7 @@ namespace Odin.Core.Storage.SQLite
             if (!_wasDisposed)
             {
                 using (var connection = CreateDisposableConnection())
-                    SqliteConnection.ClearPool(connection._connection);
+                    SqliteConnection.ClearPool(connection.Connection);
             }
             _wasDisposed = true;
             GC.SuppressFinalize(this);
@@ -110,7 +113,7 @@ namespace Odin.Core.Storage.SQLite
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            command.Connection = connection._connection;
+            command.Connection = connection.Connection;
             command.Transaction = connection._transaction;
             var r = command.ExecuteNonQuery();
             command.Transaction = null;
@@ -122,7 +125,7 @@ namespace Odin.Core.Storage.SQLite
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            command.Connection = connection._connection;
+            command.Connection = connection.Connection;
             command.Transaction = connection._transaction;
             var r = command.ExecuteReader();
             command.Transaction = null;
@@ -136,7 +139,7 @@ namespace Odin.Core.Storage.SQLite
                 throw new ArgumentException("connection and database object mismatch");
 
             var cmd = new SqliteCommand();
-            cmd.Connection = connection._connection;
+            cmd.Connection = connection.Connection;
 
             return cmd;
         }

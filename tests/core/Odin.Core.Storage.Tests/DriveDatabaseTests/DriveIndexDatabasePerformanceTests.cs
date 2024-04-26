@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -21,7 +20,75 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         private const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
 
-        private const int _performanceIterations = 50000; // Set to 5,000 when testing
+        private const int _performanceIterations = 5000; // Set to 5,000 when testing
+
+
+        /// <summary>
+        /// Test getting a non-existant item
+        ///     00:00:01.03 : Got 5000000 non existing items from keyValue DB
+        ///     Bandwidth: 4830917 rows / second
+        ///     </summary>
+        [Test]
+        public void PerformanceTestGetNone()
+        {
+            var stopWatch = new Stopwatch();
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman1");
+            using (var myc = _testDatabase.CreateDisposableConnection())
+            {
+                _testDatabase.CreateDatabase(myc);
+
+                var g = Guid.NewGuid().ToByteArray();
+
+                stopWatch.Start();
+                for (int i = 1; i < _performanceIterations; i++)
+                {
+                    _testDatabase.tblKeyValue.Get(myc, g);
+                }
+                stopWatch.Stop();
+            }
+            int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+
+            TestBenchmark.StopWatchStatus($"Got {_performanceIterations} non existing items from keyValue DB", stopWatch);
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        /// <summary>
+        /// Test getting an existant item
+        ///         00:00:01.05 : Got 5000000 existing items from keyValue DB
+        ///         Bandwidth: 4725897 rows / second
+        /// </summary>
+        [Test]
+        public void PerformanceTestGetOne()
+        {
+            var stopWatch = new Stopwatch();
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman2");
+            using (var myc = _testDatabase.CreateDisposableConnection())
+            {
+                _testDatabase.CreateDatabase(myc);
+
+                var k1 = Guid.NewGuid().ToByteArray();
+                var v1 = Guid.NewGuid().ToByteArray();
+
+                _testDatabase.tblKeyValue.Insert(myc, new KeyValueRecord { key = k1, data = v1 } );
+
+                stopWatch.Start();
+                for (int i = 1; i < _performanceIterations; i++)
+                {
+                    _testDatabase.tblKeyValue.Get(myc, k1);
+                }
+                stopWatch.Stop();
+            }
+            int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
+
+            TestBenchmark.StopWatchStatus($"Got {_performanceIterations} existing items from keyValue DB", stopWatch);
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
 
 
 
@@ -42,7 +109,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman3");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -69,7 +136,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -96,7 +163,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"diskoman4");
             using (var myc = _testDatabase.CreateDisposableConnection())
             {
                 _testDatabase.CreateDatabase(myc);
@@ -126,7 +193,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
                 TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-                Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+                Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
                 Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -169,21 +236,19 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 }
 
                 stopWatch.Start();
-                myc.BeginTransaction();
-                for (int i = 1; i < _performanceIterations; i++)
+
+                using (myc.CreateCommitUnitOfWork())
                 {
-                    _testDatabase.AddEntry(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
-                    if (i % 100 == 0)
+                    for (int i = 1; i < _performanceIterations; i++)
                     {
-                        myc.Commit();
+                        _testDatabase.AddEntry(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                     }
                 }
-                myc.Commit();
                 stopWatch.Stop();
                 int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
                 TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-                Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+                Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
                 Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -345,7 +410,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
             TestBenchmark.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000L) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
             GC.Collect();
             GC.WaitForPendingFinalizers();

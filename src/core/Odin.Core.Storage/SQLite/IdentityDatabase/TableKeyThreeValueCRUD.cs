@@ -151,7 +151,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

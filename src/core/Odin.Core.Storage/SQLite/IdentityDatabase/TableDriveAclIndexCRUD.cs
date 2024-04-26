@@ -125,7 +125,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(driveId,aclMemberId);"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

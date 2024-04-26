@@ -125,7 +125,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(driveId,fileId);"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

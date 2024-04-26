@@ -121,6 +121,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 #endif
         }
 
+        public override void ClearCache()
+        {
+            _cache.ClearCache();
+        }
+
 
         public override void Dispose()
         {

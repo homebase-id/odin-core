@@ -186,7 +186,6 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                      +");"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

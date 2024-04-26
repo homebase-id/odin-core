@@ -201,7 +201,6 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                      +");"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

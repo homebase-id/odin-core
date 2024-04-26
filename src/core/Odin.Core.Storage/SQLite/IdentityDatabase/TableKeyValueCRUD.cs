@@ -101,7 +101,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

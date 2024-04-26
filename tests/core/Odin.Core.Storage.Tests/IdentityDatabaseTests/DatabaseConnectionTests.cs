@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection.Metadata.Ecma335;
 using System.Threading;
 using NUnit.Framework;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
@@ -18,9 +15,46 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// while the first connection is still open
         /// </summary>
         [Test]
+        public void RollbackTest()
+        {
+            using var db1 = new IdentityDatabase(Guid.NewGuid(), "gollum.db");
+
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
+            var v1 = Guid.NewGuid().ToByteArray();
+            var v2 = Guid.NewGuid().ToByteArray();
+
+            using (var myc1 = db1.CreateDisposableConnection())
+            {
+                db1.CreateDatabase(myc1);
+                db1.tblKeyValue.Insert(myc1, new KeyValueRecord() { key = k1, data = v1 });
+
+                using (var myc2 = db1.CreateDisposableConnection())
+                {
+                    using (myc2.CreateCommitUnitOfWork())
+                    {
+                        db1.tblKeyValue.Insert(myc2, new KeyValueRecord() { key = k2, data = v2 });
+                        myc2.Dispose(); // Will trigger rollback
+                    }
+                }
+
+                var r = db1.tblKeyValue.Get(myc1, k1);
+                Assert.IsNotNull(r);
+
+                r = db1.tblKeyValue.Get(myc1, k2);
+                Assert.IsNull(r);
+            }
+        }
+
+
+        /// <summary>
+        /// The memory DB will become empty on the second connection
+        /// while the first connection is still open
+        /// </summary>
+        [Test]
         public void MemoryDatabaseDualConnectionTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
+            using var db = new IdentityDatabase(Guid.NewGuid(), "gollum2");
 
             using (var myc = db.CreateDisposableConnection())
             {
@@ -53,10 +87,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             }
         }
 
-        /// <summary>
-        /// Ensure that the memory DB doesn't become empty on the second connection
-        /// while the first connection is still open
-        /// </summary>
         [Test]
         public void ConnectionDatabaseIncorrectTest()
         {

@@ -127,7 +127,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                      +");"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 

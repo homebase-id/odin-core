@@ -198,7 +198,6 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableCronCRUD ON cron(nextRun);"
                      ;
                     _database.ExecuteNonQuery(conn, cmd);
-                    conn.Commit();
             }
         }
 
