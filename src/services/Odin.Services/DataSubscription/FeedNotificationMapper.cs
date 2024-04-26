@@ -14,6 +14,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 using Serilog;
 
 namespace Odin.Services.DataSubscription
@@ -29,9 +30,7 @@ namespace Odin.Services.DataSubscription
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
         private static readonly Guid CommentNotificationTypeId = Guid.Parse("1e08b70a-3826-4840-8372-18410bfc02c7");
-
         private static readonly Guid PostNotificationTypeId = Guid.Parse("ad695388-c2df-47a0-ad5b-fc9f9e1fffc9");
-
 
         public async Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
         {
@@ -41,6 +40,8 @@ namespace Odin.Services.DataSubscription
                 var sender = (OdinId)notification.Reaction.OdinId;
                 if (sender != tenantContext.HostOdinId)
                 {
+                    var odinContext = notification.OdinContext;
+                    var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                         {
                             AppId = SystemAppConstants.FeedAppId,
@@ -48,33 +49,33 @@ namespace Odin.Services.DataSubscription
                             TagId = sender.ToHashId(),
                             Silent = false,
                         },
-                        notification.OdinContext);
+                        newContext);
                 }
             }
         }
 
-        public Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
+        public async Task Handle(NewFeedItemReceived notification, CancellationToken cancellationToken)
         {
             var typeId = notification.FileSystemType == FileSystemType.Comment ? CommentNotificationTypeId : PostNotificationTypeId;
             var odinContext = notification.OdinContext;
-            pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+
+            await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
             {
                 AppId = SystemAppConstants.FeedAppId,
                 TypeId = typeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false,
-            }, odinContext);
-
-            return Task.CompletedTask;
+            }, newContext);
         }
 
-        public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
             //handle comments when added to my identity from a user who's on my home page
             if (string.IsNullOrEmpty(notification.ServerFileHeader.FileMetadata.SenderOdinId))
             {
                 //no need to send a notification to myself
-                return Task.CompletedTask;
+                return;
             }
 
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
@@ -82,35 +83,36 @@ namespace Odin.Services.DataSubscription
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
                 && sender != tenantContext.HostOdinId)
             {
-                pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
+                var odinContext = notification.OdinContext;
+                var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
+                await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
                     {
                         AppId = SystemAppConstants.FeedAppId,
                         TypeId = CommentNotificationTypeId,
                         TagId = sender.ToHashId(),
                         Silent = false,
                     },
-                    notification.OdinContext);
+                    newContext);
             }
-
-            return Task.CompletedTask;
         }
 
-        public Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(NewFollowerNotification notification, CancellationToken cancellationToken)
         {
-            pushNotificationService.EnqueueNotification(notification.OdinId, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.OwnerAppId,
-                TypeId = notification.NotificationTypeId,
-                TagId = notification.OdinId.ToHashId(),
-                Silent = false
-            }, notification.OdinContext);
-
-            return Task.CompletedTask;
+            var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(notification.OdinContext);
+            await pushNotificationService.EnqueueNotification(notification.Sender,
+                new AppNotificationOptions()
+                {
+                    AppId = SystemAppConstants.OwnerAppId,
+                    TypeId = notification.NotificationTypeId,
+                    TagId = notification.Sender.ToHashId(),
+                    Silent = false
+                },
+                newContext);
         }
 
         private async Task<bool> IsFeedDriveRelated(Guid driveId)
         {
-            var drive = await driveManager.GetDrive(driveId, false);
+            var drive = await driveManager.GetDrive(driveId);
             if (null == drive)
             {
                 Log.Warning("notification sent with invalid driveId - this is totes rare");

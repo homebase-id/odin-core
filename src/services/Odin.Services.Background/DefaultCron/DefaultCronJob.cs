@@ -39,7 +39,7 @@ public class DefaultCronSchedule(
         };
 
         logger.LogInformation(
-            "Scheduling Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batchsize of {CronBatchSize}",
+            "Scheduling Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds and batch size of {CronBatchSize}",
             odinConfig.Job.CronProcessingInterval, odinConfig.Job.CronBatchSize);
 
         return Task.FromResult((jobBuilder, triggerBuilders));
@@ -94,12 +94,6 @@ public class DefaultCronJob(
             success = await job.Execute(record);
         }
 
-        if (record.type == (Int32)CronJobType.PushNotification)
-        {
-            var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-            success = await PushNotifications(identity);
-        }
-
         if (record.type == (Int32)CronJobType.ReconcileInboxOutbox)
         {
             success = await ProcessInboxOutboxReconciliation(record);
@@ -144,20 +138,5 @@ public class DefaultCronJob(
 
         return false;
     }
-
-    private async Task<bool> PushNotifications(OdinId identity)
-    {
-        var svc = systemHttpClient.CreateHttps<ICronHttpClient>(identity);
-        try
-        {
-            var response = await svc.ProcessPushNotifications();
-            return response.IsSuccessStatusCode;
-        }
-        catch (HttpRequestException e)
-        {
-            logger.LogDebug("Process push notification: {identity}. Error: {error}", identity, e.Message);
-        }
-
-        return false;
-    }
+    
 }

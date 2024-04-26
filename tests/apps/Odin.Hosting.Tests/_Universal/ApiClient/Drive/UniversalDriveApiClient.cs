@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
@@ -612,6 +614,44 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             BatchSize = batchSize
         });
 
+        return response;
+    }
+    public async Task WaitForEmptyOutbox(TargetDrive drive, TimeSpan? maxWaitTime = null)
+    {
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(10);
+        
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Outbox.TotalItems == 0)
+            {
+                return;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException($"timeout occured while waiting for outbox to complete processing");
+            }
+
+            await Task.Delay(100);
+        }
+    }
+    
+    public async Task<ApiResponse<DriveStatus>> GetDriveStatus(TargetDrive drive)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await driveSvc.GetDriveStatus(drive.Alias, drive.Type);
         return response;
     }
 }

@@ -47,15 +47,5 @@ public class CronApiClient
             return resp;
         }
     }
-
-    public async Task<ApiResponse<HttpContent>> ProcessIncomingPushNotifications()
-    {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-        {
-            var svc = RestService.For<ICronHttpClient>(client);
-            client.DefaultRequestHeaders.Add(SystemAuthConstants.Header, _systemApiKey.ToString());
-            var resp = await svc.ProcessPushNotifications();
-            return resp;
-        }
-    }
+    
 }

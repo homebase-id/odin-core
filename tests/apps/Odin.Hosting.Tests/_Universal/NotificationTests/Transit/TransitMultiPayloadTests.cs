@@ -117,7 +117,8 @@ public class TransitNotificationTests
         Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
         Assert.IsTrue(frodoTransferStatus == TransferStatus.DeliveredToTargetDrive, $"transfer status: {frodoTransferStatus}");
 
-        var processPushResponse = await ownerFrodo.Cron.ProcessIncomingPushNotifications();
+        
+        var processPushResponse = await ownerFrodo.Cron.ProcessTransitOutbox();
         Assert.IsTrue(processPushResponse.IsSuccessStatusCode,
             $"failed ProcessIncomingPushNotifications with status code {processPushResponse.StatusCode}");
 

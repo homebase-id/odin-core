@@ -8,9 +8,9 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 {
-    public class TransitOutboxItem
+    public class OutboxItem
     {
-        public TransitOutboxItem()
+        public OutboxItem()
         {
             this.AddedTimestamp = UnixTimeUtc.Now().seconds;
             this.Attempts = new List<TransferAttempt>();
@@ -49,5 +49,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> or Follower used to send the file to the recipient
         /// </summary>
         public byte[] EncryptedClientAuthToken { get; set; }
+
+        public OutboxItemType Type { get; set; }
+        public int AttemptCount { get; set; }
+        public byte[] RawValue { get; set; }
     }
 }

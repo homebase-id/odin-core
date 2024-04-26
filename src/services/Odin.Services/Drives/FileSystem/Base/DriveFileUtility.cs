@@ -26,7 +26,7 @@ public static class DriveFileUtility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
+    public static SharedSecretEncryptedFileHeader CreateClientFileHeader(ServerFileHeader header, IOdinContext odinContext,
         bool forceIncludeServerMetadata = false)
     {
         if (header == null)

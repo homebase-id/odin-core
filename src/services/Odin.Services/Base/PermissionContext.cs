@@ -4,36 +4,44 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Util;
 using Serilog;
 
 namespace Odin.Services.Base
 {
-    public class PermissionContext
+    public class PermissionContext : IGenericCloneable<PermissionContext>
     {
-        private readonly Dictionary<string, PermissionGroup> _permissionGroups;
         private readonly bool _isSystem = false;
-
-        // private Guid _instanceId;
+        public SensitiveByteArray SharedSecretKey { get; }
+        internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
             bool isSystem = false)
         {
-            this.SharedSecretKey = sharedSecretKey;
-            // IcrKey = icrKey;
-
-            _permissionGroups = permissionGroups;
-
-            // _instanceId = new Guid();
+            SharedSecretKey = sharedSecretKey;
+            PermissionGroups = permissionGroups;
             _isSystem = isSystem;
         }
 
-        public SensitiveByteArray SharedSecretKey { get; }
+        public PermissionContext(PermissionContext other)
+        {
+            _isSystem = other._isSystem;
+            SharedSecretKey = other.SharedSecretKey?.Clone();
+            PermissionGroups = new Dictionary<string, PermissionGroup>();
+            foreach (var (key, value) in other.PermissionGroups)
+            {
+                PermissionGroups[key] = value.Clone();
+            }
+        }
 
-        internal Dictionary<string, PermissionGroup> PermissionGroups => _permissionGroups;
+        public PermissionContext Clone()
+        {
+            return new PermissionContext(this);
+        }
 
         public SensitiveByteArray GetIcrKey()
         {

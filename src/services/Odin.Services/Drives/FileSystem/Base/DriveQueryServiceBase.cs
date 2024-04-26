@@ -33,6 +33,19 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
+        public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext)
+        {
+            await AssertCanReadOrWriteToDrive(driveId, odinContext);
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo();
+
+            return new DriveSizeInfo()
+            {
+                FileCount = fileCount,
+                Size = bytes
+            };
+        }
+
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext)
         {
             await AssertCanReadDrive(driveId, odinContext);
@@ -226,7 +239,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
                     if (shouldReceiveFile)
                     {
-                        var header = DriveFileUtility.ConvertToSharedSecretEncryptedClientFileHeader(
+                        var header = DriveFileUtility.CreateClientFileHeader(
                             serverFileHeader,
                             odinContext,
                             forceIncludeServerMetadata);

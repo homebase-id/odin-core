@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -15,9 +16,9 @@ namespace Odin.Services.Base;
 /// <summary>
 /// Specifies a set of permissions.  This allows an identity's permissions to come from multiple sources such as circles.
 /// </summary>
-public class PermissionGroup
+public class PermissionGroup : IGenericCloneable<PermissionGroup>
 {
-    private readonly PermissionSet _permissionSet;
+    private readonly PermissionSet? _permissionSet;
     private readonly IEnumerable<DriveGrant>? _driveGrants;
     private readonly SensitiveByteArray? _keyStoreKey;
     private readonly SymmetricKeyEncryptedAes? _encryptedIcrKey;
@@ -29,6 +30,19 @@ public class PermissionGroup
         _driveGrants = driveGrants;
         _keyStoreKey = keyStoreKey;
         _encryptedIcrKey = encryptedIcrKey;
+    }
+
+    public PermissionGroup(PermissionGroup other)
+    {
+        _permissionSet = other._permissionSet?.Clone();
+        _driveGrants = other._driveGrants?.Select(dg => dg.Clone());
+        _keyStoreKey = other._keyStoreKey?.Clone();
+        _encryptedIcrKey = other._encryptedIcrKey?.Clone();
+    }
+
+    public PermissionGroup Clone()
+    {
+        return new PermissionGroup(this);
     }
 
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)

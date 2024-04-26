@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Bitcoin.BitcoinUtilities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -32,12 +33,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("Processing Inbox -> Getting Pending Items for drive {driveId} with batchSize: {batchSize}", driveId, batchSize);
             var items = await transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
+            var status = transitInboxBoxStorage.GetPendingCount(driveId);
+            logger.LogDebug("Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+                status.PoppedCount, status.TotalItems,
+                status.OldestItemTimestamp.milliseconds);
+
             PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
             logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
 
             foreach (var inboxItem in items)
             {
-                // logger.LogDebug("Processing Inbox -> CreateCommitUnitOfWork");
+                logger.LogDebug("Processing Inbox item with marker/popStamp [{marker}]", inboxItem.Marker);
 
                 using (tenantSystemStorage.CreateCommitUnitOfWork())
                 {
@@ -54,7 +60,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
                             // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration");
-                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender,odinContext, overrideHack: true);
+                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, overrideHack: true);
                             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
 
                             // logger.LogDebug("Processing Inbox -> DecryptAesToKeyHeader");
@@ -65,27 +71,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                             {
-                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,odinContext);
+                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet, odinContext);
                             });
 
                             logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
-                            // logger.LogDebug("Processing Inbox -> DeleteFile from sender:{sender}", inboxItem.Sender);
-                            await writer.DeleteFile(fs, inboxItem,odinContext);
+                            logger.LogDebug("Processing Inbox -> DeleteFile maker/popstamp:[{maker}]",
+                                Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                            await writer.DeleteFile(fs, inboxItem, odinContext);
                             // logger.LogDebug("Processing Inbox -> DeleteFile done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)
                         {
+                            await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                             throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
                         }
                         else
                         {
+                            await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                             throw new OdinClientException("Invalid transfer type", OdinClientErrorCode.InvalidTransferType);
                         }
 
-                        // logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}", inboxItem.Marker, inboxItem.DriveId);
+                        logger.LogDebug("Processing Inbox -> MarkComplete: marker: {marker} for drive: {driveId}",
+                            Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()), Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                     catch (OdinRemoteIdentityException)
@@ -98,22 +108,28 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     catch (OdinFileWriteException)
                     {
-                        logger.LogError("File was missing for inbox item.  the inbox item will be removed");
+                        logger.LogError("File was missing for inbox item.  the inbox item will be removed.  marker/popStamp: [{marker}]",
+                            Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        // logger.LogDebug("Processing Inbox -> failed with exception: {message}", e.Message);
-                        // logger.LogDebug("Processing Inbox -> MarkFailure (general Exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
-                        //     inboxItem.DriveId);
-                        await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        logger.LogError("Processing Inbox -> Marking Complete (Catch-all Exception): Failed with exception: {message}", e.Message);
+                        logger.LogError(
+                            "Processing Inbox -> Catch-all Exception of type [{exceptionType}]): Marking Complete PopStamp (hex): {marker} for drive (hex): {driveId}",
+                            e.GetType().Name,
+                            Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                            Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
+                        // await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                 }
             }
 
             var pendingCount = transitInboxBoxStorage.GetPendingCount(driveId);
-            logger.LogDebug("Processing Inbox -> returning pending count.  total items: {pendingCount}, popped items: {popped}", pendingCount.TotalItems,
-                pendingCount.PoppedCount);
+            logger.LogDebug("Returning: Status for drive: [{targetDrive}]: popped:{popped}, total: {totalCount}, oldest:{oldest}", targetDrive.ToString(),
+                pendingCount.PoppedCount, pendingCount.TotalItems,
+                pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
         }
 

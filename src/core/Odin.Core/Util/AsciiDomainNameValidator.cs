@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using DnsClient;
 using DnsClient.Protocol;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
 //using DnsClient; // https://www.nuget.org/packages/DnsClient/
 
@@ -13,24 +14,30 @@ namespace Odin.Core.Util
     // Guaranteed to hold a valid, lowercased puny domain name
     //
     [JsonConverter(typeof(AsciiDomainConverter))]
-    public readonly struct AsciiDomainName
+    public readonly struct AsciiDomainName : IGenericCloneable<AsciiDomainName>
     {
-        private readonly string _domainName;
-
         // Provide a public property to read the puny domain
-        public string DomainName => _domainName;
+        public string DomainName { get; init; }
 
         public AsciiDomainName(string punyDomainName)
         {
             AsciiDomainNameValidator.AssertValidDomain(punyDomainName);
-            _domainName = punyDomainName.ToLower();
+            DomainName = punyDomainName.ToLower();
+        }
+
+        public AsciiDomainName Clone()
+        {
+            return new AsciiDomainName
+            {
+                DomainName = DomainName
+            };
         }
 
         // Get the IDN representation of the puny domain
         public string ToIDN()
         {
             var idnMapping = new IdnMapping();
-            string unicode = idnMapping.GetUnicode(_domainName);
+            string unicode = idnMapping.GetUnicode(DomainName);
             return unicode;
         }
 
