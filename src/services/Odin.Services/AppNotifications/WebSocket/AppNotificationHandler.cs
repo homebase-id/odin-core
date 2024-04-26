@@ -271,7 +271,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     NotificationType = ClientNotificationType.Error,
                     Data = errorText,
                 }), cancellationToken,
-                deviceSocket.SharedSecretKey != null);
+                deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey != null);
         }
 
         //
@@ -289,13 +289,12 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 if (encrypt)
                 {
-                    if (deviceSocket.SharedSecretKey == null)
+                    if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
                     }
 
-                    // var key = odinContext.PermissionsContext.SharedSecretKey;
-                    var key = deviceSocket.SharedSecretKey;
+                    var key = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
                     message = OdinSystemSerializer.Serialize(encryptedPayload);
                 }
@@ -348,7 +347,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                             drives.Add(driveId);
                         }
 
-                        deviceSocket.SharedSecretKey = odinContext.PermissionsContext.SharedSecretKey;
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
                     }

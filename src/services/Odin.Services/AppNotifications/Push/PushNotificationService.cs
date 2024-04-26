@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -142,7 +143,6 @@ public class PushNotificationService(
             notification.OdinContext);
     }
 
-
     public async Task Push(PushNotificationContent content, IOdinContext odinContext)
     {
         logger.LogDebug("Attempting push notification");
@@ -157,7 +157,7 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPush(subscription, keys, content));
+                tasks.Add(WebPush(subscription, keys, content, odinContext));
             }
             else
             {
@@ -171,7 +171,7 @@ public class PushNotificationService(
         await Task.WhenAll(tasks);
     }
 
-    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
+    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
 
@@ -180,7 +180,6 @@ public class PushNotificationService(
 
         var data = OdinSystemSerializer.Serialize(content);
 
-        //TODO: this will probably need to get an http client via @Seb's work
         var webPushClient = new WebPushClient();
         try
         {
@@ -188,21 +187,28 @@ public class PushNotificationService(
         }
         catch (WebPushException exception)
         {
-            logger.LogError(exception,"Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
+            if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
+            {
+                await RemoveDevice(subscription.AccessRegistrationId, odinContext);
+                logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                    exception.Message, subscription.AccessRegistrationId);
+
+                return;
+            }
+
+            logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
-            return;
 
-            //TODO: collect all errors and send back to client or do something with it
+            return;
         }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to send web push notification");
             return;
         }
-        
-        logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
 
+        logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
     }
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext)
