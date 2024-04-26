@@ -43,15 +43,16 @@ public class CircleMembershipService
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(memberId);
-        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(cn, memberId);
+        using (cn.CreateCommitUnitOfWork())
         {
             foreach (var circleMemberRecord in circleMemberRecords)
             {
                 var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
                 if (sd.DomainType == domainType)
                 {
-                    _tenantSystemStorage.CircleMemberStorage.Delete(sd.CircleGrant.CircleId, memberId);
+                    _tenantSystemStorage.CircleMemberStorage.Delete(cn, sd.CircleGrant.CircleId, memberId);
                 }
             }
         }
@@ -62,7 +63,8 @@ public class CircleMembershipService
 
     public IEnumerable<CircleGrant> GetCirclesGrantsByDomain(AsciiDomainName domainName, DomainType domainType)
     {
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName)).Select(d =>
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(cn, OdinId.ToHashId(domainName)).Select(d =>
             OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
         );
 
@@ -83,7 +85,8 @@ public class CircleMembershipService
             }
         }
 
-        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(cn, circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
@@ -112,7 +115,8 @@ public class CircleMembershipService
             }).ToUtf8ByteArray()
         };
 
-        _tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers(cn, new List<CircleMemberRecord>() { circleMemberRecord });
     }
 
     // Grants

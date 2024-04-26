@@ -16,11 +16,12 @@ public class RecoveryService
     
     private readonly SingleKeyValueStorage _storage;
     private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
+    private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly OdinConfiguration _odinConfiguration;
 
     public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinConfiguration odinConfiguration)
     {
-        
+        _tenantSystemStorage = tenantSystemStorage;
         _odinConfiguration = odinConfiguration;
 
         const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
@@ -46,7 +47,8 @@ public class RecoveryService
     public async Task CreateInitialKey(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var keyRecord = _storage.Get<RecoveryKeyRecord>(cn, _recordStorageId);
         if (null != keyRecord)
         {
             throw new OdinSystemException("Recovery key already exists");
@@ -97,7 +99,8 @@ public class RecoveryService
 
     private RecoveryKeyRecord GetKeyInternal()
     {
-        var existingKey = _storage.Get<RecoveryKeyRecord>(_recordStorageId);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var existingKey = _storage.Get<RecoveryKeyRecord>(cn, _recordStorageId);
         return existingKey;
     }
 
@@ -113,6 +116,7 @@ public class RecoveryService
             RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
         };
 
-        _storage.Upsert(_recordStorageId, record);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _storage.Upsert(cn, _recordStorageId, record);
     }
 }

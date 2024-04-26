@@ -41,13 +41,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 priority = item.Priority,
                 value = state
             };
+
+            using var cn = tenantSystemStorage.CreateConnection();
             if (useUpsert)
             {
-                tenantSystemStorage.Outbox.Upsert(record);
+                tenantSystemStorage.Outbox.Upsert(cn, record);
             }
             else
             {
-                tenantSystemStorage.Outbox.Insert(record);
+                tenantSystemStorage.Outbox.Insert(cn, record);
             }
 
             var sender = tenantContext.HostOdinId;
@@ -68,7 +70,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public Task MarkComplete(Guid marker)
         {
-            tenantSystemStorage.Outbox.CompleteAndRemove(marker);
+            using var cn = tenantSystemStorage.CreateConnection();
+            tenantSystemStorage.Outbox.CompleteAndRemove(cn, marker);
             return Task.CompletedTask;
         }
 
@@ -77,19 +80,22 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         public Task MarkFailure(Guid marker, UnixTimeUtc nextRun)
         {
-            tenantSystemStorage.Outbox.CheckInAsCancelled(marker, nextRun);
+            using var cn = tenantSystemStorage.CreateConnection();
+            tenantSystemStorage.Outbox.CheckInAsCancelled(cn, marker, nextRun);
             return Task.CompletedTask;
         }
 
         public Task RecoverDead(UnixTimeUtc time)
         {
-            tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(time);
+            using var cn = tenantSystemStorage.CreateConnection();
+            tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(cn, time);
             return Task.CompletedTask;
         }
 
         public async Task<OutboxItem> GetNextItem()
         {
-            var record = tenantSystemStorage.Outbox.CheckOutItem();
+            using var cn = tenantSystemStorage.CreateConnection();
+            var record = tenantSystemStorage.Outbox.CheckOutItem(cn);
 
             if (null == record)
             {
@@ -121,7 +127,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public Task<bool> HasOutboxFileItem(OutboxItem item)
         {
-            var records = tenantSystemStorage.Outbox.Get(item.File.DriveId, item.File.FileId);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var records = tenantSystemStorage.Outbox.Get(cn, item.File.DriveId, item.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
         }
@@ -131,7 +138,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         public async Task<OutboxStatus> GetOutboxStatus(Guid driveId)
         {
-            var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(driveId);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(cn, driveId);
             return await Task.FromResult<OutboxStatus>(new OutboxStatus()
             {
                 CheckedOutCount = poppedCount,

@@ -27,6 +27,7 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager
 {
+    private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly IMediator _mediator;
 
     private readonly TenantContext _tenantContext;
@@ -39,6 +40,7 @@ public class DriveManager
 
     public DriveManager(TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
+        _tenantSystemStorage = tenantSystemStorage;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
@@ -103,7 +105,8 @@ public class DriveManager
 
             storageKey.Wipe();
 
-            _driveStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _driveStorage.Upsert(cn, sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
@@ -143,7 +146,8 @@ public class DriveManager
         {
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
-            _driveStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _driveStorage.Upsert(cn, driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
 
             CacheDrive(storageDrive);
 
@@ -159,10 +163,12 @@ public class DriveManager
     public Task UpdateMetadata(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
+
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var sdb = _driveStorage.Get<StorageDriveBase>(cn, driveId);
         sdb.Metadata = metadata;
 
-        _driveStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+        _driveStorage.Upsert(cn, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
         return Task.CompletedTask;
@@ -175,7 +181,8 @@ public class DriveManager
             return cachedDrive;
         }
 
-        var sdb = _driveStorage.Get<StorageDriveBase>(driveId);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var sdb = _driveStorage.Get<StorageDriveBase>(cn, driveId);
         if (null == sdb)
         {
             if (failIfInvalid)
@@ -198,7 +205,8 @@ public class DriveManager
             return cachedDrive.Id;
         }
 
-        var list = _driveStorage.GetByDataType<StorageDriveBase>(targetDrive.ToKey());
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var list = _driveStorage.GetByDataType<StorageDriveBase>(cn, targetDrive.ToKey());
         var drives = list as StorageDriveBase[] ?? list.ToArray();
         if (!drives.Any())
         {
@@ -266,8 +274,9 @@ public class DriveManager
         }
         else
         {
+            using var cn = _tenantSystemStorage.CreateConnection();
             allDrives = _driveStorage
-                .GetByCategory<StorageDriveBase>(_driveDataType)
+                .GetByCategory<StorageDriveBase>(cn, _driveDataType)
                 .Select(ToStorageDrive).ToList();
 
             Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
@@ -310,7 +319,8 @@ public class DriveManager
 
     private void LoadCache()
     {
-        var storageDrives = _driveStorage.GetByCategory<StorageDriveBase>(_driveDataType);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var storageDrives = _driveStorage.GetByCategory<StorageDriveBase>(cn, _driveDataType);
         foreach (var drive in storageDrives.Select(ToStorageDrive).ToList())
         {
             CacheDrive(drive);

@@ -13,23 +13,22 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class TwoKeyValueStorage
 {
-    private readonly IdentityDatabase _db;
     private readonly Guid _contextKey;
 
-    public TwoKeyValueStorage(IdentityDatabase db, Guid contextKey)
+    public TwoKeyValueStorage(Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
             throw new OdinSystemException("Invalid context key for storage");
         }
 
-        _db = db;
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseBase.DatabaseConnection conn, Guid key) where T : class
+    public T Get<T>(DatabaseBase.DatabaseConnection cn, Guid key) where T : class
     {
-        var record = _db.tblKeyTwoValue.Get(conn, MakeStorageKey(key));
+        var db = (IdentityDatabase)cn.db; // :(
+        var record = db.tblKeyTwoValue.Get(cn, MakeStorageKey(key));
 
         if (null == record)
         {
@@ -39,9 +38,10 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseBase.DatabaseConnection conn, byte[] key2) where T : class
+    public IEnumerable<T> GetByDataType<T>(DatabaseBase.DatabaseConnection cn, byte[] key2) where T : class
     {
-        var list = _db.tblKeyTwoValue.GetByKeyTwo(conn, key2);
+        var db = (IdentityDatabase)cn.db; // :(
+        var list = db.tblKeyTwoValue.GetByKeyTwo(cn, key2);
         if (null == list)
         {
             return new List<T>();
@@ -50,15 +50,17 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(DatabaseBase.DatabaseConnection conn, Guid key1, byte[] dataTypeKey, T value)
+    public void Upsert<T>(DatabaseBase.DatabaseConnection cn, Guid key1, byte[] dataTypeKey, T value)
     {
+        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        _db.tblKeyTwoValue.Upsert(conn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        db.tblKeyTwoValue.Upsert(cn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseBase.DatabaseConnection conn, Guid id)
+    public void Delete(DatabaseBase.DatabaseConnection cn, Guid id)
     {
-        _db.tblKeyTwoValue.Delete(conn, MakeStorageKey(id));
+        var db = (IdentityDatabase)cn.db; // :(
+        db.tblKeyTwoValue.Delete(cn, MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

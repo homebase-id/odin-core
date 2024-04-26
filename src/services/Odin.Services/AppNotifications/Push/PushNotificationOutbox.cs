@@ -23,8 +23,9 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
         var recipient = odinContext.Tenant;
         var fileId = record.Options.TagId;
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
-        
-        tenantSystemStorage.Outbox.Insert(new OutboxRecord()
+
+        using var cn = tenantSystemStorage.CreateConnection();
+        tenantSystemStorage.Outbox.Insert(cn, new OutboxRecord()
         {
             // driveId = _notificationBoxId,
             driveId = Guid.NewGuid(),

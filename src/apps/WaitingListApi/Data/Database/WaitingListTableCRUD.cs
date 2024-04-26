@@ -35,35 +35,35 @@ namespace WaitingListApi.Data.Database
             _disposed = true;
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public  void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
+            using var cn = _database.CreateDisposableConnection();
+            using var cmd = _database.CreateCommand(cn);
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS waiting_list;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-
-                cmd.CommandText =
-                    $"CREATE TABLE IF NOT EXISTS waiting_list("
-                    + "emailAddress TEXT NOT NULL, "
-                    + "jsonData TEXT, "
-                    + "created INT NOT NULL "
-                    + ", PRIMARY KEY (emailAddress)"
-                    + ");";
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                cmd.CommandText = "DROP TABLE IF EXISTS waiting_list;";
+                _database.ExecuteNonQuery(cn, cmd);
             }
+
+            cmd.CommandText =
+                $"CREATE TABLE IF NOT EXISTS waiting_list("
+                + "emailAddress TEXT NOT NULL, "
+                + "jsonData TEXT, "
+                + "created INT NOT NULL "
+                + ", PRIMARY KEY (emailAddress)"
+                + ");";
+            _database.ExecuteNonQuery(cn, cmd);
         }
 
         public virtual int Insert(WaitingListRecord item)
         {
             lock (_insertLock)
             {
+                using var cn = _database.CreateDisposableConnection();
+
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _database.CreateCommand();
+                    _insertCommand = _database.CreateCommand(cn);
                     _insertCommand.CommandText = "INSERT INTO waiting_list (emailAddress, jsonData, created) " +
                                                  "VALUES ($emailAddress, $jsonData, $created)";
                   
@@ -84,7 +84,7 @@ namespace WaitingListApi.Data.Database
                 _insertParam1!.Value = item.EmailAddress;
                 _insertParam2!.Value = item.JsonData;
                 _insertParam8!.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_insertCommand);
+                return _database.ExecuteNonQuery(cn, _insertCommand);
             } // Lock
         }
         

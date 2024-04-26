@@ -38,8 +38,12 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
-                _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                using var cn = _tenantStorage.CreateConnection();
+                using (cn.CreateCommitUnitOfWork())
+                {
+                    _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
+                    _tenantStorage.Followers.Insert(cn, new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                }
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -66,12 +70,13 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
-                using (_tenantStorage.CreateCommitUnitOfWork())
+                using var cn = _tenantStorage.CreateConnection();
+                using (cn.CreateCommitUnitOfWork())
                 {
-                    _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
+                    _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                        _tenantStorage.Followers.Insert(cn, new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
                 }
 
@@ -94,7 +99,9 @@ namespace Odin.Services.DataSubscription.Follower
         public Task AcceptUnfollowRequest(IOdinContext odinContext)
         {
             var follower = odinContext.Caller.OdinId;
-            _tenantStorage.Followers.DeleteByIdentity(follower);
+
+            using var cn = _tenantStorage.CreateConnection();
+            _tenantStorage.Followers.DeleteByIdentity(cn, follower);
             return Task.CompletedTask;
         }
     }

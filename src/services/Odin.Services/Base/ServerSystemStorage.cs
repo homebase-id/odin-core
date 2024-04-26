@@ -15,7 +15,7 @@ namespace Odin.Services.Base;
 /// <summary>
 /// Stores system-wide data
 /// </summary>
-public class ServerSystemStorage : IDisposable
+public sealed class ServerSystemStorage : IDisposable
 {
     private readonly ServerDatabase _db;
     public readonly TableCron JobQueue;
@@ -29,19 +29,28 @@ public class ServerSystemStorage : IDisposable
             Directory.CreateDirectory(dbPath!);
         }
 
-        string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+        var finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new ServerDatabase(finalPath);
-        _db.CreateDatabase(false);
+        using (var cn = _db.CreateDisposableConnection())
+        {
+            _db.CreateDatabase(cn, false);
+        }
 
         //temp test
         JobQueue = _db.tblCron;
+    }
+
+    public DatabaseBase.DatabaseConnection CreateConnection()
+    {
+        return _db.CreateDisposableConnection();
     }
 
     public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data, UnixTimeUtc nextRun)
     {
         try
         {
-            this.JobQueue.Insert(new CronRecord()
+            using var cn = _db.CreateDisposableConnection();
+            JobQueue.Insert(cn, new CronRecord()
             {
                 identityId = odinId,
                 type = (Int32)jobType,
@@ -64,7 +73,8 @@ public class ServerSystemStorage : IDisposable
     {
         try
         {
-            this.JobQueue.Insert(new CronRecord()
+            using var cn = _db.CreateDisposableConnection();
+            JobQueue.Insert(cn, new CronRecord()
             {
                 identityId = odinId,
                 type = (Int32)jobType,

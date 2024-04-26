@@ -29,6 +29,7 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private readonly CircleNetworkService _cns;
+    private readonly TenantSystemStorage _tenantSystemStorage;
 
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
@@ -41,7 +42,8 @@ public class TenantConfigService
     private readonly IAppRegistrationService _appRegistrationService;
 
     public TenantConfigService(CircleNetworkService cns,
-        TenantSystemStorage storage, TenantContext tenantContext,
+        TenantSystemStorage storage,
+        TenantContext tenantContext,
         IIdentityRegistry registry,
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
@@ -51,6 +53,7 @@ public class TenantConfigService
         IAppRegistrationService appRegistrationService)
     {
         _cns = cns;
+        _tenantSystemStorage = storage;
 
         _tenantContext = tenantContext;
         _registry = registry;
@@ -69,8 +72,9 @@ public class TenantConfigService
 
     public bool IsIdentityServerConfigured()
     {
+        using var cn = _tenantSystemStorage.CreateConnection();
         //ok for anonymous to query this as long as we're only returning a bool
-        var firstRunInfo = _configStorage.Get<FirstRunInfo>(FirstRunInfo.Key);
+        var firstRunInfo = _configStorage.Get<FirstRunInfo>(cn, FirstRunInfo.Key);
         return firstRunInfo != null;
     }
 
@@ -78,7 +82,8 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var info = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var info = _configStorage.Get<List<EulaSignature>>(cn, EulaSystemInfo.StorageKey);
         if (info == null || !info.Any())
         {
             return true;
@@ -101,7 +106,8 @@ public class TenantConfigService
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var signatures = _configStorage.Get<List<EulaSignature>>(cn, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
         return signatures;
     }
@@ -118,7 +124,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid Eula version");
         }
 
-        var signatures = _configStorage.Get<List<EulaSignature>>(EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var signatures = _configStorage.Get<List<EulaSignature>>(cn, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
         signatures.Add(new EulaSignature()
         {
@@ -127,7 +134,7 @@ public class TenantConfigService
             SignatureBytes = request.SignatureBytes
         });
 
-        _configStorage.Upsert(Eula.EulaSystemInfo.StorageKey, signatures);
+        _configStorage.Upsert(cn, Eula.EulaSystemInfo.StorageKey, signatures);
     }
 
     public async Task CreateInitialKeys(IOdinContext odinContext)
@@ -180,12 +187,15 @@ public class TenantConfigService
 
         await this.RegisterBuiltInApps(odinContext);
 
-        _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
-
-        _configStorage.Upsert(FirstRunInfo.Key, new FirstRunInfo()
+        using var cn = _tenantSystemStorage.CreateConnection();
+        using (cn.CreateCommitUnitOfWork())
         {
-            FirstRunDate = UnixTimeUtc.Now().milliseconds
-        });
+            _configStorage.Upsert(cn, TenantSettings.ConfigKey, TenantSettings.Default);
+            _configStorage.Upsert(cn, FirstRunInfo.Key, new FirstRunInfo()
+            {
+                FirstRunDate = UnixTimeUtc.Now().milliseconds
+            });
+        }
     }
 
     public async Task UpdateSystemFlag(UpdateFlagRequest request, IOdinContext odinContext)
@@ -197,7 +207,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid flag name", OdinClientErrorCode.InvalidFlagName);
         }
 
-        var cfg = _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? new TenantSettings();
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var cfg = _configStorage.Get<TenantSettings>(cn, TenantSettings.ConfigKey) ?? new TenantSettings();
 
         switch (flag)
         {
@@ -248,7 +259,7 @@ public class TenantConfigService
                     OdinClientErrorCode.UnknownFlagName);
         }
 
-        _configStorage.Upsert(TenantSettings.ConfigKey, cfg);
+        _configStorage.Upsert(cn, TenantSettings.ConfigKey, cfg);
 
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
@@ -256,19 +267,22 @@ public class TenantConfigService
 
     public TenantSettings GetTenantSettings()
     {
-        return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
+        using var cn = _tenantSystemStorage.CreateConnection();
+        return _configStorage.Get<TenantSettings>(cn, TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
     public OwnerAppSettings GetOwnerAppSettings(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
+        using var cn = _tenantSystemStorage.CreateConnection();
+        return _configStorage.Get<OwnerAppSettings>(cn, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _configStorage.Upsert(cn, OwnerAppSettings.ConfigKey, newSettings);
     }
 
     //

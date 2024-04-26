@@ -32,8 +32,11 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var aclList = GetAcl(odinContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
+        using var cn = tenantSystemStorage.CreateConnection();
+
         // TODO TODD - use moreRows
         var (results, moreRows) = _db.QueryModified(
+            cn,
             Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
@@ -62,9 +65,12 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
+        using var cn = tenantSystemStorage.CreateConnection();
+
         if (options.Ordering == Ordering.Default)
         {
             var (results, moreRows) = _db.QueryBatchAuto(
+                cn,
                 Drive.Id,
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
@@ -119,13 +125,14 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-        var exists = _db.tblDriveMainIndex.Get(Drive.Id, metadata.File.FileId) != null;
+        using var cn = tenantSystemStorage.CreateConnection();
+        var exists = _db.tblDriveMainIndex.Get(cn, Drive.Id, metadata.File.FileId) != null;
 
         if (header.ServerMetadata.DoNotIndex)
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
-                _db.tblDriveMainIndex.Delete(Drive.Id, metadata.File.FileId);
+                _db.tblDriveMainIndex.Delete(cn, Drive.Id, metadata.File.FileId);
             }
 
             return Task.CompletedTask;
@@ -147,6 +154,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
         if (exists)
         {
             _db.UpdateEntryZapZap(
+                cn,
                 Drive.Id,
                 fileId: metadata.File.FileId,
                 fileType: metadata.AppData.FileType,
@@ -168,6 +176,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             try
             {
                 _db.AddEntry(
+                    cn,
                     Drive.Id,
                     fileId: metadata.File.FileId,
                     globalTransitId: metadata.GlobalTransitId,
@@ -200,25 +209,29 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task RemoveFromCurrentIndex(InternalDriveFileId file)
     {
-        _db.DeleteEntry(Drive.Id, file.FileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.DeleteEntry(cn, Drive.Id, file.FileId);
         return Task.CompletedTask;
     }
 
     public Task LoadLatestIndex()
     {
-        _db.CreateDatabase(false);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.CreateDatabase(cn, false);
         return Task.CompletedTask;
     }
 
     public Task AddCommandMessage(List<Guid> fileIds)
     {
-        _db.tblDriveCommandMessageQueue.InsertRows(Drive.Id, fileIds);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.tblDriveCommandMessageQueue.InsertRows(cn, Drive.Id, fileIds);
         return Task.CompletedTask;
     }
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
-        var list = _db.tblDriveCommandMessageQueue.Get(Drive.Id, count) ?? new List<DriveCommandMessageQueueRecord>();
+        using var cn = tenantSystemStorage.CreateConnection();
+        var list = _db.tblDriveCommandMessageQueue.Get(cn, Drive.Id, count) ?? new List<DriveCommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
         {
@@ -231,7 +244,8 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task MarkCommandsCompleted(List<Guid> fileIds)
     {
-        _db.tblDriveCommandMessageQueue.DeleteRow(Drive.Id, fileIds);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.tblDriveCommandMessageQueue.DeleteRow(cn, Drive.Id, fileIds);
         return Task.CompletedTask;
     }
 
@@ -245,7 +259,8 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.tblDriveReactions.Insert(new DriveReactionsRecord()
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.tblDriveReactions.Insert(cn, new DriveReactionsRecord()
         {
             driveId = Drive.Id,
             identity = odinId,
@@ -256,22 +271,26 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public void DeleteReactions(OdinId odinId, Guid fileId)
     {
-        _db.tblDriveReactions.DeleteAllReactions(Drive.Id, odinId, fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.tblDriveReactions.DeleteAllReactions(cn, Drive.Id, odinId, fileId);
     }
 
     public void DeleteReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.tblDriveReactions.Delete(Drive.Id, odinId, fileId, reaction);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _db.tblDriveReactions.Delete(cn, Drive.Id, odinId, fileId, reaction);
     }
 
     public (List<string>, int) GetReactions(Guid fileId)
     {
-        return _db.tblDriveReactions.GetPostReactions(Drive.Id, fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        return _db.tblDriveReactions.GetPostReactions(cn, Drive.Id, fileId);
     }
 
     public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId)
     {
-        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(Drive.Id, fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        var (reactionContentList, countByReactionsList, total) = _db.tblDriveReactions.GetPostReactionsWithDetails(cn, Drive.Id, fileId);
 
         var results = new List<ReactionCount>();
 
@@ -289,17 +308,20 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactionDetails(identity, Drive.Id, fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        return _db.tblDriveReactions.GetIdentityPostReactionDetails(cn, identity, Drive.Id, fileId);
     }
 
     public int GetReactionCountByIdentity(OdinId odinId, Guid fileId)
     {
-        return _db.tblDriveReactions.GetIdentityPostReactions(odinId, Drive.Id, fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        return _db.tblDriveReactions.GetIdentityPostReactions(cn, odinId, Drive.Id, fileId);
     }
 
     public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId)
     {
-        var items = _db.tblDriveReactions.PagingByRowid(maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
+        using var cn = tenantSystemStorage.CreateConnection();
+        var items = _db.tblDriveReactions.PagingByRowid(cn, maxCount, inCursor: cursor, out var nextCursor, driveId: Drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
@@ -319,7 +341,8 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
     public Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo()
     {
-        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(Drive.Id);
+        using var cn = tenantSystemStorage.CreateConnection();
+        var (count, size) = _db.tblDriveMainIndex.GetDriveSize(cn, Drive.Id);
         return Task.FromResult((count, size));
     }
     
@@ -332,7 +355,9 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
 
         var cursor = options.Cursor;
 
+        using var cn = tenantSystemStorage.CreateConnection();
         var (results, hasMoreRows) = _db.QueryBatch(
+            cn,
             Drive.Id,
             noOfItems: options.MaxRecords,
             cursor: ref cursor,

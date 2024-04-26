@@ -45,7 +45,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("Processing Inbox item with marker/popStamp [{marker}]", inboxItem.Marker);
 
-                using (tenantSystemStorage.CreateCommitUnitOfWork())
+                using var cn = tenantSystemStorage.CreateConnection();
+                using (cn.CreateCommitUnitOfWork()) // SEB:TODO:TRX
                 {
                     try
                     {

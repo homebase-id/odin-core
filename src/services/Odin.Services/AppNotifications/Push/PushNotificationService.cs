@@ -74,9 +74,9 @@ public class PushNotificationService(
         subscription.AccessRegistrationId = GetDeviceKey(odinContext);
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
-        using (var conn = odinContext.dbCreateDisposableConnection())
+        using (var cn = tenantSystemStorage.CreateConnection())
         {
-            _deviceSubscriptionStorage.Upsert(subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
+            _deviceSubscriptionStorage.Upsert(cn, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
         }
         return Task.CompletedTask;
     }
@@ -84,8 +84,8 @@ public class PushNotificationService(
     public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(GetDeviceKey(odinContext)));
+        using var cn = tenantSystemStorage.CreateConnection();
+        return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(cn, GetDeviceKey(odinContext)));
     }
 
     public Task RemoveDevice(IOdinContext odinContext)
@@ -98,8 +98,8 @@ public class PushNotificationService(
     public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        _deviceSubscriptionStorage.Delete(deviceKey);
+        using var cn = tenantSystemStorage.CreateConnection();
+        _deviceSubscriptionStorage.Delete(cn, deviceKey);
         return Task.CompletedTask;
     }
 
@@ -107,9 +107,11 @@ public class PushNotificationService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var subscriptions = await GetAllSubscriptions(odinContext);
+
+        using var cn = tenantSystemStorage.CreateConnection();
         foreach (var sub in subscriptions)
         {
-            _deviceSubscriptionStorage.Delete(sub.AccessRegistrationId);
+            _deviceSubscriptionStorage.Delete(cn, sub.AccessRegistrationId);
         }
     }
 
@@ -117,7 +119,8 @@ public class PushNotificationService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(_deviceStorageDataType);
+        using var cn = tenantSystemStorage.CreateConnection();
+        var subscriptions = _deviceSubscriptionStorage.GetByDataType<PushNotificationSubscription>(cn, _deviceStorageDataType);
         return Task.FromResult(subscriptions?.ToList() ?? new List<PushNotificationSubscription>());
     }
 

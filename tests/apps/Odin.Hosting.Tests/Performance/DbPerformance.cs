@@ -37,11 +37,11 @@ namespace Odin.Hosting.Tests.Performance
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
-            _db = new IdentityDatabase(":memory:");
+            _db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
             using (var myc = _db.CreateDisposableConnection())
             {
                 _db.CreateDatabase(myc);
-                storage = new SingleKeyValueStorage(_db, testContextKey);
+                storage = new SingleKeyValueStorage(testContextKey);
 
                 for (int i = 0; i < KEYS; i++)
                 {
@@ -162,7 +162,7 @@ TaskPerformanceTest_Db_MultiThread
             Assert.Pass();
         }
 
-        public async Task<(long, long[])> DoDb(int threadno, int iterations)
+        public Task<(long, long[])> DoDb(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -180,7 +180,7 @@ TaskPerformanceTest_Db_MultiThread
                     timers[count] = sw.ElapsedMilliseconds;
                 }
 
-                return (0L, timers);
+                return Task.FromResult((0L, timers));
             }
         }
 

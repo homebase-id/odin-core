@@ -16,6 +16,7 @@ namespace Odin.Services.Membership.Circles
 {
     public class CircleDefinitionService
     {
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DriveManager _driveManager;
 
         private readonly byte[] _circleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
@@ -23,6 +24,7 @@ namespace Odin.Services.Membership.Circles
 
         public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
+            _tenantSystemStorage = tenantSystemStorage;
             _driveManager = driveManager;
             const string circleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
             _circleValueStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(circleValueContextKey));
@@ -69,7 +71,8 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            _circleValueStorage.Upsert(existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _circleValueStorage.Upsert(cn, existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
         }
 
         public bool IsEnabled(GuidId circleId)
@@ -80,13 +83,15 @@ namespace Odin.Services.Membership.Circles
 
         public CircleDefinition GetCircle(GuidId circleId)
         {
-            var def = _circleValueStorage.Get<CircleDefinition>(circleId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var def = _circleValueStorage.Get<CircleDefinition>(cn, circleId);
             return def;
         }
 
         public Task<IEnumerable<CircleDefinition>> GetCircles(bool includeSystemCircle)
         {
-            var circles = _circleValueStorage.GetByCategory<CircleDefinition>(_circleDataType);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var circles = _circleValueStorage.GetByCategory<CircleDefinition>(cn, _circleDataType);
             if (!includeSystemCircle)
             {
                 return Task.FromResult(circles.Where(c => c.Id != SystemCircleConstants.ConnectedIdentitiesSystemCircleId.Value));
@@ -106,7 +111,8 @@ namespace Odin.Services.Membership.Circles
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
 
-            _circleValueStorage.Delete(id);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _circleValueStorage.Delete(cn, id);
             return Task.CompletedTask;
         }
 
@@ -193,7 +199,8 @@ namespace Odin.Services.Membership.Circles
                 Permissions = request.Permissions
             };
 
-            _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _circleValueStorage.Upsert(cn, circle.Id, GuidId.Empty, _circleDataType, circle);
 
             return circle;
         }

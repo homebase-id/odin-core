@@ -207,7 +207,8 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var list = _clientStorage.GetByCategory<YouAuthDomainClient>(_clientDataType);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var list = _clientStorage.GetByCategory<YouAuthDomainClient>(cn, _clientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {
                 Domain = domainClient.Domain,
@@ -237,14 +238,15 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinSecurityException("Invalid call to Delete domain client");
             }
 
-            var client = _clientStorage.Get<YouAuthDomainClient>(accessRegistrationId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var client = _clientStorage.Get<YouAuthDomainClient>(cn, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _clientStorage.Delete(accessRegistrationId);
+            _clientStorage.Delete(cn, accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -252,14 +254,15 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = _clientStorage.Get<YouAuthDomainClient>(accessRegistrationId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var client = _clientStorage.Get<YouAuthDomainClient>(cn, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _clientStorage.Delete(accessRegistrationId);
+            _clientStorage.Delete(cn, accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -274,17 +277,18 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinClientException("Invalid domain", OdinClientErrorCode.DomainNotRegistered);
             }
 
+            using var cn = _tenantSystemStorage.CreateConnection();
             //delete the clients
-            var clientsByDomain = _clientStorage.GetByDataType<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
+            var clientsByDomain = _clientStorage.GetByDataType<YouAuthDomainClient>(cn, GetDomainKey(domain).ToByteArray());
 
-            using (_tenantSystemStorage.CreateCommitUnitOfWork())
+            using (cn.CreateCommitUnitOfWork())
             {
                 foreach (var c in clientsByDomain)
                 {
-                    _clientStorage.Delete(c.AccessRegistration.Id);
+                    _clientStorage.Delete(cn, c.AccessRegistration.Id);
                 }
 
-                _domainStorage.Delete(GetDomainKey(domain));
+                _domainStorage.Delete(cn, GetDomainKey(domain));
             }
 
             await Task.CompletedTask;
@@ -294,7 +298,8 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var domains = _domainStorage.GetByCategory<YouAuthDomainRegistration>(_domainRegistrationDataType);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var domains = _domainStorage.GetByCategory<YouAuthDomainRegistration>(cn, _domainRegistrationDataType);
             var redactedList = domains.Select(d => d.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }
@@ -392,7 +397,8 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
             ClientAuthenticationToken authToken)
         {
-            var domainClient = _clientStorage.Get<YouAuthDomainClient>(authToken.Id);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var domainClient = _clientStorage.Get<YouAuthDomainClient>(cn, authToken.Id);
             if (null == domainClient)
             {
                 return (false, null, null);
@@ -417,7 +423,8 @@ namespace Odin.Services.Membership.YouAuth
 
         private void SaveClient(YouAuthDomainClient youAuthDomainClient)
         {
-            _clientStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _clientStorage.Upsert(cn, youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
                 _clientDataType,
                 youAuthDomainClient);
         }
@@ -425,7 +432,8 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<YouAuthDomainRegistration?> GetDomainRegistrationInternal(AsciiDomainName domain)
         {
             var key = GuidId.FromString(domain.DomainName);
-            var reg = _domainStorage.Get<YouAuthDomainRegistration>(key);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var reg = _domainStorage.Get<YouAuthDomainRegistration>(cn, key);
 
             if (null != reg)
             {
@@ -454,30 +462,28 @@ namespace Odin.Services.Membership.YouAuth
         {
             var domain = new OdinId(registration.Domain);
 
-            using (_tenantSystemStorage.CreateCommitUnitOfWork())
+            //Store the circles for this registration
+
+            //TODO: this is causing an issue where in the circles are also deleted for the ICR
+            //
+            _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth);
+
+            foreach (var (circleId, circleGrant) in registration.CircleGrants)
             {
-                //Store the circles for this registration
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext).Where(d => d.DomainType == DomainType.YouAuth);
+                var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
 
-                //TODO: this is causing an issue where in the circles are also deleted for the ICR 
-                // 
-                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth);
-
-                foreach (var (circleId, circleGrant) in registration.CircleGrants)
+                if (!isMember)
                 {
-                    var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext).Where(d => d.DomainType == DomainType.YouAuth);
-                    var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
-
-                    if (!isMember)
-                    {
-                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth);
-                    }
+                    _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth);
                 }
-
-                //clear them here so we don't have two locations
-                registration.CircleGrants.Clear();
-
-                _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
             }
+
+            //clear them here so we don't have two locations
+            registration.CircleGrants.Clear();
+
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _domainStorage.Upsert(cn, GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
         }
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomain(

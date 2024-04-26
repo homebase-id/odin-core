@@ -31,13 +31,11 @@ namespace Odin.Services.Base
                 finalPath = PathUtil.Combine(dbPath, oldName);
             }
 
-            IdentityDatabase = new IdentityDatabase(finalPath);
+            IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
             using (var conn = IdentityDatabase.CreateDisposableConnection())
             {
                 IdentityDatabase.CreateDatabase(conn, false);
             }
-
-            // TwoKeyValueStorage = new TwoKeyValueStorage(_db.tblKeyTwoValue);
 
             Connections = IdentityDatabase.tblConnections;
             CircleMemberStorage = IdentityDatabase.tblCircleMember;
@@ -60,6 +58,25 @@ namespace Odin.Services.Base
             return IdentityDatabase.CreateDisposableConnection();
         }
 
+        public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
+        {
+            return new SingleKeyValueStorage(contextKey);
+        }
+
+        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
+        {
+            return new TwoKeyValueStorage(contextKey);
+        }
+
+        /// <summary>
+        /// Store values using a single key while offering 2 other keys to categorize your data
+        /// </summary>
+        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
+        public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
+        {
+            return new ThreeKeyValueStorage(contextKey);
+        }
+
         // SEB:TODO we should probably get rid of these
         public TableAppGrants AppGrants { get; }
         public TableConnections Connections { get; }
@@ -71,27 +88,6 @@ namespace Odin.Services.Base
         public TableFollowsMe Followers { get; }
         public TableCircleMember CircleMemberStorage { get; }
 
-        /// <summary>
-        /// Store values using a single key
-        /// </summary>
-        public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
-        {
-            return new SingleKeyValueStorage(IdentityDatabase, contextKey);
-        }
-
-        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
-        {
-            return new TwoKeyValueStorage(IdentityDatabase, contextKey);
-        }
-
-        /// <summary>
-        /// Store values using a single key while offering 2 other keys to categorize your data
-        /// </summary>
-        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
-        public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
-        {
-            return new ThreeKeyValueStorage(IdentityDatabase, contextKey);
-        }
 
     }
 }

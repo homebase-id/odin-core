@@ -41,7 +41,8 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-    
+    private readonly TenantSystemStorage _tenantSystemStorage;
+
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
     private readonly DriveFileReaderWriter _driveFileReaderWriter;
 
@@ -49,7 +50,8 @@ public class StaticFileContentService
         DriveManager driveManager, StandardFileSystem fileSystem, DriveFileReaderWriter driveFileReaderWriter)
     {
         _tenantContext = tenantContext;
-        
+        _tenantSystemStorage = tenantSystemStorage;
+
         _driveManager = driveManager;
         _fileSystem = fileSystem;
         _driveFileReaderWriter = driveFileReaderWriter;
@@ -172,7 +174,8 @@ public class StaticFileContentService
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
-        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _staticFileConfigStorage.Upsert(cn, GetConfigKey(filename), config);
 
         return result;
     }
@@ -193,7 +196,8 @@ public class StaticFileContentService
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _staticFileConfigStorage.Upsert(cn, GetConfigKey(filename), config);
 
         await Task.CompletedTask;
     }
@@ -214,7 +218,8 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        _staticFileConfigStorage.Upsert(GetConfigKey(filename), config);
+        using var cn = _tenantSystemStorage.CreateConnection();
+        _staticFileConfigStorage.Upsert(cn, GetConfigKey(filename), config);
 
         await Task.CompletedTask;
     }
@@ -227,7 +232,8 @@ public class StaticFileContentService
     public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStream(string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
-        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        using var cn = _tenantSystemStorage.CreateConnection();
+        var config = _staticFileConfigStorage.Get<StaticFileConfiguration>(cn, GetConfigKey(filename));
         var targetFile = Path.Combine(_tenantContext.StorageConfig.StaticFileStoragePath, filename);
 
         if (config == null || !File.Exists(targetFile))

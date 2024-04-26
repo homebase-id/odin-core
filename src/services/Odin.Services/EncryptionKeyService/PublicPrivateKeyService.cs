@@ -66,7 +66,8 @@ namespace Odin.Services.EncryptionKeyService
         /// <returns></returns>
         public async Task InvalidateRecipientPublicKey(OdinId recipient)
         {
-            _storage.Delete(GuidId.FromString(recipient.DomainName));
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _storage.Delete(cn, GuidId.FromString(recipient.DomainName));
             await Task.CompletedTask;
         }
 
@@ -89,7 +90,8 @@ namespace Odin.Services.EncryptionKeyService
 
                 GuidId cacheKey = GuidId.FromString($"{prefix}{recipient.DomainName}");
 
-                var cacheItem = _storage.Get<RsaPublicKeyData>(cacheKey);
+                using var cn = _tenantSystemStorage.CreateConnection();
+                var cacheItem = _storage.Get<RsaPublicKeyData>(cn, cacheKey);
 
                 if ((cacheItem == null || cacheItem.IsExpired()))
                 {
@@ -109,7 +111,7 @@ namespace Odin.Services.EncryptionKeyService
                         expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
                     };
 
-                    _storage.Upsert(cacheKey, cacheItem);
+                    _storage.Upsert(cn, cacheKey, cacheItem);
                 }
 
                 if (null == cacheItem && failIfCannotRetrieve)
@@ -190,7 +192,8 @@ namespace Odin.Services.EncryptionKeyService
 
         public NotificationEccKeys GetNotificationsKeys()
         {
-            var keys = _storage.Get<NotificationEccKeys>(_offlineNotificationsKeyStorageId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var keys = _storage.Get<NotificationEccKeys>(cn, _offlineNotificationsKeyStorageId);
             return keys;
         }
 
@@ -364,7 +367,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var existingKeys = _storage.Get<RsaFullKeyListData>(storageKey);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var existingKeys = _storage.Get<RsaFullKeyListData>(cn, storageKey);
             if (null != existingKeys)
             {
                 throw new OdinSecurityException($"Rsa keys with storage key {storageKey} already exist.");
@@ -375,7 +379,7 @@ namespace Odin.Services.EncryptionKeyService
                 RsaKeyListManagement.DefaultMaxOnlineKeys,
                 RsaKeyListManagement.DefaultHoursOnlineKey);
 
-            _storage.Upsert(storageKey, rsaKeyList);
+            _storage.Upsert(cn, storageKey, rsaKeyList);
 
             return Task.CompletedTask;
         }
@@ -398,7 +402,8 @@ namespace Odin.Services.EncryptionKeyService
             // _storage.Upsert(storageKey, eccKeyList);
 
             VapidDetails vapidKeys = VapidHelper.GenerateVapidKeys();
-            _storage.Upsert(storageKey, new NotificationEccKeys
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _storage.Upsert(cn, storageKey, new NotificationEccKeys
             {
                 PublicKey64 = vapidKeys.PublicKey,
                 PrivateKey64 = vapidKeys.PrivateKey
@@ -409,7 +414,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            var existingKeys = _storage.Get<EccFullKeyListData>(storageKey);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var existingKeys = _storage.Get<EccFullKeyListData>(cn, storageKey);
 
             if (null != existingKeys)
             {
@@ -421,7 +427,7 @@ namespace Odin.Services.EncryptionKeyService
                 EccKeyListManagement.DefaultMaxOnlineKeys,
                 EccKeyListManagement.DefaultHoursOnlineKey);
 
-            _storage.Upsert(storageKey, eccKeyList);
+            _storage.Upsert(cn, storageKey, eccKeyList);
 
             return Task.CompletedTask;
         }
@@ -434,7 +440,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey)
         {
-            return _storage.Get<RsaFullKeyListData>(storageKey);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return _storage.Get<RsaFullKeyListData>(cn, storageKey);
         }
 
         private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey)
@@ -450,7 +457,8 @@ namespace Odin.Services.EncryptionKeyService
 
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
         {
-            return _storage.Get<EccFullKeyListData>(storageKey);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return _storage.Get<EccFullKeyListData>(cn, storageKey);
         }
 
         private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)

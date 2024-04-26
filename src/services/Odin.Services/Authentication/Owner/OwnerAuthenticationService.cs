@@ -44,6 +44,7 @@ namespace Odin.Services.Authentication.Owner
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly OwnerSecretService _secretService;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinConfiguration _configuration;
 
         private readonly IIdentityRegistry _identityRegistry;
@@ -68,6 +69,7 @@ namespace Odin.Services.Authentication.Owner
         {
             _logger = logger;
             _secretService = secretService;
+            _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
             _icrKeyService = icrKeyService;
@@ -100,7 +102,12 @@ namespace Odin.Services.Authentication.Owner
             var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
-            _nonceDataStorage.Upsert(nonce.Id, nonce);
+
+            using (var cn = _tenantSystemStorage.CreateConnection())
+            {
+                _nonceDataStorage.Upsert(cn, nonce.Id, nonce);
+            }
+
             return nonce;
         }
 
@@ -117,7 +124,10 @@ namespace Odin.Services.Authentication.Owner
             var keys = await this._secretService.GetOfflineRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
-            _serverTokenStorage.Upsert(serverToken.Id, serverToken);
+            using (var cn = _tenantSystemStorage.CreateConnection())
+            {
+                _serverTokenStorage.Upsert(cn, serverToken.Id, serverToken);
+            }
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -141,14 +151,17 @@ namespace Odin.Services.Authentication.Owner
         private async Task<NonceData> AssertValidPassword(PasswordReply reply)
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
+
+            using var cn = _tenantSystemStorage.CreateConnection();
+
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = _nonceDataStorage.Get<NonceData>(new GuidId(key));
+            var noncePackage = _nonceDataStorage.Get<NonceData>(cn, new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist.
             OdinValidationUtils.AssertNotNull(noncePackage, nameof(noncePackage));
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _nonceDataStorage.Delete(new GuidId(key));
+            _nonceDataStorage.Delete(cn, new GuidId(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
@@ -164,7 +177,8 @@ namespace Odin.Services.Authentication.Owner
         public async Task<bool> IsValidToken(Guid sessionTokenId)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(sessionTokenId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(cn, sessionTokenId);
             return await Task.FromResult(IsAuthTokenEntryValid(entry));
         }
 
@@ -173,8 +187,10 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionTokenId, SensitiveByteArray clientSecret)
         {
+            using var cn = _tenantSystemStorage.CreateConnection();
+
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = _serverTokenStorage.Get<OwnerConsoleToken>(sessionTokenId);
+            var loginToken = _serverTokenStorage.Get<OwnerConsoleToken>(cn, sessionTokenId);
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
@@ -272,7 +288,8 @@ namespace Odin.Services.Authentication.Owner
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            _serverTokenStorage.Upsert(entry.Id, entry);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _serverTokenStorage.Upsert(cn, entry.Id, entry);
         }
 
         /// <summary>
@@ -282,12 +299,14 @@ namespace Odin.Services.Authentication.Owner
         /// <param name="tokenId"></param>
         public void ExpireToken(Guid tokenId)
         {
-            _serverTokenStorage.Delete(tokenId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _serverTokenStorage.Delete(cn, tokenId);
         }
 
         private Task<OwnerConsoleToken> GetValidatedEntry(Guid tokenId)
         {
-            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(tokenId);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var entry = _serverTokenStorage.Get<OwnerConsoleToken>(cn, tokenId);
             AssertTokenIsValid(entry);
             return Task.FromResult(entry);
         }
@@ -372,12 +391,14 @@ namespace Odin.Services.Authentication.Owner
 
         private async Task EnsureFirstRunOperations(IOdinContext odinContext)
         {
-            var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
+            using var cn = _tenantSystemStorage.CreateConnection();
+
+            var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(cn, FirstOwnerLoginInfo.Key);
             if (fli == null)
             {
                 await _tenantConfigService.CreateInitialKeys(odinContext);
 
-                _firstRunInfoStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
+                _firstRunInfoStorage.Upsert(cn, FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
                 {
                     FirstLoginDate = UnixTimeUtc.Now()
                 });

@@ -219,17 +219,18 @@ namespace Odin.Services.DataSubscription
                 return (record, false);
             }
 
-            var batch = _tenantSystemStorage.Feedbox.Pop(_odinConfiguration.Feed.DistributionBatchSize);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var batch = _tenantSystemStorage.Feedbox.Pop(cn, _odinConfiguration.Feed.DistributionBatchSize);
             var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
             await Task.WhenAll(tasks);
 
             var successes = tasks.Where(t => t.Result.success)
                 .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
-            successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
+            successes.ForEach(ps => _tenantSystemStorage.Feedbox.PopCommitAll(cn, ps));
 
             var failures = tasks.Where(t => !t.Result.success)
                 .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
-            failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
+            failures.ForEach(ps => _tenantSystemStorage.Feedbox.PopCancelAll(cn, ps));
         }
 
         /// <summary>
@@ -381,7 +382,8 @@ namespace Odin.Services.DataSubscription
 
         private void AddToFeedOutbox(OdinId recipient, ReactionPreviewDistributionItem item)
         {
-            _tenantSystemStorage.Feedbox.Upsert(new()
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _tenantSystemStorage.Feedbox.Upsert(cn, new()
             {
                 recipient = recipient,
                 fileId = item.SourceFile.FileId,

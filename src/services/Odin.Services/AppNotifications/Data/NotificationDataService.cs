@@ -62,7 +62,9 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var results = _storage.PagingByCreated(request.Count, request.Cursor, out var cursor);
+        using var cn = tenantSystemStorage.CreateConnection();
+
+        var results = _storage.PagingByCreated(cn, request.Count, request.Cursor, out var cursor);
 
         var nr = new NotificationsListResult()
         {
@@ -84,9 +86,10 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
+        using var cn = tenantSystemStorage.CreateConnection();
         foreach (var id in request.IdList)
         {
-            _storage.Delete(id);
+            _storage.Delete(cn, id);
         }
 
         return Task.CompletedTask;
@@ -97,13 +100,14 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
+        using var cn = tenantSystemStorage.CreateConnection();
         foreach (var update in request.Updates)
         {
-            var record = _storage.Get(update.Id);
+            var record = _storage.Get(cn, update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                _storage.Update(record);
+                _storage.Update(cn, record);
             }
         }
 

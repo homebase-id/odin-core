@@ -113,14 +113,14 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinRemoteIdentityException("Remote Server failed to accept follow");
                 }
             }
-
-            using (_tenantStorage.CreateCommitUnitOfWork())
+            using var cn = _tenantStorage.CreateConnection();
+            using (cn.CreateCommitUnitOfWork())
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteByIdentity(identityToFollow);
+                _tenantStorage.WhoIFollow.DeleteByIdentity(cn, identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
+                    _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -133,7 +133,7 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
+                        _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
             }
@@ -160,7 +160,8 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
+            using var cn = _tenantStorage.CreateConnection();
+            _tenantStorage.WhoIFollow.DeleteByIdentity(cn, recipient);
         }
 
         public async Task<FollowerDefinition> GetFollower(OdinId odinId, IOdinContext odinContext)
@@ -187,7 +188,8 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbResults = _tenantStorage.Followers.GetAllFollowers(cn, DefaultMax(max), cursor, out var nextCursor);
 
             var result = new CursoredResult<string>()
             {
@@ -210,7 +212,8 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbResults = _tenantStorage.Followers.GetFollowers(cn, DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
             var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
@@ -227,7 +230,8 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbResults = _tenantStorage.Followers.GetFollowers(cn, DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -245,7 +249,8 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(cn, DefaultMax(max), cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -264,7 +269,8 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(cn, DefaultMax(max), driveAlias, cursor, out var nextCursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -494,7 +500,8 @@ namespace Odin.Services.DataSubscription.Follower
 
         private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbRecords = _tenantStorage.WhoIFollow.Get(cn, odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return Task.FromResult<FollowerDefinition>(null);
@@ -533,7 +540,8 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
         {
-            var dbRecords = _tenantStorage.Followers.Get(odinId);
+            using var cn = _tenantStorage.CreateConnection();
+            var dbRecords = _tenantStorage.Followers.Get(cn,odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

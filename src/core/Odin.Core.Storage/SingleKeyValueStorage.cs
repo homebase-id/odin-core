@@ -8,10 +8,9 @@ namespace Odin.Core.Storage;
 
 public class SingleKeyValueStorage
 {
-    private readonly IdentityDatabase _database;
     private readonly Guid _contextKey;
 
-    public SingleKeyValueStorage(IdentityDatabase database, Guid contextKey)
+    public SingleKeyValueStorage(Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
@@ -19,7 +18,6 @@ public class SingleKeyValueStorage
         }
 
         _contextKey = contextKey;
-        _database = database;
     }
 
     /// <summary>
@@ -28,9 +26,10 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(DatabaseBase.DatabaseConnection conn, Guid key) where T : class
+    public T Get<T>(DatabaseBase.DatabaseConnection cn, Guid key) where T : class
     {
-        var item = _database.tblKeyValue.Get(conn, MakeStorageKey(key));
+        var db = (IdentityDatabase)cn.db; // :(
+        var item = db.tblKeyValue.Get(cn, MakeStorageKey(key));
 
         if (null == item)
         {
@@ -45,15 +44,17 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseBase.DatabaseConnection conn, Guid key, T value)
+    public void Upsert<T>(DatabaseBase.DatabaseConnection cn, Guid key, T value)
     {
+        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        _database.tblKeyValue.Upsert(conn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        db.tblKeyValue.Upsert(cn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseBase.DatabaseConnection conn, Guid key)
+    public void Delete(DatabaseBase.DatabaseConnection cn, Guid key)
     {
-        _database.tblKeyValue.Delete(conn, MakeStorageKey(key));
+        var db = (IdentityDatabase)cn.db; // :(
+        db.tblKeyValue.Delete(cn, MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)
