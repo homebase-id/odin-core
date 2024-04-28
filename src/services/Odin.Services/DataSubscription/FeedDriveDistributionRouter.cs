@@ -41,7 +41,6 @@ namespace Odin.Services.DataSubscription
         private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
-        private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
@@ -70,7 +69,6 @@ namespace Odin.Services.DataSubscription
             _driveManager = driveManager;
             _tenantContext = tenantContext;
             _serverSystemStorage = serverSystemStorage;
-            _fileSystemResolver = fileSystemResolver;
             _tenantSystemStorage = tenantSystemStorage;
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
@@ -117,12 +115,12 @@ namespace Odin.Services.DataSubscription
                         if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
-                            await this.DistributeToConnectedFollowersUsingTransit(notification, upgradedContext);
+                            await DistributeToConnectedFollowersUsingTransit(notification, upgradedContext);
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Failed while distributing feed item from non-owner.");
+                        _logger.LogError(e, "[Experimental support] Failed while distributing feed item from non-owner.");
                     }
                 }
 
@@ -254,9 +252,6 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext)
         {
-            var file = notification.File;
-            notification.ServerFileHeader
-
             var followers = await GetFollowers(notification.File.DriveId, odinContext);
             if (!followers.Any())
             {
@@ -274,15 +269,22 @@ namespace Odin.Services.DataSubscription
 
             if (connectedFollowers.Any())
             {
-                var fs = await _fileSystemResolver.ResolveFileSystem(file, odinContext);
-                var header = await fs.Storage.GetServerFileHeader(file, odinContext);
-
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
                 {
-                    await DeleteFileOverTransit(header, connectedFollowers, odinContext);
+                    var deletedFileNotification = (DriveFileDeletedNotification)notification;
+                    if (deletedFileNotification.IsHardDelete)
+                    {
+                        _logger.LogWarning("File Deletion was a hard-delete so cannot notify followers");
+                    }
+                    else
+                    {
+                        await DeleteFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
+                    }
                 }
-
-                await SendFileOverTransit(header, connectedFollowers, odinContext);
+                else
+                {
+                    await SendFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
+                }
             }
 
             // return followers.Except(connectedFollowers).ToList();

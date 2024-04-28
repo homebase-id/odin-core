@@ -80,11 +80,15 @@ public static class OdinContextUpgrades
     public static IOdinContext UpgradeToNonOwnerFeedDistributor(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
-        
-        
+
+
         patchedContext.PermissionsContext.PermissionGroups.TryAdd(nameof(UpgradeToNonOwnerFeedDistributor),
             new PermissionGroup(
-                new PermissionSet([PermissionKeys.ReadConnections]),
+                new PermissionSet([
+                    PermissionKeys.ReadConnections,
+                    PermissionKeys.ReadMyFollowers,
+                    PermissionKeys.UseTransitWrite
+                ]),
                 new List<DriveGrant>(), null, null));
 
         return patchedContext;
