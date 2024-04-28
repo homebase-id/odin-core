@@ -96,7 +96,7 @@ namespace Odin.Services.DataSubscription
 
                     if (isEncryptedFile)
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        await this.DistributeToConnectedFollowersUsingTransit(notification, notification.OdinContext);
                     }
                     else
                     {
@@ -116,7 +116,8 @@ namespace Odin.Services.DataSubscription
                         var drive = await _driveManager.GetDrive(notification.File.DriveId);
                         if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
                         {
-                            await this.DistributeToConnectedFollowersUsingTransit(notification);
+                            var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
+                            await this.DistributeToConnectedFollowersUsingTransit(notification, upgradedContext);
                         }
                     }
                     catch (Exception e)
@@ -251,10 +252,11 @@ namespace Odin.Services.DataSubscription
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
         /// </summary>
-        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
+        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext)
         {
             var file = notification.File;
-            var odinContext = notification.OdinContext;
+            notification.ServerFileHeader
+
             var followers = await GetFollowers(notification.File.DriveId, odinContext);
             if (!followers.Any())
             {
