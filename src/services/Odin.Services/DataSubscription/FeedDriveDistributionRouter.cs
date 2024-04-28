@@ -124,7 +124,6 @@ namespace Odin.Services.DataSubscription
                     }
                 }
 
-                //Note: intentionally ignoring when the notification is a file and it's not the owner
             }
         }
 
