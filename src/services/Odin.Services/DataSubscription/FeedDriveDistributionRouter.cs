@@ -111,10 +111,17 @@ namespace Odin.Services.DataSubscription
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification);
                     }
 
-                    var drive = await _driveManager.GetDrive(notification.File.DriveId);
-                    if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
+                    try
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        var drive = await _driveManager.GetDrive(notification.File.DriveId);
+                        if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
+                        {
+                            await this.DistributeToConnectedFollowersUsingTransit(notification);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Failed while distributing feed item from non-owner.");
                     }
                 }
 
