@@ -22,6 +22,7 @@ namespace Odin.Core.Storage.SQLite
             public SqliteTransaction _transaction = null;
             public IntCounter _counter = new IntCounter(); // The UnitOfWork counter is local to the connection
             public int _commitsCount = 0;
+            public Object _lock = new Object();
 
             public SqliteConnection Connection { get { return _connection; } }
 
