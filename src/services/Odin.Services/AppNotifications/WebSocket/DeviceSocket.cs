@@ -17,5 +17,4 @@ public class DeviceSocket
     /// </summary>
     public List<Guid> Drives { get; set; } = [];
 
-    public SensitiveByteArray SharedSecretKey { get; set; }
 }

@@ -24,7 +24,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Management
 
         [Post(RootEndpoint + "/updatemetadata")]
         Task<ApiResponse<bool>> UpdateMetadata([Body] UpdateDriveDefinitionRequest request);
-
+        
+        [Post(RootEndpoint + "/UpdateAttributes")]
+        Task<ApiResponse<bool>> UpdateAttributes([Body] UpdateDriveDefinitionRequest request);
+        
         [Post(RootEndpoint + "/setdrivereadmode")]
         Task<ApiResponse<HttpContent>> SetDriveReadMode([Body] UpdateDriveReadModeRequest request);
     }

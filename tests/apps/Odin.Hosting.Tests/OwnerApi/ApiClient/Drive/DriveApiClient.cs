@@ -39,7 +39,7 @@ public class DriveApiClient
     }
 
     public async Task<OwnerClientDriveData> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
-        bool allowSubscriptions = false)
+        bool allowSubscriptions = false, Dictionary<string,string> attributes = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -57,7 +57,8 @@ public class DriveApiClient
                 Metadata = metadata,
                 AllowAnonymousReads = allowAnonymousReads,
                 AllowSubscriptions = allowSubscriptions,
-                OwnerOnly = ownerOnly
+                OwnerOnly = ownerOnly,
+                Attributes = attributes
             });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
