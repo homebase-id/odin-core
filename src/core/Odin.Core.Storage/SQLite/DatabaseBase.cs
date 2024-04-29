@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 
@@ -111,18 +113,12 @@ namespace Odin.Core.Storage.SQLite
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            lock (connection._lock)
-            {
-                if (command.Connection != null)
-                    throw new Exception("impossible, somehow the connection is messed up");
-
-                command.Connection = connection.Connection;
-                command.Transaction = connection._transaction;
-                var r = command.ExecuteNonQuery();
-                command.Transaction = null;
-                command.Connection = null;
-                return r;
-            }
+            command.Connection = connection.Connection;
+            command.Transaction = connection._transaction;
+            var r = command.ExecuteNonQuery();
+            command.Transaction = null;
+            command.Connection = null;
+            return r;
         }
 
         public SqliteDataReader ExecuteReader(DatabaseConnection connection, SqliteCommand command, CommandBehavior behavior)
@@ -130,18 +126,12 @@ namespace Odin.Core.Storage.SQLite
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            lock (connection._lock)
-            {
-                if (command.Connection != null)
-                    throw new Exception("impossible, somehow the connection is messed up");
-
-                command.Connection = connection.Connection;
-                command.Transaction = connection._transaction;
-                var r = command.ExecuteReader();
-                command.Transaction = null;
-                command.Connection = null;
-                return r;
-            }
+            command.Connection = connection.Connection;
+            command.Transaction = connection._transaction;
+            var r = command.ExecuteReader();
+            command.Transaction = null;
+            command.Connection = null;
+            return r;
         }
 
 
