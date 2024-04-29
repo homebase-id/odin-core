@@ -57,13 +57,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
-                for (int i = 0; i < fileId.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    item.fileId = fileId[i];
-                    Insert(conn, item);
+                    var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
+                    for (int i = 0; i < fileId.Count; i++)
+                    {
+                        item.fileId = fileId[i];
+                        Insert(conn, item);
+                    }
                 }
             }
         }
@@ -74,11 +77,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return;
 
             // Since we are deletign multiple rows we do a logic unit here
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                for (int i = 0; i < fileId.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    Delete(conn, driveId, fileId[i]);
+                    for (int i = 0; i < fileId.Count; i++)
+                    {
+                        Delete(conn, driveId, fileId[i]);
+                    }
                 }
             }
         }

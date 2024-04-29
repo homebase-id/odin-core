@@ -20,13 +20,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
-                for (int i = 0; i < accessControlList.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    item.aclMemberId = accessControlList[i];
-                    Insert(conn, item);
+                    var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
+                    for (int i = 0; i < accessControlList.Count; i++)
+                    {
+                        item.aclMemberId = accessControlList[i];
+                        Insert(conn, item);
+                    }
                 }
             }
         }
@@ -36,11 +39,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (accessControlList == null)
                 return;
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                for (int i = 0; i < accessControlList.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    Delete(conn, driveId, fileId, accessControlList[i]);
+                    for (int i = 0; i < accessControlList.Count; i++)
+                    {
+                        Delete(conn, driveId, fileId, accessControlList[i]);
+                    }
                 }
             }
         }

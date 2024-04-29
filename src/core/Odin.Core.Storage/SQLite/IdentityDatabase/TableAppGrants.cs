@@ -20,11 +20,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (r == null)
                 return;
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                for (int i = 0; i < r.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    Delete(conn, odinHashId, r[i].appId, r[i].circleId);
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        Delete(conn, odinHashId, r[i].appId, r[i].circleId);
+                    }
                 }
             }
         }

@@ -72,10 +72,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pparam2.Value = count;
                 _pparam3.Value = driveId.ToByteArray();
 
-                using (conn.CreateCommitUnitOfWork()) // Necessary?
+                List<InboxRecord> result = new List<InboxRecord>();
+
+                lock (conn._lock)
                 {
-                    List<InboxRecord> result = new List<InboxRecord>();
-                    lock (conn._lock)
+                    using (conn.CreateCommitUnitOfWork())
                     {
                         using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popCommand, System.Data.CommandBehavior.Default))
                         {
@@ -249,13 +250,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
 
-                using (conn.CreateCommitUnitOfWork())
+                lock (conn._lock)
                 {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
-                    for (int i = 0; i < listFileId.Count; i++)
+                    using (conn.CreateCommitUnitOfWork())
                     {
-                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
-                        _database.ExecuteNonQuery(conn, _popCancelListCommand);
+                        // I'd rather not do a TEXT statement, this seems safer but slower.
+                        for (int i = 0; i < listFileId.Count; i++)
+                        {
+                            _pcancellistparam2.Value = listFileId[i].ToByteArray();
+                            _database.ExecuteNonQuery(conn, _popCancelListCommand);
+                        }
                     }
                 }
             }
@@ -303,13 +307,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
 
-                using (conn.CreateCommitUnitOfWork())
+                lock (conn._lock)
                 {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
-                    for (int i = 0; i < listFileId.Count; i++)
+                    using (conn.CreateCommitUnitOfWork())
                     {
-                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
-                        _database.ExecuteNonQuery(conn, _popCommitListCommand);
+                        // I'd rather not do a TEXT statement, this seems safer but slower.
+                        for (int i = 0; i < listFileId.Count; i++)
+                        {
+                            _pcommitlistparam2.Value = listFileId[i].ToByteArray();
+                            _database.ExecuteNonQuery(conn, _popCommitListCommand);
+                        }
                     }
                 }
             }

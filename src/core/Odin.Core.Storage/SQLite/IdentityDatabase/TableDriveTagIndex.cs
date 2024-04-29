@@ -18,14 +18,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (tagIdList == null)
                 return;
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                var item = new DriveTagIndexRecord() { driveId = driveId, fileId = fileId };
-
-                for (int i = 0; i < tagIdList.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    item.tagId = tagIdList[i];
-                    Insert(conn, item);
+                    var item = new DriveTagIndexRecord() { driveId = driveId, fileId = fileId };
+
+                    for (int i = 0; i < tagIdList.Count; i++)
+                    {
+                        item.tagId = tagIdList[i];
+                        Insert(conn, item);
+                    }
                 }
             }
         }
@@ -38,11 +41,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (tagIdList == null)
                 return;
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                for (int i = 0; i < tagIdList.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    Delete(conn, driveId, fileId, tagIdList[i]);
+                    for (int i = 0; i < tagIdList.Count; i++)
+                    {
+                        Delete(conn, driveId, fileId, tagIdList[i]);
+                    }
                 }
             }
         }

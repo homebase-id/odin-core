@@ -48,11 +48,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             int n = 0;
             var r = Get(conn, identity);
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                for (int i = 0; i < r.Count; i++)
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    n += Delete(conn, identity, r[i].driveId);
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        n += Delete(conn, identity, r[i].driveId);
+                    }
                 }
             }
 
