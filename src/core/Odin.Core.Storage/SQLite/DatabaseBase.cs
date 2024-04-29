@@ -117,7 +117,6 @@ namespace Odin.Core.Storage.SQLite
             command.Transaction = connection._transaction;
             var r = command.ExecuteNonQuery();
             command.Transaction = null;
-            command.Connection = null;
             return r;
         }
 
@@ -130,7 +129,6 @@ namespace Odin.Core.Storage.SQLite
             command.Transaction = connection._transaction;
             var r = command.ExecuteReader();
             command.Transaction = null;
-            command.Connection = null;
             return r;
         }
 
