@@ -1,14 +1,34 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 {
     public class DatabaseConnectionTests
     {
+        private IdentityDatabase _db;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            _db = new IdentityDatabase(Guid.NewGuid(), "massif.db");
+            using (var myc = _db.CreateDisposableConnection())
+            {
+                _db.CreateDatabase(myc);
+            }
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            _db.Dispose();
+        }
 
         /// <summary>
         /// Ensure that the memory DB doesn't become empty on the second connection
@@ -148,6 +168,39 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
                     Assert.Fail();
             }
+        }
+
+
+
+        [Test]
+        public async Task MassivePreparedConnectionTest()
+        {
+            await PerformanceFramework.ThreadedTestAsync(20, 100, MassiveConnectionPreparedStatementTest);
+        }
+
+        private async Task<(long, long[])> MassiveConnectionPreparedStatementTest(int threadNo, int iterations)
+        {
+            long[] timers = new long[iterations];
+            var sw = new Stopwatch();
+
+            using (var myc = _db.CreateDisposableConnection())
+            {
+                for (int i=0; i < iterations; i++)
+                {
+                    sw.Restart();
+                    var k1 = Guid.NewGuid().ToByteArray();
+                    var v1 = Guid.NewGuid().ToByteArray();
+
+                    var r = _db.tblKeyValue.Get(myc, k1);
+                    _db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
+                    r = _db.tblKeyValue.Get(myc, k1);
+                    timers[i] = sw.ElapsedMilliseconds;
+                }
+            }
+
+            await Task.Delay(1);
+
+            return (0, timers);
         }
     }
 }
