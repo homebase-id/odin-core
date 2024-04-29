@@ -322,7 +322,7 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = _circleMembershipService.GetCircle(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
