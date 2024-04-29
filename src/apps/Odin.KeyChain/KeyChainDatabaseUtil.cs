@@ -116,23 +116,29 @@ namespace Odin.KeyChain
         // Verifies the entire chain
         public static bool VerifyEntireBlockChain(KeyChainDatabase _db, DatabaseBase.DatabaseConnection conn)
         {
-            var _sqlcmd = _db.CreateCommand(conn);
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
-
-            using (SqliteDataReader rdr = _db.ExecuteReader(conn, _sqlcmd, System.Data.CommandBehavior.SingleRow))
+            using (var _sqlcmd = _db.CreateCommand())
             {
-                KeyChainRecord? previousRecord = null;
+                _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
 
-                while (rdr.Read())
+                lock (conn._lock)
                 {
-                    var record = _db.tblKeyChain.ReadRecordFromReaderAll(rdr);
-                    if (VerifyBlockChainRecord(record, previousRecord, true) == false)
-                        return false;
-                    previousRecord = record;
-                }
-            } // using
+                    using (SqliteDataReader rdr = _db.ExecuteReader(conn, _sqlcmd, System.Data.CommandBehavior.SingleRow))
+                    {
+                        KeyChainRecord? previousRecord = null;
 
-            return true;
+                        while (rdr.Read())
+                        {
+                            var record = _db.tblKeyChain.ReadRecordFromReaderAll(rdr);
+                            if (VerifyBlockChainRecord(record, previousRecord, true) == false)
+                                return false;
+                            previousRecord = record;
+                        }
+                    } // using
+
+                    return true;
+
+                }
+            }
         }
     }
 }

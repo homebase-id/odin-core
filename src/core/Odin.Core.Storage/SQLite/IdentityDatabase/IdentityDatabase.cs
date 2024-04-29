@@ -229,26 +229,45 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
+                using (conn.CreateCommitUnitOfWork())
                 {
-                    driveId = driveId, fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate, fileType = fileType,
-                    dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus,
-                    historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType, byteCount = byteCount
-                });
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                    tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
+                    {
+                        driveId = driveId,
+                        fileId = fileId,
+                        globalTransitId = globalTransitId,
+                        fileState = fileState,
+                        userDate = userDate,
+                        fileType = fileType,
+                        dataType = dataType,
+                        senderId = senderId.ToString(),
+                        groupId = groupId,
+                        uniqueId = uniqueId,
+                        archivalStatus = archivalStatus,
+                        historyStatus = 0,
+                        requiredSecurityGroup = requiredSecurityGroup,
+                        fileSystemType = fileSystemType,
+                        byteCount = byteCount
+                    });
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                }
             }
         }
 
         public void DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveMainIndex.Delete(conn, driveId, fileId);
+                using (conn.CreateCommitUnitOfWork())
+                {
+                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveMainIndex.Delete(conn, driveId, fileId);
+
+                }
             }
         }
 
@@ -273,20 +292,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                    senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                using (conn.CreateCommitUnitOfWork())
+                {
+                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                        senderId: senderId,
+                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
-                tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
-                tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
+                    tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
+                    tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
 
-                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                //
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                }
             }
         }
 
@@ -310,20 +332,23 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            using (conn.CreateCommitUnitOfWork())
+            lock (conn._lock)
             {
-                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                    senderId: senderId,
-                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                using (conn.CreateCommitUnitOfWork())
+                {
+                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                        senderId: senderId,
+                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
 
-                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                //
+                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                    //
+                }
             }
         }
 
@@ -537,7 +562,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 }
             }
 
-            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf, 
+            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
@@ -564,39 +589,42 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand(conn);
+            var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
-            var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
-
-            var result = new List<Guid>();
-            var _fileId = new byte[16];
-            long _userDate = 0;
-
-            int i = 0;
-            while (rdr.Read())
+            lock (conn._lock)
             {
-                rdr.GetBytes(0, 0, _fileId, 0, 16);
-                result.Add(new Guid(_fileId));
+                var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
 
-                if (fileIdSort == false)
-                    _userDate = rdr.GetInt64(1);
+                var result = new List<Guid>();
+                var _fileId = new byte[16];
+                long _userDate = 0;
 
-                i++;
-                if (i >= noOfItems)
-                    break;
-            }
+                int i = 0;
+                while (rdr.Read())
+                {
+                    rdr.GetBytes(0, 0, _fileId, 0, 16);
+                    result.Add(new Guid(_fileId));
 
-            if (i > 0)
-            {
-                cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
-                if (fileIdSort == false)
-                    cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
-            }
+                    if (fileIdSort == false)
+                        _userDate = rdr.GetInt64(1);
 
-            bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+                    i++;
+                    if (i >= noOfItems)
+                        break;
+                }
 
-            return (result, HasMoreRows);
+                if (i > 0)
+                {
+                    cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
+                    if (fileIdSort == false)
+                        cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
+                }
+
+                bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+
+                return (result, HasMoreRows);
+            } // lock
         }
 
 
@@ -811,31 +839,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 fileSystemType, driveId);
 
             string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand(conn);
+            var cmd = this.CreateCommand();
             cmd.CommandText = stm;
 
-            var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
-
-            var result = new List<Guid>();
-            var fileId = new byte[16];
-
-            int i = 0;
-            long ts = 0;
-
-            while (rdr.Read())
+            lock (conn._lock)
             {
-                rdr.GetBytes(0, 0, fileId, 0, 16);
-                result.Add(new Guid(fileId));
-                ts = rdr.GetInt64(1);
-                i++;
-                if (i >= noOfItems)
-                    break;
-            }
+                var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
 
-            if (i > 0)
-                cursor = new UnixTimeUtcUnique(ts);
+                var result = new List<Guid>();
+                var fileId = new byte[16];
 
-            return (result, rdr.Read());
+                int i = 0;
+                long ts = 0;
+
+                while (rdr.Read())
+                {
+                    rdr.GetBytes(0, 0, fileId, 0, 16);
+                    result.Add(new Guid(fileId));
+                    ts = rdr.GetInt64(1);
+                    i++;
+                    if (i >= noOfItems)
+                        break;
+                }
+
+                if (i > 0)
+                    cursor = new UnixTimeUtcUnique(ts);
+
+                return (result, rdr.Read());
+            } // lock
         }
 
 

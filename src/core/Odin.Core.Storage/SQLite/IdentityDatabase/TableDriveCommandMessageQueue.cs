@@ -7,11 +7,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableDriveCommandMessageQueue : TableDriveCommandMessageQueueCRUD
     {
-        private SqliteCommand _selectCommand = null;
-        
-        private Object _selectLock = new Object();
-
-
         public TableDriveCommandMessageQueue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -22,9 +17,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _selectCommand?.Dispose();
-            _selectCommand = null;
-
             base.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -33,12 +25,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         // Returns up to count items
         public List<DriveCommandMessageQueueRecord> Get(DatabaseBase.DatabaseConnection conn, Guid driveId, int count)
         {
-            lock (_selectLock)
+            using (var _selectCommand = _database.CreateCommand())
             {
-                using (_selectCommand = _database.CreateCommand(conn))
-                {
-                    _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+                _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
 
+                lock (conn._lock)
+                {
                     using (SqliteDataReader rdr = _database.ExecuteReader(conn, _selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;

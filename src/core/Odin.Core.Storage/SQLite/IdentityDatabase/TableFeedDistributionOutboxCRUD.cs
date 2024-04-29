@@ -98,46 +98,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableFeedDistributionOutboxCRUD : TableBase
     {
         private bool _disposed = false;
-        private SqliteCommand _insertCommand = null;
-        private static Object _insertLock = new Object();
-        private SqliteParameter _insertParam1 = null;
-        private SqliteParameter _insertParam2 = null;
-        private SqliteParameter _insertParam3 = null;
-        private SqliteParameter _insertParam4 = null;
-        private SqliteParameter _insertParam5 = null;
-        private SqliteParameter _insertParam6 = null;
-        private SqliteParameter _insertParam7 = null;
-        private SqliteParameter _insertParam8 = null;
-        private SqliteCommand _updateCommand = null;
-        private static Object _updateLock = new Object();
-        private SqliteParameter _updateParam1 = null;
-        private SqliteParameter _updateParam2 = null;
-        private SqliteParameter _updateParam3 = null;
-        private SqliteParameter _updateParam4 = null;
-        private SqliteParameter _updateParam5 = null;
-        private SqliteParameter _updateParam6 = null;
-        private SqliteParameter _updateParam7 = null;
-        private SqliteParameter _updateParam8 = null;
-        private SqliteCommand _upsertCommand = null;
-        private static Object _upsertLock = new Object();
-        private SqliteParameter _upsertParam1 = null;
-        private SqliteParameter _upsertParam2 = null;
-        private SqliteParameter _upsertParam3 = null;
-        private SqliteParameter _upsertParam4 = null;
-        private SqliteParameter _upsertParam5 = null;
-        private SqliteParameter _upsertParam6 = null;
-        private SqliteParameter _upsertParam7 = null;
-        private SqliteParameter _upsertParam8 = null;
-        private SqliteCommand _delete0Command = null;
-        private static Object _delete0Lock = new Object();
-        private SqliteParameter _delete0Param1 = null;
-        private SqliteParameter _delete0Param2 = null;
-        private SqliteParameter _delete0Param3 = null;
-        private SqliteCommand _get0Command = null;
-        private static Object _get0Lock = new Object();
-        private SqliteParameter _get0Param1 = null;
-        private SqliteParameter _get0Param2 = null;
-        private SqliteParameter _get0Param3 = null;
 
         public TableFeedDistributionOutboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -150,23 +110,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-            _updateCommand?.Dispose();
-            _updateCommand = null;
-            _upsertCommand?.Dispose();
-            _upsertCommand = null;
-            _delete0Command?.Dispose();
-            _delete0Command = null;
-            _get0Command?.Dispose();
-            _get0Command = null;
             _disposed = true;
             GC.SuppressFinalize(this);
         }
 
         public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand(conn))
+                using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -194,39 +144,34 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int Insert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
-            lock (_insertLock)
-            {
-                if (_insertCommand == null)
+                using (var _insertCommand = _database.CreateCommand())
                 {
-                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created,$modified)";
-                    _insertParam1 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam1 = _insertCommand.CreateParameter();
                     _insertParam1.ParameterName = "$fileId";
-                    _insertParam2 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam2);
+                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam2 = _insertCommand.CreateParameter();
                     _insertParam2.ParameterName = "$driveId";
-                    _insertParam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam3);
+                    _insertCommand.Parameters.Add(_insertParam2);
+                    var _insertParam3 = _insertCommand.CreateParameter();
                     _insertParam3.ParameterName = "$recipient";
-                    _insertParam4 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam4);
+                    _insertCommand.Parameters.Add(_insertParam3);
+                    var _insertParam4 = _insertCommand.CreateParameter();
                     _insertParam4.ParameterName = "$timeStamp";
-                    _insertParam5 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam5);
+                    _insertCommand.Parameters.Add(_insertParam4);
+                    var _insertParam5 = _insertCommand.CreateParameter();
                     _insertParam5.ParameterName = "$value";
-                    _insertParam6 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam6);
+                    _insertCommand.Parameters.Add(_insertParam5);
+                    var _insertParam6 = _insertCommand.CreateParameter();
                     _insertParam6.ParameterName = "$popStamp";
-                    _insertParam7 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam7);
+                    _insertCommand.Parameters.Add(_insertParam6);
+                    var _insertParam7 = _insertCommand.CreateParameter();
                     _insertParam7.ParameterName = "$created";
-                    _insertParam8 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam8);
+                    _insertCommand.Parameters.Add(_insertParam7);
+                    var _insertParam8 = _insertCommand.CreateParameter();
                     _insertParam8.ParameterName = "$modified";
-                    _insertCommand.Prepare();
-                }
+                    _insertCommand.Parameters.Add(_insertParam8);
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.driveId.ToByteArray();
                 _insertParam3.Value = item.recipient;
@@ -243,47 +188,42 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      item.created = now;
                  }
                 return count;
-            } // Lock
+                } // Using
         }
 
         public virtual int Upsert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
-            lock (_upsertLock)
-            {
-                if (_upsertCommand == null)
+                using (var _upsertCommand = _database.CreateCommand())
                 {
-                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created)"+
                                                  "ON CONFLICT (fileId,driveId,recipient) DO UPDATE "+
                                                  "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "RETURNING created, modified;";
-                    _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertParam1.ParameterName = "$fileId";
-                    _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertParam2.ParameterName = "$driveId";
-                    _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam3);
+                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    var _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertParam3.ParameterName = "$recipient";
-                    _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam4);
+                    _upsertCommand.Parameters.Add(_upsertParam3);
+                    var _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertParam4.ParameterName = "$timeStamp";
-                    _upsertParam5 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam5);
+                    _upsertCommand.Parameters.Add(_upsertParam4);
+                    var _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertParam5.ParameterName = "$value";
-                    _upsertParam6 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam6);
+                    _upsertCommand.Parameters.Add(_upsertParam5);
+                    var _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertParam6.ParameterName = "$popStamp";
-                    _upsertParam7 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam7);
+                    _upsertCommand.Parameters.Add(_upsertParam6);
+                    var _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertParam7.ParameterName = "$created";
-                    _upsertParam8 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam8);
+                    _upsertCommand.Parameters.Add(_upsertParam7);
+                    var _upsertParam8 = _upsertCommand.CreateParameter();
                     _upsertParam8.ParameterName = "$modified";
-                    _upsertCommand.Prepare();
-                }
+                    _upsertCommand.Parameters.Add(_upsertParam8);
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.driveId.ToByteArray();
@@ -307,46 +247,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                       return 1;
                    }
                 }
-            } // Lock
-            return 0;
+                return 0;
+            } // Using
         }
 
         public virtual int Update(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
-            lock (_updateLock)
-            {
-                if (_updateCommand == null)
+                using (var _updateCommand = _database.CreateCommand())
                 {
-                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE feedDistributionOutbox " +
                                                  "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (fileId = $fileId,driveId = $driveId,recipient = $recipient)";
-                    _updateParam1 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$fileId";
-                    _updateParam2 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam2);
+                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam2 = _updateCommand.CreateParameter();
                     _updateParam2.ParameterName = "$driveId";
-                    _updateParam3 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam3);
+                    _updateCommand.Parameters.Add(_updateParam2);
+                    var _updateParam3 = _updateCommand.CreateParameter();
                     _updateParam3.ParameterName = "$recipient";
-                    _updateParam4 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam4);
+                    _updateCommand.Parameters.Add(_updateParam3);
+                    var _updateParam4 = _updateCommand.CreateParameter();
                     _updateParam4.ParameterName = "$timeStamp";
-                    _updateParam5 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam5);
+                    _updateCommand.Parameters.Add(_updateParam4);
+                    var _updateParam5 = _updateCommand.CreateParameter();
                     _updateParam5.ParameterName = "$value";
-                    _updateParam6 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam6);
+                    _updateCommand.Parameters.Add(_updateParam5);
+                    var _updateParam6 = _updateCommand.CreateParameter();
                     _updateParam6.ParameterName = "$popStamp";
-                    _updateParam7 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam7);
+                    _updateCommand.Parameters.Add(_updateParam6);
+                    var _updateParam7 = _updateCommand.CreateParameter();
                     _updateParam7.ParameterName = "$created";
-                    _updateParam8 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam8);
+                    _updateCommand.Parameters.Add(_updateParam7);
+                    var _updateParam8 = _updateCommand.CreateParameter();
                     _updateParam8.ParameterName = "$modified";
-                    _updateCommand.Prepare();
-                }
+                    _updateCommand.Parameters.Add(_updateParam8);
                 var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.driveId.ToByteArray();
@@ -362,7 +297,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      item.modified = now;
                 }
                 return count;
-            } // Lock
+                } // Using
+        }
+
+        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        {
+                using (var _getCountCommand = _database.CreateCommand())
+                {
+                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM feedDistributionOutbox; PRAGMA read_uncommitted = 0;";
+                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    return count;
+                }
         }
 
         // SELECT fileId,driveId,recipient,timeStamp,value,popStamp,created,modified
@@ -454,30 +399,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
-            lock (_delete0Lock)
-            {
-                if (_delete0Command == null)
+                using (var _delete0Command = _database.CreateCommand())
                 {
-                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM feedDistributionOutbox " +
                                                  "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient";
-                    _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param1);
+                    var _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Param1.ParameterName = "$fileId";
-                    _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    var _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Param2.ParameterName = "$driveId";
-                    _delete0Param3 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param3);
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    var _delete0Param3 = _delete0Command.CreateParameter();
                     _delete0Param3.ParameterName = "$recipient";
-                    _delete0Command.Prepare();
-                }
+                    _delete0Command.Parameters.Add(_delete0Param3);
+
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = driveId.ToByteArray();
                 _delete0Param3.Value = recipient;
                 var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 return count;
-            } // Lock
+                } // Using
         }
 
         public FeedDistributionOutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId,Guid driveId,string recipient)
@@ -547,27 +488,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
-            lock (_get0Lock)
-            {
-                if (_get0Command == null)
+                using (var _get0Command = _database.CreateCommand())
                 {
-                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox " +
                                                  "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient LIMIT 1;";
-                    _get0Param1 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param1);
+                    var _get0Param1 = _get0Command.CreateParameter();
                     _get0Param1.ParameterName = "$fileId";
-                    _get0Param2 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Command.Parameters.Add(_get0Param1);
+                    var _get0Param2 = _get0Command.CreateParameter();
                     _get0Param2.ParameterName = "$driveId";
-                    _get0Param3 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param3);
+                    _get0Command.Parameters.Add(_get0Param2);
+                    var _get0Param3 = _get0Command.CreateParameter();
                     _get0Param3.ParameterName = "$recipient";
-                    _get0Command.Prepare();
-                }
+                    _get0Command.Parameters.Add(_get0Param3);
+
                 _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = driveId.ToByteArray();
                 _get0Param3.Value = recipient;
+                    lock (conn._lock)
+                    {
                 using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
@@ -578,6 +517,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
+            } // using
         }
 
     }

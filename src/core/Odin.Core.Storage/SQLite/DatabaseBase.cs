@@ -100,9 +100,10 @@ namespace Odin.Core.Storage.SQLite
         {
             using (var conn = this.CreateDisposableConnection()) 
             {
-                using (var cmd = CreateCommand(conn))
+                using (var cmd = CreateCommand())
                 {
                     cmd.CommandText = "VACUUM;";
+                    cmd.Connection = conn.Connection;
                     ExecuteNonQuery(conn, cmd);
                 }
             }
@@ -113,33 +114,44 @@ namespace Odin.Core.Storage.SQLite
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            command.Connection = connection.Connection;
-            command.Transaction = connection._transaction;
-            var r = command.ExecuteNonQuery();
-            command.Transaction = null;
-            return r;
+            lock (connection._lock)
+            {
+                command.Connection = connection.Connection;
+                command.Transaction = connection._transaction;
+                var r = command.ExecuteNonQuery();
+                command.Transaction = null;
+                return r;
+            }
         }
 
+
+        /// <summary>
+        /// You must lock connection._lock when using the reader object
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="command"></param>
+        /// <param name="behavior"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public SqliteDataReader ExecuteReader(DatabaseConnection connection, SqliteCommand command, CommandBehavior behavior)
         {
             if (connection.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            command.Connection = connection.Connection;
-            command.Transaction = connection._transaction;
-            var r = command.ExecuteReader();
-            command.Transaction = null;
-            return r;
+            lock (connection._lock)
+            {
+                command.Connection = connection.Connection;
+                command.Transaction = connection._transaction;
+                var r = command.ExecuteReader();
+                command.Transaction = null;
+                return r;
+            }
         }
 
 
-        public SqliteCommand CreateCommand(DatabaseConnection connection)
+        public SqliteCommand CreateCommand()
         {
-            if (connection.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
             var cmd = new SqliteCommand();
-            cmd.Connection = connection.Connection;
 
             return cmd;
         }

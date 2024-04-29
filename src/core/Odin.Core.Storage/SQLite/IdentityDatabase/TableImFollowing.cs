@@ -12,17 +12,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableImFollowing : TableImFollowingCRUD
     {
-        private SqliteCommand _select2Command = null;
-        private SqliteParameter _s2param1 = null;
-        private SqliteParameter _s2param2 = null;
-        private SqliteParameter _s2param3 = null;
-        private static object _select2Lock = new object();
-
-        private SqliteCommand _select3Command = null;
-        private SqliteParameter _s3param1 = null;
-        private SqliteParameter _s3param2 = null;
-        private static object _select3Lock = new object();
-
         public TableImFollowing(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -33,12 +22,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _select2Command?.Dispose();
-            _select2Command = null;
-
-            _select3Command?.Dispose();
-            _select3Command = null;
-
             base.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -92,53 +75,49 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            lock (_select3Lock)
+            using (var _select3Command = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_select3Command == null)
-                {
-                    _select3Command = _database.CreateCommand(conn);
-                    _select3Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
+                _select3Command.CommandText =
+                    $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
-                    _s3param1 = _select3Command.CreateParameter();
-                    _s3param1.ParameterName = "$cursor";
-                    _select3Command.Parameters.Add(_s3param1);
+                var _s3param1 = _select3Command.CreateParameter();
+                _s3param1.ParameterName = "$cursor";
+                _select3Command.Parameters.Add(_s3param1);
 
-                    _s3param2 = _select3Command.CreateParameter();
-                    _s3param2.ParameterName = "$count";
-                    _select3Command.Parameters.Add(_s3param2);
-
-                    _select3Command.Prepare();
-                }
+                var _s3param2 = _select3Command.CreateParameter();
+                _s3param2.ParameterName = "$count";
+                _select3Command.Parameters.Add(_s3param2);
 
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select3Command, System.Data.CommandBehavior.Default))
+                lock (conn._lock)
                 {
-                    var result = new List<string>();
-
-                    int n = 0;
-
-                    while ((n < count) && rdr.Read())
+                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select3Command, System.Data.CommandBehavior.Default))
                     {
-                        n++;
-                        var s = rdr.GetString(0);
-                        if (s.Length < 1)
-                            throw new Exception("Empty string");
-                        result.Add(s);
-                    }
+                        var result = new List<string>();
 
-                    if ((n > 0) && rdr.Read())
-                    {
-                        nextCursor = result[n - 1];
+                        int n = 0;
+
+                        while ((n < count) && rdr.Read())
+                        {
+                            n++;
+                            var s = rdr.GetString(0);
+                            if (s.Length < 1)
+                                throw new Exception("Empty string");
+                            result.Add(s);
+                        }
+
+                        if ((n > 0) && rdr.Read())
+                        {
+                            nextCursor = result[n - 1];
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return result;
                     }
-                    else
-                    {
-                        nextCursor = null; 
-                    }
-                    return result;
                 }
             }
         }
@@ -162,59 +141,56 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            lock (_select2Lock)
+            using (var _select2Command = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_select2Command == null)
-                {
-                    _select2Command = _database.CreateCommand(conn);
-                    _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+                _select2Command.CommandText =
+                    $"SELECT DISTINCT identity FROM imfollowing WHERE (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
-                    _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$driveId";
-                    _select2Command.Parameters.Add(_s2param1);
+                var _s2param1 = _select2Command.CreateParameter();
+                _s2param1.ParameterName = "$driveId";
+                _select2Command.Parameters.Add(_s2param1);
 
-                    _s2param2 = _select2Command.CreateParameter();
-                    _s2param2.ParameterName = "$cursor";
-                    _select2Command.Parameters.Add(_s2param2);
+                var _s2param2 = _select2Command.CreateParameter();
+                _s2param2.ParameterName = "$cursor";
+                _select2Command.Parameters.Add(_s2param2);
 
-                    _s2param3 = _select2Command.CreateParameter();
-                    _s2param3.ParameterName = "$count";
-                    _select2Command.Parameters.Add(_s2param3);
-
-                    _select2Command.Prepare();
-                }
+                var _s2param3 = _select2Command.CreateParameter();
+                _s2param3.ParameterName = "$count";
+                _select2Command.Parameters.Add(_s2param3);
 
                 _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;                    // +1 to check for EOD on nextCursor
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select2Command, System.Data.CommandBehavior.Default))
+                lock (conn._lock)
                 {
-                    var result = new List<string>();
-
-                    int n = 0;
-
-                    while ((n < count) && rdr.Read())
+                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select2Command, System.Data.CommandBehavior.Default))
                     {
-                        n++;
-                        var s = rdr.GetString(0);
-                        if (s.Length < 1)
-                            throw new Exception("Empty string");
-                        result.Add(s);
+                        var result = new List<string>();
+
+                        int n = 0;
+
+                        while ((n < count) && rdr.Read())
+                        {
+                            n++;
+                            var s = rdr.GetString(0);
+                            if (s.Length < 1)
+                                throw new Exception("Empty string");
+                            result.Add(s);
+                        }
+
+                        if ((n > 0) && rdr.Read())
+                        {
+                            nextCursor = result[n - 1];
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+
+                        return result;
                     }
 
-                    if ((n > 0) && rdr.Read())
-                    {
-                        nextCursor = result[n - 1];
-                    }
-                    else
-                    {
-                        nextCursor = null;
-                    }
-
-                    return result;
                 }
             }
         }

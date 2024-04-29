@@ -22,6 +22,7 @@ namespace Odin.Core.Storage.SQLite
             public SqliteTransaction _transaction = null;
             public IntCounter _counter = new IntCounter(); // The UnitOfWork counter is local to the connection
             public int _commitsCount = 0;
+            public Object _lock = new Object();
 
             public SqliteConnection Connection { get { return _connection; } }
 
@@ -51,7 +52,7 @@ namespace Odin.Core.Storage.SQLite
 
             private void BeginTransaction()
             {
-                lock (_counter._lock)
+                lock (_lock)
                 {
                     Debug.Assert(_transaction == null);
                     Debug.Assert(_connection != null);
@@ -66,7 +67,7 @@ namespace Odin.Core.Storage.SQLite
             /// <returns>True if transaction was committed</returns>
             public bool Commit()
             {
-                lock (_counter._lock)
+                lock (_lock)
                 {
                     if (_counter.ReadyToCommit())
                     {
@@ -112,7 +113,7 @@ namespace Odin.Core.Storage.SQLite
                 if (_disposed == true)
                     return;
 
-                lock (_counter._lock)
+                lock (_lock)
                 {
                     _disposed = true;
 

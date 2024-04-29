@@ -120,23 +120,28 @@ namespace Odin.KeyChain
         {
             using (var conn = _db.CreateDisposableConnection())
             {
-                var _sqlcmd = _db.CreateCommand(conn);
-                _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
-
-                using (SqliteDataReader rdr = _db.ExecuteReader(conn, _sqlcmd, System.Data.CommandBehavior.SingleRow))
+                using (var _sqlcmd = _db.CreateCommand())
                 {
-                    NotaryChainRecord? previousRecord = null;
+                    _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
 
-                    while (rdr.Read())
+                    lock (conn._lock)
                     {
-                        var record = _db.tblNotaryChain.ReadRecordFromReaderAll(rdr);
-                        if (VerifyBlockChainRecord(record, previousRecord, true) == false)
-                            return false;
-                        previousRecord = record;
-                    }
-                } // using
+                        using (SqliteDataReader rdr = _db.ExecuteReader(conn, _sqlcmd, System.Data.CommandBehavior.SingleRow))
+                        {
+                            NotaryChainRecord? previousRecord = null;
 
-                return true;
+                            while (rdr.Read())
+                            {
+                                var record = _db.tblNotaryChain.ReadRecordFromReaderAll(rdr);
+                                if (VerifyBlockChainRecord(record, previousRecord, true) == false)
+                                    return false;
+                                previousRecord = record;
+                            }
+                        } // using
+
+                        return true;
+                    }
+                }
             }
         }
     }

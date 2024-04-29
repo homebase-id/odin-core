@@ -7,34 +7,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableFeedDistributionOutbox: TableFeedDistributionOutboxCRUD
     {
-        private static Object _popLock = new Object();
-
-        private SqliteCommand _popAllCommand = null;
-        private SqliteParameter _paparam1 = null;
-        private SqliteParameter _paparam2 = null;
-        private static Object _popAllLock = new Object();
-
-        private SqliteCommand _popStatusCommand = null;
-
-        private SqliteCommand _popCancelCommand = null;
-        private SqliteParameter _pcancelparam1 = null;
-
-        private SqliteCommand _popCancelListCommand = null;
-        private SqliteParameter _pcancellistparam1 = null;
-        private SqliteParameter _pcancellistparam2 = null;
-        private static Object _popCancelListLock = new Object();
-
-        private SqliteCommand _popCommitCommand = null;
-        private SqliteParameter _pcommitparam1 = null;
-
-        private SqliteCommand _popCommitListCommand = null;
-        private SqliteParameter _pcommitlistparam1 = null;
-        private SqliteParameter _pcommitlistparam2 = null;
-        private static Object _popCommitListLock = new Object();
-
-        private SqliteCommand _popRecoverCommand = null;
-        private SqliteParameter _pcrecoverparam1 = null;
-
         public TableFeedDistributionOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -45,27 +17,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _popAllCommand?.Dispose();
-            _popAllCommand = null;
-
-            _popStatusCommand?.Dispose();
-            _popStatusCommand = null;
-
-            _popCancelCommand?.Dispose();
-            _popCancelCommand = null;
-
-            _popCancelListCommand?.Dispose();
-            _popCancelListCommand = null;
-
-            _popCommitCommand?.Dispose();
-            _popCommitCommand = null;
-
-            _popCommitListCommand?.Dispose();
-            _popCommitListCommand = null;
-
-            _popRecoverCommand?.Dispose();
-            _popRecoverCommand = null;
-
             base.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -89,42 +40,39 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public List<FeedDistributionOutboxRecord> Pop(DatabaseBase.DatabaseConnection conn, int count)
         {
-            lock (_popAllLock)
+            using (var _popAllCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popAllCommand == null)
-                {
-                    _popAllCommand = _database.CreateCommand(conn);
-                    _popAllCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM feedDistributionOutbox WHERE popstamp is NULL ORDER BY timestamp ASC LIMIT $count); " +
-                                              "SELECT fileId,driveId,recipient,timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox WHERE popstamp=$popstamp";
+                _popAllCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM feedDistributionOutbox WHERE popstamp is NULL ORDER BY timestamp ASC LIMIT $count); " +
+                                          "SELECT fileId,driveId,recipient,timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox WHERE popstamp=$popstamp";
 
-                    _paparam1 = _popAllCommand.CreateParameter();
-                    _paparam1.ParameterName = "$popstamp";
-                    _popAllCommand.Parameters.Add(_paparam1);
+                var _paparam1 = _popAllCommand.CreateParameter();
+                _paparam1.ParameterName = "$popstamp";
+                _popAllCommand.Parameters.Add(_paparam1);
 
-                    _paparam2 = _popAllCommand.CreateParameter();
-                    _paparam2.ParameterName = "$count";
-                    _popAllCommand.Parameters.Add(_paparam2);
-
-                    _popAllCommand.Prepare();
-                }
+                var _paparam2 = _popAllCommand.CreateParameter();
+                _paparam2.ParameterName = "$count";
+                _popAllCommand.Parameters.Add(_paparam2);
 
                 _paparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _paparam2.Value = count;
 
                 var result = new List<FeedDistributionOutboxRecord>();
 
-                using (conn.CreateCommitUnitOfWork())
+                lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popAllCommand, System.Data.CommandBehavior.Default))
+                    using (conn.CreateCommitUnitOfWork())
                     {
-                        while (rdr.Read())
+                        using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popAllCommand, System.Data.CommandBehavior.Default))
                         {
-                            result.Add(ReadRecordFromReaderAll(rdr));
+                            while (rdr.Read())
+                            {
+                                result.Add(ReadRecordFromReaderAll(rdr));
+                            }
                         }
+
+                        return result;
                     }
 
-                    return result;
                 }
             }
         }
@@ -137,54 +85,51 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <exception cref="Exception"></exception>
         public (int, int, UnixTimeUtc) PopStatus(DatabaseBase.DatabaseConnection conn)
         {
-            lock (_popLock)
+            using (var _popStatusCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popStatusCommand == null)
+                _popStatusCommand.CommandText =
+                    "SELECT count(*) FROM feedDistributionOutbox;" +
+                    "SELECT count(*) FROM feedDistributionOutbox WHERE popstamp NOT NULL;" +
+                    "SELECT popstamp FROM feedDistributionOutbox ORDER BY popstamp DESC LIMIT 1;";
+
+                lock (conn._lock)
                 {
-                    _popStatusCommand = _database.CreateCommand(conn);
-                    _popStatusCommand.CommandText =
-                        "SELECT count(*) FROM feedDistributionOutbox;" +
-                        "SELECT count(*) FROM feedDistributionOutbox WHERE popstamp NOT NULL;" +
-                        "SELECT popstamp FROM feedDistributionOutbox ORDER BY popstamp DESC LIMIT 1;";
-                    _popStatusCommand.Prepare();
-                }
+                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popStatusCommand, System.Data.CommandBehavior.Default))
+                    {
+                        // Read the total count
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Not possible");
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popStatusCommand, System.Data.CommandBehavior.Default))
-                {
-                    // Read the total count
-                    if (!rdr.Read())
-                        throw new Exception("Not possible");
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Not possible");
+                        int totalCount = rdr.GetInt32(0);
 
-                    int totalCount = rdr.GetInt32(0);
+                        // Read the popped count
+                        if (!rdr.NextResult())
+                            throw new Exception("Not possible");
 
-                    // Read the popped count
-                    if (!rdr.NextResult())
-                        throw new Exception("Not possible");
+                        if (!rdr.Read())
+                            throw new Exception("Not possible");
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Not possible");
 
-                    if (!rdr.Read())
-                        throw new Exception("Not possible");
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Not possible");
+                        int poppedCount = rdr.GetInt32(0);
 
-                    int poppedCount = rdr.GetInt32(0);
+                        if (!rdr.NextResult())
+                            throw new Exception("Not possible");
+                        // Read the marker, if any
+                        if (!rdr.Read() || rdr.IsDBNull(0))
+                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
 
-                    if (!rdr.NextResult())
-                        throw new Exception("Not possible");
-                    // Read the marker, if any
-                    if (!rdr.Read() || rdr.IsDBNull(0))
-                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                        var _guid = new byte[16];
+                        var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                        if (n != 16)
+                            throw new Exception("Invalid stamp");
 
-                    var _guid = new byte[16];
-                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                    if (n != 16)
-                        throw new Exception("Invalid stamp");
-
-                    var guid = new Guid(_guid);
-                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
-                    return (totalCount, poppedCount, utc);
+                        var guid = new Guid(_guid);
+                        var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                        return (totalCount, poppedCount, utc);
+                    }
                 }
             }
         }
@@ -198,21 +143,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public void PopCancelAll(DatabaseBase.DatabaseConnection conn, Guid popstamp)
         {
-            lock (_popLock)
+            using (var _popCancelCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popCancelCommand == null)
-                {
-                    _popCancelCommand = _database.CreateCommand(conn);
-                    _popCancelCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE popstamp=$popstamp";
+                _popCancelCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE popstamp=$popstamp";
 
-                    _pcancelparam1 = _popCancelCommand.CreateParameter();
-
-                    _pcancelparam1.ParameterName = "$popstamp";
-                    _popCancelCommand.Parameters.Add(_pcancelparam1);
-
-                    _popCancelCommand.Prepare();
-                }
+                var _pcancelparam1 = _popCancelCommand.CreateParameter();
+                _pcancelparam1.ParameterName = "$popstamp";
+                _popCancelCommand.Parameters.Add(_pcancelparam1);
 
                 _pcancelparam1.Value = popstamp.ToByteArray();
 
@@ -222,35 +159,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public void PopCancelList(DatabaseBase.DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
         {
-            lock (_popCancelListLock)
+            using (var _popCancelListCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popCancelListCommand == null)
-                {
-                    _popCancelListCommand = _database.CreateCommand(conn);
-                    _popCancelListCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
+                _popCancelListCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
 
-                    _pcancellistparam1 = _popCancelListCommand.CreateParameter();
-                    _pcancellistparam1.ParameterName = "$popstamp";
-                    _popCancelListCommand.Parameters.Add(_pcancellistparam1);
+                var _pcancellistparam1 = _popCancelListCommand.CreateParameter();
+                _pcancellistparam1.ParameterName = "$popstamp";
+                _popCancelListCommand.Parameters.Add(_pcancellistparam1);
 
-                    _pcancellistparam2 = _popCancelListCommand.CreateParameter();
-                    _pcancellistparam2.ParameterName = "$fileid";
-                    _popCancelListCommand.Parameters.Add(_pcancellistparam2);
-
-                    _popCancelListCommand.Prepare();
-                }
+                var _pcancellistparam2 = _popCancelListCommand.CreateParameter();
+                _pcancellistparam2.ParameterName = "$fileid";
+                _popCancelListCommand.Parameters.Add(_pcancellistparam2);
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
 
-                using (conn.CreateCommitUnitOfWork())
+                lock (conn._lock)
                 {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
-                    for (int i = 0; i < listFileId.Count; i++)
+                    using (conn.CreateCommitUnitOfWork())
                     {
-                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
-                        _database.ExecuteNonQuery(conn, _popCancelListCommand);
+                        // I'd rather not do a TEXT statement, this seems safer but slower.
+                        for (int i = 0; i < listFileId.Count; i++)
+                        {
+                            _pcancellistparam2.Value = listFileId[i].ToByteArray();
+                            _database.ExecuteNonQuery(conn, _popCancelListCommand);
+                        }
                     }
+
                 }
             }
         }
@@ -262,20 +196,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public void PopCommitAll(DatabaseBase.DatabaseConnection conn, Guid popstamp)
         {
-            lock (_popLock)
+            using (var _popCommitCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popCommitCommand == null)
-                {
-                    _popCommitCommand = _database.CreateCommand(conn);
-                    _popCommitCommand.CommandText = "DELETE FROM feedDistributionOutbox WHERE popstamp=$popstamp";
+                _popCommitCommand.CommandText = "DELETE FROM feedDistributionOutbox WHERE popstamp=$popstamp";
 
-                    _pcommitparam1 = _popCommitCommand.CreateParameter();
-                    _pcommitparam1.ParameterName = "$popstamp";
-                    _popCommitCommand.Parameters.Add(_pcommitparam1);
-
-                    _popCommitCommand.Prepare();
-                }
+                var _pcommitparam1 = _popCommitCommand.CreateParameter();
+                _pcommitparam1.ParameterName = "$popstamp";
+                _popCommitCommand.Parameters.Add(_pcommitparam1);
 
                 _pcommitparam1.Value = popstamp.ToByteArray();
 
@@ -290,34 +217,30 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="popstamp"></param>
         public void PopCommitList(DatabaseBase.DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
         {
-            lock (_popCommitListLock)
-            {
-                // Make sure we only prep once 
-                if (_popCommitListCommand == null)
+                using (var _popCommitListCommand = _database.CreateCommand())
                 {
-                    _popCommitListCommand = _database.CreateCommand(conn);
                     _popCommitListCommand.CommandText = "DELETE FROM feedDistributionOutbox WHERE fileid=$fileid AND popstamp=$popstamp";
 
-                    _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
+                    var _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
                     _pcommitlistparam1.ParameterName = "$popstamp";
                     _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
 
-                    _pcommitlistparam2 = _popCommitListCommand.CreateParameter();
+                    var _pcommitlistparam2 = _popCommitListCommand.CreateParameter();
                     _pcommitlistparam2.ParameterName = "$fileid";
                     _popCommitListCommand.Parameters.Add(_pcommitlistparam2);
 
-                    _popCommitListCommand.Prepare();
-                }
-
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
 
-                using (conn.CreateCommitUnitOfWork())
+                lock (conn._lock)
                 {
-                    // I'd rather not do a TEXT statement, this seems safer but slower.
-                    for (int i = 0; i < listFileId.Count; i++)
+                    using (conn.CreateCommitUnitOfWork())
                     {
-                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
-                        _database.ExecuteNonQuery(conn, _popCommitListCommand);
+                        // I'd rather not do a TEXT statement, this seems safer but slower.
+                        for (int i = 0; i < listFileId.Count; i++)
+                        {
+                            _pcommitlistparam2.Value = listFileId[i].ToByteArray();
+                            _database.ExecuteNonQuery(conn, _popCommitListCommand);
+                        }
                     }
                 }
             }
@@ -331,26 +254,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         public void PopRecoverDead(DatabaseBase.DatabaseConnection conn, UnixTimeUtc UnixTimeSeconds)
         {
-            lock (_popLock)
+            using (var _popRecoverCommand = _database.CreateCommand())
             {
-                if (_popRecoverCommand == null)
-                {
-                    _popRecoverCommand = _database.CreateCommand(conn);
-                    _popRecoverCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE popstamp < $popstamp";
+                _popRecoverCommand.CommandText = "UPDATE feedDistributionOutbox SET popstamp=NULL WHERE popstamp < $popstamp";
 
-                    _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
-
-                    _pcrecoverparam1.ParameterName = "$popstamp";
-                    _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
-
-                    _popRecoverCommand.Prepare();
-                }
+                var _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
+                _pcrecoverparam1.ParameterName = "$popstamp";
+                _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.ExecuteNonQuery(conn, _popRecoverCommand);
             }
         }
-
     }
 }

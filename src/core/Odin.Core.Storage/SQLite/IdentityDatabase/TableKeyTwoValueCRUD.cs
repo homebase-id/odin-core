@@ -50,30 +50,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableKeyTwoValueCRUD : TableBase
     {
         private bool _disposed = false;
-        private SqliteCommand _insertCommand = null;
-        private static Object _insertLock = new Object();
-        private SqliteParameter _insertParam1 = null;
-        private SqliteParameter _insertParam2 = null;
-        private SqliteParameter _insertParam3 = null;
-        private SqliteCommand _updateCommand = null;
-        private static Object _updateLock = new Object();
-        private SqliteParameter _updateParam1 = null;
-        private SqliteParameter _updateParam2 = null;
-        private SqliteParameter _updateParam3 = null;
-        private SqliteCommand _upsertCommand = null;
-        private static Object _upsertLock = new Object();
-        private SqliteParameter _upsertParam1 = null;
-        private SqliteParameter _upsertParam2 = null;
-        private SqliteParameter _upsertParam3 = null;
-        private SqliteCommand _delete0Command = null;
-        private static Object _delete0Lock = new Object();
-        private SqliteParameter _delete0Param1 = null;
-        private SqliteCommand _get0Command = null;
-        private static Object _get0Lock = new Object();
-        private SqliteParameter _get0Param1 = null;
-        private SqliteCommand _get1Command = null;
-        private static Object _get1Lock = new Object();
-        private SqliteParameter _get1Param1 = null;
         private readonly CacheHelper _cache;
 
         public TableKeyTwoValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
@@ -88,25 +64,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-            _updateCommand?.Dispose();
-            _updateCommand = null;
-            _upsertCommand?.Dispose();
-            _upsertCommand = null;
-            _delete0Command?.Dispose();
-            _delete0Command = null;
-            _get0Command?.Dispose();
-            _get0Command = null;
-            _get1Command?.Dispose();
-            _get1Command = null;
             _disposed = true;
             GC.SuppressFinalize(this);
         }
 
         public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand(conn))
+                using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
@@ -128,24 +92,19 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public virtual int Insert(DatabaseBase.DatabaseConnection conn, KeyTwoValueRecord item)
         {
-            lock (_insertLock)
-            {
-                if (_insertCommand == null)
+                using (var _insertCommand = _database.CreateCommand())
                 {
-                    _insertCommand = _database.CreateCommand(conn);
                     _insertCommand.CommandText = "INSERT INTO keyTwoValue (key1,key2,data) " +
                                                  "VALUES ($key1,$key2,$data)";
-                    _insertParam1 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam1 = _insertCommand.CreateParameter();
                     _insertParam1.ParameterName = "$key1";
-                    _insertParam2 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam2);
+                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam2 = _insertCommand.CreateParameter();
                     _insertParam2.ParameterName = "$key2";
-                    _insertParam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam3);
+                    _insertCommand.Parameters.Add(_insertParam2);
+                    var _insertParam3 = _insertCommand.CreateParameter();
                     _insertParam3.ParameterName = "$data";
-                    _insertCommand.Prepare();
-                }
+                    _insertCommand.Parameters.Add(_insertParam3);
                 _insertParam1.Value = item.key1;
                 _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
@@ -155,32 +114,27 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                  }
                 return count;
-            } // Lock
+                } // Using
         }
 
         public virtual int Upsert(DatabaseBase.DatabaseConnection conn, KeyTwoValueRecord item)
         {
-            lock (_upsertLock)
-            {
-                if (_upsertCommand == null)
+                using (var _upsertCommand = _database.CreateCommand())
                 {
-                    _upsertCommand = _database.CreateCommand(conn);
                     _upsertCommand.CommandText = "INSERT INTO keyTwoValue (key1,key2,data) " +
                                                  "VALUES ($key1,$key2,$data)"+
                                                  "ON CONFLICT (key1) DO UPDATE "+
                                                  "SET key2 = $key2,data = $data "+
                                                  ";";
-                    _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertParam1.ParameterName = "$key1";
-                    _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertParam2.ParameterName = "$key2";
-                    _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam3);
+                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    var _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertParam3.ParameterName = "$data";
-                    _upsertCommand.Prepare();
-                }
+                    _upsertCommand.Parameters.Add(_upsertParam3);
                 _upsertParam1.Value = item.key1;
                 _upsertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
@@ -188,29 +142,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                 return count;
-            } // Lock
+                } // Using
         }
         public virtual int Update(DatabaseBase.DatabaseConnection conn, KeyTwoValueRecord item)
         {
-            lock (_updateLock)
-            {
-                if (_updateCommand == null)
+                using (var _updateCommand = _database.CreateCommand())
                 {
-                    _updateCommand = _database.CreateCommand(conn);
                     _updateCommand.CommandText = "UPDATE keyTwoValue " +
                                                  "SET key2 = $key2,data = $data "+
                                                  "WHERE (key1 = $key1)";
-                    _updateParam1 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$key1";
-                    _updateParam2 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam2);
+                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam2 = _updateCommand.CreateParameter();
                     _updateParam2.ParameterName = "$key2";
-                    _updateParam3 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam3);
+                    _updateCommand.Parameters.Add(_updateParam2);
+                    var _updateParam3 = _updateCommand.CreateParameter();
                     _updateParam3.ParameterName = "$data";
-                    _updateCommand.Prepare();
-                }
+                    _updateCommand.Parameters.Add(_updateParam3);
                 _updateParam1.Value = item.key1;
                 _updateParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
@@ -220,7 +169,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToBase64(), item);
                 }
                 return count;
-            } // Lock
+                } // Using
+        }
+
+        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        {
+                using (var _getCountCommand = _database.CreateCommand())
+                {
+                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyTwoValue; PRAGMA read_uncommitted = 0;";
+                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    return count;
+                }
         }
 
         // SELECT key1,key2,data
@@ -280,24 +239,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
-            lock (_delete0Lock)
-            {
-                if (_delete0Command == null)
+                using (var _delete0Command = _database.CreateCommand())
                 {
-                    _delete0Command = _database.CreateCommand(conn);
                     _delete0Command.CommandText = "DELETE FROM keyTwoValue " +
                                                  "WHERE key1 = $key1";
-                    _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param1);
+                    var _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Param1.ParameterName = "$key1";
-                    _delete0Command.Prepare();
-                }
+                    _delete0Command.Parameters.Add(_delete0Param1);
+
                 _delete0Param1.Value = key1;
                 var count = _database.ExecuteNonQuery(conn, _delete0Command);
                 if (count > 0)
                     _cache.Remove("TableKeyTwoValueCRUD", key1.ToBase64());
                 return count;
-            } // Lock
+                } // Using
         }
 
         public KeyTwoValueRecord ReadRecordFromReader0(SqliteDataReader rdr, byte[] key2)
@@ -345,19 +300,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
-            lock (_get0Lock)
-            {
-                if (_get0Command == null)
+                using (var _get0Command = _database.CreateCommand())
                 {
-                    _get0Command = _database.CreateCommand(conn);
                     _get0Command.CommandText = "SELECT key1,data FROM keyTwoValue " +
                                                  "WHERE key2 = $key2;";
-                    _get0Param1 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param1);
+                    var _get0Param1 = _get0Command.CreateParameter();
                     _get0Param1.ParameterName = "$key2";
-                    _get0Command.Prepare();
-                }
+                    _get0Command.Parameters.Add(_get0Param1);
+
                 _get0Param1.Value = key2 ?? (object)DBNull.Value;
+                    lock (conn._lock)
+                    {
                 using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
@@ -375,6 +328,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return result;
                 } // using
             } // lock
+            } // using
         }
 
         public KeyTwoValueRecord ReadRecordFromReader1(SqliteDataReader rdr, byte[] key1)
@@ -427,19 +381,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToBase64());
             if (hit)
                 return (KeyTwoValueRecord)cacheObject;
-            lock (_get1Lock)
-            {
-                if (_get1Command == null)
+                using (var _get1Command = _database.CreateCommand())
                 {
-                    _get1Command = _database.CreateCommand(conn);
                     _get1Command.CommandText = "SELECT key2,data FROM keyTwoValue " +
                                                  "WHERE key1 = $key1 LIMIT 1;";
-                    _get1Param1 = _get1Command.CreateParameter();
-                    _get1Command.Parameters.Add(_get1Param1);
+                    var _get1Param1 = _get1Command.CreateParameter();
                     _get1Param1.ParameterName = "$key1";
-                    _get1Command.Prepare();
-                }
+                    _get1Command.Parameters.Add(_get1Param1);
+
                 _get1Param1.Value = key1;
+                    lock (conn._lock)
+                    {
                 using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
@@ -452,6 +404,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
+            } // using
         }
 
     }
