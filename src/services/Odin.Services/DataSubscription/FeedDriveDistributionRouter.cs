@@ -111,19 +111,18 @@ namespace Odin.Services.DataSubscription
 
                     try
                     {
-                        var drive = await _driveManager.GetDrive(notification.File.DriveId);
-                        if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
+                        // var drive = await _driveManager.GetDrive(notification.File.DriveId);
+                        // if (drive.Attributes.TryGetValue(IsGroupChannel, out string value) && bool.TryParse(value, out bool isGroupChannel) && isGroupChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
-                            await DistributeToConnectedFollowersUsingTransit(notification, upgradedContext);
+                            await DistributeToCollaborativeChannelMembers(notification, upgradedContext);
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "[Experimental support] Failed while distributing feed item from non-owner.");
+                        _logger.LogError(e, "[Experimental support] Failed while DistributeToCollaborativeChannelMembers.");
                     }
                 }
-
             }
         }
 
@@ -245,37 +244,39 @@ namespace Odin.Services.DataSubscription
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 
+        private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification, IOdinContext odinContext)
+        {
+            var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext);
+            if (connectedFollowers.Any())
+            {
+                if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+                {
+                    var deletedFileNotification = (DriveFileDeletedNotification)notification;
+                    if (!deletedFileNotification.IsHardDelete)
+                    {
+                        await DeleteFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
+                    }
+                }
+                else
+                {
+                    await SendFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
+                }
+            }
+        }
+
         /// <summary>
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
         /// </summary>
         private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext)
         {
-            var followers = await GetFollowers(notification.File.DriveId, odinContext);
-            if (!followers.Any())
-            {
-                return;
-            }
-
-            //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
-            var connectedFollowers = followers.Intersect(connectedIdentities)
-                .Where(cf => _driveAcl.IdentityHasPermission(
-                        (OdinId)cf.DomainName,
-                        notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                        odinContext)
-                    .GetAwaiter().GetResult()).ToList();
-
+            var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext);
             if (connectedFollowers.Any())
             {
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
                 {
                     var deletedFileNotification = (DriveFileDeletedNotification)notification;
-                    if (deletedFileNotification.IsHardDelete)
-                    {
-                        _logger.LogWarning("File Deletion was a hard-delete so cannot notify followers");
-                    }
-                    else
+                    if (!deletedFileNotification.IsHardDelete)
                     {
                         await DeleteFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
                     }
@@ -406,6 +407,25 @@ namespace Odin.Services.DataSubscription
                 driveId = item.SourceFile.DriveId,
                 value = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray()
             });
+        }
+        
+        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext)
+        {
+            var followers = await GetFollowers(notification.File.DriveId, odinContext);
+            if (!followers.Any())
+            {
+                return [];
+            }
+
+            //find all followers that are connected, return those which are not to be processed differently
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
+            var connectedFollowers = followers.Intersect(connectedIdentities)
+                .Where(cf => _driveAcl.IdentityHasPermission(
+                        (OdinId)cf.DomainName,
+                        notification.ServerFileHeader.ServerMetadata.AccessControlList,
+                        odinContext)
+                    .GetAwaiter().GetResult()).ToList();
+            return connectedFollowers;
         }
     }
 }

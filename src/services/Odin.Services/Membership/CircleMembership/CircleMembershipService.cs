@@ -23,7 +23,6 @@ namespace Odin.Services.Membership.CircleMembership;
 /// the IdentityConnectionRegistration or YouAuthDomainRegistration.
 /// </summary>
 public class CircleMembershipService(
-    IcrKeyService icrKeyService,
     TenantSystemStorage tenantSystemStorage,
     CircleDefinitionService circleDefinitionService,
     ExchangeGrantService exchangeGrantService,
@@ -102,7 +101,9 @@ public class CircleMembershipService(
             }).ToUtf8ByteArray()
         };
 
-        tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
+        // tenantSystemStorage.CircleMemberStorage.Insert(circleMemberRecord);
+        tenantSystemStorage.CircleMemberStorage.Upsert(circleMemberRecord);
+        // tenantSystemStorage.CircleMemberStorage.UpsertCircleMembers([circleMemberRecord]);
     }
 
     // Grants
@@ -110,16 +111,13 @@ public class CircleMembershipService(
     public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey,
         IOdinContext odinContext)
     {
-        var icrKey = def.Permissions.HasKey(PermissionKeys.UseTransitWrite) ? icrKeyService.GetDecryptedIcrKey(odinContext) : null;
-
         //map the exchange grant to a structure that matches ICR
-        var grant = await exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey);
+        var grant = await exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey, icrKey: null);
         return new CircleGrant()
         {
             CircleId = def.Id,
             KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-            PermissionSet = grant.PermissionSet,
-            KeyStoreKeyEncryptedIcrKey = grant.KeyStoreKeyEncryptedIcrKey
+            PermissionSet = grant.PermissionSet
         };
     }
 
@@ -176,7 +174,7 @@ public class CircleMembershipService(
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
-            if (this.CircleIsEnabled(cg.CircleId, out var circleExists, out var circleDefinition))
+            if (this.CircleIsEnabled(cg.CircleId, out var circleExists))
             {
                 enabledCircles.Add(cg.CircleId);
                 grants.Add(cg.CircleId, new ExchangeGrant()
@@ -186,10 +184,7 @@ public class CircleMembershipService(
                     IsRevoked = false, //TODO
 
                     KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                    
-                    //Note: i double check the permission in case it changed but the ICR was not fixed
-                    KeyStoreKeyEncryptedIcrKey = circleDefinition.Permissions.HasKey(PermissionKeys.UseTransitWrite) ? cg.KeyStoreKeyEncryptedIcrKey : null,
-                   
+                    KeyStoreKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet
                 });
@@ -296,9 +291,9 @@ public class CircleMembershipService(
         await circleDefinitionService.CreateSystemCircle();
     }
 
-    private bool CircleIsEnabled(GuidId circleId, out bool exists, out CircleDefinition circle)
+    private bool CircleIsEnabled(GuidId circleId, out bool exists)
     {
-        circle = circleDefinitionService.GetCircle(circleId);
+        var circle = circleDefinitionService.GetCircle(circleId);
         exists = circle != null;
         return !circle?.Disabled ?? false;
     }
