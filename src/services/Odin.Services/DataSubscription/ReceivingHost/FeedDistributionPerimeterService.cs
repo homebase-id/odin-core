@@ -1,6 +1,11 @@
+using System;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -9,8 +14,11 @@ using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Mediator;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.DataSubscription.ReceivingHost
 {
@@ -18,42 +26,20 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         IDriveFileSystem fileSystem,
         FileSystemResolver fileSystemResolver,
         FollowerService followerService,
-        IMediator mediator)
+        IMediator mediator,
+        TransitInboxBoxStorage inboxBoxStorage)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request, IOdinContext odinContext)
-        {
-            await followerService.AssertTenantFollowsTheCaller(odinContext);
-
-            //S0510
-            if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
-            {
-                throw new OdinClientException("Invalid drive specified for reaction preview update");
-            }
-
-            var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
-            {
-                var fileId = await this.ResolveInternalFile(request.FileId, newContext);
-
-                if (null == fileId)
-                {
-                    throw new OdinClientException("Invalid File");
-                }
-
-                await fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview, newContext);
-            }
-
-            return new PeerTransferResponse()
-            {
-                Code = PeerResponseCode.AcceptedDirectWrite
-            };
-        }
-
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)
         {
             await followerService.AssertTenantFollowsTheCaller(odinContext);
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
                 throw new OdinClientException("Target drive must be the feed drive");
+            }
+
+            if (request.FileMetadata.IsEncrypted)
+            {
+                return await RouteToInbox(request, odinContext);
             }
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
@@ -130,6 +116,67 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         {
             var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, tryCommentDrive: false);
             return fileId;
+        }
+
+        private async Task<PeerTransferResponse> RouteToInbox(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)
+        {
+            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+
+            // Write to temp file
+            var file = await fileSystem.Storage.CreateInternalFileId(feedDriveId);
+            var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
+            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream, odinContext);
+            await stream.DisposeAsync();
+
+            // then tell the inbox you have a new file
+            var item = new TransferInboxItem
+            {
+                Id = Guid.NewGuid(),
+                AddedTimestamp = UnixTimeUtc.Now(),
+                // Sender = odinContext.GetCallerOdinIdOrFail(),
+                Sender = request.AuthorOdinId,
+                InstructionType = TransferInstructionType.SaveFile,
+
+                FileId = file.FileId,
+                DriveId = file.DriveId,
+                GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                FileSystemType = FileSystemType.Standard, //comments are never distributed
+
+                Priority = 0,
+                Marker = default,
+                TransferFileType = TransferFileType.EncryptedFileForFeed,
+                
+                SharedSecretEncryptedKeyHeader = request.SharedSecretEncryptedKeyHeader,
+                
+                TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
+                {
+                    FileSystemType = FileSystemType.Standard,
+                    TransferFileType = TransferFileType.EncryptedFileForFeed,
+                    ContentsProvided = SendContents.Header
+                }
+            };
+
+            //write the file to disk
+            await inboxBoxStorage.Add(item);
+
+            await mediator.Publish(new TransitFileReceivedNotification()
+            {
+                TempFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = SystemDriveConstants.FeedDrive,
+                    FileId = item.FileId
+                },
+
+                TransferFileType = item.TransferInstructionSet.TransferFileType,
+                FileSystemType = item.TransferInstructionSet.FileSystemType,
+                OdinContext = odinContext
+            });
+
+            return new PeerTransferResponse
+            {
+                Code = PeerResponseCode.AcceptedIntoInbox,
+                Message = null
+            };
         }
     }
 }

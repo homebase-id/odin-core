@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.EncryptionKeyService;
+
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
@@ -46,7 +47,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             return new GetPublicKeyResponse()
             {
                 PublicKey = key?.publicKey,
-                Crc32 = key?.crc32c ?? 0
+                Crc32 = key?.crc32c ?? 0,
+                Expiration = key?.expiration.milliseconds ?? 0
             };
         }
 
@@ -70,7 +72,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             // return key.GenerateEcdsaBase64Url();
 
             return await _publicKeyService.GetNotificationsPublicKey();
-            
+
             // return new GetPublicKeyResponse()
             // {
             //     PublicKey = key.publicKey,

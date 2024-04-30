@@ -87,7 +87,8 @@ public static class OdinContextUpgrades
                 new PermissionSet([
                     PermissionKeys.ReadConnections,
                     PermissionKeys.ReadMyFollowers,
-                    PermissionKeys.UseTransitWrite
+                    // PermissionKeys.SendOnBehalfOfOwner,
+                    PermissionKeys.ReadCircleMembership
                 ]),
                 new List<DriveGrant>(), null, null));
 

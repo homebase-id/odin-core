@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -11,6 +12,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
+using Odin.Services.Peer.Encryption;
 using Refit;
 
 namespace Odin.Services.DataSubscription.SendingHost
@@ -21,10 +23,10 @@ namespace Odin.Services.DataSubscription.SendingHost
         IDriveAclAuthorizationService driveAcl,
         OdinConfiguration odinConfiguration)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
+            var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
             if (null == header)
             {
@@ -33,7 +35,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext);
+                header.ServerMetadata.AccessControlList, odinContext);
 
             if (!authorized)
             {
@@ -70,25 +72,29 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext)
+        public async Task<bool> SendFile(InternalDriveFileId file, EncryptedKeyHeader sharedSecretEncryptedKeyHeader, FileSystemType fileSystemType,
+            OdinId author,
+            OdinId recipient, IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
+            var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
             if (null == header)
             {
                 //TODO: need log more info here
+                // need to ensure this is removed from the feedbox
                 return false;
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext);
+                header.ServerMetadata.AccessControlList, odinContext);
 
             if (!authorized)
             {
                 //TODO: need more info here
                 return false;
             }
+
 
             var request = new UpdateFeedFileMetadataRequest()
             {
@@ -97,7 +103,9 @@ namespace Odin.Services.DataSubscription.SendingHost
                     GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
-                FileMetadata = header.FileMetadata
+                AuthorOdinId = author,
+                FileMetadata = header.FileMetadata,
+                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader
             };
 
             var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);

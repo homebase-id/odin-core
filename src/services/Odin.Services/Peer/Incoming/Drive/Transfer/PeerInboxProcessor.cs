@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -56,32 +57,52 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             DriveId = inboxItem.DriveId,
                             FileId = inboxItem.FileId
                         };
-
+                        
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
-                            // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration");
-                            var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, overrideHack: true);
-                            var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-
-                            // logger.LogDebug("Processing Inbox -> DecryptAesToKeyHeader");
-                            var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-
-                            // logger.LogDebug("Processing Inbox -> GetIdentityConnectionRegistration Complete;  Took {getIdentReg}", getIdentRegMs);
-                            // logger.LogDebug("Processing Inbox -> handle file from sender:{sender}", inboxItem.Sender);
-
-                            var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+                            //feed hack (grrrr)
+                            if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
                             {
-                                await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet, odinContext);
-                            });
+                                try
+                                {
+                                    logger.LogDebug("Processing Inbox -> Handling TransferFileType.EncryptedFileForFeed");
+                                    
+                                    //TODO: get from ECC Stuff
+                                    var transferSharedSecret = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
+                                    var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref transferSharedSecret);
+                                    var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+                                    {
+                                        await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
+                                            odinContext);
+                                    });
 
-                            logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
+                                    logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.LogError(e, "[Experimental group channel support inbox processing failed; swallowing error]");
+                                }
+                            }
+                            else
+                            {
+                                var icr = await circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, odinContext, overrideHack: true);
+                                var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
+                                var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+
+                                var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+                                {
+                                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
+                                        odinContext);
+                                });
+                                
+                                logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
+                            }
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                         {
                             logger.LogDebug("Processing Inbox -> DeleteFile maker/popstamp:[{maker}]",
                                 Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                             await writer.DeleteFile(fs, inboxItem, odinContext);
-                            // logger.LogDebug("Processing Inbox -> DeleteFile done");
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)
                         {
@@ -100,9 +121,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     catch (OdinRemoteIdentityException)
                     {
-                        // logger.LogDebug("Processing Inbox -> failed with remote identity exception: {message}", oe.Message);
-                        // logger.LogDebug("Processing Inbox -> MarkFailure (remote identity exception): marker: {marker} for drive: {driveId}", inboxItem.Marker,
-                        // inboxItem.DriveId);
                         await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         throw;
                     }
@@ -120,7 +138,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             e.GetType().Name,
                             Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                             Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                        // await transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         await transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
                 }
