@@ -109,7 +109,7 @@ namespace Odin.Core.Storage.SQLite
         /// </summary>
         /// <returns>LogicCommitUnit disposable object</returns>
 
-        public Task CreateCommitUnitOfWork(Action actions)
+        public void CreateCommitUnitOfWork(Action actions)
         {
             lock (_lock)
             {
@@ -127,8 +127,6 @@ namespace Odin.Core.Storage.SQLite
                         CommitTransaction();
                 }
             }
-
-            return Task.CompletedTask;
         }
 
         /// <summary>
