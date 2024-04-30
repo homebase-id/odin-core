@@ -45,20 +45,20 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             List<byte[]> Rows = new List<byte[]>();
 
-            void writeDB1(IdentityDatabase db, DatabaseBase.DatabaseConnection myc)
+            void writeDB1(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 10000; i++)
                     db.tblKeyValue.Update(myc, new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
-            void writeDB2(IdentityDatabase db, DatabaseBase.DatabaseConnection myc)
+            void writeDB2(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 10000; i++)
                     db.tblKeyTwoValue.Insert(myc, new KeyTwoValueRecord()
                     { key1 = Rows[i], key2 = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
             }
 
-            void readDB(IdentityDatabase db, DatabaseBase.DatabaseConnection myc)
+            void readDB(IdentityDatabase db, DatabaseConnection myc)
 
             {
                 for (int i = 0; i < 10000; i++)
@@ -100,16 +100,15 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             // List<Guid> Rows = new List<Guid>();
             List<byte[]> Rows = new List<byte[]>();
 
-            void writeDB1(IdentityDatabase db, DatabaseBase.DatabaseConnection myc)
+            void writeDB1(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 10000; i++)
                 {
                     db.tblKeyTwoValue.Update(myc, new KeyTwoValueRecord() { key1 = Rows[i], key2 = Guid.Empty.ToByteArray(), data = Guid.NewGuid().ToByteArray() });
-                    myc.Commit();
                 }
             }
 
-            void readDB(IdentityDatabase db, DatabaseBase.DatabaseConnection myc)
+            void readDB(IdentityDatabase db, DatabaseConnection myc)
             {
                 for (int i = 0; i < 3; i++)
                 {

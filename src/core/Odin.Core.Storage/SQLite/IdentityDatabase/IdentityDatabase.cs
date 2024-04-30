@@ -161,7 +161,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
@@ -190,7 +190,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblAppNotificationsTable.EnsureTableExists(conn, dropExistingTables);
 
             if (dropExistingTables)
-                Vacuum();
+                conn.Vacuum();
         }
 
         /// <summary>
@@ -229,46 +229,40 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (byteCount < 1)
                 throw new ArgumentException("byteCount must be at least 1");
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
                 {
-                    tblDriveMainIndex.Insert(conn, new DriveMainIndexRecord()
-                    {
-                        driveId = driveId,
-                        fileId = fileId,
-                        globalTransitId = globalTransitId,
-                        fileState = fileState,
-                        userDate = userDate,
-                        fileType = fileType,
-                        dataType = dataType,
-                        senderId = senderId.ToString(),
-                        groupId = groupId,
-                        uniqueId = uniqueId,
-                        archivalStatus = archivalStatus,
-                        historyStatus = 0,
-                        requiredSecurityGroup = requiredSecurityGroup,
-                        fileSystemType = fileSystemType,
-                        byteCount = byteCount
-                    });
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
-                }
-            }
+                    driveId = driveId,
+                    fileId = fileId,
+                    globalTransitId = globalTransitId,
+                    fileState = fileState,
+                    userDate = userDate,
+                    fileType = fileType,
+                    dataType = dataType,
+                    senderId = senderId.ToString(),
+                    groupId = groupId,
+                    uniqueId = uniqueId,
+                    archivalStatus = archivalStatus,
+                    historyStatus = 0,
+                    requiredSecurityGroup = requiredSecurityGroup,
+                    fileSystemType = fileSystemType,
+                    byteCount = byteCount
+                });
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+            });
         }
 
         public void DeleteEntry(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
-                {
-                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveMainIndex.Delete(conn, driveId, fileId);
+                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveMainIndex.Delete(conn, driveId, fileId);
 
-                }
-            }
+            });
         }
 
         // We do not allow updating the fileId, globalTransitId
@@ -292,24 +286,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
-                {
-                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                        senderId: senderId,
-                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                    senderId: senderId,
+                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
-                    tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
-                    tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, addAccessControlList);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, addTagIdList);
+                tblDriveAclIndex.DeleteRow(conn, driveId, fileId, deleteAccessControlList);
+                tblDriveTagIndex.DeleteRow(conn, driveId, fileId, deleteTagIdList);
 
-                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                    //
-                }
-            }
+                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                //
+            });
         }
 
         // We do not allow updating the fileId, globalTransitId
@@ -332,24 +323,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
-                {
-                    tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
-                        senderId: senderId,
-                        groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
-                        requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
+                tblDriveMainIndex.UpdateRow(conn, driveId, fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType,
+                    senderId: senderId,
+                    groupId: groupId, new IdentityDatabase.NullableGuid() { uniqueId = uniqueId }, archivalStatus: archivalStatus, userDate: userDate,
+                    requiredSecurityGroup: requiredSecurityGroup, byteCount: byteCount);
 
-                    tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
-                    tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
-                    tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
+                tblDriveAclIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveAclIndex.InsertRows(conn, driveId, fileId, accessControlList);
+                tblDriveTagIndex.DeleteAllRows(conn, driveId, fileId);
+                tblDriveTagIndex.InsertRows(conn, driveId, fileId, tagIdList);
 
-                    // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-                    //
-                }
-            }
+                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                //
+            });
         }
 
 
@@ -594,7 +582,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             lock (conn._lock)
             {
-                var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
+                var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default);
 
                 var result = new List<Guid>();
                 var _fileId = new byte[16];
@@ -844,7 +832,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             lock (conn._lock)
             {
-                var rdr = this.ExecuteReader(conn, cmd, CommandBehavior.Default);
+                var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default);
 
                 var result = new List<Guid>();
                 var fileId = new byte[16];

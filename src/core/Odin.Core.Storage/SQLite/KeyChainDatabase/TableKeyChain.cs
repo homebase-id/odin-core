@@ -21,7 +21,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// <param name="rsakey"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public KeyChainRecord GetLastLink(DatabaseBase.DatabaseConnection conn)
+        public KeyChainRecord GetLastLink(DatabaseConnection conn)
         {
             using (var _get0Command = _database.CreateCommand())
             {
@@ -29,7 +29,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
 
         // Get oldest 
-        public KeyChainRecord GetOldest(DatabaseBase.DatabaseConnection conn, string identity)
+        public KeyChainRecord GetOldest(DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.SingleRow))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             } // using
         }
 
-        public List<KeyChainRecord> GetIdentity(DatabaseBase.DatabaseConnection conn, string identity)
+        public List<KeyChainRecord> GetIdentity(DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -92,7 +92,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get2Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {

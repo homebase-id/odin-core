@@ -36,7 +36,7 @@ namespace WaitingListApi.Data.Database
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS waiting_list;";
-                    _database.ExecuteNonQuery(cn, cmd);
+                    cn.ExecuteNonQuery(cmd);
                 }
 
                 cmd.CommandText =
@@ -46,7 +46,9 @@ namespace WaitingListApi.Data.Database
                     + "created INT NOT NULL "
                     + ", PRIMARY KEY (emailAddress)"
                     + ");";
-                _database.ExecuteNonQuery(cn, cmd);
+                cn.ExecuteNonQuery(cmd);
+
+                cn.Vacuum();
             }
         }
 
@@ -74,7 +76,7 @@ namespace WaitingListApi.Data.Database
                 _insertParam1!.Value = item.EmailAddress;
                 _insertParam2!.Value = item.JsonData;
                 _insertParam8!.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(cn, _insertCommand);
+                return cn.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
     }

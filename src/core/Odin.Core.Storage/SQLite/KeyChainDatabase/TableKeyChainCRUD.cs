@@ -119,14 +119,14 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyChain("
@@ -140,11 +140,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                      +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
                      +");"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, KeyChainRecord item)
+        public virtual int Insert(DatabaseConnection conn, KeyChainRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -178,7 +178,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _insertParam5.Value = item.algorithm;
                 _insertParam6.Value = item.publicKeyJwkBase64Url;
                 _insertParam7.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
@@ -187,7 +187,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, KeyChainRecord item)
+        public virtual int Upsert(DatabaseConnection conn, KeyChainRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -224,13 +224,13 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _upsertParam5.Value = item.algorithm;
                 _upsertParam6.Value = item.publicKeyJwkBase64Url;
                 _upsertParam7.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
+                var count = conn.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 return count;
                 } // Using
         }
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, KeyChainRecord item)
+        public virtual int Update(DatabaseConnection conn, KeyChainRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -265,7 +265,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _updateParam5.Value = item.algorithm;
                 _updateParam6.Value = item.publicKeyJwkBase64Url;
                 _updateParam7.Value = item.recordHash;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
@@ -274,12 +274,12 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyChain; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
@@ -364,7 +364,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public int Delete(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -385,7 +385,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = publicKeyJwkBase64Url;
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
                     _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
@@ -465,7 +465,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public KeyChainRecord Get(DatabaseBase.DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public KeyChainRecord Get(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -491,7 +491,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 _get0Param2.Value = publicKeyJwkBase64Url;
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

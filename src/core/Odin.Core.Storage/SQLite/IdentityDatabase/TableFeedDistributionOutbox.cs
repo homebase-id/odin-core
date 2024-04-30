@@ -22,7 +22,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Insert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
+        public override int Insert(DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
@@ -30,7 +30,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Upsert(DatabaseBase.DatabaseConnection conn, FeedDistributionOutboxRecord item)
+        public override int Upsert(DatabaseConnection conn, FeedDistributionOutboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public List<FeedDistributionOutboxRecord> Pop(DatabaseBase.DatabaseConnection conn, int count)
+        public List<FeedDistributionOutboxRecord> Pop(DatabaseConnection conn, int count)
         {
             using (var _popAllCommand = _database.CreateCommand())
             {
@@ -58,22 +58,18 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 var result = new List<FeedDistributionOutboxRecord>();
 
-                lock (conn._lock)
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    using (conn.CreateCommitUnitOfWork())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                     {
-                        using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popAllCommand, System.Data.CommandBehavior.Default))
+                        while (rdr.Read())
                         {
-                            while (rdr.Read())
-                            {
-                                result.Add(ReadRecordFromReaderAll(rdr));
-                            }
+                            result.Add(ReadRecordFromReaderAll(rdr));
                         }
-
-                        return result;
                     }
+                });
 
-                }
+                return result;
             }
         }
 
@@ -83,7 +79,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) PopStatus(DatabaseBase.DatabaseConnection conn)
+        public (int, int, UnixTimeUtc) PopStatus(DatabaseConnection conn)
         {
             using (var _popStatusCommand = _database.CreateCommand())
             {
@@ -94,7 +90,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popStatusCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())
@@ -141,7 +137,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCancelAll(DatabaseBase.DatabaseConnection conn, Guid popstamp)
+        public void PopCancelAll(DatabaseConnection conn, Guid popstamp)
         {
             using (var _popCancelCommand = _database.CreateCommand())
             {
@@ -153,11 +149,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcancelparam1.Value = popstamp.ToByteArray();
 
-                _database.ExecuteNonQuery(conn, _popCancelCommand);
+                conn.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
-        public void PopCancelList(DatabaseBase.DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
+        public void PopCancelList(DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
         {
             using (var _popCancelListCommand = _database.CreateCommand())
             {
@@ -173,19 +169,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
 
-                lock (conn._lock)
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    using (conn.CreateCommitUnitOfWork())
+                    // I'd rather not do a TEXT statement, this seems safer but slower.
+                    for (int i = 0; i < listFileId.Count; i++)
                     {
-                        // I'd rather not do a TEXT statement, this seems safer but slower.
-                        for (int i = 0; i < listFileId.Count; i++)
-                        {
-                            _pcancellistparam2.Value = listFileId[i].ToByteArray();
-                            _database.ExecuteNonQuery(conn, _popCancelListCommand);
-                        }
+                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
+                        conn.ExecuteNonQuery(_popCancelListCommand);
                     }
-
-                }
+                });
             }
         }
 
@@ -194,7 +186,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommitAll(DatabaseBase.DatabaseConnection conn, Guid popstamp)
+        public void PopCommitAll(DatabaseConnection conn, Guid popstamp)
         {
             using (var _popCommitCommand = _database.CreateCommand())
             {
@@ -206,7 +198,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitparam1.Value = popstamp.ToByteArray();
 
-                _database.ExecuteNonQuery(conn, _popCommitCommand);
+                conn.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -215,7 +207,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommitList(DatabaseBase.DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
+        public void PopCommitList(DatabaseConnection conn, Guid popstamp, List<Guid> listFileId)
         {
                 using (var _popCommitListCommand = _database.CreateCommand())
                 {
@@ -231,18 +223,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
 
-                lock (conn._lock)
+                conn.CreateCommitUnitOfWork(() =>
                 {
-                    using (conn.CreateCommitUnitOfWork())
+                    // I'd rather not do a TEXT statement, this seems safer but slower.
+                    for (int i = 0; i < listFileId.Count; i++)
                     {
-                        // I'd rather not do a TEXT statement, this seems safer but slower.
-                        for (int i = 0; i < listFileId.Count; i++)
-                        {
-                            _pcommitlistparam2.Value = listFileId[i].ToByteArray();
-                            _database.ExecuteNonQuery(conn, _popCommitListCommand);
-                        }
+                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
+                        conn.ExecuteNonQuery(_popCommitListCommand);
                     }
-                }
+                });
             }
         }
 
@@ -252,7 +241,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void PopRecoverDead(DatabaseBase.DatabaseConnection conn, UnixTimeUtc UnixTimeSeconds)
+        public void PopRecoverDead(DatabaseConnection conn, UnixTimeUtc UnixTimeSeconds)
         {
             using (var _popRecoverCommand = _database.CreateCommand())
             {
@@ -264,7 +253,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
-                _database.ExecuteNonQuery(conn, _popRecoverCommand);
+                conn.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }

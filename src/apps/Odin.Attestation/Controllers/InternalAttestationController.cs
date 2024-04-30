@@ -343,7 +343,7 @@ namespace Odin.Attestation.Controllers
                 // Now store it in the database
                 //
 
-                using (conn.CreateCommitUnitOfWork())
+                conn.CreateCommitUnitOfWork(() => 
                 {
                     //
                     // Now we are fully ready to insert the block chain records, we have all the data needed
@@ -356,7 +356,8 @@ namespace Odin.Attestation.Controllers
                     // Finally, delete the pending request
                     //
                     GetDeleteRequest(attestationIdBase64);
-                }
+                });
+
                 return Ok();
             }
         }

@@ -25,7 +25,7 @@ public class ThreeKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseBase.DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
         var bytes = db.TblKeyThreeValue.Get(cn, MakeStorageKey(key));
@@ -38,7 +38,7 @@ public class ThreeKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseBase.DatabaseConnection cn, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
+    public void Upsert<T>(DatabaseConnection cn, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
         var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
@@ -46,13 +46,13 @@ public class ThreeKeyValueStorage
         db.TblKeyThreeValue.Upsert(cn, new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseBase.DatabaseConnection cn, Guid id)
+    public void Delete(DatabaseConnection cn, Guid id)
     {
         var db = (IdentityDatabase)cn.db; // :(
         db.TblKeyThreeValue.Delete(cn, MakeStorageKey(id));
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseBase.DatabaseConnection cn, byte[] dataType) where T : class
+    public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] dataType) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
         var list = db.TblKeyThreeValue.GetByKeyTwo(cn, dataType);
@@ -65,7 +65,7 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByCategory<T>(DatabaseBase.DatabaseConnection cn, byte[] categoryKey) where T : class
+    public IEnumerable<T> GetByCategory<T>(DatabaseConnection cn, byte[] categoryKey) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
         var list = db.TblKeyThreeValue.GetByKeyThree(cn, categoryKey);
@@ -77,7 +77,7 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(DatabaseBase.DatabaseConnection cn, byte[] dataTypeKey, byte[] categoryKey) where T : class
+    public IEnumerable<T> GetByKey2And3<T>(DatabaseConnection cn, byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
         var db = (IdentityDatabase)cn.db; // :(
         var list = db.TblKeyThreeValue.GetByKeyTwoThree(cn, dataTypeKey, categoryKey);

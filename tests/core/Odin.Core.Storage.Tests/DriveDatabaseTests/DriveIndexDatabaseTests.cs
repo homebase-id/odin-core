@@ -2703,7 +2703,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             testDatabase.Dispose();
         }
 
-        private (IdentityDatabase, DatabaseBase.DatabaseConnection, Guid driveId, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags) Init(string filename)
+        private (IdentityDatabase, DatabaseConnection, Guid driveId, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags) Init(string filename)
         {
             var fileId = new List<Guid>();
             var conversationId = new List<Guid>();
@@ -2782,8 +2782,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                     _testDatabase.AddEntry(myc, driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                 }
-
-                myc.Commit();
 
                 stopWatch.Stop();
                 TestBenchmark.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);

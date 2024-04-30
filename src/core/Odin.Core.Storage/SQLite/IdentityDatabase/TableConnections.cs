@@ -15,7 +15,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public List<ConnectionsRecord> PagingByIdentity(DatabaseBase.DatabaseConnection conn, int count, Int32 statusFilter, string inCursor, out string nextCursor)
+        public List<ConnectionsRecord> PagingByIdentity(DatabaseConnection conn, int count, Int32 statusFilter, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging1Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;
@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         } // PagingGet
 
 
-        public List<ConnectionsRecord> PagingByCreated(DatabaseBase.DatabaseConnection conn, int count, Int32 statusFilter, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<ConnectionsRecord> PagingByCreated(DatabaseConnection conn, int count, Int32 statusFilter, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -95,7 +95,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging6Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging6Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         int n = 0;

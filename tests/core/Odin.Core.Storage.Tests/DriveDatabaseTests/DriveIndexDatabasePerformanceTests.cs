@@ -182,13 +182,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 }
 
                 stopWatch.Start();
-                using (myc.CreateCommitUnitOfWork())
+                myc.CreateCommitUnitOfWork(() =>
                 {
                     for (int i = 1; i < _performanceIterations; i++)
                     {
                         _testDatabase.AddEntry(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                     }
-                }
+                });
                 stopWatch.Stop();
                 int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
@@ -237,13 +237,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 stopWatch.Start();
 
-                using (myc.CreateCommitUnitOfWork())
+                myc.CreateCommitUnitOfWork(() =>
                 {
                     for (int i = 1; i < _performanceIterations; i++)
                     {
                         _testDatabase.AddEntry(myc, driveId, Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
                     }
-                }
+                });
                 stopWatch.Stop();
                 int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
@@ -255,6 +255,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             }
         }
 
+        /// Multi-threading on a single connection
         /// <summary>
         ///    Threads   : 5
         ///    Iterations: 1000
@@ -270,7 +271,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// Bandwidth: 20491 rows / second
         /// </summary>
         [Test]
-        public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
+        public void PerformanceTest03()
         {
             Task[] tasks = new Task[MAXTHREADS];
             using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
@@ -324,7 +325,66 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             _testDatabase.Dispose();
         }
 
-        public long[] WriteRows(int threadno, int iterations, IdentityDatabase db, DatabaseBase.DatabaseConnection myc, Guid driveId)
+        /// Multi-threading on a connection per thread
+        [Test]
+        public void PerformanceTest03B() // Just making sure multi-threaded doesn't give worse performance
+        {
+            Task[] tasks = new Task[MAXTHREADS];
+            using var _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"memento03B.db");
+            using (var myc = _testDatabase.CreateDisposableConnection())
+            {
+                _testDatabase.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
+                var stopWatch = new Stopwatch();
+
+                //
+                // Now back to performance testing
+                //
+                var sw = new Stopwatch();
+                sw.Reset();
+                sw.Start();
+
+                for (var i = 0; i < MAXTHREADS; i++)
+                {
+                    tasks[i] = Task.Run(() =>
+                    {
+                        using (var cn = _testDatabase.CreateDisposableConnection())
+                        {
+                            WriteRows(i, MAXITERATIONS, _testDatabase, cn, driveId);
+                        }
+                    });
+                }
+
+                try
+                {
+                    Task.WaitAll(tasks);
+                }
+                catch (AggregateException ae)
+                {
+                    foreach (var ex in ae.InnerExceptions)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+
+                    throw;
+                }
+
+                sw.Stop();
+
+                Console.WriteLine($"Threads   : {MAXTHREADS}");
+                Console.WriteLine($"Iterations: {MAXITERATIONS}");
+                Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+                long ms = Math.Max(1, sw.ElapsedMilliseconds);
+                Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
+                TestBenchmark.StopWatchStatus($"Added {MAXTHREADS * MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
+                Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+            _testDatabase.Dispose();
+        }
+
+        public long[] WriteRows(int threadno, int iterations, IdentityDatabase db, DatabaseConnection myc, Guid driveId)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);

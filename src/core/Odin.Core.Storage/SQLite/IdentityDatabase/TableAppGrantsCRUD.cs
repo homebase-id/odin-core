@@ -73,14 +73,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS appGrants("
@@ -91,11 +91,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (odinHashId,appId,circleId)"
                      +");"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, AppGrantsRecord item)
+        public virtual int Insert(DatabaseConnection conn, AppGrantsRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -117,7 +117,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam2.Value = item.appId.ToByteArray();
                 _insertParam3.Value = item.circleId.ToByteArray();
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
@@ -126,7 +126,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, AppGrantsRecord item)
+        public virtual int Upsert(DatabaseConnection conn, AppGrantsRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -151,13 +151,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam2.Value = item.appId.ToByteArray();
                 _upsertParam3.Value = item.circleId.ToByteArray();
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _upsertCommand);
+                var count = conn.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                 return count;
                 } // Using
         }
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, AppGrantsRecord item)
+        public virtual int Update(DatabaseConnection conn, AppGrantsRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -180,7 +180,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam2.Value = item.appId.ToByteArray();
                 _updateParam3.Value = item.circleId.ToByteArray();
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                     _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
@@ -189,12 +189,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM appGrants; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
@@ -255,7 +255,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, Guid odinHashId,Guid appId,Guid circleId)
+        public int Delete(DatabaseConnection conn, Guid odinHashId,Guid appId,Guid circleId)
         {
                 using (var _delete0Command = _database.CreateCommand())
                 {
@@ -274,7 +274,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param1.Value = odinHashId.ToByteArray();
                 _delete0Param2.Value = appId.ToByteArray();
                 _delete0Param3.Value = circleId.ToByteArray();
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString());
                 return count;
@@ -327,7 +327,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public List<AppGrantsRecord> GetByOdinHashId(DatabaseBase.DatabaseConnection conn, Guid odinHashId)
+        public List<AppGrantsRecord> GetByOdinHashId(DatabaseConnection conn, Guid odinHashId)
         {
                 using (var _get0Command = _database.CreateCommand())
                 {
@@ -340,7 +340,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param1.Value = odinHashId.ToByteArray();
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                     {
@@ -388,7 +388,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public AppGrantsRecord Get(DatabaseBase.DatabaseConnection conn, Guid odinHashId,Guid appId,Guid circleId)
+        public AppGrantsRecord Get(DatabaseConnection conn, Guid odinHashId,Guid appId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString());
             if (hit)
@@ -412,7 +412,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get1Param3.Value = circleId.ToByteArray();
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get1Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

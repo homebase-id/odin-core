@@ -22,7 +22,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public (List<string>, int) GetPostReactions(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid postId)
+        public (List<string>, int) GetPostReactions(DatabaseConnection conn, Guid driveId, Guid postId)
         {
             using (var _selectCommand = _database.CreateCommand())
             {
@@ -42,7 +42,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _selectCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         int totalCount = 0;
@@ -77,7 +77,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public int GetIdentityPostReactions(DatabaseBase.DatabaseConnection conn, OdinId identity, Guid driveId, Guid postId)
+        public int GetIdentityPostReactions(DatabaseConnection conn, OdinId identity, Guid driveId, Guid postId)
         {
             using (var _select2Command = _database.CreateCommand())
             {
@@ -102,7 +102,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select2Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                             return rdr.GetInt32(0);
@@ -121,7 +121,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <returns></returns>
-        public List<string> GetIdentityPostReactionDetails(DatabaseBase.DatabaseConnection conn, OdinId identity, Guid driveId, Guid postId)
+        public List<string> GetIdentityPostReactionDetails(DatabaseConnection conn, OdinId identity, Guid driveId, Guid postId)
         {
             using (var _select3Command = _database.CreateCommand())
             {
@@ -146,7 +146,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select3Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var rs = new List<string>();
 
@@ -163,7 +163,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public (List<string>, List<int>, int) GetPostReactionsWithDetails(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid postId)
+        public (List<string>, List<int>, int) GetPostReactionsWithDetails(DatabaseConnection conn, Guid driveId, Guid postId)
         {
             using (var _select4Command = _database.CreateCommand())
             {
@@ -184,7 +184,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select4Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
                         var iresult = new List<int>();
@@ -210,7 +210,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
 
         // Copied and modified from CRUD
-        public List<DriveReactionsRecord> PagingByRowid(DatabaseBase.DatabaseConnection conn, int count, Int32? inCursor, out Int32? nextCursor, Guid driveId, Guid postIdFilter)
+        public List<DriveReactionsRecord> PagingByRowid(DatabaseConnection conn, int count, Int32? inCursor, out Int32? nextCursor, Guid driveId, Guid postIdFilter)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -244,7 +244,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging0Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<DriveReactionsRecord>();
                         int n = 0;

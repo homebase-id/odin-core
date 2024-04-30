@@ -55,11 +55,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
             tblKeyChain.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
-                Vacuum();
+                conn.Vacuum();
         }
     }
 }

@@ -1,4 +1,3 @@
-using Microsoft.VisualBasic;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
@@ -108,10 +107,10 @@ namespace Odin.KeyChainTests
 
                 // Make sure we can read a record even if we're in the semaphore lock 
 
-                using (myc.CreateCommitUnitOfWork())
+                myc.CreateCommitUnitOfWork(() =>
                 {
                     var r2 = db.tblKeyChain.GetOldest(myc, r.identity);
-                }
+                });
 
                 Assert.Pass();
             }

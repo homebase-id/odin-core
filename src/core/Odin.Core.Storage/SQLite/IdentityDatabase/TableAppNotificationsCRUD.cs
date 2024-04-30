@@ -105,14 +105,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS AppNotifications("
@@ -127,11 +127,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(created);"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, AppNotificationsRecord item)
+        public virtual int Insert(DatabaseConnection conn, AppNotificationsRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -167,7 +167,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam6.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam7.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -177,7 +177,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, AppNotificationsRecord item)
+        public virtual int Upsert(DatabaseConnection conn, AppNotificationsRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -215,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam6.Value = now.uniqueTime;
                 _upsertParam7.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -234,7 +234,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, AppNotificationsRecord item)
+        public virtual int Update(DatabaseConnection conn, AppNotificationsRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -270,7 +270,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = now.uniqueTime;
                 _updateParam7.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -280,12 +280,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
@@ -361,7 +361,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, Guid notificationId)
+        public int Delete(DatabaseConnection conn, Guid notificationId)
         {
                 using (var _delete0Command = _database.CreateCommand())
                 {
@@ -372,7 +372,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _delete0Command.Parameters.Add(_delete0Param1);
 
                 _delete0Param1.Value = notificationId.ToByteArray();
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
                     _cache.Remove("TableAppNotificationsCRUD", notificationId.ToString());
                 return count;
@@ -440,7 +440,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public AppNotificationsRecord Get(DatabaseBase.DatabaseConnection conn, Guid notificationId)
+        public AppNotificationsRecord Get(DatabaseConnection conn, Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", notificationId.ToString());
             if (hit)
@@ -456,7 +456,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param1.Value = notificationId.ToByteArray();
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -471,7 +471,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // using
         }
 
-        public List<AppNotificationsRecord> PagingByCreated(DatabaseBase.DatabaseConnection conn, int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<AppNotificationsRecord> PagingByCreated(DatabaseConnection conn, int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -494,7 +494,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             lock (conn._lock)
             {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _getPaging6Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_getPaging6Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<AppNotificationsRecord>();
                     int n = 0;

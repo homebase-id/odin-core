@@ -23,7 +23,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
 
         // Returns up to count items
-        public List<DriveCommandMessageQueueRecord> Get(DatabaseBase.DatabaseConnection conn, Guid driveId, int count)
+        public List<DriveCommandMessageQueueRecord> Get(DatabaseConnection conn, Guid driveId, int count)
         {
             using (var _selectCommand = _database.CreateCommand())
             {
@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _selectCommand, System.Data.CommandBehavior.SingleResult))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
                         var queue = new List<DriveCommandMessageQueueRecord>();
@@ -51,42 +51,36 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void InsertRows(DatabaseBase.DatabaseConnection conn, Guid driveId, List<Guid> fileId)
+        public void InsertRows(DatabaseConnection conn, Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
+                for (int i = 0; i < fileId.Count; i++)
                 {
-                    var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
-                    for (int i = 0; i < fileId.Count; i++)
-                    {
-                        item.fileId = fileId[i];
-                        Insert(conn, item);
-                    }
+                    item.fileId = fileId[i];
+                    Insert(conn, item);
                 }
-            }
+            });
         }
 
-        public void DeleteRow(DatabaseBase.DatabaseConnection conn, Guid driveId, List<Guid> fileId)
+        public void DeleteRow(DatabaseConnection conn, Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
 
             // Since we are deletign multiple rows we do a logic unit here
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                for (int i = 0; i < fileId.Count; i++)
                 {
-                    for (int i = 0; i < fileId.Count; i++)
-                    {
-                        Delete(conn, driveId, fileId[i]);
-                    }
+                    Delete(conn, driveId, fileId[i]);
                 }
-            }
+            });
         }
     }
 }

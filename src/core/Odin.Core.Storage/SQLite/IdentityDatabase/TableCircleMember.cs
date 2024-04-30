@@ -13,7 +13,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public new virtual List<CircleMemberRecord> GetCircleMembers(DatabaseBase.DatabaseConnection conn, Guid circleId)
+        public new virtual List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid circleId)
         {
             var r = base.GetCircleMembers(conn, circleId);
 
@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseBase.DatabaseConnection conn, Guid memberId)
+        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid memberId)
         {
             var r = base.GetMemberCirclesAndData(conn, memberId);
 
@@ -48,15 +48,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="CircleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void UpsertCircleMembers(DatabaseBase.DatabaseConnection conn, List<CircleMemberRecord> CircleMemberRecordList)
+        public void UpsertCircleMembers(DatabaseConnection conn, List<CircleMemberRecord> CircleMemberRecordList)
         {
             if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (conn._lock)
-                using (conn.CreateCommitUnitOfWork())
-                    for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                        Upsert(conn, CircleMemberRecordList[i]);
+            conn.CreateCommitUnitOfWork(() =>
+            {
+                for (int i = 0; i < CircleMemberRecordList.Count; i++)
+                    Upsert(conn, CircleMemberRecordList[i]);
+            });
         }
 
 
@@ -66,15 +67,16 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void RemoveCircleMembers(DatabaseBase.DatabaseConnection conn, Guid circleId, List<Guid> members)
+        public void RemoveCircleMembers(DatabaseConnection conn, Guid circleId, List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (conn._lock)
-                using (conn.CreateCommitUnitOfWork())
-                    for (int i = 0; i < members.Count; i++)
-                        Delete(conn, circleId, members[i]);
+            conn.CreateCommitUnitOfWork(() =>
+            {
+                for (int i = 0; i < members.Count; i++)
+                    Delete(conn, circleId, members[i]);
+            });
         }
 
 
@@ -83,24 +85,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteMembersFromAllCircles(DatabaseBase.DatabaseConnection conn, List<Guid> members)
+        public void DeleteMembersFromAllCircles(DatabaseConnection conn, List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                for (int i = 0; i < members.Count; i++)
                 {
-                    for (int i = 0; i < members.Count; i++)
-                    {
-                        var circles = GetMemberCirclesAndData(conn, members[i]);
+                    var circles = GetMemberCirclesAndData(conn, members[i]);
 
-                        for (int j = 0; j < circles.Count; j++)
-                            Delete(conn, circles[j].circleId, members[i]);
-                    }
+                    for (int j = 0; j < circles.Count; j++)
+                        Delete(conn, circles[j].circleId, members[i]);
                 }
-            }
+            });
         }
     }
 }

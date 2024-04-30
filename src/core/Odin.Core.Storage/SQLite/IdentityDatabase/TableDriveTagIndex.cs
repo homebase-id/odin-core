@@ -13,27 +13,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public void InsertRows(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (tagIdList == null)
                 return;
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
-                {
-                    var item = new DriveTagIndexRecord() { driveId = driveId, fileId = fileId };
+                var item = new DriveTagIndexRecord() { driveId = driveId, fileId = fileId };
 
-                    for (int i = 0; i < tagIdList.Count; i++)
-                    {
-                        item.tagId = tagIdList[i];
-                        Insert(conn, item);
-                    }
+                for (int i = 0; i < tagIdList.Count; i++)
+                {
+                    item.tagId = tagIdList[i];
+                    Insert(conn, item);
                 }
-            }
+            });
         }
 
-        public void DeleteRow(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
+        public void DeleteRow(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> tagIdList)
         {
             if (this._database != conn.db)
                 throw new Exception("Database mixup");
@@ -41,16 +38,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (tagIdList == null)
                 return;
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                for (int i = 0; i < tagIdList.Count; i++)
                 {
-                    for (int i = 0; i < tagIdList.Count; i++)
-                    {
-                        Delete(conn, driveId, fileId, tagIdList[i]);
-                    }
+                    Delete(conn, driveId, fileId, tagIdList[i]);
                 }
-            }
+            });
         }
     }
 }

@@ -14,41 +14,35 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public void InsertRows(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
+                for (int i = 0; i < accessControlList.Count; i++)
                 {
-                    var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
-                    for (int i = 0; i < accessControlList.Count; i++)
-                    {
-                        item.aclMemberId = accessControlList[i];
-                        Insert(conn, item);
-                    }
+                    item.aclMemberId = accessControlList[i];
+                    Insert(conn, item);
                 }
-            }
+            });
         }
 
-        public void DeleteRow(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public void DeleteRow(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                for (int i = 0; i < accessControlList.Count; i++)
                 {
-                    for (int i = 0; i < accessControlList.Count; i++)
-                    {
-                        Delete(conn, driveId, fileId, accessControlList[i]);
-                    }
+                    Delete(conn, driveId, fileId, accessControlList[i]);
                 }
-            }
+            });
         }
     }
 }

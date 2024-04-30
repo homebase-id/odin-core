@@ -124,7 +124,7 @@ namespace Odin.Notarius
             }
         }
 
-        private NotaryChainRecord TryGetLastLinkOrThrow(DatabaseBase.DatabaseConnection conn)
+        private NotaryChainRecord TryGetLastLinkOrThrow(DatabaseConnection conn)
         {
             try
             {
@@ -421,7 +421,6 @@ namespace Odin.Notarius
                     {
                         return Problem($"Did you try to register a duplicate? {e.Message}");
                     }
-                    conn.Commit(); // Flush immediately
                     return Ok(preregisteredEntry.envelope.GetCompactSortedJson());
                 }
                 catch (Exception ex)

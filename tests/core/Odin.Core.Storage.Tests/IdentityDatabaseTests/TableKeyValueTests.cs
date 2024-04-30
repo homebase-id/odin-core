@@ -212,13 +212,13 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         {
             List<byte[]> Rows = new List<byte[]>();
 
-            void writeDB(DatabaseBase.DatabaseConnection conn, IdentityDatabase db)
+            void writeDB(DatabaseConnection conn, IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
                     db.tblKeyValue.Update(conn, new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
-            void readDB(DatabaseBase.DatabaseConnection conn, IdentityDatabase db)
+            void readDB(DatabaseConnection conn, IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
                     db.tblKeyValue.Get(conn, Rows[i]);
@@ -313,8 +313,6 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                     Assert.Fail();
                 db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k1, data = v1 });
                 db.tblKeyValue.Insert(myc, new KeyValueRecord() { key = k2, data = v2 });
-
-                myc.Commit();
 
                 r = db.tblKeyValue.Get(myc, k1);
                 if (ByteArrayUtil.muidcmp(r.data, v1) != 0)

@@ -201,14 +201,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveMainIndex("
@@ -235,11 +235,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(driveId,modified);"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, DriveMainIndexRecord item)
+        public virtual int Insert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -315,7 +315,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam16.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam17.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -324,7 +324,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, DriveMainIndexRecord item)
+        public virtual int Upsert(DatabaseConnection conn, DriveMainIndexRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -402,7 +402,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam15.Value = item.byteCount;
                 _upsertParam16.Value = now.uniqueTime;
                 _upsertParam17.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -420,7 +420,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, DriveMainIndexRecord item)
+        public virtual int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -496,7 +496,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam15.Value = item.byteCount;
                 _updateParam16.Value = now.uniqueTime;
                 _updateParam17.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -505,17 +505,17 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
 
-        public virtual int GetDriveCount(DatabaseBase.DatabaseConnection conn, Guid driveId)
+        public virtual int GetDriveCount(DatabaseConnection conn, Guid driveId)
         {
                 using (var _getCountDriveCommand = _database.CreateCommand())
                 {
@@ -524,7 +524,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     _getCountDriveParam1.ParameterName = "$driveId";
                     _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
                     _getCountDriveParam1.Value = driveId.ToByteArray();
-                    var count = _database.ExecuteNonQuery(conn, _getCountDriveCommand);
+                    var count = conn.ExecuteNonQuery(_getCountDriveCommand);
                     return count;
                 } // using
         }
@@ -676,7 +676,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, Guid driveId,Guid fileId)
+        public int Delete(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
                 using (var _delete0Command = _database.CreateCommand())
                 {
@@ -691,7 +691,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _delete0Param1.Value = driveId.ToByteArray();
                 _delete0Param2.Value = fileId.ToByteArray();
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 return count;
                 } // Using
         }
@@ -824,7 +824,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public DriveMainIndexRecord Get(DatabaseBase.DatabaseConnection conn, Guid driveId,Guid fileId)
+        public DriveMainIndexRecord Get(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
                 using (var _get0Command = _database.CreateCommand())
                 {
@@ -841,7 +841,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = fileId.ToByteArray();
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

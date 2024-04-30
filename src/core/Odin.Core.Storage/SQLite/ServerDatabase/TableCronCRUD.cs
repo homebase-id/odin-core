@@ -122,14 +122,14 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS cron;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS cron("
@@ -146,11 +146,11 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableCronCRUD ON cron(nextRun);"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, CronRecord item)
+        public virtual int Insert(DatabaseConnection conn, CronRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -194,7 +194,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _insertParam8.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam9.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -203,7 +203,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, CronRecord item)
+        public virtual int Upsert(DatabaseConnection conn, CronRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -249,7 +249,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = now.uniqueTime;
                 _upsertParam9.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, CronRecord item)
+        public virtual int Update(DatabaseConnection conn, CronRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -311,7 +311,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = now.uniqueTime;
                 _updateParam9.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -320,12 +320,12 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM cron; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
@@ -418,7 +418,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, Guid identityId,Int32 type)
+        public int Delete(DatabaseConnection conn, Guid identityId,Int32 type)
         {
                 using (var _delete0Command = _database.CreateCommand())
                 {
@@ -433,7 +433,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
                 _delete0Param1.Value = identityId.ToByteArray();
                 _delete0Param2.Value = type;
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 return count;
                 } // Using
         }
@@ -510,7 +510,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
             return item;
        }
 
-        public CronRecord Get(DatabaseBase.DatabaseConnection conn, Guid identityId,Int32 type)
+        public CronRecord Get(DatabaseConnection conn, Guid identityId,Int32 type)
         {
                 using (var _get0Command = _database.CreateCommand())
                 {
@@ -527,7 +527,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 _get0Param2.Value = type;
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

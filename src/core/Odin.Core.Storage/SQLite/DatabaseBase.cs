@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Data;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 
@@ -27,13 +24,13 @@ https://www.sqlitetutorial.net/sqlite-index/
 namespace Odin.Core.Storage.SQLite
 {
 
-    public partial class DatabaseBase : IDisposable
+    public class DatabaseBase : IDisposable
     {
         protected readonly string _connectionString;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(20); // Max 20 concurrent connections
  
         protected bool _wasDisposed = false;
-        protected readonly string _databaseSource;
+        public readonly string _databaseSource;
 
         public DatabaseBase(string dataSource)
         {
@@ -91,63 +88,10 @@ namespace Odin.Core.Storage.SQLite
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public virtual void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
+        public virtual void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
             throw new Exception("Not implemented");
         }
-
-        public void Vacuum()
-        {
-            using (var conn = this.CreateDisposableConnection()) 
-            {
-                using (var cmd = CreateCommand())
-                {
-                    cmd.CommandText = "VACUUM;";
-                    cmd.Connection = conn.Connection;
-                    ExecuteNonQuery(conn, cmd);
-                }
-            }
-        }
-
-        public int ExecuteNonQuery(DatabaseConnection connection, SqliteCommand command)
-        {
-            if (connection.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
-            lock (connection._lock)
-            {
-                command.Connection = connection.Connection;
-                command.Transaction = connection._transaction;
-                var r = command.ExecuteNonQuery();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
-
-        /// <summary>
-        /// You must lock connection._lock when using the reader object
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="command"></param>
-        /// <param name="behavior"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        public SqliteDataReader ExecuteReader(DatabaseConnection connection, SqliteCommand command, CommandBehavior behavior)
-        {
-            if (connection.db != this)
-                throw new ArgumentException("connection and database object mismatch");
-
-            lock (connection._lock)
-            {
-                command.Connection = connection.Connection;
-                command.Transaction = connection._transaction;
-                var r = command.ExecuteReader();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
 
         public SqliteCommand CreateCommand()
         {

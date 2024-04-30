@@ -22,7 +22,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         /// <param name="rsakey"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public NotaryChainRecord GetLastLink(DatabaseBase.DatabaseConnection conn)
+        public NotaryChainRecord GetLastLink(DatabaseConnection conn)
         {
             using (var _get0Command = _database.CreateCommand())
             {
@@ -30,7 +30,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                     {
                         if (!rdr.Read())
                         {
@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             } // using
         }
 
-        public List<NotaryChainRecord> GetIdentity(DatabaseBase.DatabaseConnection conn, string identity)
+        public List<NotaryChainRecord> GetIdentity(DatabaseConnection conn, string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 _get2Param1.Value = identity;
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get2Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                     {
                         if (!rdr.Read())
                         {

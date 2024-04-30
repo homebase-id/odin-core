@@ -39,7 +39,6 @@ namespace WaitingListApi.Data.Database
         public void CreateDatabase(bool dropExistingTables = true)
         {
             WaitingListTable?.EnsureTableExists(dropExistingTables);
-            Vacuum();
         }
     }
 }

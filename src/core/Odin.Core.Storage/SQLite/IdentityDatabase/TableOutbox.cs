@@ -22,7 +22,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Insert(DatabaseBase.DatabaseConnection conn, OutboxRecord item)
+        public override int Insert(DatabaseConnection conn, OutboxRecord item)
         {
             item.checkOutCount = 0;
             if (item.nextRunTime.milliseconds == 0)
@@ -33,7 +33,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Upsert(DatabaseBase.DatabaseConnection conn, OutboxRecord item)
+        public override int Upsert(DatabaseConnection conn, OutboxRecord item)
         {
             if (item.nextRunTime.milliseconds == 0)
                 item.nextRunTime = UnixTimeUtc.Now();
@@ -48,7 +48,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// or items that have unresolved dependencies.
         /// </summary>
         /// <returns></returns>
-        public OutboxRecord CheckOutItem(DatabaseBase.DatabaseConnection conn)
+        public OutboxRecord CheckOutItem(DatabaseConnection conn)
         {
             using (var _popAllCommand = _database.CreateCommand())
             {
@@ -98,7 +98,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popAllCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                         {
@@ -121,7 +121,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>UnixTimeUtc of when the next item should be sent, null if none.</returns>
         /// <exception cref="Exception"></exception>
-        public UnixTimeUtc? NextScheduledItem(DatabaseBase.DatabaseConnection conn)
+        public UnixTimeUtc? NextScheduledItem(DatabaseConnection conn)
         {
             using (var _nextScheduleCommand = _database.CreateCommand())
             {
@@ -129,7 +129,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _nextScheduleCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_nextScheduleCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())
@@ -149,7 +149,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CheckInAsCancelled(DatabaseBase.DatabaseConnection conn, Guid checkOutStamp, UnixTimeUtc nextRunTime)
+        public void CheckInAsCancelled(DatabaseConnection conn, Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
             using (var _popCancelCommand = _database.CreateCommand())
             {
@@ -167,7 +167,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _pcancelparam1.Value = checkOutStamp.ToByteArray();
                 _pcancelparam2.Value = nextRunTime.milliseconds;
 
-                _database.ExecuteNonQuery(conn, _popCancelCommand);
+                conn.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -177,7 +177,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CompleteAndRemove(DatabaseBase.DatabaseConnection conn, Guid checkOutStamp)
+        public void CompleteAndRemove(DatabaseConnection conn, Guid checkOutStamp)
         {
             using (var _popCommitCommand = _database.CreateCommand())
             {
@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitparam1.Value = checkOutStamp.ToByteArray();
 
-                _database.ExecuteNonQuery(conn, _popCommitCommand);
+                conn.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void RecoverCheckedOutDeadItems(DatabaseBase.DatabaseConnection conn, UnixTimeUtc pastThreshold)
+        public void RecoverCheckedOutDeadItems(DatabaseConnection conn, UnixTimeUtc pastThreshold)
         {
             using (var _popRecoverCommand = _database.CreateCommand())
             {
@@ -217,7 +217,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
 
-                _database.ExecuteNonQuery(conn, _popRecoverCommand);
+                conn.ExecuteNonQuery(_popRecoverCommand);
             }
         }
 
@@ -227,7 +227,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus(DatabaseBase.DatabaseConnection conn)
+        public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus(DatabaseConnection conn)
         {
             using (var _popStatusCommand = _database.CreateCommand())
             {
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popStatusCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())
@@ -280,7 +280,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) OutboxStatusDrive(DatabaseBase.DatabaseConnection conn, Guid driveId)
+        public (int, int, UnixTimeUtc) OutboxStatusDrive(DatabaseConnection conn, Guid driveId)
         {
             using (var _popStatusSpecificBoxCommand = _database.CreateCommand())
             {
@@ -297,7 +297,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                     {
                         // Read the total count
                         if (!rdr.Read())

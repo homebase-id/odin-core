@@ -23,7 +23,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public (Int64, Int64) GetDriveSize(DatabaseBase.DatabaseConnection conn, Guid driveId)
+        public (Int64, Int64) GetDriveSize(DatabaseConnection conn, Guid driveId)
         {
             using (var _sizeCommand = _database.CreateCommand())
             {
@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _sizeCommand, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_sizeCommand, System.Data.CommandBehavior.Default))
                     {
                         if (rdr.Read())
                         {
@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// For testing only. Updates the updatedTimestamp for the supplied item.
         /// </summary>
         /// <param name="fileId">Item to touch</param>
-        public void TestTouch(DatabaseBase.DatabaseConnection conn, Guid driveId, Guid fileId)
+        public void TestTouch(DatabaseConnection conn, Guid driveId, Guid fileId)
         {
             using (var _touchCommand = _database.CreateCommand())
             {
@@ -82,12 +82,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
                 _tparam3.Value = driveId.ToByteArray();
 
-                _database.ExecuteNonQuery(conn, _touchCommand);
+                conn.ExecuteNonQuery(_touchCommand);
             }
         }
 
         // Delete when done with conversion from many DBs to unoDB
-        public virtual int InsertRawTransfer(DatabaseBase.DatabaseConnection conn, DriveMainIndexRecord item)
+        public virtual int InsertRawTransfer(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             using (var _insertCommand = _database.CreateCommand())
             {
@@ -164,7 +164,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 // HAND HACK FOR CONVERSION
                 _insertParam16.Value = item.created.uniqueTime;
                 _insertParam17.Value = item.modified?.uniqueTime ?? (object)DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 item.modified = null;
                 // HAND HACK END
                 if (count > 0)
@@ -176,13 +176,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public override int Update(DatabaseBase.DatabaseConnection conn, DriveMainIndexRecord item)
+        public override int Update(DatabaseConnection conn, DriveMainIndexRecord item)
         {
             throw new Exception("can't use");
         }
 
         // It is not allowed to update the GlobalTransitId
-        public void UpdateRow(DatabaseBase.DatabaseConnection conn, Guid driveId,
+        public void UpdateRow(DatabaseConnection conn, Guid driveId,
             Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
@@ -300,7 +300,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _uparam11.Value = fileState ?? (object)DBNull.Value;
                 _uparam12.Value = byteCount ?? (object)DBNull.Value;
 
-                _database.ExecuteNonQuery(conn, _updateCommand);
+                conn.ExecuteNonQuery(_updateCommand);
             }
         }
     }

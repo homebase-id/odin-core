@@ -51,14 +51,14 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseBase.DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
             tblCron.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
-                Vacuum();
+                conn.Vacuum();
         }
     }
 }

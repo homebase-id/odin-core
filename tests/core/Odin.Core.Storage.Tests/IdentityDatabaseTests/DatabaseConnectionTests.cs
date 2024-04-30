@@ -51,11 +51,11 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
                 using (var myc2 = db1.CreateDisposableConnection())
                 {
-                    using (myc2.CreateCommitUnitOfWork())
+                    myc2.CreateCommitUnitOfWork(() =>
                     {
                         db1.tblKeyValue.Insert(myc2, new KeyValueRecord() { key = k2, data = v2 });
                         myc2.Dispose(); // Will trigger rollback
-                    }
+                    });
                 }
 
                 var r = db1.tblKeyValue.Get(myc1, k1);

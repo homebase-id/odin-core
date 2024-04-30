@@ -419,7 +419,6 @@ namespace Odin.Keychain
                     {
                         return Problem($"Did you try to register a duplicate? {e.Message}");
                     }
-                    conn.Commit(); // Flush immediately
                     return Ok("OK");
                 }
             }

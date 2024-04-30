@@ -144,14 +144,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseBase.DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
                 using (var cmd = _database.CreateCommand())
                 {
                     if (dropExisting)
                     {
                        cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
-                        _database.ExecuteNonQuery(conn, cmd);
+                       conn.ExecuteNonQuery(cmd);
                     }
                     cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS inbox("
@@ -170,11 +170,11 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(timeStamp);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(popStamp);"
                      ;
-                    _database.ExecuteNonQuery(conn, cmd);
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DatabaseBase.DatabaseConnection conn, InboxRecord item)
+        public virtual int Insert(DatabaseConnection conn, InboxRecord item)
         {
                 using (var _insertCommand = _database.CreateCommand())
                 {
@@ -222,7 +222,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam9.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam10.Value = DBNull.Value;
-                var count = _database.ExecuteNonQuery(conn, _insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int Upsert(DatabaseBase.DatabaseConnection conn, InboxRecord item)
+        public virtual int Upsert(DatabaseConnection conn, InboxRecord item)
         {
                 using (var _upsertCommand = _database.CreateCommand())
                 {
@@ -281,7 +281,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam8.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam9.Value = now.uniqueTime;
                 _upsertParam10.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -299,7 +299,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             } // Using
         }
 
-        public virtual int Update(DatabaseBase.DatabaseConnection conn, InboxRecord item)
+        public virtual int Update(DatabaseConnection conn, InboxRecord item)
         {
                 using (var _updateCommand = _database.CreateCommand())
                 {
@@ -347,7 +347,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam8.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam9.Value = now.uniqueTime;
                 _updateParam10.Value = now.uniqueTime;
-                var count = _database.ExecuteNonQuery(conn, _updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
@@ -356,12 +356,12 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 } // Using
         }
 
-        public virtual int GetCount(DatabaseBase.DatabaseConnection conn)
+        public virtual int GetCount(DatabaseConnection conn)
         {
                 using (var _getCountCommand = _database.CreateCommand())
                 {
                     _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
-                    var count = _database.ExecuteNonQuery(conn, _getCountCommand);
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
                     return count;
                 }
         }
@@ -471,7 +471,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseBase.DatabaseConnection conn, Guid driveId,Guid fileId)
+        public int Delete(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
                 using (var _delete0Command = _database.CreateCommand())
                 {
@@ -486,7 +486,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 _delete0Param1.Value = driveId.ToByteArray();
                 _delete0Param2.Value = fileId.ToByteArray();
-                var count = _database.ExecuteNonQuery(conn, _delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 return count;
                 } // Using
         }
@@ -570,7 +570,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public InboxRecord Get(DatabaseBase.DatabaseConnection conn, Guid driveId,Guid fileId)
+        public InboxRecord Get(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
                 using (var _get0Command = _database.CreateCommand())
                 {
@@ -587,7 +587,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _get0Param2.Value = fileId.ToByteArray();
                     lock (conn._lock)
                     {
-                using (SqliteDataReader rdr = _database.ExecuteReader(conn, _get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {

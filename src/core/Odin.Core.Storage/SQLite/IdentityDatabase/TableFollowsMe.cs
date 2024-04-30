@@ -35,7 +35,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<FollowsMeRecord> Get(DatabaseBase.DatabaseConnection conn, string identity)
+        public new virtual List<FollowsMeRecord> Get(DatabaseConnection conn, string identity)
         {
             var r = base.Get(conn, identity);
 
@@ -46,7 +46,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public int DeleteByIdentity(DatabaseBase.DatabaseConnection conn, string identity)
+        public int DeleteByIdentity(DatabaseConnection conn, string identity)
         {
             if (identity == null)
                 return 0;
@@ -54,18 +54,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             int n = 0;
             var r = Get(conn, identity);
 
-            lock (conn._lock)
+            conn.CreateCommitUnitOfWork(() =>
             {
-                using (conn.CreateCommitUnitOfWork())
+                for (int i = 0; i < r.Count; i++)
                 {
-                    for (int i = 0; i < r.Count; i++)
-                    {
-                        n += Delete(conn, identity, r[i].driveId);
-                    }
+                    n += Delete(conn, identity, r[i].driveId);
                 }
+            });
 
-                return n;
-            }
+            return n;
         }
 
         /// <summary>
@@ -76,7 +73,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetAllFollowers(DatabaseBase.DatabaseConnection conn, int count, string inCursor, out string nextCursor)
+        public List<string> GetAllFollowers(DatabaseConnection conn, int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -102,7 +99,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select3Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
 
@@ -141,7 +138,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(DatabaseBase.DatabaseConnection conn, int count, Guid driveId, string inCursor, out string nextCursor)
+        public List<string> GetFollowers(DatabaseConnection conn, int count, Guid driveId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -172,7 +169,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 lock (conn._lock)
                 {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(conn, _select2Command, System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<string>();
 
