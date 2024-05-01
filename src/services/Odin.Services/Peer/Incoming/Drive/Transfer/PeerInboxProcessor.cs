@@ -5,10 +5,15 @@ using Bitcoin.BitcoinUtilities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -21,7 +26,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         TenantSystemStorage tenantSystemStorage,
         CircleNetworkService circleNetworkService,
-        ILogger<PeerInboxProcessor> logger)
+        ILogger<PeerInboxProcessor> logger,
+        PublicPrivateKeyService keyService)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         /// <summary>
@@ -57,31 +63,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             DriveId = inboxItem.DriveId,
                             FileId = inboxItem.FileId
                         };
-                        
+
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
-                            //feed hack (grrrr)
                             if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed)
                             {
-                                try
-                                {
-                                    logger.LogDebug("Processing Inbox -> Handling TransferFileType.EncryptedFileForFeed");
-                                    
-                                    //TODO: get from ECC Stuff
-                                    var transferSharedSecret = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
-                                    var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref transferSharedSecret);
-                                    var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
-                                    {
-                                        await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
-                                            odinContext);
-                                    });
-
-                                    logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
-                                }
-                                catch (Exception e)
-                                {
-                                    logger.LogError(e, "[Experimental group channel support inbox processing failed; swallowing error]");
-                                }
+                                await ProcessFeedInboxItem(odinContext, inboxItem, writer, tempFile, fs);
                             }
                             else
                             {
@@ -94,7 +81,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                     await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
                                         odinContext);
                                 });
-                                
+
                                 logger.LogDebug("Processing Inbox -> HandleFile Complete. Took {ms} ms", handleFileMs);
                             }
                         }
@@ -149,6 +136,44 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 pendingCount.OldestItemTimestamp.milliseconds);
             return pendingCount;
         }
+
+        private async Task ProcessFeedInboxItem(IOdinContext odinContext, TransferInboxItem inboxItem, PeerFileWriter writer, InternalDriveFileId tempFile,
+            IDriveFileSystem fs)
+        {
+            try
+            {
+                logger.LogDebug("Processing Feed Inbox Item -> Handling TransferFileType.EncryptedFileForFeed");
+
+                var transferSharedSecret = await GetEccSharedSecret(inboxItem);
+
+                var feedPayload = OdinSystemSerializer.Deserialize<EncryptedFeedItemPayload>(inboxItem.EncryptedFeedPayload.Decrypt(transferSharedSecret));
+                var decryptedKeyHeader = feedPayload.KeyHeader;
+
+                var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
+                {
+                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, feedPayload.AuthorOdinId, inboxItem.TransferInstructionSet,
+                        odinContext);
+                });
+
+                logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "[Experimental collaborative channel support inbox processing failed; swallowing error]");
+            }
+        }
+
+        private async Task<SensitiveByteArray> GetEccSharedSecret(TransferInboxItem inboxItem)
+        {
+            var password = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
+
+            var fullEccKey = await keyService.GetOnlineEccFullKey();
+            var senderPublicKey = EccPublicKeyData.FromJwkPublicKey(inboxItem.SenderEccPublicKey);
+            var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(password, senderPublicKey, inboxItem.EccSalt);
+
+            return transferSharedSecret;
+        }
+
 
         public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
         {

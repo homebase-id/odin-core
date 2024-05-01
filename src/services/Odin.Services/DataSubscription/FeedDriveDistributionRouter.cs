@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -19,11 +20,11 @@ using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Serilog;
@@ -47,6 +48,7 @@ namespace Odin.Services.DataSubscription
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
+        private readonly PublicPrivateKeyService _pkService;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
 
@@ -55,8 +57,8 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         public FeedDriveDistributionRouter(
             FollowerService followerService,
-            IPeerOutgoingTransferService peerOutgoingTransferService, 
-            DriveManager driveManager, 
+            IPeerOutgoingTransferService peerOutgoingTransferService,
+            DriveManager driveManager,
             TenantContext tenantContext,
             ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver,
@@ -65,7 +67,8 @@ namespace Odin.Services.DataSubscription
             IOdinHttpClientFactory odinHttpClientFactory,
             OdinConfiguration odinConfiguration,
             IDriveAclAuthorizationService driveAcl,
-            ILogger<FeedDriveDistributionRouter> logger)
+            ILogger<FeedDriveDistributionRouter> logger,
+            PublicPrivateKeyService pkService)
         {
             _followerService = followerService;
             _peerOutgoingTransferService = peerOutgoingTransferService;
@@ -77,6 +80,7 @@ namespace Odin.Services.DataSubscription
             _odinConfiguration = odinConfiguration;
             _driveAcl = driveAcl;
             _logger = logger;
+            _pkService = pkService;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory, driveAcl, odinConfiguration);
         }
@@ -115,8 +119,8 @@ namespace Odin.Services.DataSubscription
 
                     try
                     {
-                        var drive = await _driveManager.GetDrive(notification.File.DriveId);
-                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) && isCollabChannel)
+                        // var drive = await _driveManager.GetDrive(notification.File.DriveId);
+                        // if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) && isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext);
@@ -197,14 +201,13 @@ namespace Odin.Services.DataSubscription
                 var recipient = (OdinId)record.recipient;
                 if (distroItem.DriveNotificationType is DriveNotificationType.FileAdded or DriveNotificationType.FileModified)
                 {
-                    bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                    bool success = await _feedDistributorService.SendFile(
+                        new InternalDriveFileId()
                         {
                             FileId = record.fileId,
                             DriveId = record.driveId
                         },
-                        distroItem.SharedSecretEncryptedKeyHeader,
-                        distroItem.FileSystemType,
-                        distroItem.AuthorOdinId,
+                        distroItem,
                         recipient,
                         odinContext);
 
@@ -245,22 +248,6 @@ namespace Odin.Services.DataSubscription
         private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification, IOdinContext odinContext)
         {
             var header = notification.ServerFileHeader;
-            
-            // Prepare the file
-            // TODO: this will be ECC Stuff
-            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-            if (header.FileMetadata.IsEncrypted)
-            {
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
-                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                var transferSharedSecret = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref transferSharedSecret);
-            }
-            else
-            {
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
 
             var author = odinContext.GetCallerOdinIdOrFail();
             var connectedFollowers = (await GetConnectedFollowersWithFilePermission(notification, odinContext))
@@ -270,14 +257,38 @@ namespace Odin.Services.DataSubscription
             {
                 foreach (var recipient in connectedFollowers)
                 {
+                    // Prepare the file
+                    SensitiveByteArray salt = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+                    SharedSecretEncryptedPayload sharedSecretEncryptedPayload = null;
+                    string senderPublicKeyJwk = "";
+
+                    if (header.FileMetadata.IsEncrypted)
+                    {
+                        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
+                        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+                        (var transferSharedSecret, salt, senderPublicKeyJwk) = await GetEccSharedSecret(recipient);
+
+                        var payload = new EncryptedFeedItemPayload()
+                        {
+                            KeyHeader = keyHeader,
+                            AuthorOdinId = author
+                        };
+
+                        sharedSecretEncryptedPayload = SharedSecretEncryptedPayload.Encrypt(
+                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
+                            transferSharedSecret);
+                    }
+
                     AddToFeedOutbox(recipient, new FeedDistributionItem()
                         {
                             DriveNotificationType = notification.DriveNotificationType,
                             SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                             FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
-                            FeedDistroType = FeedDistroType.EncryptedFileMetadata, 
-                            SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-                            AuthorOdinId = author
+                            FeedDistroType = FeedDistroType.EncryptedFileMetadata,
+                            EccSalt = salt,
+                            EccPublicKey = senderPublicKeyJwk,
+                            EncryptedPayload = sharedSecretEncryptedPayload
                         }
                     );
                 }
@@ -285,6 +296,18 @@ namespace Odin.Services.DataSubscription
                 EnqueueCronJob();
             }
         }
+
+        private async Task<(SensitiveByteArray sharedSecret, SensitiveByteArray salt, string senderPublicKeyJwk)> GetEccSharedSecret(OdinId recipient)
+        {
+            var recipientPublicKey = await _pkService.GetRecipientPublicEccKey(recipient);
+
+            SensitiveByteArray pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData fullEccKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
+            var randomSalt = ByteArrayUtil.GetRndByteArray(16);
+            var ss = fullEccKey.GetEcdhSharedSecret(pwd, recipientPublicKey, randomSalt);
+            return (ss, randomSalt.ToSensitiveByteArray(), fullEccKey.PublicKeyJwk());
+        }
+
 
         /// <summary>
         /// Distributes to connected identities that are followers using

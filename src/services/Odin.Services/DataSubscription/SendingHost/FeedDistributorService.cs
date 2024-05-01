@@ -2,7 +2,6 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -12,7 +11,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Peer;
-using Odin.Services.Peer.Encryption;
 using Refit;
 
 namespace Odin.Services.DataSubscription.SendingHost
@@ -72,9 +70,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, EncryptedKeyHeader sharedSecretEncryptedKeyHeader, FileSystemType fileSystemType,
-            OdinId author,
-            OdinId recipient, IOdinContext odinContext)
+        public async Task<bool> SendFile(InternalDriveFileId file, FeedDistributionItem distroItem, OdinId recipient, IOdinContext odinContext)
         {
             var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext);
@@ -82,7 +78,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             if (null == header)
             {
                 //TODO: need log more info here
-                // need to ensure this is removed from the feedbox
+                // need to ensure this is removed from the feed box
                 return false;
             }
 
@@ -94,8 +90,7 @@ namespace Odin.Services.DataSubscription.SendingHost
                 //TODO: need more info here
                 return false;
             }
-
-
+            
             var request = new UpdateFeedFileMetadataRequest()
             {
                 FileId = new GlobalTransitIdFileIdentifier()
@@ -103,12 +98,13 @@ namespace Odin.Services.DataSubscription.SendingHost
                     GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
-                AuthorOdinId = author,
                 FileMetadata = header.FileMetadata,
-                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader
+                SenderEccPublicKey = distroItem.EccPublicKey,
+                EccSalt = distroItem.EccSalt.GetKey(),
+                EncryptedPayload = distroItem.EncryptedPayload
             };
 
-            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
 
             ApiResponse<PeerTransferResponse> httpResponse = null;
 

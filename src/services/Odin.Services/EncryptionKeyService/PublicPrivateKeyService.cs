@@ -171,6 +171,12 @@ namespace Odin.Services.EncryptionKeyService
             return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
         }
 
+        public Task<EccFullKeyData> GetOnlineEccFullKey()
+        {
+            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
+            return Task.FromResult(keyPair);
+        }
+
         public Task<EccPublicKeyData> GetOfflineEccPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId);
@@ -223,7 +229,8 @@ namespace Odin.Services.EncryptionKeyService
             };
         }
 
-        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload, IOdinContext odinContext)
+        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload,
+            IOdinContext odinContext)
         {
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext);
 
@@ -464,6 +471,18 @@ namespace Odin.Services.EncryptionKeyService
                 RsaEncryptedKeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
                 KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
             };
+        }
+
+        public async Task<EccPublicKeyData> GetRecipientPublicEccKey(OdinId recipient)
+        {
+            var recipientPwd = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
+            EccFullKeyData recipientFullKey = new EccFullKeyData(recipientPwd, EccKeySize.P384, 2);
+
+            //TODO: get from cache or call out to remote server
+            await Task.CompletedTask;
+
+            var recipientPublicKey = EccPublicKeyData.FromJwkPublicKey(recipientFullKey.PublicKeyJwk());
+            return recipientPublicKey;
         }
     }
 }

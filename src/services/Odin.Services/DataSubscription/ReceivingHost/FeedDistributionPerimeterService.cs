@@ -133,8 +133,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             {
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
-                // Sender = odinContext.GetCallerOdinIdOrFail(),
-                Sender = request.AuthorOdinId,
+                Sender = odinContext.GetCallerOdinIdOrFail(),
                 InstructionType = TransferInstructionType.SaveFile,
 
                 FileId = file.FileId,
@@ -146,16 +145,19 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 Marker = default,
                 TransferFileType = TransferFileType.EncryptedFileForFeed,
                 
-                SharedSecretEncryptedKeyHeader = request.SharedSecretEncryptedKeyHeader,
-                
                 TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
                 {
                     FileSystemType = FileSystemType.Standard,
                     TransferFileType = TransferFileType.EncryptedFileForFeed,
                     ContentsProvided = SendContents.Header
-                }
-            };
+                },
 
+                //Feed stuff
+                EccSalt = request.EccSalt,
+                SenderEccPublicKey = request.SenderEccPublicKey,
+                EncryptedFeedPayload = request.EncryptedPayload
+            };
+            
             //write the file to disk
             await inboxBoxStorage.Add(item);
 
