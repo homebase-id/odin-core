@@ -1,4 +1,5 @@
 using System;
+using System.Data.SQLite;
 using System.Threading;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
@@ -16,6 +17,7 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -144,10 +146,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("Processing Feed Inbox Item -> Handling TransferFileType.EncryptedFileForFeed");
 
-                var transferSharedSecret = await GetEccSharedSecret(inboxItem);
+                byte[] decryptedBytes = await keyService.EccDecryptPayload(inboxItem.EncryptedFeedPayload);
 
-                var feedPayload = OdinSystemSerializer.Deserialize<EncryptedFeedItemPayload>(inboxItem.EncryptedFeedPayload.Decrypt(transferSharedSecret));
-                var decryptedKeyHeader = feedPayload.KeyHeader;
+                var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
+                var decryptedKeyHeader = KeyHeader.FromCombinedBytes(feedPayload.KeyHeaderBytes);
 
                 var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                 {
@@ -162,18 +164,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogError(e, "[Experimental collaborative channel support inbox processing failed; swallowing error]");
             }
         }
-
-        private async Task<SensitiveByteArray> GetEccSharedSecret(TransferInboxItem inboxItem)
-        {
-            var password = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
-
-            var fullEccKey = await keyService.GetOnlineEccFullKey();
-            var senderPublicKey = EccPublicKeyData.FromJwkPublicKey(inboxItem.SenderEccPublicKey);
-            var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(password, senderPublicKey, inboxItem.EccSalt);
-
-            return transferSharedSecret;
-        }
-
 
         public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
         {

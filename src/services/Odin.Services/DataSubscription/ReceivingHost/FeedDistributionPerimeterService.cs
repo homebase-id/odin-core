@@ -153,8 +153,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 },
 
                 //Feed stuff
-                EccSalt = request.EccSalt,
-                SenderEccPublicKey = request.SenderEccPublicKey,
                 EncryptedFeedPayload = request.EncryptedPayload
             };
             

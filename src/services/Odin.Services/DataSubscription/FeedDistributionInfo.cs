@@ -4,6 +4,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 
@@ -22,14 +23,12 @@ public class FeedDistributionItem
     
     public FeedDistroType FeedDistroType { get; set; }
     
-    public SensitiveByteArray EccSalt { get; set; }
-    public string EccPublicKey { get; set; }
-    public SharedSecretEncryptedPayload EncryptedPayload { get; set; }
+    public EccEncryptedPayload EncryptedPayload { get; set; }
 }
 
-public class EncryptedFeedItemPayload
+public class FeedItemPayload
 {
-    public KeyHeader KeyHeader { get; set; }
+    public byte[] KeyHeaderBytes { get; set; }
     public OdinId AuthorOdinId { get; set; }
 }
 

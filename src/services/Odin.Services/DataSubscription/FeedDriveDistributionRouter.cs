@@ -258,26 +258,23 @@ namespace Odin.Services.DataSubscription
                 foreach (var recipient in connectedFollowers)
                 {
                     // Prepare the file
-                    SensitiveByteArray salt = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                    SharedSecretEncryptedPayload sharedSecretEncryptedPayload = null;
-                    string senderPublicKeyJwk = "";
+                    EccEncryptedPayload encryptedPayload = null;
 
                     if (header.FileMetadata.IsEncrypted)
                     {
                         var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
                         var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
 
-                        (var transferSharedSecret, salt, senderPublicKeyJwk) = await GetEccSharedSecret(recipient);
-
-                        var payload = new EncryptedFeedItemPayload()
+                        var payload = new FeedItemPayload()
                         {
-                            KeyHeader = keyHeader,
+                            KeyHeaderBytes = keyHeader.Combine().GetKey(),
                             AuthorOdinId = author
                         };
-
-                        sharedSecretEncryptedPayload = SharedSecretEncryptedPayload.Encrypt(
-                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray(),
-                            transferSharedSecret);
+                        
+                        encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
+                            PublicPrivateKeyType.OfflineKey,
+                            recipient,
+                            OdinSystemSerializer.Serialize(payload).ToUtf8ByteArray());
                     }
 
                     AddToFeedOutbox(recipient, new FeedDistributionItem()
@@ -286,9 +283,7 @@ namespace Odin.Services.DataSubscription
                             SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                             FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
                             FeedDistroType = FeedDistroType.EncryptedFileMetadata,
-                            EccSalt = salt,
-                            EccPublicKey = senderPublicKeyJwk,
-                            EncryptedPayload = sharedSecretEncryptedPayload
+                            EncryptedPayload = encryptedPayload
                         }
                     );
                 }
@@ -296,18 +291,6 @@ namespace Odin.Services.DataSubscription
                 EnqueueCronJob();
             }
         }
-
-        private async Task<(SensitiveByteArray sharedSecret, SensitiveByteArray salt, string senderPublicKeyJwk)> GetEccSharedSecret(OdinId recipient)
-        {
-            var recipientPublicKey = await _pkService.GetRecipientPublicEccKey(recipient);
-
-            SensitiveByteArray pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData fullEccKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
-            var randomSalt = ByteArrayUtil.GetRndByteArray(16);
-            var ss = fullEccKey.GetEcdhSharedSecret(pwd, recipientPublicKey, randomSalt);
-            return (ss, randomSalt.ToSensitiveByteArray(), fullEccKey.PublicKeyJwk());
-        }
-
 
         /// <summary>
         /// Distributes to connected identities that are followers using

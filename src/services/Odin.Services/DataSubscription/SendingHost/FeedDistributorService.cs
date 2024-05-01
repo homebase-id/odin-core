@@ -99,8 +99,6 @@ namespace Odin.Services.DataSubscription.SendingHost
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
                 FileMetadata = header.FileMetadata,
-                SenderEccPublicKey = distroItem.EccPublicKey,
-                EccSalt = distroItem.EccSalt.GetKey(),
                 EncryptedPayload = distroItem.EncryptedPayload
             };
 

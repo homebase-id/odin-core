@@ -5,6 +5,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -50,10 +51,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
         
-        //Feed boltons
-        public byte[] EccSalt { get; set; }
-        public string SenderEccPublicKey { get; set; }
-        
-        public SharedSecretEncryptedPayload EncryptedFeedPayload { get; set; }
+        //Feed bolt-ons
+        public EccEncryptedPayload EncryptedFeedPayload { get; set; }
     }
 }

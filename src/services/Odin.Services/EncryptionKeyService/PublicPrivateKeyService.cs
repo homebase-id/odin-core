@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -32,12 +33,11 @@ namespace Odin.Services.EncryptionKeyService
         private readonly Guid _offlineEccKeyStorageId = Guid.Parse("09529956-bf97-43e8-9822-ad3ecf26819d");
         private readonly Guid _offlineNotificationsKeyStorageId = Guid.Parse("22165337-1ff5-4e92-87f2-95fc9ce424c3");
 
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly IMediator _mediator;
+        private readonly ILogger<PublicPrivateKeyService> _logger;
 
         private static readonly SemaphoreSlim RsaRecipientOnlinePublicKeyCacheLock = new(1, 1);
+        private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         public static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -46,17 +46,14 @@ namespace Odin.Services.EncryptionKeyService
 
         private readonly SingleKeyValueStorage _storage;
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage,
-            IOdinHttpClientFactory odinHttpClientFactory,
-            IMediator mediator)
+        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, IOdinHttpClientFactory odinHttpClientFactory,
+            ILogger<PublicPrivateKeyService> logger)
         {
-            _tenantSystemStorage = tenantSystemStorage;
-
             _odinHttpClientFactory = odinHttpClientFactory;
-            _mediator = mediator;
+            _logger = logger;
 
-            const string icrKeyStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
-            _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
+            const string keyCacheStorageContextKey = "a61dfbbb-1086-445f-8bfb-e8f3bd04a939";
+            _storage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(keyCacheStorageContextKey));
         }
 
         /// <summary>
@@ -64,7 +61,7 @@ namespace Odin.Services.EncryptionKeyService
         /// </summary>
         /// <param name="recipient"></param>
         /// <returns></returns>
-        public async Task InvalidateRecipientPublicKey(OdinId recipient)
+        public async Task InvalidateRecipientRsaPublicKey(OdinId recipient)
         {
             _storage.Delete(GuidId.FromString(recipient.DomainName));
             await Task.CompletedTask;
@@ -73,19 +70,60 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Gets the latest effective offline public key
         /// </summary>
-        public Task<RsaPublicKeyData> GetOfflinePublicKey()
+        public Task<RsaPublicKeyData> GetOfflineRsaPublicKey()
         {
             var k = this.GetCurrentRsaKeyFromStorage(_offlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
-        private async Task<RsaPublicKeyData> ResolveRecipientKey(RsaKeyType keyType, OdinId recipient, bool failIfCannotRetrieve = true)
+        private async Task<EccPublicKeyData> ResolveRecipientEccPublicKey(PublicPrivateKeyType keyType, OdinId recipient, bool failIfCannotRetrieve = true)
+        {
+            string prefix = keyType == PublicPrivateKeyType.OfflineKey ? "aoffline" :
+                keyType == PublicPrivateKeyType.OnlineKey ? "bonline" : throw new OdinSystemException("Unhandled key type");
+
+            GuidId cacheKey = GuidId.FromString($"{prefix}{recipient.DomainName}");
+
+            await EccRecipientOnlinePublicKeyCacheLock.WaitAsync();
+            try
+            {
+                var cacheItem = _storage.Get<EccPublicKeyData>(cacheKey);
+                if ((cacheItem == null || cacheItem.IsExpired()))
+                {
+                    var svc = _odinHttpClientFactory.CreateClient<IPeerEncryptionKeyServiceHttpClient>(recipient);
+                    var getPkResponse = await svc.GetEccPublicKey(keyType);
+
+                    if (getPkResponse.Content == null || !getPkResponse.IsSuccessStatusCode)
+                    {
+                        return null;
+                    }
+
+                    cacheItem = EccPublicKeyData.FromJwkPublicKey(getPkResponse.Content.PublicKey.ToStringFromUtf8Bytes());
+                    cacheItem.expiration = getPkResponse.Content.Expiration; //use the actual expiration from the remote server
+
+                    _logger.LogDebug("Updating ecc public key cache record for recipient: {r} with cacheKey: {k}", recipient, cacheKey);
+                    _storage.Upsert(cacheKey, cacheItem);
+                }
+
+                if (null == cacheItem && failIfCannotRetrieve)
+                {
+                    throw new MissingDataException("Could not get recipients key");
+                }
+
+                return cacheItem;
+            }
+            finally
+            {
+                EccRecipientOnlinePublicKeyCacheLock.Release();
+            }
+        }
+
+        private async Task<RsaPublicKeyData> ResolveRecipientRsaKey(PublicPrivateKeyType keyType, OdinId recipient, bool failIfCannotRetrieve = true)
         {
             await RsaRecipientOnlinePublicKeyCacheLock.WaitAsync();
             try
             {
-                string prefix = keyType == RsaKeyType.OfflineKey ? "offline" :
-                    keyType == RsaKeyType.OnlineKey ? "online" : throw new OdinSystemException("Unhandled key type");
+                string prefix = keyType == PublicPrivateKeyType.OfflineKey ? "offline" :
+                    keyType == PublicPrivateKeyType.OnlineKey ? "online" : throw new OdinSystemException("Unhandled key type");
 
                 GuidId cacheKey = GuidId.FromString($"{prefix}{recipient.DomainName}");
 
@@ -93,8 +131,8 @@ namespace Odin.Services.EncryptionKeyService
 
                 if ((cacheItem == null || cacheItem.IsExpired()))
                 {
-                    var svc = _odinHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
-                    var tpkResponse = await svc.GetPublicKey(keyType);
+                    var svc = _odinHttpClientFactory.CreateClient<IPeerEncryptionKeyServiceHttpClient>(recipient);
+                    var tpkResponse = await svc.GetRsaPublicKey(keyType);
 
                     if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
                     {
@@ -125,18 +163,18 @@ namespace Odin.Services.EncryptionKeyService
             }
         }
 
-        public async Task<RsaEncryptedPayload> RsaEncryptPayload(RsaKeyType keyType, byte[] payload)
+        public async Task<RsaEncryptedPayload> RsaEncryptPayload(PublicPrivateKeyType keyType, byte[] payload)
         {
             RsaPublicKeyData pk;
 
             switch (keyType)
             {
-                case RsaKeyType.OfflineKey:
-                    pk = await this.GetOfflinePublicKey();
+                case PublicPrivateKeyType.OfflineKey:
+                    pk = await this.GetOfflineRsaPublicKey();
                     break;
 
-                case RsaKeyType.OnlineKey:
-                    pk = await this.GetOnlinePublicKey();
+                case PublicPrivateKeyType.OnlineKey:
+                    pk = await this.GetOnlineRsaPublicKey();
                     break;
 
                 default:
@@ -146,10 +184,49 @@ namespace Odin.Services.EncryptionKeyService
             return Encrypt(pk, payload);
         }
 
-        public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(RsaKeyType keyType, OdinId recipient, byte[] payload)
+        public async Task<RsaEncryptedPayload> RsaEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload)
         {
-            RsaPublicKeyData pk = await ResolveRecipientKey(keyType, recipient);
+            RsaPublicKeyData pk = await ResolveRecipientRsaKey(keyType, recipient);
             return Encrypt(pk, payload);
+        }
+
+
+        public async Task<EccEncryptedPayload> EccEncryptPayloadForRecipient(PublicPrivateKeyType keyType, OdinId recipient, byte[] payload)
+        {
+            EccPublicKeyData recipientPublicKey = await ResolveRecipientEccPublicKey(keyType, recipient);
+
+            if (null == recipientPublicKey)
+            {
+                _logger.LogDebug("Could not get public Ecc key for recipient: {recipient}", recipient);
+                throw new OdinSystemException("Could not get public Ecc key for recipient");
+            }
+
+            //note: here we are throwing a way the full key intentionally
+            SensitiveByteArray pwd = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            EccFullKeyData senderEccFullKey = new EccFullKeyData(pwd, EccKeySize.P384, 2);
+
+            var randomSalt = ByteArrayUtil.GetRndByteArray(16);
+            var transferSharedSecret = senderEccFullKey.GetEcdhSharedSecret(pwd, recipientPublicKey, randomSalt);
+            var iv = ByteArrayUtil.GetRndByteArray(16);
+
+            return new EccEncryptedPayload
+            {
+                PublicKey = senderEccFullKey.PublicKeyJwk(),
+                Iv = iv,
+                EncryptedData = AesCbc.Encrypt(payload, transferSharedSecret, iv),
+                Salt = randomSalt,
+            };
+        }
+
+        public async Task<byte[]> EccDecryptPayload(EccEncryptedPayload payload)
+        {
+            var fullEccKey = await this.GetEccFullKey(PublicPrivateKeyType.OfflineKey);
+
+            _logger.LogDebug("local recipient key [{local}]",  fullEccKey.PublicKeyJwk());
+
+            var senderPublicKey = EccPublicKeyData.FromJwkPublicKey(payload.PublicKey);
+            var transferSharedSecret = fullEccKey.GetEcdhSharedSecret(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), senderPublicKey, payload.Salt);
+            return AesCbc.Decrypt(payload.EncryptedData, transferSharedSecret, payload.Iv);
         }
 
         public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
@@ -168,39 +245,42 @@ namespace Odin.Services.EncryptionKeyService
         public Task<EccPublicKeyData> GetOnlineEccPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
-            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
+            return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
-        public Task<EccFullKeyData> GetOnlineEccFullKey()
+        public Task<EccFullKeyData> GetEccFullKey(PublicPrivateKeyType keyType)
         {
-            var keyPair = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
-            return Task.FromResult(keyPair);
+            switch (keyType)
+            {
+                case PublicPrivateKeyType.OfflineKey:
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId));
+
+                case PublicPrivateKeyType.OnlineKey:
+                    return Task.FromResult(GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId));
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
+            }
         }
 
         public Task<EccPublicKeyData> GetOfflineEccPublicKey()
         {
             var keyPair = this.GetCurrentEccKeyFromStorage(_offlineEccKeyStorageId);
-            return Task.FromResult((EccPublicKeyData)keyPair); // TODO: Todd check - dont understand why it was so complex before
+            return Task.FromResult((EccPublicKeyData)keyPair);
         }
 
-        // public Task<EccPublicKeyData> GetNotificationsPublicKey()
-        // {
-        //     var keyPair = this.GetCurrentEccKeyFromStorage(_offlineNotificationsKeyStorageId);
-        //     return Task.FromResult((EccPublicKeyData)keyPair);
-        // }
-
-        public Task<string> GetNotificationsPublicKey()
+        public Task<string> GetNotificationsEccPublicKey()
         {
-            return Task.FromResult(this.GetNotificationsKeys().PublicKey64);
+            return Task.FromResult(this.GetEccNotificationsKeys().PublicKey64);
         }
 
-        public NotificationEccKeys GetNotificationsKeys()
+        public NotificationEccKeys GetEccNotificationsKeys()
         {
             var keys = _storage.Get<NotificationEccKeys>(_offlineNotificationsKeyStorageId);
             return keys;
         }
 
-        public Task<RsaPublicKeyData> GetOnlinePublicKey()
+        public Task<RsaPublicKeyData> GetOnlineRsaPublicKey()
         {
             var keyPair = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(keyPair.publicKey));
@@ -209,7 +289,7 @@ namespace Odin.Services.EncryptionKeyService
         /// <summary>
         /// Upgrades the key to the latest
         /// </summary>
-        public async Task<RsaEncryptedPayload> UpgradeRsaKey(RsaKeyType keyType, RsaFullKeyData currentKey, SensitiveByteArray currentDecryptionKey,
+        public async Task<RsaEncryptedPayload> UpgradeRsaKey(PublicPrivateKeyType keyType, RsaFullKeyData currentKey, SensitiveByteArray currentDecryptionKey,
             RsaEncryptedPayload payload)
         {
             //unwrap the rsa encrypted key header
@@ -229,7 +309,7 @@ namespace Odin.Services.EncryptionKeyService
             };
         }
 
-        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload,
+        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayload(PublicPrivateKeyType keyType, RsaEncryptedPayload payload,
             IOdinContext odinContext)
         {
             var (isValidPublicKey, keyHeader) = await this.RsaDecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext);
@@ -248,14 +328,30 @@ namespace Odin.Services.EncryptionKeyService
             return (true, bytes);
         }
 
-        public async Task<RsaPublicKeyData> GetPublicRsaKey(RsaKeyType keyType)
+        public async Task<EccPublicKeyData> GetPublicEccKey(PublicPrivateKeyType keyType)
         {
             switch (keyType)
             {
-                case RsaKeyType.OfflineKey:
-                    return await this.GetOfflinePublicKey();
-                case RsaKeyType.OnlineKey:
-                    return await this.GetOnlinePublicKey();
+                case PublicPrivateKeyType.OfflineKey:
+                    return await this.GetOfflineEccPublicKey();
+
+                case PublicPrivateKeyType.OnlineKey:
+                    return await this.GetOnlineEccPublicKey();
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
+            }
+        }
+
+
+        public async Task<RsaPublicKeyData> GetPublicRsaKey(PublicPrivateKeyType keyType)
+        {
+            switch (keyType)
+            {
+                case PublicPrivateKeyType.OfflineKey:
+                    return await this.GetOfflineRsaPublicKey();
+                case PublicPrivateKeyType.OnlineKey:
+                    return await this.GetOnlineRsaPublicKey();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
@@ -289,6 +385,7 @@ namespace Odin.Services.EncryptionKeyService
             return Task.FromResult((pk, OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray()));
         }
 
+
         /// <summary>
         /// Creates the initial set of RSA keys required by an identity
         /// </summary>
@@ -302,10 +399,11 @@ namespace Odin.Services.EncryptionKeyService
                 var mk = odinContext.Caller.GetMasterKey();
 
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
+
                 await this.CreateNewEccKeys(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeys(mk, _onlineEccKeyStorageId);
-
                 await this.CreateNewEccKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
+
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
 
                 await this.CreateNotificationEccKeys();
@@ -316,7 +414,8 @@ namespace Odin.Services.EncryptionKeyService
             }
         }
 
-        private async Task<(bool, KeyHeader)> RsaDecryptKeyHeader(RsaKeyType keyType, byte[] encryptedData, uint publicKeyCrc32, IOdinContext odinContext,
+        private async Task<(bool, KeyHeader)> RsaDecryptKeyHeader(PublicPrivateKeyType keyType, byte[] encryptedData, uint publicKeyCrc32,
+            IOdinContext odinContext,
             bool failIfNoMatchingPublicKey = true)
         {
             var (rsaKey, decryptionKey) = await ResolveRsaKeyForDecryption(keyType, publicKeyCrc32, odinContext);
@@ -343,7 +442,7 @@ namespace Odin.Services.EncryptionKeyService
             return Task.FromResult(KeyHeader.FromCombinedBytes(bytes));
         }
 
-        private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryption(RsaKeyType keyType, uint crc32,
+        private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryption(PublicPrivateKeyType keyType, uint crc32,
             IOdinContext odinContext)
         {
             RsaFullKeyListData keyList;
@@ -351,12 +450,12 @@ namespace Odin.Services.EncryptionKeyService
 
             switch (keyType)
             {
-                case RsaKeyType.OfflineKey:
+                case PublicPrivateKeyType.OfflineKey:
                     keyList = this.GetRsaKeyListFromStorage(_offlineKeyStorageId);
                     decryptionKey = OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray();
                     break;
 
-                case RsaKeyType.OnlineKey:
+                case PublicPrivateKeyType.OnlineKey:
                     keyList = this.GetRsaKeyListFromStorage(_onlineKeyStorageId);
                     decryptionKey = odinContext.Caller.GetMasterKey();
                     break;
@@ -471,18 +570,6 @@ namespace Odin.Services.EncryptionKeyService
                 RsaEncryptedKeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
                 KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
             };
-        }
-
-        public async Task<EccPublicKeyData> GetRecipientPublicEccKey(OdinId recipient)
-        {
-            var recipientPwd = Guid.Parse("44444444-3333-2222-1111-000000000000").ToByteArray().ToSensitiveByteArray();
-            EccFullKeyData recipientFullKey = new EccFullKeyData(recipientPwd, EccKeySize.P384, 2);
-
-            //TODO: get from cache or call out to remote server
-            await Task.CompletedTask;
-
-            var recipientPublicKey = EccPublicKeyData.FromJwkPublicKey(recipientFullKey.PublicKeyJwk());
-            return recipientPublicKey;
         }
     }
 }

@@ -1,6 +1,6 @@
 namespace Odin.Services.EncryptionKeyService;
 
-public enum RsaKeyType
+public enum PublicPrivateKeyType
 {
     OfflineKey,
     OnlineKey

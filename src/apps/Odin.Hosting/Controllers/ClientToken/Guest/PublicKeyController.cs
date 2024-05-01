@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("online")]
         public async Task<GetPublicKeyResponse> GetOnlineKey()
         {
-            var key = await _publicKeyService.GetOnlinePublicKey();
+            var key = await _publicKeyService.GetOnlineRsaPublicKey();
 
             return new GetPublicKeyResponse()
             {
@@ -71,7 +71,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             // var key = await _publicKeyService.GetNotificationsPublicKey();
             // return key.GenerateEcdsaBase64Url();
 
-            return await _publicKeyService.GetNotificationsPublicKey();
+            return await _publicKeyService.GetNotificationsEccPublicKey();
 
             // return new GetPublicKeyResponse()
             // {
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
         {
-            var key = await _publicKeyService.GetOfflinePublicKey();
+            var key = await _publicKeyService.GetOfflineRsaPublicKey();
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
