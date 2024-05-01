@@ -128,10 +128,10 @@ namespace Odin.Services.DataSubscription
                     }
                     catch (Exception e)
                     {
+                        _logger.LogError(e, "[Experimental support] Failed while DistributeToCollaborativeChannelMembers.");
 #if DEBUG
                         throw;
 #endif
-                        _logger.LogError(e, "[Experimental support] Failed while DistributeToCollaborativeChannelMembers.");
                     }
                 }
             }
