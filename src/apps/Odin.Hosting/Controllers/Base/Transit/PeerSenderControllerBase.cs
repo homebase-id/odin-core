@@ -12,7 +12,6 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -23,7 +22,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
+    public class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService) : DriveUploadControllerBase
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -60,12 +59,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await fileSystemWriter.StartUpload(uploadInstructionSet,WebOdinContext, cn);
+            await fileSystemWriter.StartUpload(uploadInstructionSet,WebOdinContext);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await fileSystemWriter.AddMetadata(section!.Body,WebOdinContext, cn);
+            await fileSystemWriter.AddMetadata(section!.Body,WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -74,19 +72,19 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream,WebOdinContext, cn);
+                    await fileSystemWriter.AddPayload(payloadKey, contentType, fileSection.FileStream,WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream,WebOdinContext, cn);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream,WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext, cn);
+            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext);
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
@@ -116,8 +114,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
                 "GlobalTransitId is empty (cannot be Guid.Empty)");
 
-            using var cn = tenantSystemStorage.CreateConnection();
-
             //send the deleted file
             var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
                 new FileTransferOptions()
@@ -125,7 +121,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     FileSystemType = request.FileSystemType,
                     TransferFileType = TransferFileType.Normal
                 },
-                request.Recipients,WebOdinContext, cn);
+                request.Recipients,WebOdinContext);
 
             return new JsonResult(map);
         }

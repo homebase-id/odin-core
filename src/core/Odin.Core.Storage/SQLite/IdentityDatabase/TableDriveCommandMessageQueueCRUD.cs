@@ -43,6 +43,29 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableDriveCommandMessageQueueCRUD : TableBase
     {
         private bool _disposed = false;
+        private SqliteCommand _insertCommand = null;
+        private static Object _insertLock = new Object();
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteCommand _updateCommand = null;
+        private static Object _updateLock = new Object();
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteCommand _upsertCommand = null;
+        private static Object _upsertLock = new Object();
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SqliteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param2 = null;
 
         public TableDriveCommandMessageQueueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -55,20 +78,29 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+            _updateCommand?.Dispose();
+            _updateCommand = null;
+            _upsertCommand?.Dispose();
+            _upsertCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
-            GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+            using (var cmd = _database.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS driveCommandMessageQueue;";
-                       conn.ExecuteNonQuery(cmd);
-                    }
-                    cmd.CommandText =
+                    cmd.CommandText = "DROP TABLE IF EXISTS driveCommandMessageQueue;";
+                    _database.ExecuteNonQuery(cmd);
+                }
+                cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveCommandMessageQueue("
                      +"driveId BLOB NOT NULL, "
                      +"fileId BLOB NOT NULL, "
@@ -76,110 +108,102 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (driveId,fileId)"
                      +");"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, DriveCommandMessageQueueRecord item)
+        public virtual int Insert(DriveCommandMessageQueueRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
+            lock (_insertLock)
+            {
+                if (_insertCommand == null)
                 {
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = "INSERT INTO driveCommandMessageQueue (driveId,fileId,timeStamp) " +
                                                  "VALUES ($driveId,$fileId,$timeStamp)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$driveId";
+                    _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$fileId";
+                    _insertParam1.ParameterName = "$driveId";
+                    _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$timeStamp";
+                    _insertParam2.ParameterName = "$fileId";
+                    _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
+                    _insertParam3.ParameterName = "$timeStamp";
+                    _insertCommand.Prepare();
+                }
                 _insertParam1.Value = item.driveId.ToByteArray();
                 _insertParam2.Value = item.fileId.ToByteArray();
                 _insertParam3.Value = item.timeStamp.milliseconds;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                  }
                 return count;
-                } // Using
+            } // Lock
         }
 
-        public virtual int Upsert(DatabaseConnection conn, DriveCommandMessageQueueRecord item)
+        public virtual int Upsert(DriveCommandMessageQueueRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
+            lock (_upsertLock)
+            {
+                if (_upsertCommand == null)
                 {
+                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO driveCommandMessageQueue (driveId,fileId,timeStamp) " +
                                                  "VALUES ($driveId,$fileId,$timeStamp)"+
                                                  "ON CONFLICT (driveId,fileId) DO UPDATE "+
                                                  "SET timeStamp = $timeStamp "+
                                                  ";";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$driveId";
+                    _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$fileId";
+                    _upsertParam1.ParameterName = "$driveId";
+                    _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$timeStamp";
+                    _upsertParam2.ParameterName = "$fileId";
+                    _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
+                    _upsertParam3.ParameterName = "$timeStamp";
+                    _upsertCommand.Prepare();
+                }
                 _upsertParam1.Value = item.driveId.ToByteArray();
                 _upsertParam2.Value = item.fileId.ToByteArray();
                 _upsertParam3.Value = item.timeStamp.milliseconds;
-                var count = conn.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
-                } // Using
+            } // Lock
         }
-        public virtual int Update(DatabaseConnection conn, DriveCommandMessageQueueRecord item)
+        public virtual int Update(DriveCommandMessageQueueRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
+            lock (_updateLock)
+            {
+                if (_updateCommand == null)
                 {
+                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE driveCommandMessageQueue " +
                                                  "SET timeStamp = $timeStamp "+
                                                  "WHERE (driveId = $driveId,fileId = $fileId)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$driveId";
+                    _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$fileId";
+                    _updateParam1.ParameterName = "$driveId";
+                    _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$timeStamp";
+                    _updateParam2.ParameterName = "$fileId";
+                    _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
+                    _updateParam3.ParameterName = "$timeStamp";
+                    _updateCommand.Prepare();
+                }
                 _updateParam1.Value = item.driveId.ToByteArray();
                 _updateParam2.Value = item.fileId.ToByteArray();
                 _updateParam3.Value = item.timeStamp.milliseconds;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                 }
                 return count;
-                } // Using
-        }
-
-        public virtual int GetCount(DatabaseConnection conn)
-        {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveCommandMessageQueue; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
-        }
-
-        public virtual int GetDriveCount(DatabaseConnection conn, Guid driveId)
-        {
-                using (var _getCountDriveCommand = _database.CreateCommand())
-                {
-                    _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveCommandMessageQueue WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
-                    var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
-                    _getCountDriveParam1.ParameterName = "$driveId";
-                    _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
-                    _getCountDriveParam1.Value = driveId.ToByteArray();
-                    var count = conn.ExecuteNonQuery(_getCountDriveCommand);
-                    return count;
-                } // using
+            } // Lock
         }
 
         // SELECT driveId,fileId,timeStamp
@@ -222,24 +246,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, Guid driveId,Guid fileId)
+        public int Delete(Guid driveId,Guid fileId)
         {
-                using (var _delete0Command = _database.CreateCommand())
+            lock (_delete0Lock)
+            {
+                if (_delete0Command == null)
                 {
+                    _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM driveCommandMessageQueue " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$driveId";
+                    _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
-                    var _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Param2.ParameterName = "$fileId";
+                    _delete0Param1.ParameterName = "$driveId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param2);
-
+                    _delete0Param2.ParameterName = "$fileId";
+                    _delete0Command.Prepare();
+                }
                 _delete0Param1.Value = driveId.ToByteArray();
                 _delete0Param2.Value = fileId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
                 return count;
-                } // Using
+            } // Lock
         }
 
         public DriveCommandMessageQueueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId)
@@ -263,24 +291,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public DriveCommandMessageQueueRecord Get(DatabaseConnection conn, Guid driveId,Guid fileId)
+        public DriveCommandMessageQueueRecord Get(Guid driveId,Guid fileId)
         {
-                using (var _get0Command = _database.CreateCommand())
+            lock (_get0Lock)
+            {
+                if (_get0Command == null)
                 {
+                    _get0Command = _database.CreateCommand();
                     _get0Command.CommandText = "SELECT timeStamp FROM driveCommandMessageQueue " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$driveId";
+                    _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
-                    var _get0Param2 = _get0Command.CreateParameter();
-                    _get0Param2.ParameterName = "$fileId";
+                    _get0Param1.ParameterName = "$driveId";
+                    _get0Param2 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param2);
-
+                    _get0Param2.ParameterName = "$fileId";
+                    _get0Command.Prepare();
+                }
                 _get0Param1.Value = driveId.ToByteArray();
                 _get0Param2.Value = fileId.ToByteArray();
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -290,7 +320,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
-            } // using
         }
 
     }

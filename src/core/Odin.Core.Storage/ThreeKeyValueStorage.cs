@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage;
@@ -13,22 +12,23 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class ThreeKeyValueStorage
 {
+    private readonly IdentityDatabase _db;
     private readonly Guid _contextKey;
 
-    public ThreeKeyValueStorage(Guid contextKey)
+    public ThreeKeyValueStorage(IdentityDatabase database, Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
             throw new OdinSystemException("Invalid context key for storage");
         }
 
+        _db = database;
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var bytes = db.TblKeyThreeValue.Get(cn, MakeStorageKey(key));
+        var bytes = _db.TblKeyThreeValue.Get(MakeStorageKey(key));
 
         if (null == bytes)
         {
@@ -38,25 +38,20 @@ public class ThreeKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
+    public void Upsert<T>(Guid key1, byte[] dataTypeKey, byte[] categoryKey, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-
-        db.TblKeyThreeValue.Upsert(cn, new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
+        _db.TblKeyThreeValue.Upsert(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid id)
+    public void Delete(Guid id)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.TblKeyThreeValue.Delete(cn, MakeStorageKey(id));
+        _db.TblKeyThreeValue.Delete(MakeStorageKey(id));
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] dataType) where T : class
+    public IEnumerable<T> GetByDataType<T>(byte[] dataType) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.TblKeyThreeValue.GetByKeyTwo(cn, dataType);
-
+        var list = _db.TblKeyThreeValue.GetByKeyTwo(dataType);
         if (null == list)
         {
             return new List<T>();
@@ -65,10 +60,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByCategory<T>(DatabaseConnection cn, byte[] categoryKey) where T : class
+    public IEnumerable<T> GetByCategory<T>(byte[] categoryKey) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.TblKeyThreeValue.GetByKeyThree(cn, categoryKey);
+        var list = _db.TblKeyThreeValue.GetByKeyThree(categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -77,11 +71,9 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(DatabaseConnection cn, byte[] dataTypeKey, byte[] categoryKey) where T : class
+    public IEnumerable<T> GetByKey2And3<T>(byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.TblKeyThreeValue.GetByKeyTwoThree(cn, dataTypeKey, categoryKey);
-
+        var list = _db.TblKeyThreeValue.GetByKeyTwoThree(dataTypeKey, categoryKey);
         if (null == list)
         {
             return new List<T>();

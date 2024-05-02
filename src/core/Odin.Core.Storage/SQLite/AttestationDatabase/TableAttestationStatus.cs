@@ -13,5 +13,10 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         ~TableAttestationStatus()
         {
         }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
     }
 }

@@ -6,7 +6,6 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
 {
@@ -17,12 +16,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
     public class CircleNetworkController : OdinControllerBase
     {
         private readonly CircleNetworkService _circleNetwork;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleNetworkController(CircleNetworkService cn, TenantSystemStorage tenantSystemStorage)
+        public CircleNetworkController(CircleNetworkService cn)
         {
             _circleNetwork = cn;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -33,8 +30,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
         public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
             bool omitContactData = false)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleNetwork.GetConnectedIdentities(count, cursor, WebOdinContext, cn);
+            var result = await _circleNetwork.GetConnectedIdentities(count, cursor,WebOdinContext);
             return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
