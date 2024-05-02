@@ -259,7 +259,10 @@ public class RegisterKeyControllerTest
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
-        Assert.IsTrue(KeyChainDatabaseUtil.VerifyEntireBlockChain(db));
+        using (var conn = db.CreateDisposableConnection())
+        {
+            Assert.IsTrue(KeyChainDatabaseUtil.VerifyEntireBlockChain(db, conn));
+        }
     }
 
 
@@ -419,7 +422,10 @@ public class RegisterKeyControllerTest
             publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
             recordHash = hash
         };
-        db.tblKeyChain.Insert(r);
+        using (var myc = db.CreateDisposableConnection())
+        {
+            db.tblKeyChain.Insert(myc, r);
+        }
     }
 
     //

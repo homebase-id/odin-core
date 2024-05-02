@@ -1,10 +1,13 @@
 using System;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
+using System.Collections.Concurrent;
 
 namespace Odin.Core.Cryptography.Tests
 {
@@ -173,6 +176,92 @@ namespace Odin.Core.Cryptography.Tests
 
             //
             // I've manually verified that the JS counterpart reaches the same value
+        }
+
+
+        [TestFixture]
+        public class AsyncLocalTests2
+        {
+            private static AsyncLocal<int> _asyncLocalId = new AsyncLocal<int>();
+            private static int _nextId = 1;
+            // Adding a ConcurrentDictionary similar to the scenario described
+            private static ConcurrentDictionary<int, string> _connections = new ConcurrentDictionary<int, string>();
+
+            [Test]
+            public async Task TestAsyncLocalConsistencyAcrossAwaitsAndDictionaryUsage()
+            {
+                var task1 = RunTaskWithAsyncLocal(42);
+                var task2 = RunTaskWithAsyncLocal(43);
+                var task3 = RunTaskWithAsyncLocal(44);
+
+                await Task.WhenAll(task1, task2, task3);
+
+                // After all tasks complete, inspect the dictionary's state
+                foreach (var kvp in _connections)
+                {
+                    Console.WriteLine($"Key (Task ID): {kvp.Key}, Value: {kvp.Value}");
+                }
+
+                Console.WriteLine($"Total connections: {_connections.Count}");
+            }
+
+            private async Task RunTaskWithAsyncLocal(int cheat)
+            {
+                // Unique ID for each task
+                int taskId = Interlocked.Increment(ref _nextId);
+                _asyncLocalId.Value = taskId;
+
+                // Simulating adding a "connection" with the task ID as the key
+                _connections.TryAdd(_asyncLocalId.Value, $"Connection for task {cheat}");
+
+                Console.WriteLine($"{cheat} Before await, Task ID: {_asyncLocalId.Value}, Thread ID: {Thread.CurrentThread.ManagedThreadId}");
+
+                // Simulate some asynchronous work
+                await Task.Delay(TimeSpan.FromSeconds(1));
+
+                // After await - should be the same ID, even if the thread ID might change
+                Console.WriteLine($"{cheat} After await, Task ID: {_asyncLocalId.Value}, Thread ID: {Thread.CurrentThread.ManagedThreadId}");
+
+                // Optionally, interact with the dictionary again after the await
+                // to simulate checking or updating the connection status
+                if (_connections.TryGetValue(_asyncLocalId.Value, out var value))
+                {
+                    Console.WriteLine($"Successfully retrieved {value} after await.");
+                }
+            }
+        }
+
+
+
+        [TestFixture]
+        public class AsyncLocalTests
+        {
+            private static AsyncLocal<int> _asyncLocalId = new AsyncLocal<int>();
+            private static int _nextId = 1;
+
+            [Test]
+            public async Task TestAsyncLocalConsistencyAcrossAwaits()
+            {
+                var task1 = RunTaskWithAsyncLocal(42);
+                var task2 = RunTaskWithAsyncLocal(43);
+                var task3 = RunTaskWithAsyncLocal(44);
+
+                await Task.WhenAll(task1, task2, task3);
+            }
+
+            private async Task RunTaskWithAsyncLocal(int cheat)
+            {
+                // Unique ID for each task
+                _asyncLocalId.Value = Interlocked.Increment(ref _nextId);
+
+                Console.WriteLine($"{cheat} Before await, Task ID: {_asyncLocalId.Value}, Thread ID: {Thread.CurrentThread.ManagedThreadId}");
+
+                // Simulate some asynchronous work
+                await Task.Delay(TimeSpan.FromSeconds(1));
+
+                // After await - should be the same ID, even if the thread ID might change
+                Console.WriteLine($"{cheat} After await, Task ID: {_asyncLocalId.Value}, Thread ID: {Thread.CurrentThread.ManagedThreadId}");
+            }
         }
     }
 }

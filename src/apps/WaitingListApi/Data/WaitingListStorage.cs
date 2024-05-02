@@ -30,11 +30,6 @@ public class WaitingListStorage : IDisposable
         _db.CreateDatabase(false);
     }
 
-    public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
-    {
-        return _db.CreateCommitUnitOfWork();
-    }
-
     public void Insert(NotificationInfo info)
     {
         this._db.WaitingListTable?.Insert(new WaitingListRecord()

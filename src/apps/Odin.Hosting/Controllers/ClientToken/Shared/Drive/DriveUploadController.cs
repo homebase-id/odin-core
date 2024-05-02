@@ -6,6 +6,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -15,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveV1)]
     [Route(GuestApiPathConstants.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class DriveUploadController : DriveUploadControllerBase
+    public class DriveUploadController(TenantSystemStorage tenantSystemStorage) : DriveUploadControllerBase
     {
         
         /// <summary>
@@ -26,7 +27,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveFileStream();
+            using var cn = tenantSystemStorage.CreateConnection();
+            return await base.ReceiveFileStream(cn);
         }
         
         /// <summary>
@@ -36,7 +38,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayloadOnly()
         {
-            return await base.ReceivePayloadStream();
+            using var cn = tenantSystemStorage.CreateConnection();
+            return await base.ReceivePayloadStream(cn);
         }
     }
 }

@@ -7,11 +7,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableDriveCommandMessageQueue : TableDriveCommandMessageQueueCRUD
     {
-        private SqliteCommand _selectCommand = null;
-        
-        private Object _selectLock = new Object();
-
-
         public TableDriveCommandMessageQueue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -22,23 +17,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _selectCommand?.Dispose();
-            _selectCommand = null;
-
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 
         // Returns up to count items
-        public List<DriveCommandMessageQueueRecord> Get(Guid driveId, int count)
+        public List<DriveCommandMessageQueueRecord> Get(DatabaseConnection conn, Guid driveId, int count)
         {
-            lock (_selectLock)
+            using (var _selectCommand = _database.CreateCommand())
             {
-                using (_selectCommand = _database.CreateCommand())
-                {
-                    _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
+                _selectCommand.CommandText = $"SELECT driveid,fileid,timestamp FROM driveCommandMessageQueue WHERE driveId = x'{Convert.ToHexString(driveId.ToByteArray())}' ORDER BY fileid ASC LIMIT {count}";
 
-                    using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
+                lock (conn._lock)
+                {
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
                         var queue = new List<DriveCommandMessageQueueRecord>();
@@ -58,36 +51,36 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void InsertRows(Guid driveId, List<Guid> fileId)
+        public void InsertRows(DatabaseConnection conn, Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            using (_database.CreateCommitUnitOfWork())
+            conn.CreateCommitUnitOfWork(() =>
             {
                 var item = new DriveCommandMessageQueueRecord() { driveId = driveId, timeStamp = new UnixTimeUtc(0) };
                 for (int i = 0; i < fileId.Count; i++)
                 {
                     item.fileId = fileId[i];
-                    Insert(item);
+                    Insert(conn, item);
                 }
-            }
+            });
         }
 
-        public void DeleteRow(Guid driveId, List<Guid> fileId)
+        public void DeleteRow(DatabaseConnection conn, Guid driveId, List<Guid> fileId)
         {
             if (fileId == null)
                 return;
 
             // Since we are deletign multiple rows we do a logic unit here
-            using (_database.CreateCommitUnitOfWork())
+            conn.CreateCommitUnitOfWork(() =>
             {
                 for (int i = 0; i < fileId.Count; i++)
                 {
-                    Delete(driveId, fileId[i]);
+                    Delete(conn, driveId, fileId[i]);
                 }
-            }
+            });
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -49,13 +50,13 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext)
+        IOdinContext odinContext, DatabaseConnection cn)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext)
+        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -63,7 +64,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 targetFile: package.InternalFile,
                 newMetadata: metadata,
                 newServerMetadata: serverMetadata,
-                odinContext: odinContext);
+                odinContext: odinContext, cn);
 
             return;
         }
@@ -76,7 +77,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
-                odinContext: odinContext);
+                odinContext: odinContext,
+                cn);
 
             return;
         }
@@ -84,9 +86,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, DatabaseConnection cn)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext);
+        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -18,13 +19,13 @@ public class PushNotificationOutbox(TenantSystemStorage tenantSystemStorage)
     const string NotificationBoxId = "21a409e0-7cc2-4e97-b28d-93ef04c94a9c";
     private readonly Guid _notificationBoxId = Guid.Parse(NotificationBoxId);
 
-    public Task Add(PushNotificationOutboxRecord record, IOdinContext odinContext)
+    public Task Add(PushNotificationOutboxRecord record, IOdinContext odinContext, DatabaseConnection cn)
     {
         var recipient = odinContext.Tenant;
         var fileId = record.Options.TagId;
         var state = OdinSystemSerializer.Serialize(record).ToUtf8ByteArray();
-        
-        tenantSystemStorage.Outbox.Insert(new OutboxRecord()
+
+        tenantSystemStorage.Outbox.Insert(cn, new OutboxRecord()
         {
             // driveId = _notificationBoxId,
             driveId = Guid.NewGuid(),

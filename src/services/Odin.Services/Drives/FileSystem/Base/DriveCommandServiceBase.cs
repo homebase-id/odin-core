@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
@@ -23,16 +24,16 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     protected override DriveManager DriveManager { get; }
 
-    public async Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
+    public async Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds, DatabaseConnection cn)
     {
-        var manager = await TryGetOrLoadQueryManager(driveId);
-        await manager.AddCommandMessage(fileIds);
+        var manager = await TryGetOrLoadQueryManager(driveId, cn);
+        await manager.AddCommandMessage(fileIds, cn);
     }
 
-    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count, IOdinContext odinContext)
+    public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var manager = await TryGetOrLoadQueryManager(driveId);
-        var unprocessedCommands = await manager.GetUnprocessedCommands(count);
+        var manager = await TryGetOrLoadQueryManager(driveId, cn);
+        var unprocessedCommands = await manager.GetUnprocessedCommands(count, cn);
 
         var result = new List<ReceivedCommand>();
 
@@ -44,7 +45,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
                 FileId = cmd.Id
             };
 
-            var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext);
+            var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext, cn);
             if (null == serverFileHeader)
             {
                 continue;
@@ -66,14 +67,14 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
         return result;
     }
 
-    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
+    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList, DatabaseConnection cn)
     {
-        var manager = await TryGetOrLoadQueryManager(driveId);
-        await manager.MarkCommandsCompleted(idList);
+        var manager = await TryGetOrLoadQueryManager(driveId, cn);
+        await manager.MarkCommandsCompleted(idList, cn);
     }
 
-    private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, bool onlyReadyManagers = true)
+    private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, DatabaseConnection cn, bool onlyReadyManagers = true)
     {
-        return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
+        return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, cn);
     }
 }
