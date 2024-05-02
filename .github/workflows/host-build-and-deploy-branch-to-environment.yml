@@ -80,7 +80,7 @@ jobs:
       #
 
       - name: Deploy Docker Image    
-        uses: ./.github/actions/host/deploy-image-to-environment
+        uses: ./dotyoucore/.github/actions/host/deploy-image-to-environment
         with:
           image_name: ${{ env.IMAGE_WITH_TAG }}
           env_name: ${{ github.event.inputs.choice }}
