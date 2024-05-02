@@ -43,39 +43,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableDriveTagIndexCRUD : TableBase
     {
         private bool _disposed = false;
-        private SqliteCommand _insertCommand = null;
-        private static Object _insertLock = new Object();
-        private SqliteParameter _insertParam1 = null;
-        private SqliteParameter _insertParam2 = null;
-        private SqliteParameter _insertParam3 = null;
-        private SqliteCommand _updateCommand = null;
-        private static Object _updateLock = new Object();
-        private SqliteParameter _updateParam1 = null;
-        private SqliteParameter _updateParam2 = null;
-        private SqliteParameter _updateParam3 = null;
-        private SqliteCommand _upsertCommand = null;
-        private static Object _upsertLock = new Object();
-        private SqliteParameter _upsertParam1 = null;
-        private SqliteParameter _upsertParam2 = null;
-        private SqliteParameter _upsertParam3 = null;
-        private SqliteCommand _delete0Command = null;
-        private static Object _delete0Lock = new Object();
-        private SqliteParameter _delete0Param1 = null;
-        private SqliteParameter _delete0Param2 = null;
-        private SqliteParameter _delete0Param3 = null;
-        private SqliteCommand _delete1Command = null;
-        private static Object _delete1Lock = new Object();
-        private SqliteParameter _delete1Param1 = null;
-        private SqliteParameter _delete1Param2 = null;
-        private SqliteCommand _get0Command = null;
-        private static Object _get0Lock = new Object();
-        private SqliteParameter _get0Param1 = null;
-        private SqliteParameter _get0Param2 = null;
-        private SqliteParameter _get0Param3 = null;
-        private SqliteCommand _get1Command = null;
-        private static Object _get1Lock = new Object();
-        private SqliteParameter _get1Param1 = null;
-        private SqliteParameter _get1Param2 = null;
 
         public TableDriveTagIndexCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -88,33 +55,20 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-            _updateCommand?.Dispose();
-            _updateCommand = null;
-            _upsertCommand?.Dispose();
-            _upsertCommand = null;
-            _delete0Command?.Dispose();
-            _delete0Command = null;
-            _delete1Command?.Dispose();
-            _delete1Command = null;
-            _get0Command?.Dispose();
-            _get0Command = null;
-            _get1Command?.Dispose();
-            _get1Command = null;
             _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(bool dropExisting = false)
+        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
+                using (var cmd = _database.CreateCommand())
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
-                    _database.ExecuteNonQuery(cmd);
-                }
-                cmd.CommandText =
+                    if (dropExisting)
+                    {
+                       cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
+                       conn.ExecuteNonQuery(cmd);
+                    }
+                    cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveTagIndex("
                      +"driveId BLOB NOT NULL, "
                      +"fileId BLOB NOT NULL, "
@@ -123,102 +77,110 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(driveId,fileId);"
                      ;
-                _database.ExecuteNonQuery(cmd);
-                _database.Commit();
+                    conn.ExecuteNonQuery(cmd);
             }
         }
 
-        public virtual int Insert(DriveTagIndexRecord item)
+        public virtual int Insert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            lock (_insertLock)
-            {
-                if (_insertCommand == null)
+                using (var _insertCommand = _database.CreateCommand())
                 {
-                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = "INSERT INTO driveTagIndex (driveId,fileId,tagId) " +
                                                  "VALUES ($driveId,$fileId,$tagId)";
-                    _insertParam1 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam1 = _insertCommand.CreateParameter();
                     _insertParam1.ParameterName = "$driveId";
-                    _insertParam2 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam2);
+                    _insertCommand.Parameters.Add(_insertParam1);
+                    var _insertParam2 = _insertCommand.CreateParameter();
                     _insertParam2.ParameterName = "$fileId";
-                    _insertParam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam3);
+                    _insertCommand.Parameters.Add(_insertParam2);
+                    var _insertParam3 = _insertCommand.CreateParameter();
                     _insertParam3.ParameterName = "$tagId";
-                    _insertCommand.Prepare();
-                }
+                    _insertCommand.Parameters.Add(_insertParam3);
                 _insertParam1.Value = item.driveId.ToByteArray();
                 _insertParam2.Value = item.fileId.ToByteArray();
                 _insertParam3.Value = item.tagId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_insertCommand);
+                var count = conn.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                  }
                 return count;
-            } // Lock
+                } // Using
         }
 
-        public virtual int Upsert(DriveTagIndexRecord item)
+        public virtual int Upsert(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            lock (_upsertLock)
-            {
-                if (_upsertCommand == null)
+                using (var _upsertCommand = _database.CreateCommand())
                 {
-                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO driveTagIndex (driveId,fileId,tagId) " +
                                                  "VALUES ($driveId,$fileId,$tagId)"+
                                                  "ON CONFLICT (driveId,fileId,tagId) DO UPDATE "+
                                                  "SET  "+
                                                  ";";
-                    _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertParam1.ParameterName = "$driveId";
-                    _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    _upsertCommand.Parameters.Add(_upsertParam1);
+                    var _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertParam2.ParameterName = "$fileId";
-                    _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam3);
+                    _upsertCommand.Parameters.Add(_upsertParam2);
+                    var _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertParam3.ParameterName = "$tagId";
-                    _upsertCommand.Prepare();
-                }
+                    _upsertCommand.Parameters.Add(_upsertParam3);
                 _upsertParam1.Value = item.driveId.ToByteArray();
                 _upsertParam2.Value = item.fileId.ToByteArray();
                 _upsertParam3.Value = item.tagId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_upsertCommand);
+                var count = conn.ExecuteNonQuery(_upsertCommand);
                 return count;
-            } // Lock
+                } // Using
         }
-        public virtual int Update(DriveTagIndexRecord item)
+        public virtual int Update(DatabaseConnection conn, DriveTagIndexRecord item)
         {
-            lock (_updateLock)
-            {
-                if (_updateCommand == null)
+                using (var _updateCommand = _database.CreateCommand())
                 {
-                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE driveTagIndex " +
                                                  "SET  "+
                                                  "WHERE (driveId = $driveId,fileId = $fileId,tagId = $tagId)";
-                    _updateParam1 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam1 = _updateCommand.CreateParameter();
                     _updateParam1.ParameterName = "$driveId";
-                    _updateParam2 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam2);
+                    _updateCommand.Parameters.Add(_updateParam1);
+                    var _updateParam2 = _updateCommand.CreateParameter();
                     _updateParam2.ParameterName = "$fileId";
-                    _updateParam3 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam3);
+                    _updateCommand.Parameters.Add(_updateParam2);
+                    var _updateParam3 = _updateCommand.CreateParameter();
                     _updateParam3.ParameterName = "$tagId";
-                    _updateCommand.Prepare();
-                }
+                    _updateCommand.Parameters.Add(_updateParam3);
                 _updateParam1.Value = item.driveId.ToByteArray();
                 _updateParam2.Value = item.fileId.ToByteArray();
                 _updateParam3.Value = item.tagId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_updateCommand);
+                var count = conn.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                 }
                 return count;
-            } // Lock
+                } // Using
+        }
+
+        public virtual int GetCount(DatabaseConnection conn)
+        {
+                using (var _getCountCommand = _database.CreateCommand())
+                {
+                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex; PRAGMA read_uncommitted = 0;";
+                    var count = conn.ExecuteNonQuery(_getCountCommand);
+                    return count;
+                }
+        }
+
+        public virtual int GetDriveCount(DatabaseConnection conn, Guid driveId)
+        {
+                using (var _getCountDriveCommand = _database.CreateCommand())
+                {
+                    _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                    var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
+                    _getCountDriveParam1.ParameterName = "$driveId";
+                    _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
+                    _getCountDriveParam1.Value = driveId.ToByteArray();
+                    var count = conn.ExecuteNonQuery(_getCountDriveCommand);
+                    return count;
+                } // using
         }
 
         // SELECT driveId,fileId,tagId
@@ -264,56 +226,48 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid driveId,Guid fileId,Guid tagId)
+        public int Delete(DatabaseConnection conn, Guid driveId,Guid fileId,Guid tagId)
         {
-            lock (_delete0Lock)
-            {
-                if (_delete0Command == null)
+                using (var _delete0Command = _database.CreateCommand())
                 {
-                    _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM driveTagIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND tagId = $tagId";
-                    _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param1);
+                    var _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Param1.ParameterName = "$driveId";
-                    _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    var _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Param2.ParameterName = "$fileId";
-                    _delete0Param3 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param3);
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    var _delete0Param3 = _delete0Command.CreateParameter();
                     _delete0Param3.ParameterName = "$tagId";
-                    _delete0Command.Prepare();
-                }
+                    _delete0Command.Parameters.Add(_delete0Param3);
+
                 _delete0Param1.Value = driveId.ToByteArray();
                 _delete0Param2.Value = fileId.ToByteArray();
                 _delete0Param3.Value = tagId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete0Command);
+                var count = conn.ExecuteNonQuery(_delete0Command);
                 return count;
-            } // Lock
+                } // Using
         }
 
-        public int DeleteAllRows(Guid driveId,Guid fileId)
+        public int DeleteAllRows(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
-            lock (_delete1Lock)
-            {
-                if (_delete1Command == null)
+                using (var _delete1Command = _database.CreateCommand())
                 {
-                    _delete1Command = _database.CreateCommand();
                     _delete1Command.CommandText = "DELETE FROM driveTagIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId";
-                    _delete1Param1 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param1);
+                    var _delete1Param1 = _delete1Command.CreateParameter();
                     _delete1Param1.ParameterName = "$driveId";
-                    _delete1Param2 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param2);
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    var _delete1Param2 = _delete1Command.CreateParameter();
                     _delete1Param2.ParameterName = "$fileId";
-                    _delete1Command.Prepare();
-                }
+                    _delete1Command.Parameters.Add(_delete1Param2);
+
                 _delete1Param1.Value = driveId.ToByteArray();
                 _delete1Param2.Value = fileId.ToByteArray();
-                var count = _database.ExecuteNonQuery(_delete1Command);
+                var count = conn.ExecuteNonQuery(_delete1Command);
                 return count;
-            } // Lock
+                } // Using
         }
 
         public DriveTagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId,Guid tagId)
@@ -331,30 +285,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public DriveTagIndexRecord Get(Guid driveId,Guid fileId,Guid tagId)
+        public DriveTagIndexRecord Get(DatabaseConnection conn, Guid driveId,Guid fileId,Guid tagId)
         {
-            lock (_get0Lock)
-            {
-                if (_get0Command == null)
+                using (var _get0Command = _database.CreateCommand())
                 {
-                    _get0Command = _database.CreateCommand();
                     _get0Command.CommandText = "SELECT driveId,fileId,tagId FROM driveTagIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND tagId = $tagId LIMIT 1;";
-                    _get0Param1 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param1);
+                    var _get0Param1 = _get0Command.CreateParameter();
                     _get0Param1.ParameterName = "$driveId";
-                    _get0Param2 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Command.Parameters.Add(_get0Param1);
+                    var _get0Param2 = _get0Command.CreateParameter();
                     _get0Param2.ParameterName = "$fileId";
-                    _get0Param3 = _get0Command.CreateParameter();
-                    _get0Command.Parameters.Add(_get0Param3);
+                    _get0Command.Parameters.Add(_get0Param2);
+                    var _get0Param3 = _get0Command.CreateParameter();
                     _get0Param3.ParameterName = "$tagId";
-                    _get0Command.Prepare();
-                }
+                    _get0Command.Parameters.Add(_get0Param3);
+
                 _get0Param1.Value = driveId.ToByteArray();
                 _get0Param2.Value = fileId.ToByteArray();
                 _get0Param3.Value = tagId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                    lock (conn._lock)
+                    {
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -364,33 +316,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
+            } // using
         }
 
-        public List<Guid> Get(Guid driveId,Guid fileId)
+        public List<Guid> Get(DatabaseConnection conn, Guid driveId,Guid fileId)
         {
-            lock (_get1Lock)
-            {
-                if (_get1Command == null)
+                using (var _get1Command = _database.CreateCommand())
                 {
-                    _get1Command = _database.CreateCommand();
                     _get1Command.CommandText = "SELECT tagId FROM driveTagIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId;";
-                    _get1Param1 = _get1Command.CreateParameter();
-                    _get1Command.Parameters.Add(_get1Param1);
+                    var _get1Param1 = _get1Command.CreateParameter();
                     _get1Param1.ParameterName = "$driveId";
-                    _get1Param2 = _get1Command.CreateParameter();
-                    _get1Command.Parameters.Add(_get1Param2);
+                    _get1Command.Parameters.Add(_get1Param1);
+                    var _get1Param2 = _get1Command.CreateParameter();
                     _get1Param2.ParameterName = "$fileId";
-                    _get1Command.Prepare();
-                }
+                    _get1Command.Parameters.Add(_get1Param2);
+
                 _get1Param1.Value = driveId.ToByteArray();
                 _get1Param2.Value = fileId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                    lock (conn._lock)
+                    {
+                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     Guid result0tmp;
                     var thelistresult = new List<Guid>();
-                    if (!rdr.Read())
+                    if (!rdr.Read()) {
                         return null;
+                    }
                     byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
                     long bytesRead;
@@ -415,6 +367,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return thelistresult;
                 } // using
             } // lock
+            } // using
         }
 
     }

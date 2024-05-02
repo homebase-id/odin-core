@@ -20,8 +20,12 @@ internal class NotaryWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             // Create new KeyChainDatabase in memory
-            var db = new NotaryDatabase("DataSource=:memory:");
-            NotaryDatabaseUtil.InitializeDatabase(db);
+            //var db = new NotaryDatabase("DataSource=:memory:");
+            var db = new NotaryDatabase("DataSource=ondiskfornow.db");
+            using (var conn = db.CreateDisposableConnection())
+            {
+                NotaryDatabaseUtil.InitializeDatabase(db, conn);
+            }
             services.AddSingleton(db);
         });
         builder.UseEnvironment("Development");

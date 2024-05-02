@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -29,7 +30,7 @@ public class IdentitiesIFollowAuthenticationService
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, DatabaseConnection cn)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -48,7 +49,7 @@ public class IdentitiesIFollowAuthenticationService
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken, cn);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -65,9 +66,9 @@ public class IdentitiesIFollowAuthenticationService
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
-        ClientAuthenticationToken token)
+        ClientAuthenticationToken token, DatabaseConnection cn)
     {
-        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollow(callerOdinId, token);
+        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollow(callerOdinId, token, cn);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

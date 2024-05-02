@@ -17,17 +17,20 @@ namespace Odin.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class FeedDistributionSystemController : OdinControllerBase
     {
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FeedDriveDistributionRouter _distributionService;
 
-        public FeedDistributionSystemController(FeedDriveDistributionRouter distributionService)
+        public FeedDistributionSystemController(FeedDriveDistributionRouter distributionService, TenantSystemStorage tenantSystemStorage)
         {
             _distributionService = distributionService;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeQueuedMetadataItems(WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _distributionService.DistributeQueuedMetadataItems(WebOdinContext, cn);
             return true;
         }
     }

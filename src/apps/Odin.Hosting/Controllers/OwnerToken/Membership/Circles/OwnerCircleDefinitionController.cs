@@ -7,6 +7,7 @@ using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Base.Membership.Circles;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles
 {
@@ -16,7 +17,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles
     [AuthorizeValidOwnerToken]
     public class OwnerCircleDefinitionController : CircleDefinitionControllerBase
     {
-        public OwnerCircleDefinitionController(CircleMembershipService circleMembershipService, CircleNetworkService cns) : base(cns, circleMembershipService)
+        public OwnerCircleDefinitionController(
+            CircleMembershipService circleMembershipService,
+            CircleNetworkService cns,
+            TenantSystemStorage tenantSystemStorage) : base(cns, circleMembershipService, tenantSystemStorage)
         {
         }
     }
