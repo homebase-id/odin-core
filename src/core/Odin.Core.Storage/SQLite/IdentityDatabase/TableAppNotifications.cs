@@ -5,4 +5,9 @@ public class TableAppNotifications: TableAppNotificationsCRUD
     public TableAppNotifications(IdentityDatabase db, CacheHelper cache) : base(db, cache)
     {
     }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+    }
 }

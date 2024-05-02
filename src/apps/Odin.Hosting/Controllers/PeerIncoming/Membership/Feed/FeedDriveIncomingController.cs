@@ -22,32 +22,28 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary />
         public FeedDriveIncomingController(
-            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TenantSystemStorage tenantSystemStorage)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         [HttpPost("filemetadata")]
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.AcceptUpdatedFileMetadata(payload,WebOdinContext, cn);
+            return await perimeterService.AcceptUpdatedFileMetadata(payload,WebOdinContext);
         }
         
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.Delete(payload,WebOdinContext, cn);
+            return await perimeterService.Delete(payload,WebOdinContext);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()

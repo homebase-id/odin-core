@@ -17,7 +17,6 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
@@ -28,9 +27,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {
-        public OwnerPeerSenderController(
-            IPeerOutgoingTransferService peerOutgoingTransferService,
-            TenantSystemStorage tenantSystemStorage) : base(peerOutgoingTransferService, tenantSystemStorage)
+        public OwnerPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService) : base(peerOutgoingTransferService)
         {
         }
     }

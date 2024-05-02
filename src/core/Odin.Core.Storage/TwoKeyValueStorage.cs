@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage;
@@ -13,23 +12,23 @@ namespace Odin.Core.Storage;
 /// </summary>
 public class TwoKeyValueStorage
 {
+    private readonly IdentityDatabase _db;
     private readonly Guid _contextKey;
 
-    public TwoKeyValueStorage(Guid contextKey)
+    public TwoKeyValueStorage(IdentityDatabase db, Guid contextKey)
     {
         if (contextKey == Guid.Empty)
         {
             throw new OdinSystemException("Invalid context key for storage");
         }
 
+        _db = db;
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public T Get<T>(Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var record = db.tblKeyTwoValue.Get(cn, MakeStorageKey(key));
-
+        var record = _db.tblKeyTwoValue.Get(MakeStorageKey(key));
         if (null == record)
         {
             return null;
@@ -38,10 +37,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] key2) where T : class
+    public IEnumerable<T> GetByDataType<T>(byte[] key2) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.tblKeyTwoValue.GetByKeyTwo(cn, key2);
+        var list = _db.tblKeyTwoValue.GetByKeyTwo(key2);
         if (null == list)
         {
             return new List<T>();
@@ -50,17 +48,15 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key1, byte[] dataTypeKey, T value)
+    public void Upsert<T>(Guid key1, byte[] dataTypeKey, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyTwoValue.Upsert(cn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        _db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid id)
+    public void Delete(Guid id)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyTwoValue.Delete(cn, MakeStorageKey(id));
+        _db.tblKeyTwoValue.Delete(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

@@ -5,14 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Apps.CommandMessaging;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Commands
 {
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppCommandController(CommandMessagingService commandMessagingService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    public class AppCommandController(CommandMessagingService commandMessagingService) : OdinControllerBase
     {
         /// <summary>
         /// Sends a command message to a set of recipients
@@ -27,9 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertNotNull(request.Command, nameof(request.Command));
             OdinValidationUtils.AssertIsTrue(request.Command.IsValid(), "Command is invalid");
-
-            using var cn = tenantSystemStorage.CreateConnection();
-            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command, WebOdinContext, cn);
+            var results = await commandMessagingService.SendCommandMessage(driveId, request.Command, WebOdinContext);
             return results;
         }
 
@@ -42,8 +39,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
         public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnprocessedCommandsRequest request)
         {
             var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
-            using var cn = tenantSystemStorage.CreateConnection();
-            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor, WebOdinContext, cn);
+            var result = await commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor, WebOdinContext);
             return result;
         }
 
@@ -56,8 +52,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Commands
             OdinValidationUtils.AssertNotNull(request.CommandIdList, nameof(request.CommandIdList));
             OdinValidationUtils.AssertIsTrue(request.CommandIdList.Count() > 0, "The command list is empty");
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList(), WebOdinContext, cn);
+            await commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList(), WebOdinContext);
             return true;
         }
     }

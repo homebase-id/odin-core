@@ -14,35 +14,41 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public void InsertRows(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
+
+
+        public void InsertRows(Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
             // Since we are writing multiple rows we do a logic unit here
-            conn.CreateCommitUnitOfWork(() =>
+            using (_database.CreateCommitUnitOfWork())
             {
                 var item = new DriveAclIndexRecord() { driveId = driveId, fileId = fileId };
                 for (int i = 0; i < accessControlList.Count; i++)
                 {
                     item.aclMemberId = accessControlList[i];
-                    Insert(conn, item);
+                    Insert(item);
                 }
-            });
+            }
         }
 
-        public void DeleteRow(DatabaseConnection conn, Guid driveId, Guid fileId, List<Guid> accessControlList)
+        public void DeleteRow(Guid driveId, Guid fileId, List<Guid> accessControlList)
         {
             if (accessControlList == null)
                 return;
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (_database.CreateCommitUnitOfWork())
             {
                 for (int i = 0; i < accessControlList.Count; i++)
                 {
-                    Delete(conn, driveId, fileId, accessControlList[i]);
+                    Delete(driveId, fileId, accessControlList[i]);
                 }
-            });
+            }
         }
     }
 }

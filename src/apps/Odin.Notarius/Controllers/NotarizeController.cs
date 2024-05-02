@@ -16,7 +16,6 @@ using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using Odin.Core.Identity;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
-using Odin.Core.Storage.SQLite;
 
 namespace Odin.Notarius
 {
@@ -107,28 +106,25 @@ namespace Odin.Notarius
             if ((bytes.Length < 10) || (bytes.Length > 128))
                 return BadRequest("Too large or too small");
 
-            using (var conn = _db.CreateDisposableConnection())
+            var record = _db.tblNotaryChain.Get(bytes);
+
+            if (record == null)
+                return NotFound();
+
+            var result = new VerifyKeyResult()
             {
-                var record = _db.tblNotaryChain.Get(conn, bytes);
+                requestor = record.identity,
+                signatureCreatedTime = record.timestamp.ToUnixTimeUtc().seconds
+            };
 
-                if (record == null)
-                    return NotFound();
-
-                var result = new VerifyKeyResult()
-                {
-                    requestor = record.identity,
-                    signatureCreatedTime = record.timestamp.ToUnixTimeUtc().seconds
-                };
-
-                return Ok(result);
-            }
+            return Ok(result);
         }
 
-        private NotaryChainRecord TryGetLastLinkOrThrow(DatabaseConnection conn)
+        private NotaryChainRecord TryGetLastLinkOrThrow()
         {
             try
             {
-                NotaryChainRecord? record = _db.tblNotaryChain.GetLastLink(conn);
+                NotaryChainRecord? record = _db.tblNotaryChain.GetLastLink();
 
                 if (record == null)
                     throw new Exception("Block chain appears to be empty");
@@ -259,58 +255,55 @@ namespace Odin.Notarius
             //
             // 040 We check that a requestor cannot insert too many public keys, e.g. max one per month
             //
-            using (var conn = _db.CreateDisposableConnection())
+            var rList = _db.tblNotaryChain.GetIdentity(requestor.DomainName);
+            if ((rList != null) && (rList.Count >= 1))
             {
-                var rList = _db.tblNotaryChain.GetIdentity(conn, requestor.DomainName);
-                if ((rList != null) && (rList.Count >= 1))
+                int count = 0;
+
+                for (int i = 0; i < rList.Count; i++)
                 {
-                    int count = 0;
+                    var d = UnixTimeUtc.Now().seconds - rList[rList.Count - 1].timestamp.ToUnixTimeUtc().seconds;
 
-                    for (int i = 0; i < rList.Count; i++)
-                    {
-                        var d = UnixTimeUtc.Now().seconds - rList[rList.Count - 1].timestamp.ToUnixTimeUtc().seconds;
+                    if (d < 3600 * 24 * 30)
+                        count++;
 
-                        if (d < 3600 * 24 * 30)
-                            count++;
-
-                    }
-                    if (count >= 2)
-                        return StatusCode(429, "Try again later: at most 2 notarizations per identity per 30 days.");
                 }
-
-                // 050 Notarize the document
-                try
-                {
-                    signedEnvelope.SignNotariusPublicus(_notaryIdentity, _pwd, _ecc);
-                    signedEnvelope.VerifyNotariusPublicus();
-                }
-                catch (Exception e)
-                {
-                    return Problem($"Unable to notarize your document {e.Message}");
-                }
-
-
-                // 060 Retrieve the previous row (we need it's hash to sign)
-                NotaryChainRecord lastRowRecord;
-                try
-                {
-                    lastRowRecord = TryGetLastLinkOrThrow(conn);
-                }
-                catch (Exception ex)
-                {
-                    return Problem(ex.Message);
-                }
-
-                // 070 Store in memory cache and return the last record's recordHash (which becomes the new record's previousHash)
-                var previousHashBase64 = lastRowRecord.recordHash.ToBase64();
-
-                var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64, requestor, publicKey.PublicKeyJwkBase64Url());
-                if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
-                    return BadRequest("You appear to have sent a duplicate request");
-
-                CleanupPendingRegistrationCache(); // Remove any old cache entries
-                return Ok(previousHashBase64);
+                if (count >= 2)
+                    return StatusCode(429, "Try again later: at most 2 notarizations per identity per 30 days.");
             }
+
+            // 050 Notarize the document
+            try
+            {
+                signedEnvelope.SignNotariusPublicus(_notaryIdentity, _pwd, _ecc);
+                signedEnvelope.VerifyNotariusPublicus();
+            }
+            catch (Exception e) 
+            {
+                return Problem($"Unable to notarize your document {e.Message}");
+            }
+
+
+            // 060 Retrieve the previous row (we need it's hash to sign)
+            NotaryChainRecord lastRowRecord;
+            try
+            {
+                lastRowRecord = TryGetLastLinkOrThrow();
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
+
+            // 070 Store in memory cache and return the last record's recordHash (which becomes the new record's previousHash)
+            var previousHashBase64 = lastRowRecord.recordHash.ToBase64();
+
+            var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64, requestor, publicKey.PublicKeyJwkBase64Url());
+            if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
+                return BadRequest("You appear to have sent a duplicate request");
+
+            CleanupPendingRegistrationCache(); // Remove any old cache entries
+            return Ok(previousHashBase64);
         }
 
 
@@ -364,74 +357,72 @@ namespace Odin.Notarius
             if (simulateTime != 0)
                 newRecordToInsert.timestamp = new UnixTimeUtcUnique(simulateTime.milliseconds << 16);
 
-            using (var conn = _db.CreateDisposableConnection())
+            try  // Finally is the Semaphore release
             {
-                try  // Finally is the Semaphore release
+                //
+                // 0100 - get ready to insert into the blockchain, serialize here
+                //
+                await _semaphore.WaitAsync();
+
+                // 0110 Retrieve the previous row
+                NotaryChainRecord lastRowRecord;
+                try
                 {
-                    //
-                    // 0100 - get ready to insert into the blockchain, serialize here
-                    //
-                    await _semaphore.WaitAsync();
-
-                    // 0110 Retrieve the previous row
-                    NotaryChainRecord lastRowRecord;
-                    try
-                    {
-                        lastRowRecord = TryGetLastLinkOrThrow(conn);
-                    }
-                    catch (Exception ex)
-                    {
-                        return Problem(ex.Message);
-                    }
-
-                    if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, lastRowRecord.recordHash) == false)
-                    {
-                        preregisteredEntry.previousHashBase64 = lastRowRecord.recordHash.ToBase64();
-                        if (_pendingRegistrationCache.TryAdd(model.EnvelopeIdBase64, preregisteredEntry) == true)
-                            return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
-                        else
-                            return Problem("Start over, unable to add back in");
-                    }
-
-                    newRecordToInsert.signedPreviousHash = Convert.FromBase64String(model.SignedPreviousHashBase64);
-
-                    // 0120 Verify the signed previousHash signature by requestor
-                    var publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(preregisteredEntry.requestorPublicKeyJwkBase64);
-                    if (publicKey.VerifySignature(ByteArrayUtil.Combine("Notarize-".ToUtf8ByteArray(), newRecordToInsert.previousHash), newRecordToInsert.signedPreviousHash) == false)
-                        return BadRequest("Requestor previousHash signature invalid.");
-
-                    if (ByteArrayUtil.EquiByteArrayCompare(lastRowRecord.recordHash, newRecordToInsert.previousHash) == false)
-                        return Problem("Impossible hash mismatch");
-
-                    // 130 calculate new hash
-                    newRecordToInsert.recordHash = NotaryDatabaseUtil.CalculateRecordHash(newRecordToInsert);
-
-                    // 140 verify record
-                    if (NotaryDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, lastRowRecord, simulateTime == 0) == false)
-                    {
-                        return Problem("Cannot verify");
-                    }
-
-                    // 150 write row
-                    try
-                    {
-                        _db.tblNotaryChain.Insert(conn, newRecordToInsert);
-                    }
-                    catch (Exception e)
-                    {
-                        return Problem($"Did you try to register a duplicate? {e.Message}");
-                    }
-                    return Ok(preregisteredEntry.envelope.GetCompactSortedJson());
+                    lastRowRecord = TryGetLastLinkOrThrow();
                 }
                 catch (Exception ex)
                 {
-                    return Problem($"Unexpected: {ex.Message}");
+                    return Problem(ex.Message);
                 }
-                finally
+
+                if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, lastRowRecord.recordHash) == false)
                 {
-                    // 150 free semaphore
-                    _semaphore.Release();
+                    preregisteredEntry.previousHashBase64 = lastRowRecord.recordHash.ToBase64();
+                    if (_pendingRegistrationCache.TryAdd(model.EnvelopeIdBase64, preregisteredEntry) == true)
+                        return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
+                    else
+                        return Problem("Start over, unable to add back in");
                 }
+
+                newRecordToInsert.signedPreviousHash = Convert.FromBase64String(model.SignedPreviousHashBase64);
+
+                // 0120 Verify the signed previousHash signature by requestor
+                var publicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(preregisteredEntry.requestorPublicKeyJwkBase64); 
+                if (publicKey.VerifySignature(ByteArrayUtil.Combine("Notarize-".ToUtf8ByteArray(), newRecordToInsert.previousHash), newRecordToInsert.signedPreviousHash) == false)
+                    return BadRequest("Requestor previousHash signature invalid.");
+
+                if (ByteArrayUtil.EquiByteArrayCompare(lastRowRecord.recordHash, newRecordToInsert.previousHash) == false)
+                    return Problem("Impossible hash mismatch");
+
+                // 130 calculate new hash
+                newRecordToInsert.recordHash = NotaryDatabaseUtil.CalculateRecordHash(newRecordToInsert);
+
+                // 140 verify record
+                if (NotaryDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, lastRowRecord, simulateTime == 0) == false)
+                {
+                    return Problem("Cannot verify");
+                }
+
+                // 150 write row
+                try
+                {
+                    _db.tblNotaryChain.Insert(newRecordToInsert);
+                }
+                catch (Exception e)
+                {
+                    return Problem($"Did you try to register a duplicate? {e.Message}");
+                }
+                _db.Commit(); // Flush immediately
+                return Ok(preregisteredEntry.envelope.GetCompactSortedJson());
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Unexpected: {ex.Message}");
+            }
+            finally
+            {
+                // 150 free semaphore
+                _semaphore.Release();
             }
         }
     }

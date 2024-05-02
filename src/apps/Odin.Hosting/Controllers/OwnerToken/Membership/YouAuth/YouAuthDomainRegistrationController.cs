@@ -6,7 +6,6 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Services.Util;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
 {
@@ -16,12 +15,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
     public class YouAuthDomainRegistrationController : OdinControllerBase
     {
         private readonly YouAuthDomainRegistrationService _registrationService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public YouAuthDomainRegistrationController(YouAuthDomainRegistrationService registrationService, TenantSystemStorage tenantSystemStorage)
+        public YouAuthDomainRegistrationController(YouAuthDomainRegistrationService registrationService)
         {
             _registrationService = registrationService;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -30,8 +27,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpGet("list")]
         public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var domains = await _registrationService.GetRegisteredDomains(WebOdinContext, cn);
+            var domains = await _registrationService.GetRegisteredDomains(WebOdinContext);
             return domains;
         }
 
@@ -41,8 +37,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpPost("domain")]
         public async Task<IActionResult> GetRegisteredDomain([FromBody] GetYouAuthDomainRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var reg = await _registrationService.GetRegistration(new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            var reg = await _registrationService.GetRegistration(new AsciiDomainName(request.Domain), WebOdinContext);
             if (null == reg)
             {
                 return NotFound();
@@ -58,24 +53,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpPost("register/domain")]
         public async Task<RedactedYouAuthDomainRegistration> RegisterDomain([FromBody] YouAuthDomainRegistrationRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var reg = await _registrationService.RegisterDomain(request, WebOdinContext, cn);
+            var reg = await _registrationService.RegisterDomain(request, WebOdinContext);
             return reg;
         }
 
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] GrantYouAuthDomainCircleRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.GrantCircle(request.CircleId, new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            await _registrationService.GrantCircle(request.CircleId, new AsciiDomainName(request.Domain), WebOdinContext);
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeYouAuthDomainCircleRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.RevokeCircleAccess(request.CircleId, new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            await _registrationService.RevokeCircleAccess(request.CircleId, new AsciiDomainName(request.Domain), WebOdinContext);
             return true;
         }
 
@@ -83,24 +75,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpPost("revoke")]
         public async Task<IActionResult> RevokeDomain([FromBody] GetYouAuthDomainRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.RevokeDomain(new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            await _registrationService.RevokeDomain(new AsciiDomainName(request.Domain), WebOdinContext);
             return Ok();
         }
 
         [HttpPost("allow")]
         public async Task<IActionResult> AllowDomain([FromBody] GetYouAuthDomainRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.RemoveDomainRevocation(new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            await _registrationService.RemoveDomainRevocation(new AsciiDomainName(request.Domain), WebOdinContext);
             return Ok();
         }
 
         [HttpPost("deleteDomain")]
         public async Task<IActionResult> DeleteDomain([FromBody] GetYouAuthDomainRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.DeleteDomainRegistration(new AsciiDomainName(request.Domain), WebOdinContext, cn);
+            await _registrationService.DeleteDomainRegistration(new AsciiDomainName(request.Domain), WebOdinContext);
             return Ok();
         }
 
@@ -111,8 +100,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpGet("clients")]
         public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients(string domain)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _registrationService.GetRegisteredClients(new AsciiDomainName(domain), WebOdinContext, cn);
+            var result = await _registrationService.GetRegisteredClients(new AsciiDomainName(domain), WebOdinContext);
             return result;
         }
 
@@ -122,8 +110,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         [HttpPost("deleteClient")]
         public async Task DeleteClient(GetYouAuthDomainClientRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _registrationService.DeleteClient(request.AccessRegistrationId, WebOdinContext, cn);
+            await _registrationService.DeleteClient(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -149,8 +136,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             OdinValidationUtils.AssertIsValidOdinId(request.Domain, out _);
             OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
 
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var (token, _) = await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientFriendlyName, null, WebOdinContext, cn);
+            var (token, _) = await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientFriendlyName, null, WebOdinContext);
 
             return new YouAuthDomainClientRegistrationResponse()
             {

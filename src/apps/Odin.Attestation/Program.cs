@@ -19,10 +19,7 @@ SensitiveByteArray eccPwd = new SensitiveByteArray(new Guid("86d6e007-cf89-468c-
 EccFullKeyData eccKey = EccKeyStorage.LoadKey(eccPwd);
 
 var _db = new AttestationDatabase(@"attestation.db");
-using (var conn = _db.CreateDisposableConnection())
-{
-    AttestationDatabaseUtil.InitializeDatabase(_db, conn); // Only do this once per boot
-}
+AttestationDatabaseUtil.InitializeDatabase(_db); // Only do this once per boot
 
 builder.Services.AddSingleton<AttestationDatabase>(_db);
 builder.Services.AddSingleton<SensitiveByteArray>(eccPwd);

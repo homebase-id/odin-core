@@ -5,7 +5,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -41,7 +40,7 @@ namespace Odin.Services.Peer
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext, DatabaseConnection cn, bool failIfNotConnected = true)
+        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, IOdinContext odinContext, bool failIfNotConnected = true)
         {
             //TODO: this check is duplicated in the TransitQueryService.CreateClient method; need to centralize
             odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
@@ -49,7 +48,7 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitRead);
 
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
-            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, cn, overrideHack: true);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(recipient, odinContext, overrideHack: true);
             if (icr?.IsConnected() == false)
             {
                 if (failIfNotConnected)
@@ -63,10 +62,10 @@ namespace Odin.Services.Peer
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
-        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn,
+        protected async Task<(ClientAccessToken token, IPeerReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, IOdinContext odinContext,
             FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, odinContext, cn, false);
+            var token = await ResolveClientAccessToken(odinId, odinContext, false);
 
             if (token == null)
             {
@@ -100,9 +99,9 @@ namespace Odin.Services.Peer
         /// <summary>
         /// Looks up a file by a global transit identifier
         /// </summary>
-        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, DatabaseConnection cn)
+        protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
-            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
+            var (_, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext);
             return fileId;
         }
     }
