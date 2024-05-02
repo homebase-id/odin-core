@@ -5,89 +5,85 @@ using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Util;
 
-namespace Odin.Services.Base
+namespace Odin.Services.Base;
+
+public sealed class TenantSystemStorage : IDisposable
 {
-    public sealed class TenantSystemStorage : IDisposable
+    public IdentityDatabase IdentityDatabase { get; }
+
+    public TenantSystemStorage(TenantContext tenantContext)
     {
-        public IdentityDatabase IdentityDatabase { get; } // SEB:TODO make this private
+        ArgumentNullException.ThrowIfNull(tenantContext);
+        ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
 
-        public TenantSystemStorage(TenantContext tenantContext)
+        string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
+        if (!Directory.Exists(dbPath))
         {
-            ArgumentNullException.ThrowIfNull(tenantContext);
-            ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
-
-            string dbPath = tenantContext.StorageConfig.HeaderDataStoragePath;
-            if (!Directory.Exists(dbPath))
-            {
-                Directory.CreateDirectory(dbPath!);
-            }
-
-            string dbName = "identity.db";
-            string finalPath = PathUtil.Combine(dbPath, dbName);
-
-            if (!File.Exists(finalPath))
-            {
-                string oldName = "sys.db";
-                finalPath = PathUtil.Combine(dbPath, oldName);
-            }
-
-            IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
-            using (var conn = IdentityDatabase.CreateDisposableConnection())
-            {
-                IdentityDatabase.CreateDatabase(conn, false);
-            }
-
-            Connections = IdentityDatabase.tblConnections;
-            CircleMemberStorage = IdentityDatabase.tblCircleMember;
-            AppGrants = IdentityDatabase.tblAppGrants;
-            Outbox = IdentityDatabase.tblOutbox;
-            Inbox = IdentityDatabase.tblInbox;
-            WhoIFollow = IdentityDatabase.tblImFollowing;
-            Followers = IdentityDatabase.tblFollowsMe;
-            Feedbox = IdentityDatabase.tblFeedDistributionOutbox;
-            AppNotifications = IdentityDatabase.tblAppNotificationsTable;
+            Directory.CreateDirectory(dbPath!);
         }
 
-        public void Dispose()
+        string dbName = "identity.db";
+        string finalPath = PathUtil.Combine(dbPath, dbName);
+
+        if (!File.Exists(finalPath))
         {
-            IdentityDatabase.Dispose();
+            string oldName = "sys.db";
+            finalPath = PathUtil.Combine(dbPath, oldName);
         }
 
-        public DatabaseConnection CreateConnection()
+        IdentityDatabase = new IdentityDatabase(tenantContext.DotYouRegistryId, finalPath);
+        using (var conn = IdentityDatabase.CreateDisposableConnection())
         {
-            return IdentityDatabase.CreateDisposableConnection();
+            IdentityDatabase.CreateDatabase(conn, false);
         }
 
-        public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
-        {
-            return new SingleKeyValueStorage(contextKey);
-        }
-
-        public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
-        {
-            return new TwoKeyValueStorage(contextKey);
-        }
-
-        /// <summary>
-        /// Store values using a single key while offering 2 other keys to categorize your data
-        /// </summary>
-        /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
-        public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
-        {
-            return new ThreeKeyValueStorage(contextKey);
-        }
-
-        // SEB:TODO we should probably get rid of these
-        public TableAppGrants AppGrants { get; }
-        public TableConnections Connections { get; }
-        public TableAppNotifications AppNotifications { get; }
-        public TableFeedDistributionOutbox Feedbox { get; }
-        public TableOutbox Outbox { get; }
-        public TableInbox Inbox { get; }
-        public TableImFollowing WhoIFollow { get; }
-        public TableFollowsMe Followers { get; }
-        public TableCircleMember CircleMemberStorage { get; }
-
-
+        Connections = IdentityDatabase.tblConnections;
+        CircleMemberStorage = IdentityDatabase.tblCircleMember;
+        AppGrants = IdentityDatabase.tblAppGrants;
+        Outbox = IdentityDatabase.tblOutbox;
+        Inbox = IdentityDatabase.tblInbox;
+        WhoIFollow = IdentityDatabase.tblImFollowing;
+        Followers = IdentityDatabase.tblFollowsMe;
+        Feedbox = IdentityDatabase.tblFeedDistributionOutbox;
+        AppNotifications = IdentityDatabase.tblAppNotificationsTable;
     }
+
+    public void Dispose()
+    {
+        IdentityDatabase.Dispose();
+    }
+
+    public DatabaseConnection CreateConnection()
+    {
+        return IdentityDatabase.CreateDisposableConnection();
+    }
+
+    public SingleKeyValueStorage CreateSingleKeyValueStorage(Guid contextKey)
+    {
+        return new SingleKeyValueStorage(contextKey);
+    }
+
+    public TwoKeyValueStorage CreateTwoKeyValueStorage(Guid contextKey)
+    {
+        return new TwoKeyValueStorage(contextKey);
+    }
+
+    /// <summary>
+    /// Store values using a single key while offering 2 other keys to categorize your data
+    /// </summary>
+    /// <param name="contextKey">Will be combined with the key to ensure unique storage in the TblKeyThreeValue table</param>
+    public ThreeKeyValueStorage CreateThreeKeyValueStorage(Guid contextKey)
+    {
+        return new ThreeKeyValueStorage(contextKey);
+    }
+
+    public TableAppGrants AppGrants { get; }
+    public TableConnections Connections { get; }
+    public TableAppNotifications AppNotifications { get; }
+    public TableFeedDistributionOutbox Feedbox { get; }
+    public TableOutbox Outbox { get; }
+    public TableInbox Inbox { get; }
+    public TableImFollowing WhoIFollow { get; }
+    public TableFollowsMe Followers { get; }
+    public TableCircleMember CircleMemberStorage { get; }
 }

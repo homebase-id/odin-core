@@ -45,7 +45,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("Processing Inbox item with marker/popStamp [{marker}]", inboxItem.Marker);
 
-                await cn.CreateCommitUnitOfWorkAsync(async () => // SEB:TODO:TRX
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     try
                     {
