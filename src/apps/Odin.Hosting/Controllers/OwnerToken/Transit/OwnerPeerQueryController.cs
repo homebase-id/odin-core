@@ -3,6 +3,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
@@ -12,5 +13,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerPeerQueryController(PeerDriveQueryService peerDriveQueryService) : PeerQueryControllerBase(peerDriveQueryService);
+    public class OwnerPeerQueryController(
+        PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage) : PeerQueryControllerBase(peerDriveQueryService, tenantSystemStorage);
 }

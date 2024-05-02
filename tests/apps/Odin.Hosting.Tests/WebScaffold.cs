@@ -101,6 +101,12 @@ namespace Odin.Hosting.Tests
 
         public void RunBeforeAnyTests(bool initializeIdentity = true, bool setupOwnerAccounts = true, Dictionary<string, string> envOverrides = null)
         {
+            // This will trigger any finalizers that are waiting to be run.
+            // This is useful to verify that all db's are correctly disposed.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");

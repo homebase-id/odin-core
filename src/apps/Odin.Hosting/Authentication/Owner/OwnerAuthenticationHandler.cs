@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
@@ -30,11 +31,14 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private readonly TenantSystemStorage _tenantSystemStorage;
+
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder)
+            UrlEncoder encoder, TenantSystemStorage tenantSystemStorage)
             : base(options, logger, encoder)
         {
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary/>
@@ -68,7 +72,8 @@ namespace Odin.Hosting.Authentication.Owner
 
                 try
                 {
-                    if (!await UpdateOdinContext(authResult, dotYouContext))
+                    using var cn = _tenantSystemStorage.CreateConnection();
+                    if (!await UpdateOdinContext(authResult, dotYouContext, cn))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
@@ -107,10 +112,10 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
         {
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            return await authService.UpdateOdinContext(token, odinContext);
+            return await authService.UpdateOdinContext(token, odinContext, cn);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)
@@ -118,7 +123,8 @@ namespace Odin.Hosting.Authentication.Owner
             if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                authService.ExpireToken(result.Id);
+                using var cn = _tenantSystemStorage.CreateConnection();
+                authService.ExpireToken(result.Id, cn);
             }
 
             return Task.CompletedTask;

@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
     public class GuestFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public GuestFollowerController(FollowerService fs) : base(fs)
+        public GuestFollowerController(FollowerService fs, TenantSystemStorage tenantSystemStorage) : base(fs, tenantSystemStorage)
         {
         }
 

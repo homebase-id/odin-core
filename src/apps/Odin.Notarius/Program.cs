@@ -15,9 +15,11 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-using var db = new NotaryDatabase(@"notarychain.db");
-
-NotaryDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
+using var db = new NotaryDatabase("notarychain.db");
+using (var conn = db.CreateDisposableConnection())
+{
+    NotaryDatabaseUtil.InitializeDatabase(db, conn); // Only do this once per boot
+}
 
 builder.Services.AddSingleton((NotaryDatabase)db);
 

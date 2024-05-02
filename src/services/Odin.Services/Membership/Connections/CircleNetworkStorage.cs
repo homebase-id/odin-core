@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
@@ -7,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
@@ -34,19 +36,20 @@ public class CircleNetworkStorage
         _icrKeyStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
     }
 
-    public IdentityConnectionRegistration Get(OdinId odinId)
+    public IdentityConnectionRegistration Get(OdinId odinId, DatabaseConnection cn)
     {
-        var record = _tenantSystemStorage.Connections.Get(odinId);
+        var record = _tenantSystemStorage.Connections.Get(cn, odinId);
 
         if (null == record)
         {
             return null;
         }
 
-        return MapFromStorage(record);
+        return MapFromStorage(record, cn);
     }
 
-    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext)
+    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
+    public void Upsert(IdentityConnectionRegistration icr, IOdinContext odinContext, DatabaseConnection cn)
     {
         var icrAccessRecord = new IcrAccessRecord()
         {
@@ -55,32 +58,33 @@ public class CircleNetworkStorage
             EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData
         };
 
-        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        cn.CreateCommitUnitOfWork(() =>
         {
             var odinHashId = icr.OdinId.ToHashId();
 
             //Reconcile circle grants in the table
-            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity);
+            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId, DomainType.Identity, cn);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, overrideHack: true);
+                var circleMembers =
+                    _circleMembershipService.GetDomainsInCircle(circleId, odinContext, cn, overrideHack: true);
                 var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)
                 {
-                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant, DomainType.Identity);
+                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant, DomainType.Identity, cn);
                 }
             }
 
             // remove all app grants, 
-            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinHashId);
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(cn, odinHashId);
 
             // Now write the latest
             foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant.AppGrants)
             {
                 foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
                 {
-                    _tenantSystemStorage.AppGrants.Upsert(new AppGrantsRecord()
+                    _tenantSystemStorage.AppGrants.Upsert(cn, new AppGrantsRecord()
                     {
                         odinHashId = odinHashId,
                         appId = appId,
@@ -105,26 +109,26 @@ public class CircleNetworkStorage
                 data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
             };
 
-            _tenantSystemStorage.Connections.Upsert(record);
-        }
+            _tenantSystemStorage.Connections.Upsert(cn, record);
+        });
     }
 
-    public void Delete(OdinId odinId)
+    public void Delete(OdinId odinId, DatabaseConnection cn)
     {
-        using (_tenantSystemStorage.CreateCommitUnitOfWork())
+        cn.CreateCommitUnitOfWork(() =>
         {
-            _tenantSystemStorage.Connections.Delete(odinId);
-            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
-            _circleMembershipService.DeleteMemberFromAllCircles(odinId, DomainType.Identity);
-        }
+            _tenantSystemStorage.Connections.Delete(cn, odinId);
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(cn, odinId.ToHashId());
+            _circleMembershipService.DeleteMemberFromAllCircles(odinId, DomainType.Identity, cn);
+        });
     }
 
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
-        ConnectionStatus connectionStatus)
+        ConnectionStatus connectionStatus, DatabaseConnection cn)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
-        return records.Select(MapFromStorage);
+        var records = _tenantSystemStorage.Connections.PagingByCreated(cn, count, (int)connectionStatus, adjustedCursor, out nextCursor);
+        return records.Select(record => MapFromStorage(record, cn));
     }
 
 
@@ -133,9 +137,9 @@ public class CircleNetworkStorage
     /// </summary>
     /// <param name="masterKey"></param>
     /// <exception cref="OdinClientException"></exception>
-    public void CreateIcrKey(SensitiveByteArray masterKey)
+    public void CreateIcrKey(SensitiveByteArray masterKey, DatabaseConnection cn)
     {
-        var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        var existingKey = _icrKeyStorage.Get<IcrKeyRecord>(cn, _icrKeyStorageId);
         if (null != existingKey)
         {
             throw new OdinClientException("IcrKey already exists");
@@ -149,29 +153,29 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        _icrKeyStorage.Upsert(_icrKeyStorageId, record);
+        _icrKeyStorage.Upsert(cn, _icrKeyStorageId, record);
     }
 
-    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
+    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey(DatabaseConnection cn)
     {
-        var key = _icrKeyStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        var key = _icrKeyStorage.Get<IcrKeyRecord>(cn, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 
-    private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
+    private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record, DatabaseConnection cn)
     {
         var json = record.data.ToStringFromUtf8Bytes();
         var data = OdinSystemSerializer.Deserialize<IcrAccessRecord>(json);
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity, DomainType.Identity);
+        var circleGrants = _circleMembershipService.GetCirclesGrantsByDomain(record.identity, DomainType.Identity, cn);
         foreach (var circleGrant in circleGrants)
         {
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(cn, odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
         {

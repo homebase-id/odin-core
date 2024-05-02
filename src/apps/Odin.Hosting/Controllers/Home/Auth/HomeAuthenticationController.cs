@@ -32,14 +32,16 @@ namespace Odin.Hosting.Controllers.Home.Auth
         private readonly HomeAuthenticatorService _homeAuthenticatorService;
         private readonly string _currentTenant;
         private readonly PublicPrivateKeyService _pkService;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         public HomeAuthenticationController(ITenantProvider tenantProvider, HomeAuthenticatorService homeAuthenticatorService,
-            PublicPrivateKeyService pkService, IOdinHttpClientFactory odinHttpClientFactory)
+            PublicPrivateKeyService pkService, IOdinHttpClientFactory odinHttpClientFactory, TenantSystemStorage tenantSystemStorage)
         {
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _homeAuthenticatorService = homeAuthenticatorService;
             _pkService = pkService;
             _odinHttpClientFactory = odinHttpClientFactory;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         //
@@ -58,7 +60,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
             try
             {
-                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey();
+                using var cn = _tenantSystemStorage.CreateConnection();
+                var (fullKey, privateKey) = await _pkService.GetCurrentOfflineEccKey(cn);
                 var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(public_key);
                 var exchangeSecret = fullKey.GetEcdhSharedSecret(privateKey, remotePublicKey, Convert.FromBase64String(salt));
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
@@ -85,7 +88,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 //set the cookie from the identity being logged into
 
-                var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken);
+                var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccess(odinId, clientAuthToken, cn);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
 
                 var url = GetFinalUrl(odinId, clientAccessToken, authState);
@@ -154,7 +157,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
         public async Task<ActionResult> DeleteToken()
         {
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
-            await _homeAuthenticatorService.DeleteSession(WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _homeAuthenticatorService.DeleteSession(WebOdinContext, cn);
 
             return Ok();
         }

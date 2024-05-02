@@ -20,12 +20,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
-    public class InvitationsController(CircleNetworkRequestService circleNetworkRequestService) : OdinControllerBase
+    public class InvitationsController(CircleNetworkRequestService circleNetworkRequestService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await circleNetworkRequestService.ReceiveConnectionRequest(payload, WebOdinContext, cn);
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -33,7 +34,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload, string authenticationToken64)
         {
-            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext, cn);
             return new JsonResult(new NoResultResponse(true));
         }
     }

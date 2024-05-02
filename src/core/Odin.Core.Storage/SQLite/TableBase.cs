@@ -20,7 +20,7 @@ namespace Odin.Core.Storage.SQLite
             throw new NotImplementedException();
         }
 
-        public virtual void EnsureTableExists(bool dropExisting = false)
+        public virtual void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
         {
             throw new NotImplementedException();
         }
