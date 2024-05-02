@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Configuration;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 
@@ -17,13 +16,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, TenantSystemStorage tenantSystemStorage)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _tenantSystemStorage = tenantSystemStorage;
     }
 
     /// <summary>
@@ -33,8 +30,7 @@ public class ConfigurationController : Controller
     [HttpPost("system/isconfigured")]
     public Task<bool> IsIdentityServerConfigured()
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        var result = _tenantConfigService.IsIdentityServerConfigured(cn);
+        var result = _tenantConfigService.IsIdentityServerConfigured();
         return Task.FromResult(result);
     }
 

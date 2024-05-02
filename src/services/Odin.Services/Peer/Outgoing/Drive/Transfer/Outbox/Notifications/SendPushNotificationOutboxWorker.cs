@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Apps;
@@ -20,13 +19,13 @@ public class SendPushNotificationOutboxWorker(
     ILogger<PeerOutboxProcessor> logger,
     IPeerOutbox peerOutbox)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext)
     {
         try
         {
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-            var results = await this.PushItem(newContext, cn);
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            var results = await this.PushItem(newContext);
+            await peerOutbox.MarkComplete(item.Marker);
 
             return results;
         }
@@ -35,18 +34,18 @@ public class SendPushNotificationOutboxWorker(
             // var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
             // await peerOutbox.MarkFailure(item.Marker, nextRun);
             // we're not going to retry push notifications for now
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(item.Marker);
         }
         catch
         {
-            await peerOutbox.MarkComplete(item.Marker, cn);
+            await peerOutbox.MarkComplete(item.Marker);
         }
 
         return null;
     }
 
 
-    private async Task<OutboxProcessingResult> PushItem(IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<OutboxProcessingResult> PushItem(IOdinContext odinContext)
     {
         //HACK as I refactor stuff - i should rather deserialize this in the push notification service?
         var record = OdinSystemSerializer.Deserialize<PushNotificationOutboxRecord>(item.RawValue.ToStringFromUtf8Bytes());
@@ -56,7 +55,7 @@ public class SendPushNotificationOutboxWorker(
             Payloads = new List<PushNotificationPayload>()
         };
 
-        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext, cn);
+        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext);
 
         if (validAppName)
         {
@@ -73,7 +72,7 @@ public class SendPushNotificationOutboxWorker(
             logger.LogWarning("No app registered with Id {id}", record.Options.AppId);
         }
 
-        await pushNotificationService.Push(pushContent, odinContext, cn);
+        await pushNotificationService.Push(pushContent, odinContext);
 
         return new OutboxProcessingResult
         {
@@ -86,7 +85,7 @@ public class SendPushNotificationOutboxWorker(
         };
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
     {
         if (appId == SystemAppConstants.OwnerAppId)
         {
@@ -98,7 +97,7 @@ public class SendPushNotificationOutboxWorker(
             return (true, "Homebase Feed");
         }
 
-        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext, cn);
+        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
         return (appReg != null, appReg?.Name);
     }
 }

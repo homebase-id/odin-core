@@ -1,7 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
@@ -21,209 +25,195 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetNonExistingRowCacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Get a non-existing row, it'll cause inserting of a new cache null entry
-                var r1 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 1);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Get a non-existing row, it'll cause inserting of a new cache null entry
+            var r1 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 1);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Get a non-existing row, but now it's in the cache. We get +1 for get and +1 for hits
-                var r2 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
+            // Get a non-existing row, but now it's in the cache. We get +1 for get and +1 for hits
+            var r2 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
 
-                // Get a non-existing row, that's not in the cache, just to be sure it's different
-                var r3 = db.tblConnections.Get(myc, new OdinId("sam.gamgee.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 3);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
-            }
+            // Get a non-existing row, that's not in the cache, just to be sure it's different
+            var r3 = db.tblConnections.Get(new OdinId("sam.gamgee.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 3);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
         }
 
         // Test the Get() cache handling of Inserting
         [Test]
         public void GetExistingRowInsertCacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Insert a new item
-                var n = db.tblConnections.Insert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Insert a new item
+            var n = db.tblConnections.Insert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Get the inserted item
-                var r1 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 1);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
-                Assert.IsTrue(EqualRecords(item1, r1));
+            // Get the inserted item
+            var r1 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 1);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
+            Assert.IsTrue(EqualRecords(item1, r1));
 
-                // Encore
-                var r2 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 2);
-                Assert.IsTrue(EqualRecords(item1, r2));
-            }
+            // Encore
+            var r2 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 2);
+            Assert.IsTrue(EqualRecords(item1, r2));
         }
-
 
         // Test the Get() cache handling of Upserting
         [Test]
         public void GetExistingRowUpsertCacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Upsert a new item
-                var n = db.tblConnections.Upsert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Upsert a new item
+            var n = db.tblConnections.Upsert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Get the upserted item
-                var r1 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 1);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
-                Assert.IsTrue(EqualRecords(item1, r1));
+            // Get the upserted item
+            var r1 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 1);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
+            Assert.IsTrue(EqualRecords(item1, r1));
 
-                // Encore
-                var r2 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 2);
-                Assert.IsTrue(EqualRecords(item1, r2));
+            // Encore
+            var r2 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 2);
+            Assert.IsTrue(EqualRecords(item1, r2));
 
-                item1.status = 7;
-                // Upsert the updated item
-                n = db.tblConnections.Upsert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 2);
+            item1.status = 7;
+            // Upsert the updated item
+            n = db.tblConnections.Upsert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 2);
 
-                // Get the upserted item, one get one hit
-                var r3 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 3);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 3);
-                Assert.IsTrue(EqualRecords(item1, r3));
+            // Get the upserted item, one get one hit
+            var r3 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 3);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 3);
+            Assert.IsTrue(EqualRecords(item1, r3));
 
-                // Get the upserted item, one get one hit
-                var r4 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 4);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 4);
-                Assert.IsTrue(EqualRecords(item1, r3));
-            }
+            // Get the upserted item, one get one hit
+            var r4 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 4);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 4);
+            Assert.IsTrue(EqualRecords(item1, r3));
         }
-
 
         // Test the Get() cache handling of Update
         [Test]
         public void GetExistingRowUpdateCacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Insert a new item
-                var n = db.tblConnections.Insert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Insert a new item
+            var n = db.tblConnections.Insert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Update the item
-                item1.status = 7;
-                n = db.tblConnections.Update(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Update the item
+            item1.status = 7;
+            n = db.tblConnections.Update(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Get the updated item, one get one hit
-                var r1 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 1);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
-                Assert.IsTrue(EqualRecords(item1, r1));
+            // Get the updated item, one get one hit
+            var r1 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 1);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
+            Assert.IsTrue(EqualRecords(item1, r1));
 
-                // Get the updated item, one get one hit
-                var r2 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 2);
-                Assert.IsTrue(db._cache.GetCacheHits() == 2);
-                Assert.IsTrue(EqualRecords(item1, r2));
-            }
+            // Get the updated item, one get one hit
+            var r2 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 2);
+            Assert.IsTrue(db._cache.GetCacheHits() == 2);
+            Assert.IsTrue(EqualRecords(item1, r2));
         }
 
 
@@ -231,81 +221,75 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void Delete1CacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(db._cache.GetCacheRemove() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheRemove() == 0);
 
-                // Delete a non-existing item
-                var n = db.tblConnections.Delete(myc, item1.identity);
-                Assert.IsTrue(n == 0);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(db._cache.GetCacheRemove() == 0);
-            }
+            // Delete a non-existing item
+            var n = db.tblConnections.Delete(item1.identity);
+            Assert.IsTrue(n == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheRemove() == 0);
         }
 
         // Test the Get() cache handling of Update
         [Test]
         public void Delete2CacheTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Insert a new item
-                var n = db.tblConnections.Insert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(db._cache.GetCacheRemove() == 0);
+            // Insert a new item
+            var n = db.tblConnections.Insert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheRemove() == 0);
 
-                // Delete the item
-                n = db.tblConnections.Delete(myc, item1.identity);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(db._cache.GetCacheRemove() == 1);
+            // Delete the item
+            n = db.tblConnections.Delete(item1.identity);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheRemove() == 1);
 
-                // Encore
-                n = db.tblConnections.Delete(myc, item1.identity);
-                Assert.IsTrue(n == 0);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(db._cache.GetCacheRemove() == 1);
-            }
+            // Encore
+            n = db.tblConnections.Delete(item1.identity);
+            Assert.IsTrue(n == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheRemove() == 1);
         }
 
 
@@ -313,51 +297,48 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         [Test]
         public void GetExistingRowTest()
         {
-            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var item1 = new ConnectionsRecord()
             {
-                db.CreateDatabase(myc);
-                var item1 = new ConnectionsRecord()
-                {
-                    identity = new OdinId("frodo.baggins.me"),
-                    displayName = "Frodo",
-                    status = 42,
-                    accessIsRevoked = 1,
-                    data = Guid.NewGuid().ToByteArray()
-                };
+                identity = new OdinId("frodo.baggins.me"),
+                displayName = "Frodo",
+                status = 42,
+                accessIsRevoked = 1,
+                data = Guid.NewGuid().ToByteArray()
+            };
 
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                // Insert a new item
-                var n = db.tblConnections.Insert(myc, item1);
-                Assert.IsTrue(n == 1);
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            // Insert a new item
+            var n = db.tblConnections.Insert(item1);
+            Assert.IsTrue(n == 1);
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
-                db._cache.ClearCache();
-                Assert.IsTrue(db._cache.GetCacheGets() == 0);
-                Assert.IsTrue(db._cache.GetCacheSets() == 0);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            db._cache.ClearCache();
+            Assert.IsTrue(db._cache.GetCacheGets() == 0);
+            Assert.IsTrue(db._cache.GetCacheSets() == 0);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
 
 
-                // The cache is now empty, the item is in the database, let's fetch it
-                var r1 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 1);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 0);
-                Assert.IsTrue(EqualRecords(item1, r1));
+            // The cache is now empty, the item is in the database, let's fetch it
+            var r1 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 1);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 0);
+            Assert.IsTrue(EqualRecords(item1, r1));
 
-                // Encore
-                var r2 = db.tblConnections.Get(myc, new OdinId("frodo.baggins.me"));
-                Assert.IsTrue(db._cache.GetCacheGets() == 2);
-                Assert.IsTrue(db._cache.GetCacheSets() == 1);
-                Assert.IsTrue(db._cache.GetCacheHits() == 1);
-                Assert.IsTrue(EqualRecords(item1, r2));
-            }
+            // Encore
+            var r2 = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
+            Assert.IsTrue(db._cache.GetCacheGets() == 2);
+            Assert.IsTrue(db._cache.GetCacheSets() == 1);
+            Assert.IsTrue(db._cache.GetCacheHits() == 1);
+            Assert.IsTrue(EqualRecords(item1, r2));
         }
 
     }

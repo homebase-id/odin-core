@@ -9,5 +9,10 @@
         ~TableCircle()
         {
         }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
     }
 }

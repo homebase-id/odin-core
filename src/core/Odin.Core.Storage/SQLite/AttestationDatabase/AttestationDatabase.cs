@@ -20,6 +20,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public readonly TableAttestationRequest tblAttestationRequest = null;
         public readonly TableAttestationStatus tblAttestationStatus = null;
 
+        public readonly string CN;
+
         private readonly CacheHelper _cache = new CacheHelper("attestation");
         private readonly string _file;
         private readonly int _line;
@@ -28,7 +30,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             tblAttestationRequest = new TableAttestationRequest(this, _cache);
             tblAttestationStatus = new TableAttestationStatus(this, _cache);
-
+            CN = connectionString;
             _file = file;
             _line = line;
         }
@@ -38,7 +40,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
+                throw new Exception($"AttestationDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
                Serilog.Log.Error($"AttestationDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
@@ -48,23 +50,24 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public override void Dispose()
         {
+            Commit();
+
             tblAttestationRequest.Dispose();
             tblAttestationStatus.Dispose();
 
             base.Dispose();
-            GC.SuppressFinalize(this);
         }
 
 
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
+        public override void CreateDatabase(bool dropExistingTables = true)
         {
-            tblAttestationRequest.EnsureTableExists(conn, dropExistingTables);
-            tblAttestationStatus.EnsureTableExists(conn, dropExistingTables);
+            tblAttestationRequest.EnsureTableExists(dropExistingTables);
+            tblAttestationStatus.EnsureTableExists(dropExistingTables);
             if (dropExistingTables)
-                conn.Vacuum();
+                Vacuum();
         }
     }
 }

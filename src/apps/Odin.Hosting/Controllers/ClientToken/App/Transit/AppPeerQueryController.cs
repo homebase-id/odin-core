@@ -2,7 +2,6 @@
 using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
@@ -12,6 +11,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerQueryV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerQueryController(PeerDriveQueryService peerDriveQueryService, TenantSystemStorage tenantSystemStorage)
-        : PeerQueryControllerBase(peerDriveQueryService, tenantSystemStorage);
+    public class AppPeerQueryController(PeerDriveQueryService peerDriveQueryService) : PeerQueryControllerBase(peerDriveQueryService);
 }

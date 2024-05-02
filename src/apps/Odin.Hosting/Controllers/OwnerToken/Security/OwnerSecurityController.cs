@@ -18,16 +18,14 @@ public class OwnerSecurityController : OdinControllerBase
     private readonly RecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
 
     /// <summary />
     public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
-        OwnerAuthenticationService ownerAuthenticationService, TenantSystemStorage tenantSystemStorage)
+        OwnerAuthenticationService ownerAuthenticationService)
     {
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
-        _tenantSystemStorage = tenantSystemStorage;
     }
 
     /// <summary>
@@ -43,15 +41,13 @@ public class OwnerSecurityController : OdinControllerBase
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        return await _recoveryService.GetKey(WebOdinContext, cn);
+        return await _recoveryService.GetKey(WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        await _ss.ResetPassword(request, WebOdinContext, cn);
+        await _ss.ResetPassword(request, WebOdinContext);
         return new OkResult();
     }
 
@@ -65,8 +61,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        using var cn = _tenantSystemStorage.CreateConnection();
-        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext, cn);
+        await _ownerAuthenticationService.MarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 
@@ -74,8 +69,7 @@ public class OwnerSecurityController : OdinControllerBase
     public async Task<IActionResult> UndeleteAccount([FromBody] DeleteAccountRequest request)
     {
         //validate owner password
-        using var cn = _tenantSystemStorage.CreateConnection();
-        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext, cn);
+        await _ownerAuthenticationService.UnmarkForDeletion(request.CurrentAuthenticationPasswordReply, WebOdinContext);
         return new OkResult();
     }
 }

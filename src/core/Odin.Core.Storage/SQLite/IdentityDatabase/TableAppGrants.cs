@@ -1,5 +1,4 @@
 ﻿using System;
-using static Odin.Core.Storage.SQLite.DatabaseBase;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
@@ -13,20 +12,25 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public void DeleteByIdentity(DatabaseConnection conn, Guid odinHashId)
+        public override void Dispose()
         {
-            var r = GetByOdinHashId(conn, odinHashId);
+            base.Dispose();
+        }
+
+        public void DeleteByIdentity(Guid odinHashId)
+        {
+            var r = GetByOdinHashId(odinHashId);
 
             if (r == null)
                 return;
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (_database.CreateCommitUnitOfWork())
             {
                 for (int i = 0; i < r.Count; i++)
                 {
-                    Delete(conn, odinHashId, r[i].appId, r[i].circleId);
+                    Delete(odinHashId, r[i].appId, r[i].circleId);
                 }
-            });
+            }
         }
     }
 }

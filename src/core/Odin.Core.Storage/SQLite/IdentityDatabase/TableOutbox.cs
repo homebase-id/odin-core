@@ -2,11 +2,46 @@
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Cms;
 
 namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableOutbox : TableOutboxCRUD
     {
+        private SqliteCommand _popSpecificBoxCommand = null;
+        private static Object _outboxLock = new Object();
+
+        private SqliteCommand _popAllCommand = null;
+        private SqliteParameter _paparam1 = null;
+        private SqliteParameter _paparam2 = null;
+        private SqliteParameter _paparam3 = null;
+        private static Object _popAllLock = new Object();
+
+        private SqliteCommand _nextScheduleCommand = null;
+        private static Object _nextScheduleLock = new Object();
+
+
+        private SqliteCommand _popStatusCommand = null;
+
+        private SqliteCommand _popStatusSpecificBoxCommand = null;
+        private SqliteParameter _pssbParam1 = null;
+
+        private SqliteCommand _popCancelCommand = null;
+        private SqliteParameter _pcancelparam1 = null;
+        private SqliteParameter _pcancelparam2 = null;
+
+        private SqliteCommand _popCancelListCommand = null;
+
+        private SqliteCommand _popCommitCommand = null;
+        private SqliteParameter _pcommitparam1 = null;
+
+        private SqliteCommand _popCommitListCommand = null;
+
+        private SqliteCommand _popRecoverCommand = null;
+        private SqliteParameter _pcrecoverparam1 = null;
+
+
         public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -17,29 +52,55 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
+            _popSpecificBoxCommand?.Dispose();
+            _popSpecificBoxCommand = null;
+
+            _popAllCommand?.Dispose();
+            _popAllCommand = null;
+
+            _popStatusCommand?.Dispose();
+            _popStatusCommand = null;
+
+            _popStatusSpecificBoxCommand?.Dispose();
+            _popStatusSpecificBoxCommand = null;
+
+            _popCancelCommand?.Dispose();
+            _popCancelCommand = null;
+
+            _popCancelListCommand?.Dispose();
+            _popCancelListCommand = null;
+
+            _popCommitCommand?.Dispose();
+            _popCommitCommand = null;
+
+            _popCommitListCommand?.Dispose();
+            _popCommitListCommand = null;
+
+            _popRecoverCommand?.Dispose();
+            _popRecoverCommand = null;
+
             base.Dispose();
-            GC.SuppressFinalize(this);
         }
 
 
-        public override int Insert(DatabaseConnection conn, OutboxRecord item)
+        public override int Insert(OutboxRecord item)
         {
             item.checkOutCount = 0;
             if (item.nextRunTime.milliseconds == 0)
                 item.nextRunTime = UnixTimeUtc.Now();
             if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
                 throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
-            return base.Insert(conn, item);
+            return base.Insert(item);
         }
 
 
-        public override int Upsert(DatabaseConnection conn, OutboxRecord item)
+        public override int Upsert(OutboxRecord item)
         {
             if (item.nextRunTime.milliseconds == 0)
                 item.nextRunTime = UnixTimeUtc.Now();
             if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
                 throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
-            return base.Upsert(conn, item);
+            return base.Upsert(item);
         }
 
 
@@ -48,11 +109,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// or items that have unresolved dependencies.
         /// </summary>
         /// <returns></returns>
-        public OutboxRecord CheckOutItem(DatabaseConnection conn)
+        public OutboxRecord CheckOutItem()
         {
-            using (var _popAllCommand = _database.CreateCommand())
+            lock (_popAllLock)
             {
-                _popAllCommand.CommandText = """
+                // Make sure we only prep once 
+                if (_popAllCommand == null)
+                {
+                    _popAllCommand = _database.CreateCommand();
+                    _popAllCommand.CommandText = """
                         UPDATE outbox
                         SET checkOutStamp = $checkOutStamp
                         WHERE (checkOutStamp is NULL) AND
@@ -77,18 +142,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         FROM outbox
                         WHERE checkOutStamp=$checkOutStamp;
                         """;
-                var _paparam1 = _popAllCommand.CreateParameter();
-                _paparam1.ParameterName = "$checkOutStamp";
-                _popAllCommand.Parameters.Add(_paparam1);
+                    _paparam1 = _popAllCommand.CreateParameter();
+                    _paparam1.ParameterName = "$checkOutStamp";
+                    _popAllCommand.Parameters.Add(_paparam1);
 
-                // 2 & 3 ARE OBSOLETE - REVIEW LATER
-                var _paparam2 = _popAllCommand.CreateParameter();
-                _paparam2.ParameterName = "$count";
-                _popAllCommand.Parameters.Add(_paparam2);
+                    // 2 & 3 ARE OBSOLETE - DELETE LATER
+                    _paparam2 = _popAllCommand.CreateParameter();
+                    _paparam2.ParameterName = "$count";
+                    _popAllCommand.Parameters.Add(_paparam2);
 
-                var _paparam3 = _popAllCommand.CreateParameter();
-                _paparam3.ParameterName = "$now";
-                _popAllCommand.Parameters.Add(_paparam3);
+                    _paparam3 = _popAllCommand.CreateParameter();
+                    _paparam3.ParameterName = "$now";
+                    _popAllCommand.Parameters.Add(_paparam3);
+
+                    _popAllCommand.Prepare();
+                }
 
                 _paparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _paparam2.Value = 1;
@@ -96,18 +164,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
-                lock (conn._lock)
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
+                    if (rdr.Read())
                     {
-                        if (rdr.Read())
-                        {
-                            return ReadRecordFromReaderAll(rdr);
-                        }
-                        else
-                            return null;
+                        return ReadRecordFromReaderAll(rdr);
                     }
-
+                    else
+                        return null;
                 }
             }
         }
@@ -121,25 +185,28 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>UnixTimeUtc of when the next item should be sent, null if none.</returns>
         /// <exception cref="Exception"></exception>
-        public UnixTimeUtc? NextScheduledItem(DatabaseConnection conn)
+        public UnixTimeUtc? NextScheduledItem()
         {
-            using (var _nextScheduleCommand = _database.CreateCommand())
+            lock (_nextScheduleLock)
             {
-                _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox WHERE checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
-
-                lock (conn._lock)
+                if (_nextScheduleCommand == null)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_nextScheduleCommand, System.Data.CommandBehavior.Default))
-                    {
-                        // Read the total count
-                        if (!rdr.Read())
-                            return null;
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                    _nextScheduleCommand = _database.CreateCommand();
+                    _nextScheduleCommand.CommandText = "SELECT nextRunTime FROM outbox WHERE checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
-                        long nextRunTime = rdr.GetInt64(0);
-                        return new UnixTimeUtc(nextRunTime);
-                    }
+                    _nextScheduleCommand.Prepare();
+                }
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_nextScheduleCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        return null;
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    long nextRunTime = rdr.GetInt64(0);
+                    return new UnixTimeUtc(nextRunTime);
                 }
             }
         }
@@ -149,25 +216,32 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'checkOutStamp' from a previous pop operation
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CheckInAsCancelled(DatabaseConnection conn, Guid checkOutStamp, UnixTimeUtc nextRunTime)
+        public int CheckInAsCancelled(Guid checkOutStamp, UnixTimeUtc nextRunTime)
         {
-            using (var _popCancelCommand = _database.CreateCommand())
+            lock (_outboxLock)
             {
-                _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE checkOutStamp=$checkOutStamp";
+                // Make sure we only prep once 
+                if (_popCancelCommand == null)
+                {
+                    _popCancelCommand = _database.CreateCommand();
+                    _popCancelCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE checkOutStamp=$checkOutStamp";
 
-                var _pcancelparam1 = _popCancelCommand.CreateParameter();
-                var _pcancelparam2 = _popCancelCommand.CreateParameter();
+                    _pcancelparam1 = _popCancelCommand.CreateParameter();
+                    _pcancelparam2 = _popCancelCommand.CreateParameter();
 
-                _pcancelparam1.ParameterName = "$checkOutStamp";
-                _pcancelparam2.ParameterName = "$nextRunTime";
+                    _pcancelparam1.ParameterName = "$checkOutStamp";
+                    _pcancelparam2.ParameterName = "$nextRunTime";
 
-                _popCancelCommand.Parameters.Add(_pcancelparam1);
-                _popCancelCommand.Parameters.Add(_pcancelparam2);
+                    _popCancelCommand.Parameters.Add(_pcancelparam1);
+                    _popCancelCommand.Parameters.Add(_pcancelparam2);
+
+                    _popCancelCommand.Prepare();
+                }
 
                 _pcancelparam1.Value = checkOutStamp.ToByteArray();
                 _pcancelparam2.Value = nextRunTime.milliseconds;
 
-                conn.ExecuteNonQuery(_popCancelCommand);
+                return _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -177,19 +251,26 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'checkOutStamp'
         /// </summary>
         /// <param name="checkOutStamp"></param>
-        public void CompleteAndRemove(DatabaseConnection conn, Guid checkOutStamp)
+        public int CompleteAndRemove(Guid checkOutStamp)
         {
-            using (var _popCommitCommand = _database.CreateCommand())
+            lock (_outboxLock)
             {
-                _popCommitCommand.CommandText = "DELETE FROM outbox WHERE checkOutStamp=$checkOutStamp";
+                // Make sure we only prep once 
+                if (_popCommitCommand == null)
+                {
+                    _popCommitCommand = _database.CreateCommand();
+                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE checkOutStamp=$checkOutStamp";
 
-                var _pcommitparam1 = _popCommitCommand.CreateParameter();
-                _pcommitparam1.ParameterName = "$checkOutStamp";
-                _popCommitCommand.Parameters.Add(_pcommitparam1);
+                    _pcommitparam1 = _popCommitCommand.CreateParameter();
+                    _pcommitparam1.ParameterName = "$checkOutStamp";
+                    _popCommitCommand.Parameters.Add(_pcommitparam1);
+
+                    _popCommitCommand.Prepare();
+                }
 
                 _pcommitparam1.Value = checkOutStamp.ToByteArray();
 
-                conn.ExecuteNonQuery(_popCommitCommand);
+                return _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -200,24 +281,31 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void RecoverCheckedOutDeadItems(DatabaseConnection conn, UnixTimeUtc pastThreshold)
+        public void RecoverCheckedOutDeadItems(UnixTimeUtc pastThreshold)
         {
-            using (var _popRecoverCommand = _database.CreateCommand())
+            lock (_outboxLock)
             {
-                _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE checkOutStamp < $checkOutStamp";
+                if (_popRecoverCommand == null)
+                {
+                    _popRecoverCommand = _database.CreateCommand();
+                    _popRecoverCommand.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE checkOutStamp < $checkOutStamp";
 
-                // Should we also reset nextRunTime =$nextRunTime to "now()" or 0?
-                //
-                // Consider removing any items with checkOutCount == 0 older than X
-                // since they are probably circular dependencies
+                    // Should we also reset nextRunTime =$nextRunTime to "now()" or 0?
+                    //
+                    // Consider removing any items with checkOutCount == 0 older than X
+                    // since they are probably circular dependencies
 
-                var _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
-                _pcrecoverparam1.ParameterName = "$checkOutStamp";
-                _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
+                    _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
+
+                    _pcrecoverparam1.ParameterName = "$checkOutStamp";
+                    _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
+
+                    _popRecoverCommand.Prepare();
+                }
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
 
-                conn.ExecuteNonQuery(_popRecoverCommand);
+                _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
 
@@ -227,48 +315,52 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus(DatabaseConnection conn)
+        public (int totalItems, int checkedOutItems, UnixTimeUtc nextRunTime) OutboxStatus()
         {
-            using (var _popStatusCommand = _database.CreateCommand())
+            lock (_outboxLock)
             {
-                _popStatusCommand.CommandText =
-                    "SELECT count(*) FROM outbox;" +
-                    "SELECT count(*) FROM outbox WHERE checkOutStamp NOT NULL;" +
-                    "SELECT nextRunTime FROM outbox WHERE checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
-
-                lock (conn._lock)
+                // Make sure we only prep once 
+                if (_popStatusCommand == null)
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
-                    {
-                        // Read the total count
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                    _popStatusCommand = _database.CreateCommand();
+                    _popStatusCommand.CommandText =
+                        "SELECT count(*) FROM outbox;" +
+                        "SELECT count(*) FROM outbox WHERE checkOutStamp NOT NULL;" +
+                        "SELECT nextRunTime FROM outbox WHERE checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
-                        int totalCount = rdr.GetInt32(0);
+                    _popStatusCommand.Prepare();
+                }
 
-                        // Read the popped count
-                        if (!rdr.NextResult())
-                            throw new Exception("Not possible");
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
 
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                    int totalCount = rdr.GetInt32(0);
 
-                        int poppedCount = rdr.GetInt32(0);
+                    // Read the popped count
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
 
-                        if (!rdr.NextResult())
-                            throw new Exception("Not possible");
-                        // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
 
-                        Int64 t = rdr.GetInt64(0);
-                        var utc = new UnixTimeUtc(t);
-                        return (totalCount, poppedCount, utc);
-                    }
+                    int poppedCount = rdr.GetInt32(0);
+
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+                    // Read the marker, if any
+                    if (!rdr.Read() || rdr.IsDBNull(0))
+                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+
+                    Int64 t = rdr.GetInt64(0);
+                    var utc = new UnixTimeUtc(t);
+                    return (totalCount, poppedCount, utc);
                 }
             }
         }
@@ -280,55 +372,58 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) OutboxStatusDrive(DatabaseConnection conn, Guid driveId)
+        public (int, int, UnixTimeUtc) OutboxStatusDrive(Guid driveId)
         {
-            using (var _popStatusSpecificBoxCommand = _database.CreateCommand())
+            lock (_outboxLock)
             {
-                _popStatusSpecificBoxCommand.CommandText =
-                    "SELECT count(*) FROM outbox WHERE driveId=$driveId;" +
-                    "SELECT count(*) FROM outbox WHERE driveId=$driveId AND checkOutStamp NOT NULL;" +
-                    "SELECT nextRunTime FROM outbox WHERE driveId=$driveId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+                // Make sure we only prep once 
+                if (_popStatusSpecificBoxCommand == null)
+                {
+                    _popStatusSpecificBoxCommand = _database.CreateCommand();
+                    _popStatusSpecificBoxCommand.CommandText =
+                        "SELECT count(*) FROM outbox WHERE driveId=$driveId;" +
+                        "SELECT count(*) FROM outbox WHERE driveId=$driveId AND checkOutStamp NOT NULL;" +
+                        "SELECT nextRunTime FROM outbox WHERE driveId=$driveId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
-                var _pssbParam1 = _popStatusSpecificBoxCommand.CreateParameter();
-                _pssbParam1.ParameterName = "$driveId";
-                _popStatusSpecificBoxCommand.Parameters.Add(_pssbParam1);
+                    _pssbParam1 = _popStatusSpecificBoxCommand.CreateParameter();
+                    _pssbParam1.ParameterName = "$driveId";
+                    _popStatusSpecificBoxCommand.Parameters.Add(_pssbParam1);
+
+                    _popStatusSpecificBoxCommand.Prepare();
+                }
 
                 _pssbParam1.Value = driveId.ToByteArray();
 
-                lock (conn._lock)
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
-                    {
-                        // Read the total count
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                    // Read the total count
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
 
-                        int totalCount = rdr.GetInt32(0);
+                    int totalCount = rdr.GetInt32(0);
 
-                        // Read the popped count
-                        if (!rdr.NextResult())
-                            throw new Exception("Not possible");
+                    // Read the popped count
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
 
-                        if (!rdr.Read())
-                            throw new Exception("Not possible");
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
 
-                        int poppedCount = rdr.GetInt32(0);
+                    int poppedCount = rdr.GetInt32(0);
 
-                        if (!rdr.NextResult())
-                            throw new Exception("Not possible");
-                        // Read the marker, if any
-                        if (!rdr.Read() || rdr.IsDBNull(0))
-                            return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+                    // Read the marker, if any
+                    if (!rdr.Read() || rdr.IsDBNull(0))
+                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
 
-                        Int64 t = rdr.GetInt64(0);
-                        var utc = new UnixTimeUtc(t);
-                        return (totalCount, poppedCount, utc);
-                    }
-
+                    Int64 t = rdr.GetInt64(0);
+                    var utc = new UnixTimeUtc(t);
+                    return (totalCount, poppedCount, utc);
                 }
             }
         }
@@ -359,7 +454,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 // Make sure we only prep once 
                 if (_popSpecificBoxCommand == null)
                 {
-                    _popSpecificBoxCommand = _database.CreateCommand(conn);
+                    _popSpecificBoxCommand = _database.CreateCommand();
                     _popSpecificBoxCommand.CommandText =
                         "UPDATE outbox SET checkOutStamp=$checkOutStamp "+
                         "WHERE (checkOutStamp is NULL) AND "+
@@ -416,7 +511,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 // Make sure we only prep once 
                 if (_popCommitListCommand == null)
                 {
-                    _popCommitListCommand = _database.CreateCommand(conn);
+                    _popCommitListCommand = _database.CreateCommand();
                     _popCommitListCommand.CommandText = "DELETE FROM outbox WHERE fileid=$fileid AND checkOutStamp=$checkOutStamp";
 
                     _pcommitlistparam1 = _popCommitListCommand.CreateParameter();

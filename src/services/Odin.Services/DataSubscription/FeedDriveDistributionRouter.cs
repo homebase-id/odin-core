@@ -9,7 +9,6 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
@@ -85,7 +84,7 @@ namespace Odin.Services.DataSubscription
         {
             var serverFileHeader = notification.ServerFileHeader;
             var odinContext = notification.OdinContext;
-            if (await ShouldDistribute(serverFileHeader, notification.DatabaseConnection))
+            if (await ShouldDistribute(serverFileHeader))
             {
                 if (odinContext.Caller.IsOwner)
                 {
@@ -144,14 +143,14 @@ namespace Odin.Services.DataSubscription
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(notification.OdinContext);
             {
-                await EnqueueFollowers(notification, item, newContext, notification.DatabaseConnection);
+                await EnqueueFollowers(notification, item, newContext);
                 EnqueueCronJob();
             }
         }
 
-        private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item, IOdinContext odinContext)
         {
-            var recipients = await GetFollowers(notification.File.DriveId, odinContext, cn);
+            var recipients = await GetFollowers(notification.File.DriveId, odinContext);
             if (!recipients.Any())
             {
                 return;
@@ -159,11 +158,11 @@ namespace Odin.Services.DataSubscription
 
             foreach (var recipient in recipients)
             {
-                AddToFeedOutbox(recipient, item, cn);
+                AddToFeedOutbox(recipient, item);
             }
         }
 
-        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader, DatabaseConnection cn)
+        private async Task<bool> ShouldDistribute(ServerFileHeader serverFileHeader)
         {
             //if the file was received from another identity, do not redistribute
             var sender = serverFileHeader?.FileMetadata?.SenderOdinId;
@@ -189,7 +188,7 @@ namespace Odin.Services.DataSubscription
                 return false;
             }
 
-            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId, cn))
+            if (!await SupportsSubscription(serverFileHeader.FileMetadata!.File.DriveId))
             {
                 return false;
             }
@@ -197,7 +196,7 @@ namespace Odin.Services.DataSubscription
             return true;
         }
 
-        public async Task DistributeQueuedMetadataItems(IOdinContext odinContext, DatabaseConnection cn)
+        public async Task DistributeQueuedMetadataItems(IOdinContext odinContext)
         {
             async Task<(FeedDistributionOutboxRecord record, bool success)> HandleFileUpdates(FeedDistributionOutboxRecord record)
             {
@@ -212,8 +211,7 @@ namespace Odin.Services.DataSubscription
                         },
                         distroItem.FileSystemType,
                         recipient,
-                        odinContext,
-                        cn);
+                        odinContext);
 
                     return (record, success);
                 }
@@ -227,8 +225,7 @@ namespace Odin.Services.DataSubscription
                         },
                         distroItem.FileSystemType,
                         recipient,
-                        odinContext,
-                        cn);
+                        odinContext);
                     return (record, success);
                 }
 
@@ -237,17 +234,17 @@ namespace Odin.Services.DataSubscription
                 return (record, false);
             }
 
-            var batch = _tenantSystemStorage.Feedbox.Pop(cn, _odinConfiguration.Feed.DistributionBatchSize);
+            var batch = _tenantSystemStorage.Feedbox.Pop(_odinConfiguration.Feed.DistributionBatchSize);
             var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(HandleFileUpdates));
             await Task.WhenAll(tasks);
 
             var successes = tasks.Where(t => t.Result.success)
                 .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
-            successes.ForEach(ps => _tenantSystemStorage.Feedbox.PopCommitAll(cn, ps));
+            successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
 
             var failures = tasks.Where(t => !t.Result.success)
                 .Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
-            failures.ForEach(ps => _tenantSystemStorage.Feedbox.PopCancelAll(cn, ps));
+            failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 
         /// <summary>
@@ -258,39 +255,38 @@ namespace Odin.Services.DataSubscription
         {
             var file = notification.File;
             var odinContext = notification.OdinContext;
-            var followers = await GetFollowers(notification.File.DriveId, odinContext, notification.DatabaseConnection);
+            var followers = await GetFollowers(notification.File.DriveId, odinContext);
             if (!followers.Any())
             {
                 return;
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext, notification.DatabaseConnection);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(SystemCircleConstants.ConnectedIdentitiesSystemCircleId, odinContext);
             var connectedFollowers = followers.Intersect(connectedIdentities)
                 .Where(cf => _driveAcl.IdentityHasPermission(
                         (OdinId)cf.DomainName,
                         notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                        odinContext,
-                        notification.DatabaseConnection)
+                        odinContext)
                     .GetAwaiter().GetResult()).ToList();
 
             if (connectedFollowers.Any())
             {
-                var fs = await _fileSystemResolver.ResolveFileSystem(file, odinContext, notification.DatabaseConnection);
-                var header = await fs.Storage.GetServerFileHeader(file, odinContext, notification.DatabaseConnection);
+                var fs = await _fileSystemResolver.ResolveFileSystem(file, odinContext);
+                var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
                 if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
                 {
-                    await DeleteFileOverTransit(header, connectedFollowers, odinContext, notification.DatabaseConnection);
+                    await DeleteFileOverTransit(header, connectedFollowers, odinContext);
                 }
 
-                await SendFileOverTransit(header, connectedFollowers, odinContext, notification.DatabaseConnection);
+                await SendFileOverTransit(header, connectedFollowers, odinContext);
             }
 
             // return followers.Except(connectedFollowers).ToList();
         }
 
-        private async Task<List<OdinId>> GetFollowers(Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<List<OdinId>> GetFollowers(Guid driveId, IOdinContext odinContext)
         {
             int maxRecords = 100000; //TODO: cursor thru batches instead
 
@@ -298,8 +294,8 @@ namespace Odin.Services.DataSubscription
             // Get followers for this drive and merge with followers who want everything
             //
             var td = odinContext.PermissionsContext.GetTargetDrive(driveId);
-            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "", odinContext, cn);
-            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "", odinContext, cn);
+            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "", odinContext);
+            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "", odinContext);
 
             var recipients = new List<OdinId>();
             recipients.AddRange(driveFollowers.Results);
@@ -308,7 +304,7 @@ namespace Odin.Services.DataSubscription
             return recipients;
         }
 
-        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext)
         {
             var file = header.FileMetadata.File;
 
@@ -327,8 +323,7 @@ namespace Odin.Services.DataSubscription
                 transitOptions,
                 TransferFileType.Normal,
                 header.ServerMetadata.FileSystemType,
-                odinContext,
-                cn);
+                odinContext);
 
             //Log warnings if, for some reason, transit does not create transfer keys
             foreach (var recipient in recipients)
@@ -351,7 +346,7 @@ namespace Odin.Services.DataSubscription
             }
         }
 
-        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext)
         {
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
@@ -368,8 +363,7 @@ namespace Odin.Services.DataSubscription
                         TransferFileType = TransferFileType.Normal,
                     },
                     recipients.Select(r => r.DomainName).ToList(),
-                    odinContext,
-                    cn);
+                    odinContext);
 
                 //TODO: how to handle map?
 
@@ -394,15 +388,15 @@ namespace Odin.Services.DataSubscription
                 UnixTimeUtc.Now());
         }
 
-        private async Task<bool> SupportsSubscription(Guid driveId, DatabaseConnection cn)
+        private async Task<bool> SupportsSubscription(Guid driveId)
         {
-            var drive = await _driveManager.GetDrive(driveId, cn);
+            var drive = await _driveManager.GetDrive(driveId);
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 
-        private void AddToFeedOutbox(OdinId recipient, ReactionPreviewDistributionItem item, DatabaseConnection cn)
+        private void AddToFeedOutbox(OdinId recipient, ReactionPreviewDistributionItem item)
         {
-            _tenantSystemStorage.Feedbox.Upsert(cn, new()
+            _tenantSystemStorage.Feedbox.Upsert(new()
             {
                 recipient = recipient,
                 fileId = item.SourceFile.FileId,

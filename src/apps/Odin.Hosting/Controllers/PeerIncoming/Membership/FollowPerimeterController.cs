@@ -9,7 +9,6 @@ using Odin.Services.Peer;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
@@ -21,14 +20,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary />
-        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService, TenantSystemStorage tenantSystemStorage)
+        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService)
         {
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _followerPerimeterService = followerPerimeterService;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary />
@@ -38,8 +35,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(payload, nameof(payload));
             OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
 
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload, WebOdinContext, cn);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload, WebOdinContext);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
@@ -50,7 +46,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsValidOdinId(request.OdinId, out _);
 
-            await _followerPerimeterService.AcceptFollower(request, WebOdinContext, cn);
+            await _followerPerimeterService.AcceptFollower(request, WebOdinContext);
 
             return Ok();
         }
@@ -59,8 +55,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext, cn);
+            await _followerPerimeterService.AcceptUnfollowRequest(WebOdinContext);
             return Ok();
         }
     }

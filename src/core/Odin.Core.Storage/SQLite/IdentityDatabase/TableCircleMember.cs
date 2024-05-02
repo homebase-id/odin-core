@@ -13,9 +13,15 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         {
         }
 
-        public new virtual List<CircleMemberRecord> GetCircleMembers(DatabaseConnection conn, Guid circleId)
+        public override void Dispose()
         {
-            var r = base.GetCircleMembers(conn, circleId);
+            base.Dispose();
+        }
+
+
+        public new virtual List<CircleMemberRecord> GetCircleMembers(Guid circleId)
+        {
+            var r = base.GetCircleMembers(circleId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
@@ -31,9 +37,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(DatabaseConnection conn, Guid memberId)
+        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
         {
-            var r = base.GetMemberCirclesAndData(conn, memberId);
+            var r = base.GetMemberCirclesAndData(memberId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
@@ -48,16 +54,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="CircleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void UpsertCircleMembers(DatabaseConnection conn, List<CircleMemberRecord> CircleMemberRecordList)
+        public void UpsertCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
         {
             if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            conn.CreateCommitUnitOfWork(() =>
-            {
+            using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < CircleMemberRecordList.Count; i++)
-                    Upsert(conn, CircleMemberRecordList[i]);
-            });
+                    Upsert(CircleMemberRecordList[i]);
         }
 
 
@@ -67,16 +71,14 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void RemoveCircleMembers(DatabaseConnection conn, Guid circleId, List<Guid> members)
+        public void RemoveCircleMembers(Guid circleId, List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            conn.CreateCommitUnitOfWork(() =>
-            {
+            using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < members.Count; i++)
-                    Delete(conn, circleId, members[i]);
-            });
+                    Delete(circleId, members[i]);
         }
 
 
@@ -85,21 +87,21 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="members"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteMembersFromAllCircles(DatabaseConnection conn, List<Guid> members)
+        public void DeleteMembersFromAllCircles(List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            conn.CreateCommitUnitOfWork(() =>
+            using (_database.CreateCommitUnitOfWork())
             {
                 for (int i = 0; i < members.Count; i++)
                 {
-                    var circles = GetMemberCirclesAndData(conn, members[i]);
+                    var circles = GetMemberCirclesAndData(members[i]);
 
                     for (int j = 0; j < circles.Count; j++)
-                        Delete(conn, circles[j].circleId, members[i]);
+                        Delete(circles[j].circleId, members[i]);
                 }
-            });
+            }
         }
     }
 }

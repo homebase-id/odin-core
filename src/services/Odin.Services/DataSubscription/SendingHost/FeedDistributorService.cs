@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -22,10 +21,10 @@ namespace Odin.Services.DataSubscription.SendingHost
         IDriveAclAuthorizationService driveAcl,
         OdinConfiguration odinConfiguration)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext, cn);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext, cn);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)
             {
@@ -34,7 +33,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext, cn);
+                header.ServerMetadata.AccessControlList,odinContext);
 
             if (!authorized)
             {
@@ -71,10 +70,10 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext, cn);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext, cn);
+            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext);
+            var header = await fs.Storage.GetServerFileHeader(file,odinContext);
 
             if (null == header)
             {
@@ -83,7 +82,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext, cn);
+                header.ServerMetadata.AccessControlList,odinContext);
 
             if (!authorized)
             {

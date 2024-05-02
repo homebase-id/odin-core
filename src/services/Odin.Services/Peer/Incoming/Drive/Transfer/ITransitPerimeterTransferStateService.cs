@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -16,7 +15,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Creates a tracker for an coming file
         /// </summary>
-        Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext, DatabaseConnection cn);
+        Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext);
 
         /// <summary>
         /// Gets a state item used to hold incoming transfers
@@ -25,7 +24,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <returns></returns>
         Task<IncomingTransferStateItem> GetStateItem(Guid id);
 
-        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext, DatabaseConnection cn);
+        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext);
 
         Task RemoveStateItem(Guid transferStateItemId);
     }

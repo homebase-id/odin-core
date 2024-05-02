@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -16,17 +15,13 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Specialized
 {
-    public abstract class DriveQueryByUniqueIdControllerBase(
-        FileSystemResolver fileSystemResolver,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
-        TenantSystemStorage tenantSystemStorage)
+    public abstract class DriveQueryByUniqueIdControllerBase(FileSystemResolver fileSystemResolver, IPeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(fileSystemResolver, peerOutgoingTransferService)
     {
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (result == null)
             {
                 return NotFound();
@@ -41,8 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
-            using var cn = tenantSystemStorage.CreateConnection();
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
             {
                 return NotFound();
@@ -62,8 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                     },
                     Key = key,
                     Chunk = chunk
-                },
-                cn);
+                });
         }
 
         [HttpGet("thumb")]
@@ -72,8 +65,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type, cn);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
             if (null == header)
             {
                 return NotFound();
@@ -93,11 +85,10 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 Width = width,
                 Height = height,
                 PayloadKey = payloadKey
-            },
-                cn);
+            });
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type, DatabaseConnection cn)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
 
@@ -107,7 +98,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 Type = type
             });
 
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext, cn: cn);
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
             return result;
         }
     }

@@ -43,6 +43,39 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableDriveAclIndexCRUD : TableBase
     {
         private bool _disposed = false;
+        private SqliteCommand _insertCommand = null;
+        private static Object _insertLock = new Object();
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteCommand _updateCommand = null;
+        private static Object _updateLock = new Object();
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteCommand _upsertCommand = null;
+        private static Object _upsertLock = new Object();
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteParameter _delete0Param3 = null;
+        private SqliteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SqliteParameter _delete1Param1 = null;
+        private SqliteParameter _delete1Param2 = null;
+        private SqliteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SqliteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param2 = null;
+        private SqliteParameter _get0Param3 = null;
+        private SqliteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SqliteParameter _get1Param1 = null;
+        private SqliteParameter _get1Param2 = null;
 
         public TableDriveAclIndexCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -55,20 +88,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+            _updateCommand?.Dispose();
+            _updateCommand = null;
+            _upsertCommand?.Dispose();
+            _upsertCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
-            GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+            using (var cmd = _database.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS driveAclIndex;";
-                       conn.ExecuteNonQuery(cmd);
-                    }
-                    cmd.CommandText =
+                    cmd.CommandText = "DROP TABLE IF EXISTS driveAclIndex;";
+                    _database.ExecuteNonQuery(cmd);
+                }
+                cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveAclIndex("
                      +"driveId BLOB NOT NULL, "
                      +"fileId BLOB NOT NULL, "
@@ -77,110 +123,102 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(driveId,aclMemberId);"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, DriveAclIndexRecord item)
+        public virtual int Insert(DriveAclIndexRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
+            lock (_insertLock)
+            {
+                if (_insertCommand == null)
                 {
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = "INSERT INTO driveAclIndex (driveId,fileId,aclMemberId) " +
                                                  "VALUES ($driveId,$fileId,$aclMemberId)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$driveId";
+                    _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$fileId";
+                    _insertParam1.ParameterName = "$driveId";
+                    _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$aclMemberId";
+                    _insertParam2.ParameterName = "$fileId";
+                    _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
+                    _insertParam3.ParameterName = "$aclMemberId";
+                    _insertCommand.Prepare();
+                }
                 _insertParam1.Value = item.driveId.ToByteArray();
                 _insertParam2.Value = item.fileId.ToByteArray();
                 _insertParam3.Value = item.aclMemberId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                  }
                 return count;
-                } // Using
+            } // Lock
         }
 
-        public virtual int Upsert(DatabaseConnection conn, DriveAclIndexRecord item)
+        public virtual int Upsert(DriveAclIndexRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
+            lock (_upsertLock)
+            {
+                if (_upsertCommand == null)
                 {
+                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO driveAclIndex (driveId,fileId,aclMemberId) " +
                                                  "VALUES ($driveId,$fileId,$aclMemberId)"+
                                                  "ON CONFLICT (driveId,fileId,aclMemberId) DO UPDATE "+
                                                  "SET  "+
                                                  ";";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$driveId";
+                    _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$fileId";
+                    _upsertParam1.ParameterName = "$driveId";
+                    _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$aclMemberId";
+                    _upsertParam2.ParameterName = "$fileId";
+                    _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
+                    _upsertParam3.ParameterName = "$aclMemberId";
+                    _upsertCommand.Prepare();
+                }
                 _upsertParam1.Value = item.driveId.ToByteArray();
                 _upsertParam2.Value = item.fileId.ToByteArray();
                 _upsertParam3.Value = item.aclMemberId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
-                } // Using
+            } // Lock
         }
-        public virtual int Update(DatabaseConnection conn, DriveAclIndexRecord item)
+        public virtual int Update(DriveAclIndexRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
+            lock (_updateLock)
+            {
+                if (_updateCommand == null)
                 {
+                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE driveAclIndex " +
                                                  "SET  "+
                                                  "WHERE (driveId = $driveId,fileId = $fileId,aclMemberId = $aclMemberId)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$driveId";
+                    _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$fileId";
+                    _updateParam1.ParameterName = "$driveId";
+                    _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$aclMemberId";
+                    _updateParam2.ParameterName = "$fileId";
+                    _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
+                    _updateParam3.ParameterName = "$aclMemberId";
+                    _updateCommand.Prepare();
+                }
                 _updateParam1.Value = item.driveId.ToByteArray();
                 _updateParam2.Value = item.fileId.ToByteArray();
                 _updateParam3.Value = item.aclMemberId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                 }
                 return count;
-                } // Using
-        }
-
-        public virtual int GetCount(DatabaseConnection conn)
-        {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
-        }
-
-        public virtual int GetDriveCount(DatabaseConnection conn, Guid driveId)
-        {
-                using (var _getCountDriveCommand = _database.CreateCommand())
-                {
-                    _getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveAclIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
-                    var _getCountDriveParam1 = _getCountDriveCommand.CreateParameter();
-                    _getCountDriveParam1.ParameterName = "$driveId";
-                    _getCountDriveCommand.Parameters.Add(_getCountDriveParam1);
-                    _getCountDriveParam1.Value = driveId.ToByteArray();
-                    var count = conn.ExecuteNonQuery(_getCountDriveCommand);
-                    return count;
-                } // using
+            } // Lock
         }
 
         // SELECT driveId,fileId,aclMemberId
@@ -226,48 +264,56 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, Guid driveId,Guid fileId,Guid aclMemberId)
+        public int Delete(Guid driveId,Guid fileId,Guid aclMemberId)
         {
-                using (var _delete0Command = _database.CreateCommand())
+            lock (_delete0Lock)
+            {
+                if (_delete0Command == null)
                 {
+                    _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM driveAclIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND aclMemberId = $aclMemberId";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$driveId";
+                    _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
-                    var _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Param2.ParameterName = "$fileId";
+                    _delete0Param1.ParameterName = "$driveId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param2);
-                    var _delete0Param3 = _delete0Command.CreateParameter();
-                    _delete0Param3.ParameterName = "$aclMemberId";
+                    _delete0Param2.ParameterName = "$fileId";
+                    _delete0Param3 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param3);
-
+                    _delete0Param3.ParameterName = "$aclMemberId";
+                    _delete0Command.Prepare();
+                }
                 _delete0Param1.Value = driveId.ToByteArray();
                 _delete0Param2.Value = fileId.ToByteArray();
                 _delete0Param3.Value = aclMemberId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
                 return count;
-                } // Using
+            } // Lock
         }
 
-        public int DeleteAllRows(DatabaseConnection conn, Guid driveId,Guid fileId)
+        public int DeleteAllRows(Guid driveId,Guid fileId)
         {
-                using (var _delete1Command = _database.CreateCommand())
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
                 {
+                    _delete1Command = _database.CreateCommand();
                     _delete1Command.CommandText = "DELETE FROM driveAclIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId";
-                    var _delete1Param1 = _delete1Command.CreateParameter();
-                    _delete1Param1.ParameterName = "$driveId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
                     _delete1Command.Parameters.Add(_delete1Param1);
-                    var _delete1Param2 = _delete1Command.CreateParameter();
-                    _delete1Param2.ParameterName = "$fileId";
+                    _delete1Param1.ParameterName = "$driveId";
+                    _delete1Param2 = _delete1Command.CreateParameter();
                     _delete1Command.Parameters.Add(_delete1Param2);
-
+                    _delete1Param2.ParameterName = "$fileId";
+                    _delete1Command.Prepare();
+                }
                 _delete1Param1.Value = driveId.ToByteArray();
                 _delete1Param2.Value = fileId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete1Command);
+                var count = _database.ExecuteNonQuery(_delete1Command);
                 return count;
-                } // Using
+            } // Lock
         }
 
         public DriveAclIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid driveId,Guid fileId,Guid aclMemberId)
@@ -285,28 +331,30 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public DriveAclIndexRecord Get(DatabaseConnection conn, Guid driveId,Guid fileId,Guid aclMemberId)
+        public DriveAclIndexRecord Get(Guid driveId,Guid fileId,Guid aclMemberId)
         {
-                using (var _get0Command = _database.CreateCommand())
+            lock (_get0Lock)
+            {
+                if (_get0Command == null)
                 {
+                    _get0Command = _database.CreateCommand();
                     _get0Command.CommandText = "SELECT driveId,fileId,aclMemberId FROM driveAclIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId AND aclMemberId = $aclMemberId LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$driveId";
+                    _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
-                    var _get0Param2 = _get0Command.CreateParameter();
-                    _get0Param2.ParameterName = "$fileId";
+                    _get0Param1.ParameterName = "$driveId";
+                    _get0Param2 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param2);
-                    var _get0Param3 = _get0Command.CreateParameter();
-                    _get0Param3.ParameterName = "$aclMemberId";
+                    _get0Param2.ParameterName = "$fileId";
+                    _get0Param3 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param3);
-
+                    _get0Param3.ParameterName = "$aclMemberId";
+                    _get0Command.Prepare();
+                }
                 _get0Param1.Value = driveId.ToByteArray();
                 _get0Param2.Value = fileId.ToByteArray();
                 _get0Param3.Value = aclMemberId.ToByteArray();
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -316,33 +364,33 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
-            } // using
         }
 
-        public List<Guid> Get(DatabaseConnection conn, Guid driveId,Guid fileId)
+        public List<Guid> Get(Guid driveId,Guid fileId)
         {
-                using (var _get1Command = _database.CreateCommand())
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
                 {
+                    _get1Command = _database.CreateCommand();
                     _get1Command.CommandText = "SELECT aclMemberId FROM driveAclIndex " +
                                                  "WHERE driveId = $driveId AND fileId = $fileId;";
-                    var _get1Param1 = _get1Command.CreateParameter();
-                    _get1Param1.ParameterName = "$driveId";
+                    _get1Param1 = _get1Command.CreateParameter();
                     _get1Command.Parameters.Add(_get1Param1);
-                    var _get1Param2 = _get1Command.CreateParameter();
-                    _get1Param2.ParameterName = "$fileId";
+                    _get1Param1.ParameterName = "$driveId";
+                    _get1Param2 = _get1Command.CreateParameter();
                     _get1Command.Parameters.Add(_get1Param2);
-
+                    _get1Param2.ParameterName = "$fileId";
+                    _get1Command.Prepare();
+                }
                 _get1Param1.Value = driveId.ToByteArray();
                 _get1Param2.Value = fileId.ToByteArray();
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     Guid result0tmp;
                     var thelistresult = new List<Guid>();
-                    if (!rdr.Read()) {
+                    if (!rdr.Read())
                         return null;
-                    }
                     byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
                     long bytesRead;
@@ -367,7 +415,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return thelistresult;
                 } // using
             } // lock
-            } // using
         }
 
     }

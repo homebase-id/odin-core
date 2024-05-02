@@ -2,7 +2,6 @@
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.Base.Notifications;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
 {
@@ -11,9 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     [AuthorizeValidOwnerToken]
     public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
-        public OwnerNotificationListDataListController(
-            NotificationListService notificationService,
-            TenantSystemStorage tenantSystemStorage) : base(notificationService, tenantSystemStorage)
+        public OwnerNotificationListDataListController(NotificationListService notificationService ) : base(notificationService)
         {
         }
     }
