@@ -266,11 +266,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
             UpsertPendingConnectionRequest(request, cn);
 
-            await _mediator.Publish(new ConnectionRequestReceived()
+            await _mediator.Publish(new ConnectionRequestReceived
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
 
             await Task.CompletedTask;
@@ -465,11 +466,12 @@ namespace Odin.Services.Membership.Connections.Requests
             await this.DeleteSentRequestInternal(recipient, cn);
             await this.DeletePendingRequestInternal(recipient, cn);
 
-            await _mediator.Publish(new ConnectionRequestAccepted()
+            await _mediator.Publish(new ConnectionRequestAccepted
             {
                 Sender = (OdinId)originalRequest.SenderOdinId,
                 Recipient = recipient,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
         }
 

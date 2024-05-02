@@ -138,11 +138,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 if (await ShouldRaiseDriveEvent(targetFile, cn))
                 {
-                    await mediator.Publish(new DriveFileChangedNotification()
+                    await mediator.Publish(new DriveFileChangedNotification
                     {
                         File = targetFile,
                         ServerFileHeader = header,
-                        OdinContext = odinContext
+                        OdinContext = odinContext,
+                        DatabaseConnection = cn
                     });
                 }
             }
@@ -178,11 +179,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 if (await ShouldRaiseDriveEvent(targetFile, cn))
                 {
-                    await mediator.Publish(new DriveFileAddedNotification()
+                    await mediator.Publish(new DriveFileAddedNotification
                     {
                         File = targetFile,
                         ServerFileHeader = header,
-                        OdinContext = odinContext
+                        OdinContext = odinContext,
+                        DatabaseConnection = cn
                     });
                 }
             }
@@ -455,13 +457,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(file, cn))
             {
-                await mediator.Publish(new DriveFileDeletedNotification()
+                await mediator.Publish(new DriveFileDeletedNotification
                 {
                     IsHardDelete = true,
                     File = file,
                     ServerFileHeader = null,
                     SharedSecretEncryptedFileHeader = null,
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -512,11 +515,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new DriveFileAddedNotification()
+                await mediator.Publish(new DriveFileAddedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -604,11 +608,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = serverHeader,
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -675,11 +680,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
 
@@ -723,11 +729,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new DriveFileChangedNotification()
+                await mediator.Publish(new DriveFileChangedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -748,12 +755,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new ReactionPreviewUpdatedNotification()
+                await mediator.Publish(new ReactionPreviewUpdatedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
                     SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -853,12 +861,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(targetFile, cn))
             {
-                await mediator.Publish(new ReactionPreviewUpdatedNotification()
+                await mediator.Publish(new ReactionPreviewUpdatedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
                     SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }
@@ -949,14 +958,15 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await ShouldRaiseDriveEvent(file, cn))
             {
-                await mediator.Publish(new DriveFileDeletedNotification()
+                await mediator.Publish(new DriveFileDeletedNotification
                 {
                     PreviousServerFileHeader = existingHeader,
                     IsHardDelete = false,
                     File = file,
                     ServerFileHeader = deletedServerFileHeader,
                     SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(deletedServerFileHeader, odinContext),
-                    OdinContext = odinContext
+                    OdinContext = odinContext,
+                    DatabaseConnection = cn
                 });
             }
         }

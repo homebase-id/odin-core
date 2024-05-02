@@ -80,10 +80,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext, cn);
                     await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, cn, raiseEvent: true);
 
-                    await mediator.Publish(new NewFeedItemReceived()
+                    await mediator.Publish(new NewFeedItemReceived
                     {
                         Sender = odinContext.GetCallerOdinIdOrFail(),
-                        OdinContext = newContext
+                        OdinContext = newContext,
+                        DatabaseConnection = cn
                     });
                 }
                 else

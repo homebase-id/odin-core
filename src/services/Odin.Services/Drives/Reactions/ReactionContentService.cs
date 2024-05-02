@@ -38,7 +38,7 @@ public class ReactionContentService
         {
             manager.AddReaction(callerId, file.FileId, reactionContent, cn);
 
-            await _mediator.Publish(new ReactionContentAddedNotification()
+            await _mediator.Publish(new ReactionContentAddedNotification
             {
                 Reaction = new Reaction()
                 {
@@ -47,7 +47,8 @@ public class ReactionContentService
                     ReactionContent = reactionContent,
                     FileId = file
                 },
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
         }
     }
@@ -62,7 +63,7 @@ public class ReactionContentService
         {
             manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent, cn);
 
-            await _mediator.Publish(new ReactionDeletedNotification()
+            await _mediator.Publish(new ReactionDeletedNotification
             {
                 Reaction = new Reaction()
                 {
@@ -71,7 +72,8 @@ public class ReactionContentService
                     ReactionContent = reactionContent,
                     FileId = file
                 },
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
         }
     }
@@ -119,10 +121,11 @@ public class ReactionContentService
         {
             manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId, cn);
 
-            await _mediator.Publish(new AllReactionsByFileDeleted()
+            await _mediator.Publish(new AllReactionsByFileDeleted
             {
                 FileId = file,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
         }
     }

@@ -84,10 +84,11 @@ namespace Odin.Services.DataSubscription.Follower
                 return Task.CompletedTask;
             }
 
-            _mediator.Publish(new NewFollowerNotification()
+            _mediator.Publish(new NewFollowerNotification
             {
                 Sender = (OdinId)request.OdinId,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
 
             return Task.CompletedTask;

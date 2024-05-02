@@ -73,11 +73,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     //Note: we say new feed item here because comments are never pushed into the feed drive; so any
                     //item going into the feed is new content (i.e. post/image, etc.)
-                    await _mediator.Publish(new NewFeedItemReceived()
+                    await _mediator.Publish(new NewFeedItemReceived
                     {
                         FileSystemType = item.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
-                        OdinContext = odinContext
+                        OdinContext = odinContext,
+                        DatabaseConnection = cn
                     });
                 }
                 else

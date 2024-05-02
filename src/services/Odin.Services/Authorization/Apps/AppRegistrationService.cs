@@ -461,13 +461,12 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration, IOdinContext odinContext, DatabaseConnection cn)
         {
-            await _mediator.Publish(new AppRegistrationChangedNotification()
+            await _mediator.Publish(new AppRegistrationChangedNotification
             {
                 OldAppRegistration = oldAppRegistration,
                 NewAppRegistration = newAppRegistration,
                 OdinContext = odinContext,
                 DatabaseConnection = cn
-
             });
         }
 

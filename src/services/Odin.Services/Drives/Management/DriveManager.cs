@@ -114,11 +114,12 @@ public class DriveManager
             Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
-        await _mediator.Publish(new DriveDefinitionAddedNotification()
+        await _mediator.Publish(new DriveDefinitionAddedNotification
         {
             IsNewDrive = true,
             Drive = storageDrive,
-            OdinContext = odinContext
+            OdinContext = odinContext,
+            DatabaseConnection = cn
         });
 
         return storageDrive;
@@ -148,11 +149,12 @@ public class DriveManager
 
             CacheDrive(storageDrive);
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification()
+            await _mediator.Publish(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
                 Drive = storageDrive,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
         }
     }
