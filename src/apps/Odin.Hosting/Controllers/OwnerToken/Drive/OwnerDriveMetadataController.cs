@@ -46,7 +46,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads,
-                    OwnerOnly = drive.OwnerOnly
+                    OwnerOnly = drive.OwnerOnly,
+                    Attributes = drive.Attributes
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

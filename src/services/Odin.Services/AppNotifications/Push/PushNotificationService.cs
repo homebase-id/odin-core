@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -159,7 +160,7 @@ public class PushNotificationService(
         {
             if (string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
             {
-                tasks.Add(WebPush(subscription, keys, content));
+                tasks.Add(WebPush(subscription, keys, content, odinContext, cn));
             }
             else
             {
@@ -173,7 +174,7 @@ public class PushNotificationService(
         await Task.WhenAll(tasks);
     }
 
-    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content)
+    private async Task WebPush(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content, IOdinContext odinContext, DatabaseConnection cn)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
 
@@ -190,9 +191,19 @@ public class PushNotificationService(
         }
         catch (WebPushException exception)
         {
-            logger.LogError(exception,"Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
+            if (exception.Message.StartsWith("Subscription no longer valid", true, CultureInfo.InvariantCulture))
+            {
+                await RemoveDevice(subscription.AccessRegistrationId, odinContext, cn);
+                logger.LogInformation("Received WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                    exception.Message, subscription.AccessRegistrationId);
+
+                return;
+            }
+
+            logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}", exception,
                 exception.HttpResponseMessage.StatusCode,
                 exception.HttpResponseMessage.Content);
+
             return;
 
             //TODO: collect all errors and send back to client or do something with it
@@ -202,7 +213,7 @@ public class PushNotificationService(
             logger.LogError(e, "Failed to send web push notification");
             return;
         }
-        
+
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
 
     }

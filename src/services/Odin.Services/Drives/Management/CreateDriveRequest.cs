@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Odin.Services.Drives.Management;
 
 public class CreateDriveRequest
@@ -9,4 +11,6 @@ public class CreateDriveRequest
     
     public bool AllowSubscriptions { get; set; }
     public bool OwnerOnly { get; set; }
+    
+    public Dictionary<string,string> Attributes { get; set; }
 }

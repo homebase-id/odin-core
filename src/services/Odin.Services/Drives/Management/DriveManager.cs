@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.AspNetCore.WebUtilities;
 using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -100,7 +101,8 @@ public class DriveManager
                 EncryptedIdValue = encryptedIdValue,
                 AllowAnonymousReads = request.AllowAnonymousReads,
                 AllowSubscriptions = request.AllowSubscriptions,
-                OwnerOnly = request.OwnerOnly
+                OwnerOnly = request.OwnerOnly,
+                Attributes = request.Attributes
             };
 
             storageKey.Wipe();
@@ -166,6 +168,18 @@ public class DriveManager
 
         var sdb = _driveStorage.Get<StorageDriveBase>(cn, driveId);
         sdb.Metadata = metadata;
+
+        _driveStorage.Upsert(cn, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+
+        CacheDrive(ToStorageDrive(sdb));
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAttributes(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext, DatabaseConnection cn)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        var sdb = _driveStorage.Get<StorageDriveBase>(cn, driveId);
+        sdb.Attributes = attributes;
 
         _driveStorage.Upsert(cn, driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 

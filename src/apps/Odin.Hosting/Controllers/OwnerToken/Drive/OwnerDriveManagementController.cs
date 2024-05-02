@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
@@ -42,7 +43,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads,
-                    OwnerOnly = drive.OwnerOnly
+                    OwnerOnly = drive.OwnerOnly,
+                    Attributes = drive.Attributes
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -67,7 +69,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await _driveManager.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext, cn);
             return true;
         }
-
+        
+        [HttpPost("UpdateAttributes")]
+        public async Task<bool> UpdateDriveAttributes([FromBody] UpdateDriveDefinitionRequest request)
+        {
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, cn, true);
+            await _driveManager.UpdateAttributes(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext, cn);
+            return true;
+        }
+        
         [HttpPost("setdrivereadmode")]
         public async Task<IActionResult> SetDriveReadMode([FromBody] UpdateDriveReadModeRequest request)
         {
@@ -91,7 +102,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     TargetDriveInfo = drive.TargetDriveInfo,
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads
+                    AllowAnonymousReads = drive.AllowAnonymousReads,
+                    OwnerOnly = drive.OwnerOnly,
+                    Attributes = drive.Attributes
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -104,6 +117,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public TargetDrive TargetDrive { get; set; }
 
         public string Metadata { get; set; }
+        
+        public Dictionary<string,string> Attributes { get; set; }
     }
 
     public class UpdateDriveReadModeRequest
