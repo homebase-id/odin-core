@@ -84,18 +84,15 @@ namespace Odin.Attestation.Controllers
                 return BadRequest("Invalid attestationIdBase64");
             }
 
-            using (var conn = _db.CreateDisposableConnection())
+            var r = _db.tblAttestationStatus.Get(attestationId);
+            if (r == null)
             {
-                var r = _db.tblAttestationStatus.Get(conn, attestationId);
-                if (r == null)
-                {
-                    return NotFound("No such attestationId found.");
-                }
-
-                var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
-
-                return Ok(JsonSerializer.Serialize(result, options));
+                return NotFound("No such attestationId found.");
             }
+
+            var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
+
+            return Ok(JsonSerializer.Serialize(result, options));
         }
 
         /// <summary>
@@ -138,23 +135,20 @@ namespace Odin.Attestation.Controllers
             //
             var r = new AttestationRequestRecord() { attestationId = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 
-            using (var conn = _db.CreateDisposableConnection())
+            try
             {
-                try
-                {
-                    if (_db.tblAttestationRequest.Upsert(conn, r) < 1)
-                        return BadRequest($"Had trouble upserting row into database, try again");
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest($"There was an error: {ex.Message}");
-                }
-
-                await Task.Delay(0); // Only to not get into async hell.
-
-                // This means the request has been successfully registered
-                return Ok("");
+                if (_db.tblAttestationRequest.Upsert(r) < 1)
+                    return BadRequest($"Had trouble upserting row into database, try again");
             }
+            catch (Exception  ex)
+            {
+                return BadRequest($"There was an error: {ex.Message}");
+            }
+
+            await Task.Delay(0); // Only to not get into async hell.
+
+            // This means the request has been successfully registered
+            return Ok("");
         }
     }
 }

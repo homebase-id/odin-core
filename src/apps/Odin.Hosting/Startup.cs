@@ -50,8 +50,6 @@ namespace Odin.Hosting
 {
     public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
-        private readonly IEnumerable<string> _args = args;
-
         public void ConfigureServices(IServiceCollection services)
         {
             var config = new OdinConfiguration(configuration);
@@ -453,6 +451,24 @@ namespace Odin.Hosting
                 var services = app.ApplicationServices;
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+
+                // SEB:TODO delete this when all outboxes are recreated
+                if (args.Contains("--recreate-outbox-table"))
+                {
+                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
+                    var identities = registry.GetList().Result;
+                    foreach (var identity in identities.Results)
+                    {
+                        var tenantScope = tenantContainer.GetTenantScope(identity.PrimaryDomainName);
+                        var storage = tenantScope.Resolve<TenantSystemStorage>();
+                        if (storage == null)
+                        {
+                            throw new OdinSystemException("Could not resolve TenantSystemStorage");
+                        }
+                        logger.LogWarning("Updating tblOutbox on {identity}", identity.PrimaryDomainName);
+                        storage.IdentityDatabase.tblOutbox.EnsureTableExists(true);
+                    }
+                }
 
                 if (config.Job.Enabled)
                 {

@@ -24,6 +24,7 @@ public sealed class MultiTenantContainer : IContainer
     // This dictionary keeps track of all of the tenant scopes that we have created
     private readonly ConcurrentDictionary<string, Lazy<ILifetimeScope>> _tenantLifetimeScopes = new();
 
+    private const string MultiTenantTag = "multitenantcontainer";
     private bool _disposed;
 
     public MultiTenantContainer(
@@ -119,7 +120,7 @@ public sealed class MultiTenantContainer : IContainer
 
             // Configure a new lifetime scope for the tenant
             var lifetimeScope = _applicationContainer.BeginLifetimeScope(
-                tenantId,
+                MultiTenantTag,
                 cb => _tenantServiceConfiguration(cb, tenant));
 
             _tenantInitialization(lifetimeScope, tenant);

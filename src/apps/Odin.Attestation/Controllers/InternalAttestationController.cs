@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Util;
 
@@ -42,23 +41,21 @@ namespace Odin.Attestation.Controllers
         /// <returns></returns>
         private ActionResult DeleteRequest(string nonceBase64)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            try
             {
-                try
-                {
-                    var n = _db.tblAttestationRequest.Delete(conn, nonceBase64);
+                var n = _db.tblAttestationRequest.Delete(nonceBase64);
 
-                    if (n < 1)
-                        return BadRequest($"No such record found");
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest($"Error deleting for identity {ex.Message}");
-                }
-
-                return Ok();
+                if (n < 1)
+                    return BadRequest($"No such record found");
             }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error deleting for identity {ex.Message}");
+            }
+
+            return Ok();
         }
+
 
         /// <summary>
         /// For administrative staff only. Call this function to delete a pending request from an identity.
@@ -88,24 +85,21 @@ namespace Odin.Attestation.Controllers
                 return BadRequest("Invalid attestationIdBase64");
             }
 
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = _db.tblAttestationStatus.Get(conn, attestationId);
+            var r = _db.tblAttestationStatus.Get(attestationId);
 
-                if (r == null)
-                    return NotFound();
+            if (r == null)
+                return NotFound();
 
-                if (r.status != 1)
-                    return Conflict();
+            if (r.status != 1)
+                return Conflict();
 
-                r.status = 0;
+            r.status = 0;
 
-                _db.tblAttestationStatus.Update(conn, r);
+            _db.tblAttestationStatus.Update(r);
 
-                await Task.Delay(1);
+            await Task.Delay(1);
 
-                return Ok();
-            }
+            return Ok();
         }
 
 
@@ -269,113 +263,106 @@ namespace Odin.Attestation.Controllers
         [HttpGet("ApproveRequest")]
         public ActionResult GetApproveRequest(string attestationIdBase64)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            //
+            // First get the request from the database
+            // 
+            var r = _db.tblAttestationRequest.Get(attestationIdBase64);
+
+            if (r == null)
+                return BadRequest("No such request present");
+
+            SignedEnvelope? requestEnvelope;
+            try
+            {
+                requestEnvelope = InstructionSignedEnvelope.VerifyInstructionEnvelope(r.requestEnvelope);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Irrecoverable error, unable to deserialize signed envelope {ex.Message}");
+            }
+
+            List<SignedEnvelope> attestationList;
+
+            try
+            {
+                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.AsciiDomain, requestEnvelope);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Unable to generate attestation list: {ex.Message}");
+            }
+
+            //
+            // This is the JSON array of JSON
+            //
+            var jsonList = attestationList.Select(item => item.GetCompactSortedJson()).ToList();
+            var jsonArray = JsonSerializer.Serialize(jsonList);
+
+            //
+            // Now call an identity endpoint to deliver the attested data (json array)
+            // In return we get a signature of the Envelope.contentNonce for each attestation provided
+            //
+            if (attestationList[0].Envelope.AdditionalInfo.TryGetValue("attestationId", out var valueObject) == false)
+                throw new Exception("attestationId not present in additionalInfo");
+
+            if (valueObject == null)
+                throw new Exception("attestationId null in additionalInfo");
+
+            string? attestationIdCopyBase64 = valueObject.ToString();
+
+            if (attestationIdCopyBase64 == null)
+                throw new Exception("attestationId conversion null in additionalInfo");
+
+            if (attestationIdCopyBase64 != attestationIdBase64)
+                throw new Exception("Impossible attestation id mismatch");
+
+            //
+            // Now we deliver the attestation records to the requestor.
+            //
+            // The goal here must be to have as much on the client code as possible, as little on the server
+            // as possible. So perhaps the owner client fetches the attested data. In that case all we need 
+            // do here is somehow tell the server that we have some data it can fetch. 
+            // It opens the question if we have a generic owner API for stuff like this, e.g. 
+            //    RaiseEvent(id, message)
+            // so in this example, it might be RaiseEvent(attestationId, "Your attestations are ready to be delivered")
+            // Alternately, I suppose we could deliver them:
+            //    RaiseEvent(id, message, data), i.e. RaiseEvent(attestationId, jsonList, "Here are your attestations.")
+            // (That's probably less of an event)
+
+            SimulateFrodo.DeliverAttestations(attestationIdBase64, jsonArray);
+
+            // 
+            // Now store it in the database
+            //
+
+            using (_db.CreateCommitUnitOfWork())
             {
                 //
-                // First get the request from the database
-                // 
-                var r = _db.tblAttestationRequest.Get(conn, attestationIdBase64);
-
-                if (r == null)
-                    return BadRequest("No such request present");
-
-                SignedEnvelope? requestEnvelope;
-                try
-                {
-                    requestEnvelope = InstructionSignedEnvelope.VerifyInstructionEnvelope(r.requestEnvelope);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest($"Irrecoverable error, unable to deserialize signed envelope {ex.Message}");
-                }
-
-                List<SignedEnvelope> attestationList;
-
-                try
-                {
-                    attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.AsciiDomain, requestEnvelope);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest($"Unable to generate attestation list: {ex.Message}");
-                }
-
-                //
-                // This is the JSON array of JSON
-                //
-                var jsonList = attestationList.Select(item => item.GetCompactSortedJson()).ToList();
-                var jsonArray = JsonSerializer.Serialize(jsonList);
-
-                //
-                // Now call an identity endpoint to deliver the attested data (json array)
-                // In return we get a signature of the Envelope.contentNonce for each attestation provided
-                //
-                if (attestationList[0].Envelope.AdditionalInfo.TryGetValue("attestationId", out var valueObject) == false)
-                    throw new Exception("attestationId not present in additionalInfo");
-
-                if (valueObject == null)
-                    throw new Exception("attestationId null in additionalInfo");
-
-                string? attestationIdCopyBase64 = valueObject.ToString();
-
-                if (attestationIdCopyBase64 == null)
-                    throw new Exception("attestationId conversion null in additionalInfo");
-
-                if (attestationIdCopyBase64 != attestationIdBase64)
-                    throw new Exception("Impossible attestation id mismatch");
-
-                //
-                // Now we deliver the attestation records to the requestor.
-                //
-                // The goal here must be to have as much on the client code as possible, as little on the server
-                // as possible. So perhaps the owner client fetches the attested data. In that case all we need 
-                // do here is somehow tell the server that we have some data it can fetch. 
-                // It opens the question if we have a generic owner API for stuff like this, e.g. 
-                //    RaiseEvent(id, message)
-                // so in this example, it might be RaiseEvent(attestationId, "Your attestations are ready to be delivered")
-                // Alternately, I suppose we could deliver them:
-                //    RaiseEvent(id, message, data), i.e. RaiseEvent(attestationId, jsonList, "Here are your attestations.")
-                // (That's probably less of an event)
-
-                SimulateFrodo.DeliverAttestations(attestationIdBase64, jsonArray);
-
-                // 
-                // Now store it in the database
+                // Now we are fully ready to insert the block chain records, we have all the data needed
                 //
 
-                conn.CreateCommitUnitOfWork(() => 
-                {
-                    //
-                    // Now we are fully ready to insert the block chain records, we have all the data needed
-                    //
+                var record = new AttestationStatusRecord() { attestationId = Convert.FromBase64String(attestationIdBase64), status = 1 };
+                _db.tblAttestationStatus.Insert(record);
 
-                    var record = new AttestationStatusRecord() { attestationId = Convert.FromBase64String(attestationIdBase64), status = 1 };
-                    _db.tblAttestationStatus.Insert(conn, record);
-
-                    //
-                    // Finally, delete the pending request
-                    //
-                    GetDeleteRequest(attestationIdBase64);
-                });
-
-                return Ok();
+                //
+                // Finally, delete the pending request
+                //
+                GetDeleteRequest(attestationIdBase64);
             }
+            return Ok();
         }
 
         [HttpGet("ListPendingRequests")]
         public async Task<ActionResult> GetListPendingRequests()
         {
-            using (var conn = _db.CreateDisposableConnection())
-            {
-                var r = _db.tblAttestationRequest.PagingByAttestationId(conn, 100, null, out var nextCursor);
+            var r = _db.tblAttestationRequest.PagingByAttestationId(100, null, out var nextCursor);
 
-                // Using LINQ to convert the list of requests to a list of identities
-                var identities = r.Select(request => request.attestationId).ToList();
+            // Using LINQ to convert the list of requests to a list of identities
+            var identities = r.Select(request => request.attestationId).ToList();
 
-                await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
+            await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
 
-                return Ok(identities);
-            }
+            return Ok(identities);
         }
     }
 }

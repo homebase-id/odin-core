@@ -1,4 +1,3 @@
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
@@ -16,7 +15,4 @@ public class ReactionPreviewUpdatedNotification : MediatorNotificationBase, IDri
 
     public ServerFileHeader ServerFileHeader { get; init; }
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
-
-    public DatabaseConnection DatabaseConnection { get; init; }
-
 }

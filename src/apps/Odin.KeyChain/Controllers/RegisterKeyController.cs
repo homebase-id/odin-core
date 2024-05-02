@@ -75,18 +75,15 @@ namespace Odin.Keychain
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
-            using (var conn = _db.CreateDisposableConnection())
+            var r = _db.tblKeyChain.GetOldest(identity);
+            if (r == null)
             {
-                var r = _db.tblKeyChain.GetOldest(conn, identity);
-                if (r == null)
-                {
-                    return NotFound("No such identity found.");
-                }
-
-                var vr = new VerifyResult() { keyCreatedTime = r.timestamp.ToUnixTimeUtc().seconds };
-
-                return Ok(vr);
+                return NotFound("No such identity found.");
             }
+
+            var vr = new VerifyResult() { keyCreatedTime = r.timestamp.ToUnixTimeUtc().seconds };
+
+            return Ok(vr);
         }
 
         private JsonSerializerOptions options = new JsonSerializerOptions
@@ -130,49 +127,41 @@ namespace Odin.Keychain
                 return BadRequest("Invalid public key");
             }
 
-            using (var conn = _db.CreateDisposableConnection())
+            // TODO some snowy day... have multiple entries and find the range
+            // for the given key {creationTime to replaceTime}. 
+            var list = _db.tblKeyChain.GetIdentity(id.DomainName);
+
+            for (int i=0; i < list.Count; i++)
             {
-                // TODO some snowy day... have multiple entries and find the range
-                // for the given key {creationTime to replaceTime}. 
-                var list = _db.tblKeyChain.GetIdentity(conn, id.DomainName);
-
-                for (int i = 0; i < list.Count; i++)
+                if (list[i].publicKeyJwkBase64Url == PublicKeyJwkBase64Url)
                 {
-                    if (list[i].publicKeyJwkBase64Url == PublicKeyJwkBase64Url)
-                    {
-                        var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.ToUnixTimeUtc().seconds };
-                        if (i + 1 < list.Count)
-                            vr.successorKeyCreatedTime = list[i + 1].timestamp.ToUnixTimeUtc().seconds;
+                    var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.ToUnixTimeUtc().seconds };
+                    if (i + 1 < list.Count)
+                        vr.successorKeyCreatedTime = list[i + 1].timestamp.ToUnixTimeUtc().seconds;
 
-                        return Ok(JsonSerializer.Serialize(vr, options));
-                    }
+                    return Ok(JsonSerializer.Serialize(vr, options));
                 }
-
-                return NotFound();
             }
+
+            return NotFound();
         }
 
         private KeyChainRecord TryGetLastLinkOrThrow()
         {
             try
             {
-                using (var conn = _db.CreateDisposableConnection())
-                {
+                KeyChainRecord? record = _db.tblKeyChain.GetLastLink();
 
-                    KeyChainRecord? record = _db.tblKeyChain.GetLastLink(conn);
+                if (record == null)
+                    throw new Exception("Block chain appears to be empty");
 
-                    if (record == null)
-                        throw new Exception("Block chain appears to be empty");
-
-                    return record;
-                }
+                return record;
             }
             catch (Exception ex)
             {
                 throw new Exception($"Failed to retrieve the last link: {ex.Message}", ex);
             }
         }
-
 
         public class RegistrationBeginModel
         {
@@ -273,41 +262,38 @@ namespace Odin.Keychain
             if (signedEnvelope.Signatures[0].PublicKeyJwkBase64Url != publicKey.PublicKeyJwkBase64Url())
                 return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
 
-            using (var conn = _db.CreateDisposableConnection())
+            //
+            // 050 We check that an idenity cannot insert too many public keys, e.g. max one per month
+            //
+            var r = _db.tblKeyChain.GetOldest(domain.DomainName);
+            if (r != null)
             {
-                //
-                // 050 We check that an idenity cannot insert too many public keys, e.g. max one per month
-                //
-                var r = _db.tblKeyChain.GetOldest(conn, domain.DomainName);
-                if (r != null)
-                {
-                    var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
+                var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
 
-                    if (d < 3600 * 24 * 30)
-                        return StatusCode(429, "Try again later: at least 30 days between registrations");
-                }
-
-                // 060 Retrieve the previous row (we need it's hash to sign)
-                KeyChainRecord lastRowRecord;
-                try
-                {
-                    lastRowRecord = TryGetLastLinkOrThrow();
-                }
-                catch (Exception ex)
-                {
-                    return Problem(ex.Message);
-                }
-
-                // 070 Store it and return the last record's recordHash (which becomes the new record's previousHash)
-                var previousHashBase64 = lastRowRecord.recordHash.ToBase64();
-
-                var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64);
-                if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
-                    return BadRequest("You appear to have sent a duplicate request");
-
-                CleanupPendingRegistrationCache(); // Remove any old cache entries
-                return Ok(previousHashBase64);
+                if (d < 3600 * 24 * 30)
+                    return StatusCode(429, "Try again later: at least 30 days between registrations");
             }
+
+            // 060 Retrieve the previous row (we need it's hash to sign)
+            KeyChainRecord lastRowRecord;
+            try
+            {
+                lastRowRecord = TryGetLastLinkOrThrow();
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
+
+            // 070 Store it and return the last record's recordHash (which becomes the new record's previousHash)
+            var previousHashBase64 = lastRowRecord.recordHash.ToBase64();
+
+            var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64);
+            if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
+                return BadRequest("You appear to have sent a duplicate request");
+
+            CleanupPendingRegistrationCache(); // Remove any old cache entries
+            return Ok(previousHashBase64);
         }
 
 
@@ -408,19 +394,17 @@ namespace Odin.Keychain
                     return Problem("Cannot verify");
                 }
 
-                using (var conn = _db.CreateDisposableConnection())
+                // 150 write row
+                try
                 {
-                    // 150 write row
-                    try
-                    {
-                        _db.tblKeyChain.Insert(conn, newRecordToInsert);
-                    }
-                    catch (Exception e)
-                    {
-                        return Problem($"Did you try to register a duplicate? {e.Message}");
-                    }
-                    return Ok("OK");
+                    _db.tblKeyChain.Insert(newRecordToInsert);
                 }
+                catch (Exception e)
+                {
+                    return Problem($"Did you try to register a duplicate? {e.Message}");
+                }
+                _db.Commit(); // Flush immediately
+                return Ok("OK");
             }
             catch (Exception ex)
             {

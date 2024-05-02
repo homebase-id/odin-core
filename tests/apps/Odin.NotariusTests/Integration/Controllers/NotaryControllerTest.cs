@@ -192,10 +192,7 @@ public class NotaryControllerTest
             publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
             recordHash = hash
         };
-        using (var myc = db.CreateDisposableConnection())
-        {
-            db.tblNotaryChain.Insert(myc, r);
-        }
+        db.tblNotaryChain.Insert(r);
     }
 }
 

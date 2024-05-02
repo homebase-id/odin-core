@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Hosting.Tests.Performance
@@ -37,28 +36,25 @@ namespace Odin.Hosting.Tests.Performance
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
-            _db = new IdentityDatabase(Guid.NewGuid(), ":memory:");
-            using (var myc = _db.CreateDisposableConnection())
+            _db = new IdentityDatabase(":memory:");
+            _db.CreateDatabase();
+            storage = new SingleKeyValueStorage(_db, testContextKey);
+
+            for (int i = 0; i < KEYS; i++)
             {
-                _db.CreateDatabase(myc);
-                storage = new SingleKeyValueStorage(testContextKey);
+                _keys[i] = Guid.NewGuid();
+                var v1 = Guid.NewGuid().ToByteArray();
 
-                for (int i = 0; i < KEYS; i++)
+                // Create an instance of Item
+                var item = new Item
                 {
-                    _keys[i] = Guid.NewGuid();
-                    var v1 = Guid.NewGuid().ToByteArray();
+                    Name = $"Test Item {i}",
+                    Data = new byte[] { (byte)(i % 256), 2, 3, 4, 5, /* ... */ } // This should contain 50 elements
+                };
 
-                    // Create an instance of Item
-                    var item = new Item
-                    {
-                        Name = $"Test Item {i}",
-                        Data = new byte[] { (byte)(i % 256), 2, 3, 4, 5, /* ... */ } // This should contain 50 elements
-                    };
-
-                    // storage.Upsert<Item>(_keys[i], item);
-                    _db.tblKeyValue.Upsert(myc, new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
-                    // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
-                }
+                // storage.Upsert<Item>(_keys[i], item);
+                _db.tblKeyValue.Upsert(new KeyValueRecord() { key = _keys[i].ToByteArray(), data = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray() });
+                // _db.tblKeyValue.Insert(new KeyValueRecord() { key = _keys[i], data = v1 });
             }
         }
 
@@ -162,26 +158,25 @@ TaskPerformanceTest_Db_MultiThread
             Assert.Pass();
         }
 
-        public Task<(long, long[])> DoDb(int threadno, int iterations)
+        public async Task<(long, long[])> DoDb(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
             var sw = new Stopwatch();
 
-            using (var myc = _db.CreateDisposableConnection())
+            for (int count = 0; count < iterations; count++)
             {
-                for (int count = 0; count < iterations; count++)
-                {
-                    sw.Restart();
+                sw.Restart();
 
-                    var r = _db.tblKeyValue.Get(myc, _keys[0].ToByteArray());
-                    Debug.Assert(r != null);
+                var r = _db.tblKeyValue.Get(_keys[0].ToByteArray());
+                Debug.Assert(r != null);
 
-                    timers[count] = sw.ElapsedMilliseconds;
-                }
-
-                return Task.FromResult((0L, timers));
+                timers[count] = sw.ElapsedMilliseconds;
             }
+
+            await Task.Delay(0);
+
+            return (0L, timers);
         }
 
 
@@ -203,6 +198,7 @@ TaskPerformanceTest_DbWrapper_SingleThread
             RSA Encryptions 0, Decryptions 8
             RSA Keys Created 4, Keys Expired 0
             DB Opened 5, Closed 0
+         */
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public async Task TaskPerformanceTest_DbWrapper_SingleThread()
@@ -210,7 +206,6 @@ TaskPerformanceTest_DbWrapper_SingleThread
             await PerformanceFramework.ThreadedTestAsync(1, MAXITERATIONS, DoWrapperDb);
             Assert.Pass();
         }
-         */
 
         /*
 TaskPerformanceTest_DbWrapper_MultiThread
@@ -231,7 +226,6 @@ TaskPerformanceTest_DbWrapper_MultiThread
             RSA Keys Created 4, Keys Expired 0
             DB Opened 5, Closed 0
          */
-        /*
         [Test]
         [Ignore("the use of the context key breaks the structure of these tests; they must be rebuilt")]
         public async Task TaskPerformanceTest_DbWrapper_MultiThread()
@@ -246,22 +240,20 @@ TaskPerformanceTest_DbWrapper_MultiThread
             Debug.Assert(timers.Length == iterations);
             var sw = new Stopwatch();
 
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
 
-                    for (int count = 0; count < iterations; count++)
-                    {
-                        sw.Restart();
+                // Retrieve the item
+                var r = storage.Get<Item>(_keys[0]);
+                Debug.Assert(r != null);
 
-                        // Retrieve the item
-                        var r = storage.Get<Item>(_keys[0]);
-                        Debug.Assert(r != null);
-
-                        timers[count] = sw.ElapsedMilliseconds;
-                    }
+                timers[count] = sw.ElapsedMilliseconds;
+            }
 
             await Task.Delay(0);
 
             return (0L, timers);
         }
-        */
     }
 }

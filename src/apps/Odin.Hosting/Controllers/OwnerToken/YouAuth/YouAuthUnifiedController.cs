@@ -29,18 +29,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly string _currentTenant;
 
         public YouAuthUnifiedController(
             ILogger<YouAuthUnifiedController> logger,
             ITenantProvider tenantProvider,
-            IYouAuthUnifiedService youAuthService, TenantSystemStorage tenantSystemStorage)
+            IYouAuthUnifiedService youAuthService)
         {
             _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         //
@@ -81,8 +79,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Authentication check and redirect to 'login' is done by controller attribute [AuthorizeValidOwnerToken]
             //
 
-            using var cn = _tenantSystemStorage.CreateConnection();
-
             //
             // Step [045] App registered?
             // If we're authorizing an app and it's not already registered, start that flow and return here.
@@ -94,8 +90,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientId,
                     authorize.PermissionRequest,
-                    WebOdinContext,
-                    cn);
+                    WebOdinContext);
 
                 if (mustRegister)
                 {
@@ -118,8 +113,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientId,
                 authorize.PermissionRequest,
                 authorize.RedirectUri,
-                WebOdinContext,
-                cn);
+                WebOdinContext);
 
             if (needConsent)
             {
@@ -149,8 +143,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientInfo,
                 authorize.PermissionRequest,
                 authorize.PublicKey,
-                WebOdinContext,
-                cn);
+                WebOdinContext);
 
             //
             // [080] Return authorization code, public key and salt to client
@@ -222,8 +215,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 }
             }
 
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext, cn);
+            await _youAuthService.StoreConsent(authorize.ClientId, authorize.ClientType, authorize.PermissionRequest, consentRequirements, WebOdinContext);
 
             // Redirect back to authorize
             _logger.LogDebug("YouAuth: redirecting to {redirect}", returnUrl);

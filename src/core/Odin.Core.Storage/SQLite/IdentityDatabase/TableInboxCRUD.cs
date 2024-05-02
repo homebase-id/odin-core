@@ -95,6 +95,42 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
     public class TableInboxCRUD : TableBase
     {
         private bool _disposed = false;
+        private SqliteCommand _insertCommand = null;
+        private static Object _insertLock = new Object();
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteParameter _insertParam4 = null;
+        private SqliteParameter _insertParam5 = null;
+        private SqliteParameter _insertParam6 = null;
+        private SqliteParameter _insertParam7 = null;
+        private SqliteParameter _insertParam8 = null;
+        private SqliteCommand _updateCommand = null;
+        private static Object _updateLock = new Object();
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteParameter _updateParam4 = null;
+        private SqliteParameter _updateParam5 = null;
+        private SqliteParameter _updateParam6 = null;
+        private SqliteParameter _updateParam7 = null;
+        private SqliteParameter _updateParam8 = null;
+        private SqliteCommand _upsertCommand = null;
+        private static Object _upsertLock = new Object();
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteParameter _upsertParam4 = null;
+        private SqliteParameter _upsertParam5 = null;
+        private SqliteParameter _upsertParam6 = null;
+        private SqliteParameter _upsertParam7 = null;
+        private SqliteParameter _upsertParam8 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SqliteParameter _get0Param1 = null;
 
         public TableInboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
@@ -107,20 +143,29 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+            _updateCommand?.Dispose();
+            _updateCommand = null;
+            _upsertCommand?.Dispose();
+            _upsertCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
-            GC.SuppressFinalize(this);
         }
 
-        public sealed override void EnsureTableExists(DatabaseConnection conn, bool dropExisting = false)
+        public sealed override void EnsureTableExists(bool dropExisting = false)
         {
-                using (var cmd = _database.CreateCommand())
+            using (var cmd = _database.CreateCommand())
+            {
+                if (dropExisting)
                 {
-                    if (dropExisting)
-                    {
-                       cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
-                       conn.ExecuteNonQuery(cmd);
-                    }
-                    cmd.CommandText =
+                    cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
+                    _database.ExecuteNonQuery(cmd);
+                }
+                cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS inbox("
                      +"fileId BLOB NOT NULL UNIQUE, "
                      +"boxId BLOB NOT NULL, "
@@ -136,40 +181,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(boxId);"
                      +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(popStamp);"
                      ;
-                    conn.ExecuteNonQuery(cmd);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
-        public virtual int Insert(DatabaseConnection conn, InboxRecord item)
+        public virtual int Insert(InboxRecord item)
         {
-                using (var _insertCommand = _database.CreateCommand())
+            lock (_insertLock)
+            {
+                if (_insertCommand == null)
                 {
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
-                    var _insertParam1 = _insertCommand.CreateParameter();
-                    _insertParam1.ParameterName = "$fileId";
+                    _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    var _insertParam2 = _insertCommand.CreateParameter();
-                    _insertParam2.ParameterName = "$boxId";
+                    _insertParam1.ParameterName = "$fileId";
+                    _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    var _insertParam3 = _insertCommand.CreateParameter();
-                    _insertParam3.ParameterName = "$priority";
+                    _insertParam2.ParameterName = "$boxId";
+                    _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    var _insertParam4 = _insertCommand.CreateParameter();
-                    _insertParam4.ParameterName = "$timeStamp";
+                    _insertParam3.ParameterName = "$priority";
+                    _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    var _insertParam5 = _insertCommand.CreateParameter();
-                    _insertParam5.ParameterName = "$value";
+                    _insertParam4.ParameterName = "$timeStamp";
+                    _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
-                    var _insertParam6 = _insertCommand.CreateParameter();
-                    _insertParam6.ParameterName = "$popStamp";
+                    _insertParam5.ParameterName = "$value";
+                    _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    var _insertParam7 = _insertCommand.CreateParameter();
-                    _insertParam7.ParameterName = "$created";
+                    _insertParam6.ParameterName = "$popStamp";
+                    _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
-                    var _insertParam8 = _insertCommand.CreateParameter();
-                    _insertParam8.ParameterName = "$modified";
+                    _insertParam7.ParameterName = "$created";
+                    _insertParam8 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam8);
+                    _insertParam8.ParameterName = "$modified";
+                    _insertCommand.Prepare();
+                }
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.boxId.ToByteArray();
                 _insertParam3.Value = item.priority;
@@ -180,48 +231,53 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam7.Value = now.uniqueTime;
                 item.modified = null;
                 _insertParam8.Value = DBNull.Value;
-                var count = conn.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                  {
                      item.created = now;
                  }
                 return count;
-                } // Using
+            } // Lock
         }
 
-        public virtual int Upsert(DatabaseConnection conn, InboxRecord item)
+        public virtual int Upsert(InboxRecord item)
         {
-                using (var _upsertCommand = _database.CreateCommand())
+            lock (_upsertLock)
+            {
+                if (_upsertCommand == null)
                 {
+                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created) " +
                                                  "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
                                                  "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "RETURNING created, modified;";
-                    var _upsertParam1 = _upsertCommand.CreateParameter();
-                    _upsertParam1.ParameterName = "$fileId";
+                    _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    var _upsertParam2 = _upsertCommand.CreateParameter();
-                    _upsertParam2.ParameterName = "$boxId";
+                    _upsertParam1.ParameterName = "$fileId";
+                    _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    var _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertParam3.ParameterName = "$priority";
+                    _upsertParam2.ParameterName = "$boxId";
+                    _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    var _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertParam4.ParameterName = "$timeStamp";
+                    _upsertParam3.ParameterName = "$priority";
+                    _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    var _upsertParam5 = _upsertCommand.CreateParameter();
-                    _upsertParam5.ParameterName = "$value";
+                    _upsertParam4.ParameterName = "$timeStamp";
+                    _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
-                    var _upsertParam6 = _upsertCommand.CreateParameter();
-                    _upsertParam6.ParameterName = "$popStamp";
+                    _upsertParam5.ParameterName = "$value";
+                    _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    var _upsertParam7 = _upsertCommand.CreateParameter();
-                    _upsertParam7.ParameterName = "$created";
+                    _upsertParam6.ParameterName = "$popStamp";
+                    _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
-                    var _upsertParam8 = _upsertCommand.CreateParameter();
-                    _upsertParam8.ParameterName = "$modified";
+                    _upsertParam7.ParameterName = "$created";
+                    _upsertParam8 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam8);
+                    _upsertParam8.ParameterName = "$modified";
+                    _upsertCommand.Prepare();
+                }
                 var now = UnixTimeUtcUnique.Now();
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.boxId.ToByteArray();
@@ -231,7 +287,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam7.Value = now.uniqueTime;
                 _upsertParam8.Value = now.uniqueTime;
-                using (SqliteDataReader rdr = conn.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_upsertCommand, System.Data.CommandBehavior.SingleRow))
                 {
                    if (rdr.Read())
                    {
@@ -245,41 +301,46 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                       return 1;
                    }
                 }
-                return 0;
-            } // Using
+            } // Lock
+            return 0;
         }
 
-        public virtual int Update(DatabaseConnection conn, InboxRecord item)
+        public virtual int Update(InboxRecord item)
         {
-                using (var _updateCommand = _database.CreateCommand())
+            lock (_updateLock)
+            {
+                if (_updateCommand == null)
                 {
+                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE inbox " +
                                                  "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (fileId = $fileId)";
-                    var _updateParam1 = _updateCommand.CreateParameter();
-                    _updateParam1.ParameterName = "$fileId";
+                    _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    var _updateParam2 = _updateCommand.CreateParameter();
-                    _updateParam2.ParameterName = "$boxId";
+                    _updateParam1.ParameterName = "$fileId";
+                    _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    var _updateParam3 = _updateCommand.CreateParameter();
-                    _updateParam3.ParameterName = "$priority";
+                    _updateParam2.ParameterName = "$boxId";
+                    _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    var _updateParam4 = _updateCommand.CreateParameter();
-                    _updateParam4.ParameterName = "$timeStamp";
+                    _updateParam3.ParameterName = "$priority";
+                    _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    var _updateParam5 = _updateCommand.CreateParameter();
-                    _updateParam5.ParameterName = "$value";
+                    _updateParam4.ParameterName = "$timeStamp";
+                    _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
-                    var _updateParam6 = _updateCommand.CreateParameter();
-                    _updateParam6.ParameterName = "$popStamp";
+                    _updateParam5.ParameterName = "$value";
+                    _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    var _updateParam7 = _updateCommand.CreateParameter();
-                    _updateParam7.ParameterName = "$created";
+                    _updateParam6.ParameterName = "$popStamp";
+                    _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
-                    var _updateParam8 = _updateCommand.CreateParameter();
-                    _updateParam8.ParameterName = "$modified";
+                    _updateParam7.ParameterName = "$created";
+                    _updateParam8 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam8);
+                    _updateParam8.ParameterName = "$modified";
+                    _updateCommand.Prepare();
+                }
                 var now = UnixTimeUtcUnique.Now();
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.boxId.ToByteArray();
@@ -289,23 +350,13 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam7.Value = now.uniqueTime;
                 _updateParam8.Value = now.uniqueTime;
-                var count = conn.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                 {
                      item.modified = now;
                 }
                 return count;
-                } // Using
-        }
-
-        public virtual int GetCount(DatabaseConnection conn)
-        {
-                using (var _getCountCommand = _database.CreateCommand())
-                {
-                    _getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
-                    var count = conn.ExecuteNonQuery(_getCountCommand);
-                    return count;
-                }
+            } // Lock
         }
 
         // SELECT fileId,boxId,priority,timeStamp,value,popStamp,created,modified
@@ -392,20 +443,24 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public int Delete(DatabaseConnection conn, Guid fileId)
+        public int Delete(Guid fileId)
         {
-                using (var _delete0Command = _database.CreateCommand())
+            lock (_delete0Lock)
+            {
+                if (_delete0Command == null)
                 {
+                    _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM inbox " +
                                                  "WHERE fileId = $fileId";
-                    var _delete0Param1 = _delete0Command.CreateParameter();
-                    _delete0Param1.ParameterName = "$fileId";
+                    _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
-
+                    _delete0Param1.ParameterName = "$fileId";
+                    _delete0Command.Prepare();
+                }
                 _delete0Param1.Value = fileId.ToByteArray();
-                var count = conn.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
                 return count;
-                } // Using
+            } // Lock
         }
 
         public InboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId)
@@ -482,20 +537,22 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             return item;
        }
 
-        public InboxRecord Get(DatabaseConnection conn, Guid fileId)
+        public InboxRecord Get(Guid fileId)
         {
-                using (var _get0Command = _database.CreateCommand())
+            lock (_get0Lock)
+            {
+                if (_get0Command == null)
                 {
+                    _get0Command = _database.CreateCommand();
                     _get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
                                                  "WHERE fileId = $fileId LIMIT 1;";
-                    var _get0Param1 = _get0Command.CreateParameter();
-                    _get0Param1.ParameterName = "$fileId";
+                    _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
-
+                    _get0Param1.ParameterName = "$fileId";
+                    _get0Command.Prepare();
+                }
                 _get0Param1.Value = fileId.ToByteArray();
-                    lock (conn._lock)
-                    {
-                using (SqliteDataReader rdr = conn.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
@@ -505,7 +562,6 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                     return r;
                 } // using
             } // lock
-            } // using
         }
 
     }
