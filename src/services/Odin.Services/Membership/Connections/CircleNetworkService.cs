@@ -369,7 +369,7 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
             }
 
-            if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out var _))
+            if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
@@ -378,7 +378,7 @@ namespace Odin.Services.Membership.Connections
             var circleDefinition = _circleMembershipService.GetCircle(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext);
 
             icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -464,7 +464,6 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
         /// </summary>
-        /// <param name="circleDef"></param>
         public async Task UpdateCircleDefinition(CircleDefinition circleDef, IOdinContext odinContext)
         {
             await _circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
@@ -482,9 +481,9 @@ namespace Odin.Services.Membership.Connections
 
                 if (icr.IsConnected() && hasCg)
                 {
-                    //rebuild the circle grant
+                    // Re-create the circle grant so 
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-                    icr.AccessGrant.CircleGrants[circleKey] = await _circleMembershipService.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
+                    icr.AccessGrant.CircleGrants[circleKey] = await _circleMembershipService.CreateCircleGrant(circleDef, keyStoreKey, masterKey, odinContext);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -628,6 +627,8 @@ namespace Odin.Services.Membership.Connections
                 odinContext.AuthContext,
                 applyAppCircleGrants);
 
+            // Note: the icr.AccessGrant.AccessRegistration and parameter accessReg might not be the same in the case of YouAuth; this is intentional 
+            
             var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
             if (applyAppCircleGrants)
@@ -696,7 +697,9 @@ namespace Odin.Services.Membership.Connections
                             Permission = DrivePermission.Write
                         }
                     }
-                }, null);
+                },
+                masterKey: null,
+                icrKey: null);
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 

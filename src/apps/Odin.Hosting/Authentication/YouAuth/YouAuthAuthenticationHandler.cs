@@ -30,16 +30,12 @@ using Quartz.Util;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
-    public class YouAuthAuthenticationHandler : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>
+    public class YouAuthAuthenticationHandler(
+        IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
-        public YouAuthAuthenticationHandler(
-            IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
-            ILoggerFactory logger,
-            UrlEncoder encoder)
-            : base(options, logger, encoder)
-        {
-        }
-
         //
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
