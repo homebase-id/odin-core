@@ -19,15 +19,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
     {
         public readonly TableNotaryChain tblNotaryChain = null;
 
-        public readonly string CN;
-
         private readonly CacheHelper _cache = new CacheHelper("notarychain");
         private readonly string _file;
         private readonly int _line;
         public NotaryDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString)
         {
             tblNotaryChain = new TableNotaryChain(this, _cache);
-            CN = connectionString;
+
             _file = file;
             _line = line;
         }
@@ -37,7 +35,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception($"NotaryChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+                throw new Exception($"NotaryChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
                Serilog.Log.Error($"BlockChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
@@ -47,22 +45,21 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public override void Dispose()
         {
-            Commit();
-
             tblNotaryChain.Dispose();
 
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public override void CreateDatabase(bool dropExistingTables = true)
+        public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
-            tblNotaryChain.EnsureTableExists(dropExistingTables);
+            tblNotaryChain.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
-                Vacuum();
+                conn.Vacuum();
         }
     }
 }

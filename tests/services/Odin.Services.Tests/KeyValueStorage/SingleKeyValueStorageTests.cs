@@ -11,43 +11,39 @@ public class SingleKeyValueStorageTests
     [Test]
     public void RequireNonEmptyContextKey()
     {
-        var finalPath = "testdb1.db";
-        var db = new IdentityDatabase(finalPath);
-        db.CreateDatabase(false);
-
-        Assert.Throws<OdinSystemException>(() => { new SingleKeyValueStorage(db, Guid.Empty); });
-        db.Dispose();
+        var finalPath = "";
+        using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
+        using var myc = db.CreateDisposableConnection();
+        db.CreateDatabase(myc, false);
+        Assert.Throws<OdinSystemException>(() => { new SingleKeyValueStorage(Guid.Empty); });
     }
 
     [Test]
     public void CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey()
     {
         var finalPath = "testdb2.db";
-        var db = new IdentityDatabase(finalPath);
-        db.CreateDatabase(false);
+        using var db = new IdentityDatabase(Guid.NewGuid(), finalPath);
+        using var myc = db.CreateDisposableConnection();
+        db.CreateDatabase(myc, false);
 
         var contextKey1 = Guid.NewGuid();
-        var singleKvp1 = new SingleKeyValueStorage(db, contextKey1);
+        var singleKvp1 = new SingleKeyValueStorage(contextKey1);
 
         var pk = Guid.Parse("a6e58b87-e65b-4d98-8060-eb783079b267");
 
         const string expectedValue1 = "some value";
-        singleKvp1.Upsert(pk, expectedValue1);
-        Assert.IsTrue(singleKvp1.Get<string>(pk) == expectedValue1);
-        singleKvp1.Delete(pk);
-        Assert.IsTrue(singleKvp1.Get<string>(pk) == null);
+        singleKvp1.Upsert(myc, pk, expectedValue1);
+        Assert.IsTrue(singleKvp1.Get<string>(myc, pk) == expectedValue1);
+        singleKvp1.Delete(myc, pk);
+        Assert.IsTrue(singleKvp1.Get<string>(myc, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
-        var singleKvp2 = new SingleKeyValueStorage(db, contextKey2);
+        var singleKvp2 = new SingleKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
-        singleKvp2.Upsert(pk, expectedValue2);
-        Assert.IsTrue(singleKvp2.Get<string>(pk) == expectedValue2);
-        
-        singleKvp2.Delete(pk);
-        Assert.IsTrue(singleKvp2.Get<string>(pk) == null);
+        singleKvp2.Upsert(myc, pk, expectedValue2);
+        Assert.IsTrue(singleKvp2.Get<string>(myc, pk) == expectedValue2);
 
-        
-        db.Dispose();
-
+        singleKvp2.Delete(myc, pk);
+        Assert.IsTrue(singleKvp2.Get<string>(myc, pk) == null);
     }
 }

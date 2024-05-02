@@ -5,6 +5,7 @@ using Odin.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -16,9 +17,11 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidGuestOrAppToken]
     public class DriveReactionContentController : DriveReactionContentControllerBase
     {
+        private readonly TenantSystemStorage _tenantSystemStorage;
         /// <summary />
-        public DriveReactionContentController(ReactionContentService reactionContentService) : base(reactionContentService)
+        public DriveReactionContentController(ReactionContentService reactionContentService, TenantSystemStorage tenantSystemStorage) : base(reactionContentService)
         {
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -29,7 +32,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("add")]
         public async Task<IActionResult> AddReactionContent([FromBody] AddReactionRequest request)
         {
-            await base.AddReaction(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await base.AddReaction(request, cn);
             return NoContent();
         }
 
@@ -41,7 +45,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteReactionContent([FromBody] DeleteReactionRequest request)
         {
-            await base.DeleteReaction(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await base.DeleteReaction(request, cn);
             return NoContent();
         }
 
@@ -53,7 +58,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
-            await base.DeleteAllReactions(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await base.DeleteAllReactions(request, cn);
             return NoContent();
         }
 
@@ -63,7 +69,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("list")]
         public async Task<GetReactionsResponse> GetAllReactions([FromBody] GetReactionsRequest request)
         {
-            return await base.GetReactions(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await base.GetReactions(request, cn);
         }
 
         /// <summary>
@@ -73,7 +80,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] GetReactionsRequest request)
         {
-            return await base.GetReactionCounts(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await base.GetReactionCounts(request, cn);
         }
         
         /// <summary>
@@ -83,7 +91,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
         {
-            return await base.GetReactionsByIdentityAndFile(request);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await base.GetReactionsByIdentityAndFile(request, cn);
         }
     }
 }

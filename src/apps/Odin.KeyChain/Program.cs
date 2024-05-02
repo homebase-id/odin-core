@@ -15,7 +15,10 @@ builder.Services.AddSwaggerGen();
 
 using var db = new KeyChainDatabase(@"blockchain.db");
 
-KeyChainDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
+using (var conn = db.CreateDisposableConnection())
+{
+    KeyChainDatabaseUtil.InitializeDatabase(db, conn); // Only do this once per boot
+}
 
 builder.Services.AddSingleton<KeyChainDatabase>(db);
 

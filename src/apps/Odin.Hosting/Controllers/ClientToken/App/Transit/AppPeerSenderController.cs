@@ -2,6 +2,7 @@
 using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
@@ -9,5 +10,6 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerSenderV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService) : PeerSenderControllerBase(peerOutgoingTransferService);
+    public class AppPeerSenderController(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage) :
+        PeerSenderControllerBase(peerOutgoingTransferService, tenantSystemStorage);
 }

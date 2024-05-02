@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite;
+using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Refit;
 
@@ -12,12 +14,14 @@ namespace Odin.Hosting.Controllers.Base.Follow
     public class FollowerControllerBase : OdinControllerBase
     {
         private readonly FollowerService _followerService;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
 
         /// <summary />
-        protected FollowerControllerBase(FollowerService fs)
+        protected FollowerControllerBase(FollowerService fs, TenantSystemStorage tenantSystemStorage)
         {
             _followerService = fs;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -26,7 +30,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         [HttpGet("IdentitiesIFollow")]
         public async Task<CursoredResult<string>> GetWhoIFollow(int max, string cursor)
         {
-            var result = await _followerService.GetIdentitiesIFollow(max, cursor, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = await _followerService.GetIdentitiesIFollow(max, cursor, WebOdinContext, cn);
             return result;
         }
 
@@ -34,9 +39,9 @@ namespace Odin.Hosting.Controllers.Base.Follow
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor)
+        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor, DatabaseConnection cn)
         {
-            var result = await _followerService.GetIdentitiesIFollow(driveAlias, max, cursor, WebOdinContext);
+            var result = await _followerService.GetIdentitiesIFollow(driveAlias, max, cursor, WebOdinContext, cn);
             return result;
         }
 
@@ -50,7 +55,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         [HttpGet("followingme")]
         public async Task<CursoredResult<string>> GetFollowers(int max, string cursor)
         {
-            var result = await _followerService.GetAllFollowers(max, cursor, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = await _followerService.GetAllFollowers(max, cursor, WebOdinContext, cn);
             return result;
         }
 
@@ -62,7 +68,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<FollowerDefinition> GetFollower(string odinId)
         {
             AssertIsValidOdinId(odinId, out var id);
-            return await _followerService.GetFollower(id, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await _followerService.GetFollower(id, WebOdinContext, cn);
         }
 
         /// <summary>
@@ -72,7 +79,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
         {
             AssertIsValidOdinId(odinId, out var id);
-            var result = await _followerService.GetIdentityIFollow(id, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = await _followerService.GetIdentityIFollow(id, WebOdinContext, cn);
             return result;
         }
 
@@ -83,7 +91,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<IActionResult> Follow([Body] FollowRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var _);
-            await _followerService.Follow(request, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _followerService.Follow(request, WebOdinContext, cn);
             return NoContent();
         }
 
@@ -94,7 +103,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var _);
-            await _followerService.Unfollow(new OdinId(request.OdinId), WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _followerService.Unfollow(new OdinId(request.OdinId), WebOdinContext, cn);
             return NoContent();
         }
 
@@ -102,7 +112,8 @@ namespace Odin.Hosting.Controllers.Base.Follow
         public async Task SynchronizeFeedHistory(SynchronizeFeedHistoryRequest request)
         {
             AssertIsValidOdinId(request.OdinId, out var id);
-            await _followerService.SynchronizeChannelFiles(id, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _followerService.SynchronizeChannelFiles(id, WebOdinContext, cn);
         }
     }
 }

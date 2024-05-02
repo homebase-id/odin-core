@@ -3,6 +3,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
@@ -14,7 +15,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class OwnerPeerReactionContentSenderController : PeerReactionContentSenderControllerBase
     {
-        public OwnerPeerReactionContentSenderController(PeerReactionSenderService peerReactionSenderService): base(peerReactionSenderService)
+        public OwnerPeerReactionContentSenderController(
+            PeerReactionSenderService peerReactionSenderService,
+            TenantSystemStorage tenantSystemStorage): base(peerReactionSenderService, tenantSystemStorage)
         {
         }
     }

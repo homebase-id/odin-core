@@ -67,14 +67,15 @@ public class DefaultCronJob(
             throw new OdinSystemException("Job:CronBatchSize must be greater than zero");
         }
 
-        var batch = serverSystemStorage.JobQueue.Pop(batchSize);
+        using var cn = serverSystemStorage.CreateConnection();
+        var batch = serverSystemStorage.JobQueue.Pop(cn, batchSize);
         var tasks = new List<Task<(CronRecord record, bool success)>>(batch.Select(ProcessRecord));
-        serverSystemStorage.JobQueue.PopCommitList(tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
-        serverSystemStorage.JobQueue.PopCancelList(tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
+        serverSystemStorage.JobQueue.PopCommitList(cn, tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
+        serverSystemStorage.JobQueue.PopCancelList(cn, tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList());
 
         const int deadTimeoutSeconds = 60 * 60;
         var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(deadTimeoutSeconds)));
-        serverSystemStorage.JobQueue.PopRecoverDead(time);
+        serverSystemStorage.JobQueue.PopRecoverDead(cn, time);
 
         return Task.CompletedTask;
     }
