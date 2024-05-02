@@ -2,7 +2,6 @@
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections
 {
@@ -11,8 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections
     [AuthorizeValidOwnerToken]
     public class OwnerCircleNetworkController : CircleNetworkControllerBase
     {
-        public OwnerCircleNetworkController(CircleNetworkService cn, TenantSystemStorage tenantSystemStorage):
-            base(cn, tenantSystemStorage)
+        public OwnerCircleNetworkController(CircleNetworkService cn):base(cn)
         {
         }
     }

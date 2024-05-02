@@ -9,5 +9,10 @@
         ~TableKeyValue()
         {
         }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
     }
 }

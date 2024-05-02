@@ -9,5 +9,10 @@
         ~TableKeyUniqueThreeValue()
         {
         }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
     }
 }

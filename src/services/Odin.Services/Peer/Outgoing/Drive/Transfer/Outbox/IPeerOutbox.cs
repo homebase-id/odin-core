@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Drives;
 
@@ -16,26 +15,26 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        Task Add(OutboxItem item, DatabaseConnection cn, bool useUpsert = false);
+        Task Add(OutboxItem item, bool useUpsert = false);
 
-        Task Add(IEnumerable<OutboxItem> items, DatabaseConnection cn);
+        Task Add(IEnumerable<OutboxItem> items);
 
-        Task MarkComplete(Guid marker, DatabaseConnection cn);
+        Task MarkComplete(Guid marker);
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        Task MarkFailure(Guid marker, UnixTimeUtc nextRun, DatabaseConnection cn);
+        Task MarkFailure(Guid marker, UnixTimeUtc nextRun);
 
-        Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn);
+        Task RecoverDead(UnixTimeUtc time);
 
-        Task<OutboxItem> GetNextItem(DatabaseConnection cn);
+        Task<OutboxItem> GetNextItem();
 
         /// <summary>
         /// Checks if this outbox item exists and is of type OutboxItemType.File
         /// </summary>
-        Task<bool> HasOutboxFileItem(OutboxItem arg, DatabaseConnection cn);
+        Task<bool> HasOutboxFileItem(OutboxItem arg);
 
-        Task<OutboxStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn);
+        Task<OutboxStatus> GetOutboxStatus(Guid driveId);
     }
 }

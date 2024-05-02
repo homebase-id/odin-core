@@ -8,15 +8,13 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.OwnerToken.Notifications;
 using Odin.Services.AppNotifications.Push;
-using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
     public class PushNotificationControllerBase(
         PushNotificationService notificationService,
-        ILoggerFactory loggerFactory,
-        TenantSystemStorage tenantSystemStorage)
+        ILoggerFactory loggerFactory)
         : OdinControllerBase
     {
         private readonly ILogger<PushNotificationControllerBase> _logger =
@@ -43,8 +41,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid Push notification subscription request");
             }
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.AddDevice(subscription, WebOdinContext, cn);
+            await notificationService.AddDevice(subscription, WebOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -73,8 +70,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid Push notification subscription request: missing device platform");
             }
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.AddDevice(subscription, WebOdinContext, cn);
+            await notificationService.AddDevice(subscription, WebOdinContext);
 
             HttpContext.Response.ContentType = "text/plain";
             return Ok();
@@ -84,8 +80,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var subscription = await notificationService.GetDeviceSubscription(WebOdinContext, cn);
+            var subscription = await notificationService.GetDeviceSubscription(WebOdinContext);
             if (null == subscription)
             {
                 return NotFound();
@@ -97,8 +92,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("list")]
         public async Task<IActionResult> GetAllSubscriptions()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var allSubscriptions = await notificationService.GetAllSubscriptions(WebOdinContext, cn);
+            var allSubscriptions = await notificationService.GetAllSubscriptions(WebOdinContext);
             if (null == allSubscriptions)
             {
                 return NotFound();
@@ -110,24 +104,21 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpPost("unsubscribe")]
         public async Task<IActionResult> RemoveDevice()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.RemoveDevice(WebOdinContext, cn);
+            await notificationService.RemoveDevice(WebOdinContext);
             return Ok();
         }
 
         [HttpDelete("subscription")]
         public async Task<IActionResult> RemoveDevice(Guid key)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.RemoveDevice(key, WebOdinContext, cn);
+            await notificationService.RemoveDevice(key, WebOdinContext);
             return Ok();
         }
 
         [HttpPost("unsubscribeAll")]
         public async Task<IActionResult> RemoveAllDevices()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.RemoveAllDevices(WebOdinContext, cn);
+            await notificationService.RemoveAllDevices(WebOdinContext);
             return Ok();
         }
 
@@ -135,8 +126,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         public async Task<IActionResult> Push([FromBody] AppNotificationOptions options)
         {
             var caller = WebOdinContext.GetCallerOdinIdOrFail();
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.EnqueueNotification(caller, options, WebOdinContext, cn);
+            await notificationService.EnqueueNotification(caller, options, WebOdinContext);
             return Ok();
         }
     }

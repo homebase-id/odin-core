@@ -26,9 +26,17 @@ namespace WaitingListApi.Data.Database
         }
 
 
+        ~WaitingListDatabase()
+        {
+        }
+
+
         public override void Dispose()
         {
+            Commit();
+
             WaitingListTable?.Dispose();;
+
             base.Dispose();
         }
 
@@ -36,9 +44,10 @@ namespace WaitingListApi.Data.Database
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public void CreateDatabase(bool dropExistingTables = true)
+        public override void CreateDatabase(bool dropExistingTables = true)
         {
             WaitingListTable?.EnsureTableExists(dropExistingTables);
+            Vacuum();
         }
     }
 }

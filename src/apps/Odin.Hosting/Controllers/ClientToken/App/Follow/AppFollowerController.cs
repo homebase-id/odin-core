@@ -7,7 +7,6 @@ using Odin.Services.DataSubscription.Follower;
 using Odin.Services.DataSubscription.ReceivingHost;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Follow;
-using Odin.Services.Base;
 using Refit;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Follow
@@ -19,7 +18,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
     public class AppFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public AppFollowerController(FollowerService fs, TenantSystemStorage tenantSystemStorage) : base(fs, tenantSystemStorage)
+        public AppFollowerController(FollowerService fs) : base(fs)
         {
         }
         

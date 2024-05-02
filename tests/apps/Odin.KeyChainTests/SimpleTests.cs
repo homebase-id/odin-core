@@ -16,29 +16,25 @@ namespace Odin.KeyChainTests
         public void Test1()
         {
             using var db = new KeyChainDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
-            {
-                db.CreateDatabase(myc);
+            var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
-                var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+            var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
+            var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
+            var r = new KeyChainRecord()
+            { 
+                previousHash = hash, 
+                identity = "frodo.baggins.me",
+                signedPreviousHash = key,
+                algorithm = "ublah",
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
+                recordHash = hash
+            };
+            db.tblKeyChain.Insert(r);
 
-                var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
-                var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
-                var r = new KeyChainRecord()
-                {
-                    previousHash = hash,
-                    identity = "frodo.baggins.me",
-                    signedPreviousHash = key,
-                    algorithm = "ublah",
-                    publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
-                    recordHash = hash
-                };
-                db.tblKeyChain.Insert(myc, r);
-
-                Assert.Pass();
-            }
+            Assert.Pass();
         }
 
         [Test]
@@ -46,36 +42,33 @@ namespace Odin.KeyChainTests
         {
             using var db = new KeyChainDatabase("");
 
-            using (var myc = db.CreateDisposableConnection())
+            var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+
+            db.CreateDatabase();
+
+            var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
+            var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
+            // var r = new BlockChainRecord() { identity = "frodo.baggins.me", recordHash = hash, publicKey = key, signedNonce = key };
+            var r = new KeyChainRecord()
             {
-                var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+                previousHash = hash,
+                identity = "frodo.baggins.me",
+                signedPreviousHash = key,
+                algorithm = "ublah",
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
+                recordHash = hash
+            };
+            db.tblKeyChain.Insert(r);
 
-                db.CreateDatabase(myc);
-
-                var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
-                var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
-                // var r = new BlockChainRecord() { identity = "frodo.baggins.me", recordHash = hash, publicKey = key, signedNonce = key };
-                var r = new KeyChainRecord()
-                {
-                    previousHash = hash,
-                    identity = "frodo.baggins.me",
-                    signedPreviousHash = key,
-                    algorithm = "ublah",
-                    publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
-                    recordHash = hash
-                };
-                db.tblKeyChain.Insert(myc, r);
-
-                try
-                {
-                    db.tblKeyChain.Insert(myc, r);
-                    Assert.Fail();
-                }
-                catch (Exception)
-                {
-                    Assert.Pass();
-                }
+            try
+            {
+                db.tblKeyChain.Insert(r);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
             }
         }
 
@@ -83,37 +76,33 @@ namespace Odin.KeyChainTests
         public void Test3()
         {
             using var db = new KeyChainDatabase("");
+            db.CreateDatabase();
 
-            using (var myc = db.CreateDisposableConnection())
+            var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+
+            var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
+            var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
+            var r = new KeyChainRecord()
             {
-                db.CreateDatabase(myc);
+                previousHash = hash,
+                identity = "frodo.baggins.me",
+                signedPreviousHash = key,
+                algorithm = "ublah",
+                publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
+                recordHash = hash
+            };
 
-                var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+            db.tblKeyChain.Insert(r);
 
-                var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
-                var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
-                var r = new KeyChainRecord()
-                {
-                    previousHash = hash,
-                    identity = "frodo.baggins.me",
-                    signedPreviousHash = key,
-                    algorithm = "ublah",
-                    publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
-                    recordHash = hash
-                };
+            // Make sure we can read a record even if we're in the semaphore lock 
 
-                db.tblKeyChain.Insert(myc, r);
-
-                // Make sure we can read a record even if we're in the semaphore lock 
-
-                myc.CreateCommitUnitOfWork(() =>
-                {
-                    var r2 = db.tblKeyChain.GetOldest(myc, r.identity);
-                });
-
-                Assert.Pass();
+            using (db.CreateCommitUnitOfWork())
+            {
+                var r2 = db.tblKeyChain.GetOldest(r.identity);
             }
+
+            Assert.Pass();
         }
     }
 }

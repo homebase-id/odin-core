@@ -48,8 +48,7 @@ namespace Odin.Core
 
         public void Dispose()
         {
-            this.Wipe();
-            GC.SuppressFinalize(this);
+            Wipe();
         }
 
         public SensitiveByteArray Clone()
