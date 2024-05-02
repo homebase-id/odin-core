@@ -14,7 +14,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4.0.0
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: '8.0.x'
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
         run: dotnet restore ./dotyoucore.sln
 
       - name: Build
-        run: dotnet build --no-restore --warnaserror ./dotyoucore.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror ./dotyoucore.sln
 
       - name: Test
-        run: sudo dotnet test --no-build --verbosity normal ./dotyoucore.sln
+        run: sudo dotnet test --no-build --configuration Release --verbosity normal ./dotyoucore.sln
