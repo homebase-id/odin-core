@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -21,18 +22,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         IAppRegistrationService appRegistrationService,
         FileSystemResolver fileSystemResolver)
     {
-        public async Task StartOutboxProcessing(IOdinContext odinContext)
+        public async Task StartOutboxProcessing(IOdinContext odinContext, DatabaseConnection cn)
         {
-            var item = await peerOutbox.GetNextItem();
+            var item = await peerOutbox.GetNextItem(cn);
 
             while (item != null)
             {
-                await ProcessItem(item, odinContext, tryDeleteTransient: true);
-                item = await peerOutbox.GetNextItem();
+                await ProcessItem(item, odinContext, tryDeleteTransient: true, cn);
+                item = await peerOutbox.GetNextItem(cn);
             }
         }
 
-        public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext)
+        public async Task<List<OutboxProcessingResult>> ProcessItemsSync(IEnumerable<OutboxItem> items, IOdinContext odinContext, DatabaseConnection cn)
         {
             var results = new List<OutboxProcessingResult>();
             var stack = new Stack<OutboxItem>(items);
@@ -40,19 +41,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 var item = stack.Pop();
 
-                var result = await ProcessItem(item, odinContext, tryDeleteTransient: false);
+                var result = await ProcessItem(item, odinContext, tryDeleteTransient: false, cn);
                 results.Add(result);
                 if (result.TransferResult != TransferResult.Success)
                 {
                     //enqueue into the outbox since it was never added before
-                    await peerOutbox.Add(item, useUpsert: true); //useUpsert just in-case
+                    await peerOutbox.Add(item, cn, useUpsert: true); //useUpsert just in-case
                 }
                 
                 //TODO: interim hack
                 if (result.TransferResult == TransferResult.Success && item.IsTransientFile && stack.All(s => s.File != item.File))
                 {
                     var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
+                    await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
                 }
             }
 
@@ -62,7 +63,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Processes the item according to its type.  When finished, it will update the outbox based on success or failure
         /// </summary>
-        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient)
+        private async Task<OutboxProcessingResult> ProcessItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
         {
             //TODO: add benchmark
             logger.LogDebug("Processing outbox item type: {type}", item.Type);
@@ -71,11 +72,11 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             switch (item.Type)
             {
                 case OutboxItemType.PushNotification:
-                    result = await SendPushNotification(item, odinContext);
+                    result = await SendPushNotification(item, odinContext, cn);
                     break;
 
                 case OutboxItemType.File:
-                    result = await SendFileOutboxItem(item, odinContext, tryDeleteTransient);
+                    result = await SendFileOutboxItem(item, odinContext, tryDeleteTransient, cn);
                     break;
 
                 // case OutboxItemType.Reaction:
@@ -89,7 +90,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return result;
         }
 
-        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient)
+        private async Task<OutboxProcessingResult> SendFileOutboxItem(OutboxItem item, IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
         {
             var worker = new SendFileOutboxWorker(item,
                 fileSystemResolver,
@@ -98,12 +99,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 odinConfiguration,
                 odinHttpClientFactory);
 
-            var result = await worker.Send(odinContext, tryDeleteTransient);
+            var result = await worker.Send(odinContext, tryDeleteTransient, cn);
 
             return result;
         }
 
-        private async Task<OutboxProcessingResult> SendPushNotification(OutboxItem item, IOdinContext odinContext)
+        private async Task<OutboxProcessingResult> SendPushNotification(OutboxItem item, IOdinContext odinContext, DatabaseConnection cn)
         {
             var worker = new SendPushNotificationOutboxWorker(item,
                 appRegistrationService,
@@ -111,7 +112,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 logger,
                 peerOutbox);
 
-            return await worker.Send(odinContext);
+            return await worker.Send(odinContext, cn);
         }
     }
 }

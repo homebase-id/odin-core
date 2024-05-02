@@ -160,6 +160,8 @@ public class TenantAdmin : ITenantAdmin
 
     //
 
+    // NOTE: this is the equivalent of running bash command:
+    // find . -type f -exec du -b {} + | awk '{total += $1} END {print total}'
     private static long GetDirectoryByteSize(string path)
     {
         var result = 0L;

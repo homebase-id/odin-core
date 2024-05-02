@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Odin.Cli.Commands;
 using Odin.Cli.Commands.Tenant;
 using Odin.Cli.Commands.Tenants;
 using Spectre.Console;
@@ -16,6 +17,11 @@ using Spectre.Console.Cli;
 // serviceCollection.AddSingleton<ICliHttpClientFactory, CliHttpClientFactory>();
 
 var app = new CommandApp();
+
+// SEB:NOTE this command is an annoying hack to allow passing in -I and -K when they are not needed.
+// Without it, running "./odin-admin -I foo -K bar" gives an error.
+app.SetDefaultCommand<DefaultCommand>();
+
 app.Configure(config =>
 {
     #if DEBUG

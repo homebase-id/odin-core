@@ -3,22 +3,26 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
 {
     public class CircleMembershipControllerBase : OdinControllerBase
     {
         private readonly CircleMembershipService _circleMembershipService;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleMembershipControllerBase(CircleMembershipService circleMembershipService)
+        public CircleMembershipControllerBase(CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
         {
             _circleMembershipService = circleMembershipService;
+            _tenantSystemStorage = tenantSystemStorage;
         }
         
         [HttpPost("list")]
         public Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
         {
-            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, WebOdinContext);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, WebOdinContext, cn);
             return Task.FromResult(result);
         }
     }

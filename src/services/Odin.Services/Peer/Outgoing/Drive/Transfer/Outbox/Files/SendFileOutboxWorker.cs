@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -29,11 +30,11 @@ public class SendFileOutboxWorker(
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory)
 {
-    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient)
+    public async Task<OutboxProcessingResult> Send(IOdinContext odinContext, bool tryDeleteTransient, DatabaseConnection cn)
     {
         try
         {
-            var result = await SendOutboxFileItemAsync(item, odinContext);
+            var result = await SendOutboxFileItemAsync(item, odinContext, cn);
             logger.LogDebug("Send file item RecipientPeerResponseCode: {d}", result.RecipientPeerResponseCode);
 
             // Try to clean up the transient file
@@ -41,14 +42,14 @@ public class SendFileOutboxWorker(
             {
                 if(tryDeleteTransient)
                 {
-                    if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item))
+                    if (item.IsTransientFile && !await peerOutbox.HasOutboxFileItem(item, cn))
                     {
                         var fs = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
-                        await fs.Storage.HardDeleteLongTermFile(item.File, odinContext);
+                        await fs.Storage.HardDeleteLongTermFile(item.File, odinContext, cn);
                     }
                 }
 
-                await peerOutbox.MarkComplete(item.Marker);
+                await peerOutbox.MarkComplete(item.Marker, cn);
 
             }
             else
@@ -60,13 +61,13 @@ public class SendFileOutboxWorker(
                     case TransferResult.EncryptedTransferInstructionSetNotAvailable:
                     case TransferResult.FileDoesNotAllowDistribution:
                     case TransferResult.RecipientDoesNotHavePermissionToFileAcl:
-                        await peerOutbox.MarkComplete(item.Marker);
+                        await peerOutbox.MarkComplete(item.Marker, cn);
                         break;
 
                     case TransferResult.RecipientServerNotResponding:
                     case TransferResult.RecipientServerError:
                         var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
-                        await peerOutbox.MarkFailure(item.Marker, nextRun);
+                        await peerOutbox.MarkFailure(item.Marker, nextRun, cn);
                         break;
                 }
             }
@@ -76,17 +77,17 @@ public class SendFileOutboxWorker(
         catch (OdinOutboxProcessingException)
         {
             var nextRun = UnixTimeUtc.Now().AddSeconds(-5);
-            await peerOutbox.MarkFailure(item.Marker, nextRun);
+            await peerOutbox.MarkFailure(item.Marker, nextRun, cn);
         }
         catch
         {
-            await peerOutbox.MarkComplete(item.Marker);
+            await peerOutbox.MarkComplete(item.Marker, cn);
         }
 
         return null;
     }
 
-    private async Task<OutboxProcessingResult> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext)
+    private async Task<OutboxProcessingResult> SendOutboxFileItemAsync(OutboxItem outboxItem, IOdinContext odinContext, DatabaseConnection cn)
     {
         OdinId recipient = outboxItem.Recipient;
         var file = outboxItem.File;
@@ -94,7 +95,7 @@ public class SendFileOutboxWorker(
 
         var fileSystem = fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
 
-        var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext);
+        var header = await fileSystem.Storage.GetServerFileHeader(outboxItem.File, odinContext, cn);
 
         // Enforce ACL at the last possible moment before shipping the file out of the identity; in case it changed
         // if (!await driveAclAuthorizationService.IdentityHasPermission(recipient, header.ServerMetadata.AccessControlList, odinContext))
@@ -189,7 +190,7 @@ public class SendFileOutboxWorker(
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
-                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext);
+                var p = await fileSystem.Storage.GetPayloadStream(file, payloadKey, null, odinContext, cn);
                 var payloadStream = p.Stream;
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
@@ -199,7 +200,7 @@ public class SendFileOutboxWorker(
                 {
                     var (thumbStream, thumbHeader) =
                         await fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key, descriptor.Uid,
-                            odinContext);
+                            odinContext, cn);
 
                     var thumbnailKey =
                         $"{payloadKey}" +

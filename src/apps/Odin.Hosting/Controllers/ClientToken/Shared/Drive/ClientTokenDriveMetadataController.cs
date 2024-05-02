@@ -10,6 +10,7 @@ using Odin.Hosting.ApiExceptions.Client;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
@@ -21,10 +22,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     public class ClientTokenDriveMetadataController : OdinControllerBase
     {
         private readonly DriveManager _driveManager;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public ClientTokenDriveMetadataController(DriveManager driveManager)
+        public ClientTokenDriveMetadataController(DriveManager driveManager, TenantSystemStorage tenantSystemStorage)
         {
             _driveManager = driveManager;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -36,8 +39,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
+            using var cn = _tenantSystemStorage.CreateConnection();
+
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext, cn);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()

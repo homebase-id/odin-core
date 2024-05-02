@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.PeerIncoming
 {
@@ -13,14 +14,18 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [ApiController]
     [Route(PeerApiPathConstants.EncryptionV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
-    public class EncryptionPublicKeyController(PublicPrivateKeyService publicPrivateKeyService) : ControllerBase
+    public class EncryptionPublicKeyController(
+        PublicPrivateKeyService publicPrivateKeyService,
+        TenantSystemStorage tenantSystemStorage
+        ) : ControllerBase
     {
         // private Guid _stateItemId;
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
         {
-            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType, cn);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,

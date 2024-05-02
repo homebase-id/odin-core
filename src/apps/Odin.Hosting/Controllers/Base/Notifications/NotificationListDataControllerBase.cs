@@ -4,29 +4,34 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.AppNotifications.Data;
 using Odin.Core.Time;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
     /// <summary>
     /// Handles reading/writing of app notifications
     /// </summary>
-    public abstract class NotificationListDataControllerBase(NotificationListService notificationService) : OdinControllerBase
+    public abstract class NotificationListDataControllerBase(
+        NotificationListService notificationService,
+        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
+            using var cn = tenantSystemStorage.CreateConnection();
             var sender = WebOdinContext.GetCallerOdinIdOrFail();
-            return await notificationService.AddNotification(sender, request, WebOdinContext);
+            return await notificationService.AddNotification(sender, request, WebOdinContext, cn);
         }
 
         [HttpGet("list")]
         public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor)
         {
+            using var cn = tenantSystemStorage.CreateConnection();
             return await notificationService.GetList(new GetNotificationListRequest()
             {
                 Count = count,
                 Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
-            }, WebOdinContext);
+            }, WebOdinContext, cn);
         }
 
         [HttpPut("list")]
@@ -37,14 +42,16 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid request");
             }
 
-            await notificationService.UpdateNotifications(request, WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await notificationService.UpdateNotifications(request, WebOdinContext, cn);
             return Ok();
         }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
-            await notificationService.Delete(request, WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await notificationService.Delete(request, WebOdinContext, cn);
             return Ok();
         }
     }

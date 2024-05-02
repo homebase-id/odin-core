@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -47,22 +48,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem);
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
+        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext, DatabaseConnection cn)
         {
-            return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet, odinContext);
+            return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet, odinContext, cn);
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext)
+        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data, IOdinContext odinContext, DatabaseConnection cn)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-            await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, fileExtension, data, odinContext);
+            await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, fileExtension, data, odinContext, cn);
         }
 
-        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata, IOdinContext odinContext)
+        public async Task<PeerTransferResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata, IOdinContext odinContext, DatabaseConnection cn)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
-            var responseCode = await FinalizeTransferInternal(item, fileMetadata, odinContext);
+            var responseCode = await FinalizeTransferInternal(item, fileMetadata, odinContext, cn);
 
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
@@ -72,11 +73,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     //Note: we say new feed item here because comments are never pushed into the feed drive; so any
                     //item going into the feed is new content (i.e. post/image, etc.)
-                    await _mediator.Publish(new NewFeedItemReceived()
+                    await _mediator.Publish(new NewFeedItemReceived
                     {
                         FileSystemType = item.TransferInstructionSet.FileSystemType,
                         Sender = odinContext.GetCallerOdinIdOrFail(),
-                        OdinContext = odinContext
+                        OdinContext = odinContext,
+                        DatabaseConnection = cn
                     });
                 }
                 else
@@ -86,7 +88,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         var senderId = odinContext.GetCallerOdinIdOrFail();
                         var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);
+                        await _pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext, cn);
                     }
                 }
 
@@ -98,19 +100,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         public async Task<PeerTransferResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
-            IOdinContext odinContext)
+            IOdinContext odinContext, DatabaseConnection cn)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
 
             //TODO: add checks if the sender can write comments if this is a comment
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
+            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext, cn);
 
             //if the sender can write, we can perform this now
 
             if (fileSystemType == FileSystemType.Comment)
             {
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
-                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext, cn);
                 if (null == header)
                 {
                     //TODO: should this be a 404?
@@ -128,7 +130,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         FileId = header.FileId,
                         DriveId = driveId
                     },
-                    odinContext);
+                    odinContext,
+                    cn);
 
                 return new PeerTransferResponse()
                 {
@@ -149,7 +152,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 FileSystemType = fileSystemType,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.Add(item, cn);
 
             return new PeerTransferResponse()
             {
@@ -160,12 +163,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         //
 
-        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata, IOdinContext odinContext)
+        private async Task<PeerResponseCode> FinalizeTransferInternal(IncomingTransferStateItem stateItem, FileMetadata fileMetadata, IOdinContext odinContext, DatabaseConnection cn)
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
-            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext);
+            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext, cn);
 
-            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext);
+            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext, cn);
 
             if (directWriteSuccess)
             {
@@ -173,12 +176,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             //S1220
-            return await RouteToInbox(stateItem, odinContext);
+            return await RouteToInbox(stateItem, odinContext, cn);
         }
 
-        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext, DatabaseConnection cn)
         {
-            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext);
+            await _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId, odinContext, cn);
 
             //HACK: if it's not a connected token
             if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
@@ -195,7 +198,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext);
+                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext, cn);
 
                 return true;
             }
@@ -210,7 +213,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (hasStorageKey)
                 {
                     //S1205
-                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext);
+                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet, odinContext, cn);
                     return true;
                 }
 
@@ -234,7 +237,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext)
+        private async Task<PeerResponseCode> RouteToInbox(IncomingTransferStateItem stateItem, IOdinContext odinContext, DatabaseConnection cn)
         {
             var item = new TransferInboxItem()
             {
@@ -253,12 +256,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
-            await _transitInboxBoxStorage.Add(item);
+            await _transitInboxBoxStorage.Add(item, cn);
             await _mediator.Publish(new TransitFileReceivedNotification()
             {
                 TempFile = new ExternalFileIdentifier()
                 {
-                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                    TargetDrive = _driveManager.GetDrive(item.DriveId, cn).Result.TargetDriveInfo,
                     FileId = item.FileId
                 },
 

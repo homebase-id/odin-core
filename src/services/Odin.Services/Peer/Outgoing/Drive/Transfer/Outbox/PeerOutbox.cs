@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -20,7 +21,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
-        public Task Add(OutboxItem item, bool useUpsert = false)
+        public Task Add(OutboxItem item, DatabaseConnection cn, bool useUpsert = false)
         {
             var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
@@ -42,7 +43,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 value = state
             };
 
-            using var cn = tenantSystemStorage.CreateConnection();
             if (useUpsert)
             {
                 tenantSystemStorage.Outbox.Upsert(cn, record);
@@ -58,19 +58,18 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return Task.CompletedTask;
         }
 
-        public Task Add(IEnumerable<OutboxItem> items)
+        public Task Add(IEnumerable<OutboxItem> items, DatabaseConnection cn)
         {
             foreach (var item in items)
             {
-                Add(item);
+                Add(item, cn);
             }
 
             return Task.CompletedTask;
         }
 
-        public Task MarkComplete(Guid marker)
+        public Task MarkComplete(Guid marker, DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             tenantSystemStorage.Outbox.CompleteAndRemove(cn, marker);
             return Task.CompletedTask;
         }
@@ -78,23 +77,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun)
+        public Task MarkFailure(Guid marker, UnixTimeUtc nextRun, DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             tenantSystemStorage.Outbox.CheckInAsCancelled(cn, marker, nextRun);
             return Task.CompletedTask;
         }
 
-        public Task RecoverDead(UnixTimeUtc time)
+        public Task RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             tenantSystemStorage.Outbox.RecoverCheckedOutDeadItems(cn, time);
             return Task.CompletedTask;
         }
 
-        public async Task<OutboxItem> GetNextItem()
+        public async Task<OutboxItem> GetNextItem(DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             var record = tenantSystemStorage.Outbox.CheckOutItem(cn);
 
             if (null == record)
@@ -125,9 +121,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return await Task.FromResult(item);
         }
 
-        public Task<bool> HasOutboxFileItem(OutboxItem item)
+        public Task<bool> HasOutboxFileItem(OutboxItem item, DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             var records = tenantSystemStorage.Outbox.Get(cn, item.File.DriveId, item.File.FileId);
             var hasRecord = records?.Any(r => r.type == (int)OutboxItemType.File) ?? false;
             return Task.FromResult(hasRecord);
@@ -136,9 +131,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <summary>
         /// Gets the status of the specified Drive
         /// </summary>
-        public async Task<OutboxStatus> GetOutboxStatus(Guid driveId)
+        public async Task<OutboxStatus> GetOutboxStatus(Guid driveId, DatabaseConnection cn)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             var (totalCount, poppedCount, utc) = tenantSystemStorage.Outbox.OutboxStatusDrive(cn, driveId);
             return await Task.FromResult<OutboxStatus>(new OutboxStatus()
             {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -23,16 +24,14 @@ namespace Odin.Services.Peer.Outgoing.Drive
             _queueStorage = tenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(queueContextKey));
         }
 
-        public Task Enqueue(PeerKeyEncryptionQueueItem item)
+        public Task Enqueue(PeerKeyEncryptionQueueItem item, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             _queueStorage.Upsert(cn, item.Id, _queueDataType, item);
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<PeerKeyEncryptionQueueItem>> GetNext()
+        public Task<IEnumerable<PeerKeyEncryptionQueueItem>> GetNext(DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             var items = _queueStorage.Get<List<PeerKeyEncryptionQueueItem>>(cn, _queueStorageId);
             return Task.FromResult<IEnumerable<PeerKeyEncryptionQueueItem>>(items);
         }

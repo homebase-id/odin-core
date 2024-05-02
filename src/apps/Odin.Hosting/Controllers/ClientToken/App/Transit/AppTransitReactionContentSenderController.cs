@@ -5,6 +5,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
@@ -14,6 +15,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     [ApiController]
     [Route(AppApiPathConstants.PeerReactionContentV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerReactionContentSenderController(PeerReactionSenderService peerReactionSenderService)
-        : PeerReactionContentSenderControllerBase(peerReactionSenderService);
+    public class AppPeerReactionContentSenderController(
+        PeerReactionSenderService peerReactionSenderService,
+        TenantSystemStorage tenantSystemStorage)
+        : PeerReactionContentSenderControllerBase(peerReactionSenderService, tenantSystemStorage);
 }

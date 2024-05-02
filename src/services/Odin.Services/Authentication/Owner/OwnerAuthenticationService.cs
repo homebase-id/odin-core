@@ -14,6 +14,7 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.Acl;
@@ -96,17 +97,14 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Generates a one time value to used when authenticating a user
         /// </summary>
-        public async Task<NonceData> GenerateAuthenticationNonce()
+        public async Task<NonceData> GenerateAuthenticationNonce(DatabaseConnection cn)
         {
-            var salts = await _secretService.GetStoredSalts();
-            var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
+            var salts = await _secretService.GetStoredSalts(cn);
+            var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey(cn);
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
 
-            using (var cn = _tenantSystemStorage.CreateConnection())
-            {
-                _nonceDataStorage.Upsert(cn, nonce.Id, nonce);
-            }
+            _nonceDataStorage.Upsert(cn, nonce.Id, nonce);
 
             return nonce;
         }
@@ -116,18 +114,15 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         /// <param name="reply"></param>
         /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
-        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply)
+        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply, DatabaseConnection cn)
         {
-            var noncePackage = await AssertValidPassword(reply);
+            var noncePackage = await AssertValidPassword(reply, cn);
 
             //now that the password key matches, we set return the client auth token
-            var keys = await this._secretService.GetOfflineRsaKeyList();
+            var keys = await this._secretService.GetOfflineRsaKeyList(cn);
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
-            using (var cn = _tenantSystemStorage.CreateConnection())
-            {
-                _serverTokenStorage.Upsert(cn, serverToken.Id, serverToken);
-            }
+            _serverTokenStorage.Upsert(cn, serverToken.Id, serverToken);
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -142,17 +137,15 @@ namespace Odin.Services.Authentication.Owner
 
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
             var odinContext = _httpContextAccessor!.HttpContext!.RequestServices.GetRequiredService<IOdinContext>();
-            await this.UpdateOdinContext(token, odinContext);
-            await EnsureFirstRunOperations(odinContext);
+            await this.UpdateOdinContext(token, odinContext, cn);
+            await EnsureFirstRunOperations(odinContext, cn);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
-        private async Task<NonceData> AssertValidPassword(PasswordReply reply)
+        private async Task<NonceData> AssertValidPassword(PasswordReply reply, DatabaseConnection cn)
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
-
-            using var cn = _tenantSystemStorage.CreateConnection();
 
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
             var noncePackage = _nonceDataStorage.Get<NonceData>(cn, new GuidId(key));
@@ -165,7 +158,7 @@ namespace Odin.Services.Authentication.Owner
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
-            await _secretService.AssertPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
+            await _secretService.AssertPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64, cn);
             return noncePackage;
         }
 
@@ -174,10 +167,9 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         /// <param name="sessionTokenId">The token to be validated</param>
         /// <returns></returns>
-        public async Task<bool> IsValidToken(Guid sessionTokenId)
+        public async Task<bool> IsValidToken(Guid sessionTokenId, DatabaseConnection cn)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            using var cn = _tenantSystemStorage.CreateConnection();
             var entry = _serverTokenStorage.Get<OwnerConsoleToken>(cn, sessionTokenId);
             return await Task.FromResult(IsAuthTokenEntryValid(entry));
         }
@@ -185,10 +177,8 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
-        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionTokenId, SensitiveByteArray clientSecret)
+        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionTokenId, SensitiveByteArray clientSecret, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = _serverTokenStorage.Get<OwnerConsoleToken>(cn, sessionTokenId);
 
@@ -197,7 +187,7 @@ namespace Odin.Services.Authentication.Owner
                 throw new OdinClientException("Token is invalid", OdinClientErrorCode.InvalidAuthToken);
             }
 
-            var mk = await _secretService.GetMasterKey(loginToken, clientSecret);
+            var mk = await _secretService.GetMasterKey(loginToken, clientSecret, cn);
 
             //HACK: need to clone this here because the owner console token is getting wipe by the owner console token finalizer
             var len = loginToken.SharedSecret.Length;
@@ -209,15 +199,15 @@ namespace Odin.Services.Authentication.Owner
         }
 
         public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token,
-            IOdinContext odinContext)
+            IOdinContext odinContext, DatabaseConnection cn)
         {
-            if (await IsValidToken(token.Id))
+            if (await IsValidToken(token.Id, cn))
             {
-                var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
+                var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey, cn);
 
-                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
+                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey(cn);
 
-                var allDrives = await _driveManager.GetDrives(PageOptions.All, odinContext);
+                var allDrives = await _driveManager.GetDrives(PageOptions.All, odinContext, cn);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
@@ -245,12 +235,12 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, IOdinContext odinContext)
+        public async Task<IOdinContext> GetDotYouContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
         {
             var creator = new Func<Task<IOdinContext>>(async delegate
             {
                 var dotYouContext = new OdinContext();
-                var (masterKey, permissionContext) = await GetPermissionContext(token, odinContext);
+                var (masterKey, permissionContext) = await GetPermissionContext(token, odinContext, cn);
 
                 if (null == permissionContext || masterKey.IsEmpty())
                 {
@@ -282,13 +272,13 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         /// <param name="tokenId"></param>
         /// <param name="ttlSeconds"></param>
-        public async Task ExtendTokenLife(Guid tokenId, int ttlSeconds)
+        /// <param name="cn"></param>
+        public async Task ExtendTokenLife(Guid tokenId, int ttlSeconds, DatabaseConnection cn)
         {
-            var entry = await GetValidatedEntry(tokenId);
+            var entry = await GetValidatedEntry(tokenId, cn);
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            using var cn = _tenantSystemStorage.CreateConnection();
             _serverTokenStorage.Upsert(cn, entry.Id, entry);
         }
 
@@ -297,15 +287,13 @@ namespace Odin.Services.Authentication.Owner
         /// clicks logout.  Invalid or expired tokens are ignored.
         /// </summary>
         /// <param name="tokenId"></param>
-        public void ExpireToken(Guid tokenId)
+        public void ExpireToken(Guid tokenId, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             _serverTokenStorage.Delete(cn, tokenId);
         }
 
-        private Task<OwnerConsoleToken> GetValidatedEntry(Guid tokenId)
+        private Task<OwnerConsoleToken> GetValidatedEntry(Guid tokenId, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             var entry = _serverTokenStorage.Get<OwnerConsoleToken>(cn, tokenId);
             AssertTokenIsValid(entry);
             return Task.FromResult(entry);
@@ -342,7 +330,7 @@ namespace Odin.Services.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext)
+        public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
         {
             var context = _httpContextAccessor.HttpContext;
             odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
@@ -364,7 +352,7 @@ namespace Odin.Services.Authentication.Owner
                     DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(_httpContextAccessor!.HttpContext!.Request)
                 });
 
-            IOdinContext ctx = await this.GetDotYouContext(token, odinContext);
+            IOdinContext ctx = await this.GetDotYouContext(token, odinContext, cn);
 
             if (null == ctx)
             {
@@ -389,14 +377,12 @@ namespace Odin.Services.Authentication.Owner
 
         //
 
-        private async Task EnsureFirstRunOperations(IOdinContext odinContext)
+        private async Task EnsureFirstRunOperations(IOdinContext odinContext, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-
             var fli = _firstRunInfoStorage.Get<FirstOwnerLoginInfo>(cn, FirstOwnerLoginInfo.Key);
             if (fli == null)
             {
-                await _tenantConfigService.CreateInitialKeys(odinContext);
+                await _tenantConfigService.CreateInitialKeys(odinContext, cn);
 
                 _firstRunInfoStorage.Upsert(cn, FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
                 {
@@ -405,20 +391,20 @@ namespace Odin.Services.Authentication.Owner
             }
         }
 
-        public async Task MarkForDeletion(PasswordReply currentPasswordReply, IOdinContext odinContext)
+        public async Task MarkForDeletion(PasswordReply currentPasswordReply, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var _ = await this.AssertValidPassword(currentPasswordReply);
+            var _ = await this.AssertValidPassword(currentPasswordReply, cn);
             await _identityRegistry.MarkForDeletion(_tenantContext.HostOdinId);
 
             var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);
             tc.Update(tc);
         }
 
-        public async Task UnmarkForDeletion(PasswordReply currentPasswordReply, IOdinContext odinContext)
+        public async Task UnmarkForDeletion(PasswordReply currentPasswordReply, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var _ = await this.AssertValidPassword(currentPasswordReply);
+            var _ = await this.AssertValidPassword(currentPasswordReply, cn);
             await _identityRegistry.UnmarkForDeletion(_tenantContext.HostOdinId);
 
             var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);

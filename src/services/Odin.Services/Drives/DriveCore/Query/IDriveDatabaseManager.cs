@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -24,7 +25,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// Returns the fileId of recently modified files
         /// </summary>
         Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
-            QueryModifiedResultOptions options);
+            QueryModifiedResultOptions options, DatabaseConnection cn);
 
 
         /// <summary>
@@ -34,44 +35,44 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
         Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
-            QueryBatchResultOptions options);
+            QueryBatchResultOptions options, DatabaseConnection cn);
 
         /// <summary>
         /// Updates the current index that is in use.
         /// </summary>
-        Task UpdateCurrentIndex(ServerFileHeader metadata);
+        Task UpdateCurrentIndex(ServerFileHeader metadata, DatabaseConnection cn);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        Task RemoveFromCurrentIndex(InternalDriveFileId file);
+        Task RemoveFromCurrentIndex(InternalDriveFileId file, DatabaseConnection cn);
 
-        Task LoadLatestIndex();
+        Task LoadLatestIndex(DatabaseConnection cn);
 
-        Task AddCommandMessage(List<Guid> fileIds);
+        Task AddCommandMessage(List<Guid> fileIds, DatabaseConnection cn);
 
-        Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count);
+        Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count, DatabaseConnection cn);
 
-        Task MarkCommandsCompleted(List<Guid> fileIds);
+        Task MarkCommandsCompleted(List<Guid> fileIds, DatabaseConnection cn);
 
-        void AddReaction(OdinId odinId, Guid fileId, string reaction);
+        void AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
-        void DeleteReactions(OdinId odinId, Guid fileId);
+        void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
-        void DeleteReaction(OdinId odinId, Guid fileId, string reaction);
+        void DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
 
-        (List<string>, int) GetReactions(Guid fileId);
+        (List<string>, int) GetReactions(Guid fileId, DatabaseConnection cn);
 
-        (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId);
+        (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, DatabaseConnection cn);
 
-        List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId);
+        List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, DatabaseConnection cn);
 
-        int GetReactionCountByIdentity(OdinId odinId, Guid fileId);
+        int GetReactionCountByIdentity(OdinId odinId, Guid fileId, DatabaseConnection cn);
 
-        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId);
+        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, DatabaseConnection cn);
         
-        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo();
+        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn);
     }
 }
