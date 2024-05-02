@@ -1,13 +1,18 @@
-name: "Host: Build and deploy main to Bleeding Edge"
+name: "Host: Build and deploy branch to environment"
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  packages: write
+    inputs:
+      choice:
+        type: choice
+        description: "Environment"
+        options:
+        - bleeding_edge
+        - sandbox
+      fe_ref:
+        description: "Frontend branch/commit to include"
+        required: true
+        default: "main"
 
 env:
   REGISTRY: ghcr.io
@@ -32,6 +37,7 @@ jobs:
         with:
           dotyoucore_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_ref: ${{ github.event.inputs.fe_ref }}
 
       #
       # Build docker image
@@ -53,28 +59,34 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      - name: Combine Docker tags
+        run: |
+          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}__${{ github.event.inputs.fe_ref }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_WITH_TAG=$lowercase_image_tags" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
         with:
           context: ./dotyoucore
           file: ./dotyoucore/docker/Dockerfile-identity-host
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.IMAGE_WITH_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
 
       #
-      # Deploy
+      # Deploy docker image
       #
 
       - name: Deploy Docker Image    
         uses: ./dotyoucore/.github/actions/host/deploy-image-to-environment
         with:
-          image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          env_name: "bleeding_edge"
-          force_update: "true"
+          image_name: ${{ env.IMAGE_WITH_TAG }}
+          env_name: ${{ github.event.inputs.choice }}
+          force_update: 'true'
           ansible_host: ${{ secrets.ANSIBLE_HOST }}
           ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
           ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+
 
