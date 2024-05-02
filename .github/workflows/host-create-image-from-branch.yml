@@ -56,7 +56,7 @@ jobs:
       - name: Combine Docker tags
         run: |
           lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}__${{ github.event.inputs.fe_ref }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
+          echo "IMAGE_WITH_TAG=$lowercase_image_tags" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
@@ -64,7 +64,7 @@ jobs:
           context: ./dotyoucore
           file: ./dotyoucore/docker/Dockerfile-identity-host
           push: true
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ env.IMAGE_WITH_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
