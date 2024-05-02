@@ -1,5 +1,3 @@
-using System;
-
 namespace Odin.Services.EncryptionKeyService;
 
 public class GetPublicKeyResponse

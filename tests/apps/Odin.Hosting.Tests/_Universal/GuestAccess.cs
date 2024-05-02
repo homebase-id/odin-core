@@ -13,7 +13,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 
 namespace Odin.Hosting.Tests._Universal;
 
-public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, List<GuidId> circles, TestPermissionKeyList keys = null)
+public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, TestPermissionKeyList keys = null)
     : IApiClientContext
 {
     private GuestApiClientFactory _factory;
@@ -32,9 +32,8 @@ public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, Lis
                 PermissionSet = new PermissionSet(keys.PermissionKeys)
             });
 
-        var circleList = new List<GuidId>() { circleId };
-        circleList.AddRange(circles);
-        await ownerApiClient.YouAuth.RegisterDomain(domain, circleList);
+        var circles = new List<GuidId>() { circleId };
+        await ownerApiClient.YouAuth.RegisterDomain(domain, circles);
 
         var registerClientResponse = await ownerApiClient.YouAuth.RegisterClient(domain, "test scenario client");
 

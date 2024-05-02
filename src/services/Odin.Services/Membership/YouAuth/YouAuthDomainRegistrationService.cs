@@ -63,7 +63,6 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
-
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
 
@@ -323,7 +322,7 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = _circleMembershipService.GetCircle(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -470,10 +469,6 @@ namespace Odin.Services.Membership.YouAuth
 
                     if (!isMember)
                     {
-                        //
-                        // BUG - this method calls upsert which will overwrite a circle membership
-                        // from the DomainType.Identity when it is granted to the DomainType.youauth
-                        //
                         _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth);
                     }
                 }

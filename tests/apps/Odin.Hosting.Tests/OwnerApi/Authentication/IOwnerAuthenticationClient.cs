@@ -46,6 +46,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
         
         [Get(RootPath + "/publickey")]
-        Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(PublicPrivateKeyType keyType);
+        Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(RsaKeyType keyType);
     }
 }

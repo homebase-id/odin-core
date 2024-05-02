@@ -95,8 +95,8 @@ namespace Odin.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.RsaEncryptPayloadForRecipient(
-                    PublicPrivateKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray());
+                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(
+                    RsaKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray());
                 var client = CreateClient(identityToFollow);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
@@ -105,7 +105,7 @@ namespace Odin.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientRsaPublicKey(identityToFollow);
+                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey(identityToFollow);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
