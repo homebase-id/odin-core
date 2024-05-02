@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Serilog.Log.Error($"AttestationDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error($"AttestationDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #endif
         }
 

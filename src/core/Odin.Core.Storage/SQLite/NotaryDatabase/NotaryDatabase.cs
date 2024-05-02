@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 throw new Exception($"NotaryChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Serilog.Log.Error($"BlockChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error($"NotaryChainDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #endif
         }
 

@@ -117,7 +117,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 throw new Exception($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error($"IdentityDatabase was not disposed properly [CN={_connectionString}]. Instantiated from file {_file} line {_line}.");
 #endif
         }
 
