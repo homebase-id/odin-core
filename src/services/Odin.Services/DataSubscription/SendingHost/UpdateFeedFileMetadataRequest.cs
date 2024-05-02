@@ -11,4 +11,5 @@ public class UpdateFeedFileMetadataRequest
     public FileMetadata FileMetadata { get; set; }
     
     public EccEncryptedPayload EncryptedPayload { get; set; }
+    public FeedDistroType FeedDistroType { get; set; }
 }

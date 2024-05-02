@@ -144,7 +144,7 @@ namespace Odin.Services.DataSubscription
                 DriveNotificationType = notification.DriveNotificationType,
                 SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                 FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
-                FeedDistroType = FeedDistroType.UnencryptedFileMetadata
+                FeedDistroType = FeedDistroType.Normal
             };
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(notification.OdinContext);
@@ -282,7 +282,7 @@ namespace Odin.Services.DataSubscription
                             DriveNotificationType = notification.DriveNotificationType,
                             SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                             FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
-                            FeedDistroType = FeedDistroType.EncryptedFileMetadata,
+                            FeedDistroType = FeedDistroType.CollaborativeChannel,
                             EncryptedPayload = encryptedPayload
                         }
                     );

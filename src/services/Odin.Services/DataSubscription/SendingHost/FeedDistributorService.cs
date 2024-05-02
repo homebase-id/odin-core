@@ -90,7 +90,7 @@ namespace Odin.Services.DataSubscription.SendingHost
                 //TODO: need more info here
                 return false;
             }
-            
+
             var request = new UpdateFeedFileMetadataRequest()
             {
                 FileId = new GlobalTransitIdFileIdentifier()
@@ -99,6 +99,7 @@ namespace Odin.Services.DataSubscription.SendingHost
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
                 FileMetadata = header.FileMetadata,
+                FeedDistroType = distroItem.FeedDistroType,
                 EncryptedPayload = distroItem.EncryptedPayload
             };
 

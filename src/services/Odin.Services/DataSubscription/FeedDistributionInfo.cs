@@ -34,6 +34,6 @@ public class FeedItemPayload
 
 public enum FeedDistroType
 {
-    UnencryptedFileMetadata = 2,
-    EncryptedFileMetadata = 4
+    Normal = 2,
+    CollaborativeChannel = 4
 }

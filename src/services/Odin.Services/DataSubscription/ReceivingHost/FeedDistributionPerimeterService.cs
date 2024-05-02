@@ -37,7 +37,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 throw new OdinClientException("Target drive must be the feed drive");
             }
 
-            if (request.FileMetadata.IsEncrypted)
+            
+            if (request.FileMetadata.IsEncrypted && request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
                 return await RouteToInbox(request, odinContext);
             }
