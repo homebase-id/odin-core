@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -31,15 +32,18 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly DriveManager _driveManager;
         private readonly ILogger<AppNotificationHandler> _logger;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         public AppNotificationHandler(
             PeerInboxProcessor peerInboxProcessor,
             DriveManager driveManager,
-            ILogger<AppNotificationHandler> logger)
+            ILogger<AppNotificationHandler> logger,
+            TenantSystemStorage tenantSystemStorage)
         {
             _peerInboxProcessor = peerInboxProcessor;
             _driveManager = driveManager;
             _logger = logger;
+            _tenantSystemStorage = tenantSystemStorage;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
@@ -203,7 +207,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var data = OdinSystemSerializer.Serialize(new
                     {
-                        TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId)).TargetDriveInfo,
+                        TargetDrive = (await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null
@@ -364,13 +368,19 @@ namespace Odin.Services.AppNotifications.WebSocket
                     break;
 
                 case SocketCommandType.ProcessTransitInstructions:
-                    var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext);
+                    {
+                        using var cn = _tenantSystemStorage.CreateConnection();
+                        var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
+                        await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
+                    }
                     break;
 
                 case SocketCommandType.ProcessInbox:
-                    var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                    await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, request.BatchSize);
+                    {
+                        using var cn = _tenantSystemStorage.CreateConnection();
+                        var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
+                        await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
+                    }
                     break;
 
                 case SocketCommandType.Ping:

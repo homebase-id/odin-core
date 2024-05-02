@@ -2,6 +2,7 @@
 using Odin.Services.Authentication.Owner;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Hosting.Controllers.Base.Follow;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Follow
 {
@@ -12,7 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Follow
     public class OwnerFollowerController : FollowerControllerBase
     {
         /// <summary />
-        public OwnerFollowerController(FollowerService fs) : base(fs)
+        public OwnerFollowerController(FollowerService fs, TenantSystemStorage tenantSystemStorage) : base(fs, tenantSystemStorage)
         {
         }
         

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Membership.YouAuth;
 using Odin.Services.Base;
@@ -19,7 +20,7 @@ public enum ClientType
 
 public interface IYouAuthUnifiedService
 {
-    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext);
+    Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest, IOdinContext odinContext, DatabaseConnection cn);
 
     Task<bool> NeedConsent(
         string tenant,
@@ -27,10 +28,11 @@ public interface IYouAuthUnifiedService
         string clientIdOrDomain,
         string permissionRequest,
         string redirectUri,
-        IOdinContext odinContext);
+        IOdinContext odinContext,
+        DatabaseConnection cn);
 
     Task StoreConsent(string clientIdOrDomain, ClientType clientType, string permissionRequest, ConsentRequirements consentRequirements,
-        IOdinContext odinContext);
+        IOdinContext odinContext, DatabaseConnection cn);
 
     Task<(string exchangePublicKey, string exchangeSalt)> CreateClientAccessToken(
         ClientType clientType,
@@ -38,7 +40,8 @@ public interface IYouAuthUnifiedService
         string clientInfo,
         string permissionRequest,
         string publicKey,
-        IOdinContext odinContext);
+        IOdinContext odinContext,
+        DatabaseConnection cn);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);
 }

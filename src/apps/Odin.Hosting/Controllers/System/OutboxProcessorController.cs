@@ -6,6 +6,7 @@ using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -22,12 +23,14 @@ namespace Odin.Hosting.Controllers.System
         OdinConfiguration config,
         IPeerOutbox outbox,
         PeerOutboxProcessor outboxProcessor,
+        TenantSystemStorage tenantSystemStorage,
         TransitInboxBoxStorage inbox) : OdinControllerBase
     {
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox()
         {
-            await outboxProcessor.StartOutboxProcessing(WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await outboxProcessor.StartOutboxProcessing(WebOdinContext, cn);
             return true;
         }
 
@@ -37,8 +40,9 @@ namespace Odin.Hosting.Controllers.System
             var ageSeconds = config.Host.InboxOutboxRecoveryAgeSeconds;
             var time = UnixTimeUtc.FromDateTime(DateTime.Now.Subtract(TimeSpan.FromSeconds(ageSeconds)));
 
-            await outbox.RecoverDead(time);
-            await inbox.RecoverDead(time);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await outbox.RecoverDead(time, cn);
+            await inbox.RecoverDead(time, cn);
             return Ok();
         }
     }

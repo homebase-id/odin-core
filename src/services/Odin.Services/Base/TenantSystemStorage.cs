@@ -53,7 +53,7 @@ namespace Odin.Services.Base
             IdentityDatabase.Dispose();
         }
 
-        public DatabaseBase.DatabaseConnection CreateConnection()
+        public DatabaseConnection CreateConnection()
         {
             return IdentityDatabase.CreateDisposableConnection();
         }

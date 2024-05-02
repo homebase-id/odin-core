@@ -5,6 +5,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
@@ -20,27 +21,24 @@ namespace Odin.Hosting.Controllers.Home.Service
             _clientStorage = tenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(homeClientContextKey));
         }
 
-        public HomeAppClient? GetClient(Guid id)
+        public HomeAppClient? GetClient(Guid id, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             var client = _clientStorage.Get<HomeAppClient>(cn, id);
             return client;
         }
 
-        public void SaveClient(HomeAppClient client)
+        public void SaveClient(HomeAppClient client, DatabaseConnection cn)
         {
             if (null == client?.AccessRegistration?.Id)
             {
                 throw new OdinClientException("Invalid client id");
             }
 
-            using var cn = _tenantSystemStorage.CreateConnection();
             _clientStorage.Upsert(cn, client.AccessRegistration.Id, client);
         }
 
-        public void DeleteClient(GuidId accessRegistrationId)
+        public void DeleteClient(GuidId accessRegistrationId, DatabaseConnection cn)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
             _clientStorage.Delete(cn, accessRegistrationId);
         }
     }

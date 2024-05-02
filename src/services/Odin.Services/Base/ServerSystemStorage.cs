@@ -40,7 +40,7 @@ public sealed class ServerSystemStorage : IDisposable
         JobQueue = _db.tblCron;
     }
 
-    public DatabaseBase.DatabaseConnection CreateConnection()
+    public DatabaseConnection CreateConnection()
     {
         return _db.CreateDisposableConnection();
     }

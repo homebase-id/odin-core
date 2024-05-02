@@ -10,13 +10,17 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public class PeerSecurityContextControllerBase(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
+    public class PeerSecurityContextControllerBase(
+        PeerDriveQueryService peerDriveQueryService,
+        TenantSystemStorage tenantSystemStorage
+        ) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("security/context")]
         public async Task<RedactedOdinContext> GetRemoteDotYouContext([FromBody] TransitGetSecurityContextRequest request)
         {
-            var ctx = await peerDriveQueryService.GetRemoteDotYouContext((OdinId)request.OdinId,WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var ctx = await peerDriveQueryService.GetRemoteDotYouContext((OdinId)request.OdinId,WebOdinContext, cn);
             return ctx;
         }
     }

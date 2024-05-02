@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query.Sqlite;
@@ -26,16 +27,16 @@ public class ReactionContentService
         _mediator = mediator;
     }
 
-    public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext)
+    public async Task AddReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
         var callerId = context.GetCallerOdinIdOrFail();
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.AddReaction(callerId, file.FileId, reactionContent);
+            manager.AddReaction(callerId, file.FileId, reactionContent, cn);
 
             await _mediator.Publish(new ReactionContentAddedNotification()
             {
@@ -51,15 +52,15 @@ public class ReactionContentService
         }
     }
 
-    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext)
+    public async Task DeleteReaction(InternalDriveFileId file, string reactionContent, IOdinContext odinContext, DatabaseConnection cn)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent);
+            manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent, cn);
 
             await _mediator.Publish(new ReactionDeletedNotification()
             {
@@ -75,14 +76,14 @@ public class ReactionContentService
         }
     }
 
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(InternalDriveFileId file, IOdinContext odinContext)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            var (reactions, total) = manager.GetReactionSummaryByFile(file.FileId);
+            var (reactions, total) = manager.GetReactionSummaryByFile(file.FileId, cn);
 
             return new GetReactionCountsResponse()
             {
@@ -94,29 +95,29 @@ public class ReactionContentService
         throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file, IOdinContext odinContext)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            var result = manager.GetReactionsByIdentityAndFile(identity, file.FileId);
+            var result = manager.GetReactionsByIdentityAndFile(identity, file.FileId, cn);
             return result;
         }
 
         throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
-    public async Task DeleteAllReactions(InternalDriveFileId file, IOdinContext odinContext)
+    public async Task DeleteAllReactions(InternalDriveFileId file, IOdinContext odinContext, DatabaseConnection cn)
     {
         var context = odinContext;
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
-            manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
+            manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId, cn);
 
             await _mediator.Publish(new AllReactionsByFileDeleted()
             {
@@ -126,15 +127,15 @@ public class ReactionContentService
         }
     }
 
-    public async Task<GetReactionsResponse> GetReactions(InternalDriveFileId file, int cursor, int maxCount, IOdinContext odinContext)
+    public async Task<GetReactionsResponse> GetReactions(InternalDriveFileId file, int cursor, int maxCount, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId);
+        var manager = await _driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, cn);
         if (manager != null)
         {
             var (list, nextCursor) =
-                manager.GetReactionsByFile(fileId: file.FileId, cursor: cursor, maxCount: maxCount);
+                manager.GetReactionsByFile(maxCount, cursor, file.FileId, cn);
 
             return new GetReactionsResponse()
             {
