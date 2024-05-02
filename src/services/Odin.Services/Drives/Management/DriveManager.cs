@@ -38,7 +38,7 @@ public class DriveManager
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
-    public DriveManager(TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext, DatabaseConnection cn)
+    public DriveManager(TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
         _mediator = mediator;
         _tenantContext = tenantContext;
@@ -47,6 +47,7 @@ public class DriveManager
         const string driveContextKey = "4cca76c6-3432-4372-bef8-5f05313c0376";
         _driveStorage = tenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(driveContextKey));
 
+        using var cn = tenantSystemStorage.CreateConnection();
         LoadCache(cn);
     }
 
