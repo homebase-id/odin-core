@@ -84,7 +84,7 @@ namespace Odin.Core.Cryptography.Data
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(secret)))
             {
-                 throw new OdinSecurityException("Key hash did not match")
+                throw new OdinSecurityException("Key hash did not match")
                 {
                     IsRemoteIcrIssue = true
                 };

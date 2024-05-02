@@ -76,22 +76,4 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
-
-    public static IOdinContext UpgradeToNonOwnerFeedDistributor(IOdinContext odinContext)
-    {
-        var patchedContext = odinContext.Clone();
-
-
-        patchedContext.PermissionsContext.PermissionGroups.TryAdd(nameof(UpgradeToNonOwnerFeedDistributor),
-            new PermissionGroup(
-                new PermissionSet([
-                    PermissionKeys.ReadConnections,
-                    PermissionKeys.ReadMyFollowers,
-                    // PermissionKeys.SendOnBehalfOfOwner,
-                    PermissionKeys.ReadCircleMembership
-                ]),
-                new List<DriveGrant>(), null, null));
-
-        return patchedContext;
-    }
 }

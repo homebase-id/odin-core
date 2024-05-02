@@ -26,8 +26,6 @@ namespace Odin.Services.Authorization.Permissions
 
         public const int PublishStaticContent = 505;
         
-        public const int SendOnBehalfOfOwner = 707;
-        
         public static readonly List<int> All = new List<int>()
         {
             ReadConnections,
@@ -67,11 +65,7 @@ namespace Odin.Services.Authorization.Permissions
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ReadWhoIFollow,
-
-                //Note: circles can potentially useTransitWrite so feed items can be
-                //distributed when posting to a group channel;  intentionally leaving out UseTransitRead
-                PermissionKeys.SendOnBehalfOfOwner
+                PermissionKeys.ReadWhoIFollow
             });
         }
 
