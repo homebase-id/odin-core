@@ -14,7 +14,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Follower;
 
 public class UniversalFollowerApiClient(OdinId targetIdentity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<HttpContent>> FollowIdentity(OdinId identity, FollowerNotificationType notificationType, List<TargetDrive> channels)
+    public async Task<ApiResponse<HttpContent>> FollowIdentity(OdinId identity, FollowerNotificationType notificationType, List<TargetDrive> channels = null)
     {
         var client = factory.CreateHttpClient(targetIdentity, out var sharedSecret);
         {
@@ -24,7 +24,7 @@ public class UniversalFollowerApiClient(OdinId targetIdentity, IApiClientFactory
             {
                 OdinId = identity,
                 NotificationType = notificationType,
-                Channels = channels
+                Channels = channels ?? []
             };
 
             var apiResponse = await svc.Follow(request);

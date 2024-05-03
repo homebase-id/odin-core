@@ -413,7 +413,7 @@ public abstract class FileSystemStreamWriterBase
     {
         if (null == serverMetadata.AccessControlList)
         {
-            throw new MissingDataException("Access control list must be specified");
+            throw new OdinClientException("Access control list must be specified", OdinClientErrorCode.MissingUploadData);
         }
 
         serverMetadata.AccessControlList.Validate();
