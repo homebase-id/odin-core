@@ -22,6 +22,16 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
 
+        [SetUp]
+        [TearDown]
+        public void SetupTearDown()
+        {
+            // This will trigger any finalizers that are waiting to be run.
+            // This is useful to verify that all db's are correctly disposed.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
 
         /// <summary>
         /// Test getting a non-existant item
@@ -271,6 +281,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
         /// Bandwidth: 20491 rows / second
         /// </summary>
         [Test]
+        [Ignore("no lock")]
         public void PerformanceTest03()
         {
             Task[] tasks = new Task[MAXTHREADS];

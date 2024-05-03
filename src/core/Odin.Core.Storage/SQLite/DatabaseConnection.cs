@@ -18,9 +18,9 @@ namespace Odin.Core.Storage.SQLite
         public readonly DatabaseBase db;
 
         private SqliteConnection _connection;
-        public SqliteTransaction _transaction = null;
-        public int _commitsCount = 0;
-        public Object _lock = new Object();
+        private SqliteTransaction _transaction = null;
+        private int _transactionCount = 0;
+        public object _lock = new ();
         internal int _nestedCounter = 0;
 
         public SqliteConnection Connection { get { return _connection; } }
@@ -80,22 +80,36 @@ namespace Odin.Core.Storage.SQLite
         /// Don't call this function directly, use using (CreateCommitUnitOfWork()) instead
         /// </summary>
         /// <returns>True if transaction was committed</returns>
-        private bool CommitTransaction()
+        private bool EndTransaction(bool commit)
         {
-            if (_transaction != null)
+            try
             {
-                _commitsCount++;
-                _transaction.Commit(); // Flush the data
-                _transaction.Dispose();
-                _transaction = null;
+                if (_transaction == null)
+                {
+                    return false;
+                }
+
+                _transactionCount++;
+                if (commit)
+                {
+                    _transaction.Commit();
+                }
+                else
+                {
+                    _transaction.Rollback();
+                }
 
                 return true;
             }
-            return false;
+            finally
+            {
+                _transaction?.Dispose();
+                _transaction = null;
+            }
         }
 
         /// <summary>
-        /// Thread safe.
+        /// Not thread safe.
         /// This is a wrapper to logically group (same) database transactions what you want to 
         /// be sure are either committed together, or not at all. Preferably used like this
         /// using (db.CreateLogicCommitUnit())
@@ -111,51 +125,62 @@ namespace Odin.Core.Storage.SQLite
 
         public void CreateCommitUnitOfWork(Action actions)
         {
-            lock (_lock)
+            CreateCommitUnitOfWorkAsync(() =>
             {
-                try
-                {
-                    _nestedCounter++;
-                    if (_nestedCounter == 1)
-                        BeginTransaction();
-                    actions();
-                }
-                finally
-                {
-                    _nestedCounter--;
-                    if (_nestedCounter == 0)
-                        CommitTransaction();
-                }
-            }
+                actions();
+                return Task.CompletedTask;
+            }).Wait();
         }
 
-        /// <summary>
-        /// Not thread safe. Only 1 connection per thread.
-        /// </summary>
-        /// <param name="actions"></param>
-        /// <returns></returns>
+        //
+
         public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
         {
             try
             {
-                _nestedCounter++;
-                if (_nestedCounter == 1)
-                    BeginTransaction(); // Assuming an asynchronous version exists
+                lock (_lock)
+                {
+                    if (++_nestedCounter == 1)
+                    {
+                        BeginTransaction();
+                    }
+                }
 
-                await actions(); // Execute the actions asynchronously
+                await actions();
+
+                lock (_lock)
+                {
+                    if (--_nestedCounter == 0)
+                    {
+                        EndTransaction(true);
+                    }
+                }
             }
-            finally
+            catch (Exception e)
             {
-                _nestedCounter--;
-                if (_nestedCounter == 0)
-                    CommitTransaction(); // Assuming an asynchronous version exists
+                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync: {error}", e.Message);
+                lock (_lock)
+                {
+                    if (--_nestedCounter < 1)
+                    {
+                        try
+                        {
+                            EndTransaction(false);
+                        }
+                        finally
+                        {
+                            _nestedCounter = 0;
+                        }
+                    }
+                }
+                throw;
             }
         }
 
 
         public int ExecuteNonQuery(SqliteCommand command)
         {
-            lock (_lock)
+            lock (_lock) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
@@ -176,7 +201,7 @@ namespace Odin.Core.Storage.SQLite
         /// <exception cref="ArgumentException"></exception>
         public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
         {
-            lock (_lock)
+            lock (_lock) // SEB:TODO lock review
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
@@ -216,11 +241,11 @@ namespace Odin.Core.Storage.SQLite
             }
         }
 
-        public int CommitsCount()
+        public int TransactionCount()
         {
             lock (_lock)
             {
-                return _commitsCount;
+                return _transactionCount;
             }
         }
     }
