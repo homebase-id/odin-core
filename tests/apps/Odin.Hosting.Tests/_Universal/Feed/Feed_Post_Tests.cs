@@ -278,7 +278,7 @@ public class Feed_Post_Tests
             }
         };
         // Login to Frodo's identity as Sam
-        var frodoCallerContextOnSam = new GuestAccess(frodo.OdinId, driveGrants, new TestPermissionKeyList());
+        var frodoCallerContextOnSam = new GuestAccess(frodo.OdinId, driveGrants, [], new TestPermissionKeyList());
 
         await frodoCallerContextOnSam.Initialize(ownerSam);
         var guestDrive = new UniversalDriveApiClient(ownerSam.Identity.OdinId, frodoCallerContextOnSam.GetFactory());

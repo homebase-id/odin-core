@@ -199,7 +199,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var saltyReply = await CalculatePasswordReply(authClient, password);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            var publicKeyResponse = await svc.GetPublicKey(RsaKeyType.OfflineKey);
+            var publicKeyResponse = await svc.GetPublicKey(PublicPrivateKeyType.OfflineKey);
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
