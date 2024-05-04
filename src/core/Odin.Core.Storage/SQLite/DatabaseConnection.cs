@@ -89,7 +89,8 @@ namespace Odin.Core.Storage.SQLite
                     return false;
                 }
 
-                _transactionCount++;
+                Interlocked.Increment(ref _transactionCount);
+
                 if (commit)
                 {
                     _transaction.Commit();
@@ -136,44 +137,43 @@ namespace Odin.Core.Storage.SQLite
 
         public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
         {
+            bool commit = false;
+
             try
             {
                 lock (_lock)
                 {
-                    if (++_nestedCounter == 1)
+                    if (Interlocked.Increment(ref _nestedCounter) == 1)
                     {
                         BeginTransaction();
                     }
                 }
 
-                await actions();
-
-                lock (_lock)
+                try
                 {
-                    if (--_nestedCounter == 0)
-                    {
-                        EndTransaction(true);
-                    }
+                    await actions();
+                    commit = true;
+                }
+                catch (Exception e)
+                {
+                    Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync actions exception: {error}", e.Message);
+                    throw;
                 }
             }
             catch (Exception e)
             {
-                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync: {error}", e.Message);
+                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync probably BeginTransaction exception: {error}", e.Message);
+                throw;
+            }
+            finally
+            {
                 lock (_lock)
                 {
-                    if (--_nestedCounter < 1)
+                    if (Interlocked.Decrement(ref _nestedCounter) == 0)
                     {
-                        try
-                        {
-                            EndTransaction(false);
-                        }
-                        finally
-                        {
-                            _nestedCounter = 0;
-                        }
+                        EndTransaction(commit);
                     }
                 }
-                throw;
             }
         }
 
@@ -243,10 +243,7 @@ namespace Odin.Core.Storage.SQLite
 
         public int TransactionCount()
         {
-            lock (_lock)
-            {
-                return _transactionCount;
-            }
+            return _transactionCount;
         }
     }
 }
