@@ -21,16 +21,16 @@ namespace Odin.Core.Storage.Tests
                 myc.CreateCommitUnitOfWork(() =>
                 {
                     Debug.Assert(myc.TransactionCount() == 0);
-                    Debug.Assert(myc._nestedCounter != 0);
+                    Debug.Assert(myc._nestedCounter == 1);
 
                     myc.CreateCommitUnitOfWork(() =>
                     {
                         Debug.Assert(myc.TransactionCount() == 0);
-                        Debug.Assert(myc._nestedCounter != 0);
+                        Debug.Assert(myc._nestedCounter == 2);
                     });
 
                     Debug.Assert(myc.TransactionCount() == 0);
-                    Debug.Assert(myc._nestedCounter != 0);
+                    Debug.Assert(myc._nestedCounter == 1);
                 });
                 Debug.Assert(myc._nestedCounter == 0);
                 Debug.Assert(myc.TransactionCount() == 1);
@@ -49,23 +49,68 @@ namespace Odin.Core.Storage.Tests
                 await myc.CreateCommitUnitOfWorkAsync(async () =>
                 {
                     Debug.Assert(myc.TransactionCount() == 0);
-                    Debug.Assert(myc._nestedCounter != 0);
+                    Debug.Assert(myc._nestedCounter == 1);
 
                     await myc.CreateCommitUnitOfWorkAsync(() =>
                     {
                         Debug.Assert(myc.TransactionCount() == 0);
-                        Debug.Assert(myc._nestedCounter != 0);
+                        Debug.Assert(myc._nestedCounter == 2);
                         return Task.CompletedTask;
                     });
 
                     Debug.Assert(myc.TransactionCount() == 0);
-                    Debug.Assert(myc._nestedCounter != 0);
+                    Debug.Assert(myc._nestedCounter == 1);
                 });
                 Debug.Assert(myc._nestedCounter == 0);
                 Debug.Assert(myc.TransactionCount() == 1);
 
             }
         }
+
+
+        [Test]
+        public async Task LogicCommitUnit1TestAsyncWithException()
+        {
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+
+            using (var myc = db.CreateDisposableConnection())
+            {
+                try
+                {
+                    Debug.Assert(myc._nestedCounter == 0);
+                    Debug.Assert(myc.TransactionCount() == 0);
+
+                    await myc.CreateCommitUnitOfWorkAsync(async () =>
+                    {
+                        Debug.Assert(myc.TransactionCount() == 0);
+                        Debug.Assert(myc._nestedCounter == 1);
+
+                        await myc.CreateCommitUnitOfWorkAsync(() =>
+                        {
+                            Debug.Assert(myc.TransactionCount() == 0);
+                            Debug.Assert(myc._nestedCounter == 2);
+                            throw new Exception("boom");
+                        });
+
+                        Debug.Assert(myc.TransactionCount() == 0);
+                        Debug.Assert(myc._nestedCounter == 1);
+                        throw new Exception("boom");
+                    });
+                    Debug.Assert(myc._nestedCounter == 0);
+                    Debug.Assert(myc.TransactionCount() == 1);
+                    throw new Exception("boom");
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    Debug.Assert(myc._nestedCounter == 0);
+                    Debug.Assert(myc.TransactionCount() == 1);
+                }
+            }
+        }
+
 
         /// <summary>
         /// Make sure each new thread will have it's own connection and own commit counter
@@ -89,16 +134,16 @@ namespace Odin.Core.Storage.Tests
                         myc.CreateCommitUnitOfWork(() =>
                         {
                             Debug.Assert(myc.TransactionCount() == 0, "Commits count should be zero after creating unit of work.");
-                            Debug.Assert(myc._nestedCounter != 0, "Counter should not be ready to commit after creating unit of work.");
+                            Debug.Assert(myc._nestedCounter == 1, "Counter should not be ready to commit after creating unit of work.");
 
                             myc.CreateCommitUnitOfWork(() =>
                             {
                                 Debug.Assert(myc.TransactionCount() == 0, "Commits count should remain zero after nested unit of work.");
-                                Debug.Assert(myc._nestedCounter != 0, "Counter should not be ready to commit in nested unit of work.");
+                                Debug.Assert(myc._nestedCounter == 2, "Counter should not be ready to commit in nested unit of work.");
                             });
 
                             Debug.Assert(myc.TransactionCount() == 0, "Commits count should still be zero after exiting nested unit of work.");
-                            Debug.Assert(myc._nestedCounter != 0, "Counter should not be ready to commit after exiting nested unit of work.");
+                            Debug.Assert(myc._nestedCounter == 1, "Counter should not be ready to commit after exiting nested unit of work.");
                         });
                         Debug.Assert(myc._nestedCounter == 0, "Counter should be ready to commit after all units of work.");
                         Debug.Assert(myc.TransactionCount() == 1, "Commits count should be one after completing unit of work.");
