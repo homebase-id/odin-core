@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.SQLite
             {
                 lock (_lock)
                 {
-                    if (Interlocked.Increment(ref _nestedCounter) == 1)
+                    if (++_nestedCounter == 1)
                     {
                         BeginTransaction();
                     }
@@ -169,7 +169,7 @@ namespace Odin.Core.Storage.SQLite
             {
                 lock (_lock)
                 {
-                    if (Interlocked.Decrement(ref _nestedCounter) == 0)
+                    if (--_nestedCounter == 0)
                     {
                         EndTransaction(commit);
                     }
