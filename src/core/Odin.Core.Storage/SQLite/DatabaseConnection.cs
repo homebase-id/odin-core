@@ -149,20 +149,12 @@ namespace Odin.Core.Storage.SQLite
                     }
                 }
 
-                try
-                {
-                    await actions();
-                    commit = true;
-                }
-                catch (Exception e)
-                {
-                    Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync actions exception: {error}", e.Message);
-                    throw;
-                }
+                await actions();
+                commit = true;
             }
             catch (Exception e)
             {
-                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync probably BeginTransaction exception: {error}", e.Message);
+                Serilog.Log.Error(e, "CreateCommitUnitOfWorkAsync exception: {error}", e.Message);
                 throw;
             }
             finally
