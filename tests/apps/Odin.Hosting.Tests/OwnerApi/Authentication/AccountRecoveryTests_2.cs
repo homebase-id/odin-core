@@ -38,7 +38,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             _scaffold.RunAfterAnyTests();
         }
 
-// TODD:TODO
+
 #if DEBUG
         [Test]
         public async Task FailToGetAccountRecoveryKeyOutsideOfTimeWindow()
@@ -53,6 +53,5 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, $"Status code was {response.StatusCode} but should have been Forbidden");
         }
 #endif
-
     }
 }

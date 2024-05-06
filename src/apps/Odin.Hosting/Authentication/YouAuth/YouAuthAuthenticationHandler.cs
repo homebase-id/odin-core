@@ -31,20 +31,13 @@ using Quartz.Util;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
-    public class YouAuthAuthenticationHandler : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>
+    public class YouAuthAuthenticationHandler(
+        IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
+        TenantSystemStorage tenantSystemStorage)
+        : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-        public YouAuthAuthenticationHandler(
-            IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
-            ILoggerFactory logger,
-            UrlEncoder encoder,
-            TenantSystemStorage tenantSystemStorage)
-            : base(options, logger, encoder)
-        {
-            _tenantSystemStorage = tenantSystemStorage;
-        }
-
         //
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -54,14 +47,14 @@ namespace Odin.Hosting.Authentication.YouAuth
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
-                using var cn = _tenantSystemStorage.CreateConnection();
+                using var cn = tenantSystemStorage.CreateConnection();
                 return await HandleAppAuth(dotYouContext, cn);
             }
 
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
-                using var cn = _tenantSystemStorage.CreateConnection();
+                using var cn = tenantSystemStorage.CreateConnection();
                 return await HandleYouAuth(dotYouContext, cn);
             }
 

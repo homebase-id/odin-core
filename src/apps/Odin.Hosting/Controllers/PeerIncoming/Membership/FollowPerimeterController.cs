@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             OdinValidationUtils.AssertIsTrue(payload!.IsValid(), "Rsa Encrypted Payload is invalid");
 
             using var cn = _tenantSystemStorage.CreateConnection();
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload, WebOdinContext, cn);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, WebOdinContext, cn);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 

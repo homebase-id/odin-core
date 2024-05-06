@@ -15,11 +15,11 @@ public class OwnerIsOnlineNotification : INotification
 
 public class RsaKeyRotatedNotification : INotification
 {
-    public RsaKeyType KeyType { get; }
+    public PublicPrivateKeyType KeyType { get; }
     public IList<RsaFullKeyData> ExpiredKeys { get; }
     public RsaFullKeyListData NewKeySet { get; }
 
-    public RsaKeyRotatedNotification(RsaKeyType keyType, IList<RsaFullKeyData> expiredKeys, RsaFullKeyListData newKeySet)
+    public RsaKeyRotatedNotification(PublicPrivateKeyType keyType, IList<RsaFullKeyData> expiredKeys, RsaFullKeyListData newKeySet)
     {
         this.KeyType = keyType;
         ExpiredKeys = expiredKeys ?? new List<RsaFullKeyData>();

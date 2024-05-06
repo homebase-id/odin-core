@@ -38,7 +38,6 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
@@ -66,7 +65,6 @@ namespace Odin.Services.Membership.Connections.Requests
             _cns = cns;
             _logger = logger;
             _odinHttpClientFactory = odinHttpClientFactory;
-            _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
             _publicPrivateKeyService = publicPrivateKeyService;
@@ -103,7 +101,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 return null;
             }
 
-            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OnlineKey, header.Payload, odinContext, cn);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext, cn);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -194,7 +192,7 @@ namespace Odin.Services.Membership.Connections.Requests
             async Task<bool> TrySendRequest()
             {
                 var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
-                var rsaEncryptedPayload = await _publicPrivateKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey,
+                var rsaEncryptedPayload = await _publicPrivateKeyService.RsaEncryptPayloadForRecipient(PublicPrivateKeyType.OnlineKey,
                     (OdinId)header.Recipient, payloadBytes, cn);
                 var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
@@ -204,7 +202,7 @@ namespace Odin.Services.Membership.Connections.Requests
             if (!await TrySendRequest())
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivateKeyService.InvalidateRecipientPublicKey((OdinId)header.Recipient, cn);
+                await _publicPrivateKeyService.InvalidateRecipientRsaPublicKey((OdinId)header.Recipient, cn);
 
                 if (!await TrySendRequest())
                 {
@@ -266,7 +264,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             UpsertPendingConnectionRequest(request, cn);
 
-            await _mediator.Publish(new ConnectionRequestReceived
+            await _mediator.Publish(new ConnectionRequestReceived()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
@@ -466,7 +464,7 @@ namespace Odin.Services.Membership.Connections.Requests
             await this.DeleteSentRequestInternal(recipient, cn);
             await this.DeletePendingRequestInternal(recipient, cn);
 
-            await _mediator.Publish(new ConnectionRequestAccepted
+            await _mediator.Publish(new ConnectionRequestAccepted()
             {
                 Sender = (OdinId)originalRequest.SenderOdinId,
                 Recipient = recipient,

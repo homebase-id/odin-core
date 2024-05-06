@@ -77,13 +77,13 @@ public class PushNotificationService(
         subscription.SubscriptionStartedDate = UnixTimeUtc.Now();
 
         _deviceSubscriptionStorage.Upsert(cn, subscription.AccessRegistrationId, _deviceStorageDataType, subscription);
-
         return Task.CompletedTask;
     }
 
     public Task<PushNotificationSubscription> GetDeviceSubscription(IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         return Task.FromResult(_deviceSubscriptionStorage.Get<PushNotificationSubscription>(cn, GetDeviceKey(odinContext)));
     }
 
@@ -97,6 +97,7 @@ public class PushNotificationService(
     public Task RemoveDevice(Guid deviceKey, IOdinContext odinContext, DatabaseConnection cn)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
         _deviceSubscriptionStorage.Delete(cn, deviceKey);
         return Task.CompletedTask;
     }
@@ -145,7 +146,6 @@ public class PushNotificationService(
             notification.DatabaseConnection);
     }
 
-
     public async Task Push(PushNotificationContent content, IOdinContext odinContext, DatabaseConnection cn)
     {
         logger.LogDebug("Attempting push notification");
@@ -153,7 +153,7 @@ public class PushNotificationService(
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         var subscriptions = await GetAllSubscriptions(odinContext, cn);
-        var keys = keyService.GetNotificationsKeys(cn);
+        var keys = keyService.GetEccNotificationsKeys(cn);
 
         var tasks = new List<Task>();
         foreach (var subscription in subscriptions)
@@ -183,7 +183,6 @@ public class PushNotificationService(
 
         var data = OdinSystemSerializer.Serialize(content);
 
-        //TODO: this will probably need to get an http client via @Seb's work
         var webPushClient = new WebPushClient();
         try
         {
@@ -205,8 +204,6 @@ public class PushNotificationService(
                 exception.HttpResponseMessage.Content);
 
             return;
-
-            //TODO: collect all errors and send back to client or do something with it
         }
         catch (Exception e)
         {
@@ -215,7 +212,6 @@ public class PushNotificationService(
         }
 
         logger.LogDebug("Attempting WebPush Notification - done; no errors reported");
-
     }
 
     private async Task DevicePush(PushNotificationSubscription subscription, PushNotificationPayload payload, IOdinContext odinContext, DatabaseConnection cn)

@@ -22,10 +22,10 @@ namespace Odin.Services.DataSubscription.SendingHost
         IDriveAclAuthorizationService driveAcl,
         OdinConfiguration odinConfiguration)
     {
-        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient,IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> DeleteFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext, cn);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext, cn);
+            var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
 
             if (null == header)
             {
@@ -34,7 +34,7 @@ namespace Odin.Services.DataSubscription.SendingHost
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext, cn);
+                header.ServerMetadata.AccessControlList, odinContext, cn);
 
             if (!authorized)
             {
@@ -71,19 +71,20 @@ namespace Odin.Services.DataSubscription.SendingHost
             return IsSuccess(httpResponse);
         }
 
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> SendFile(InternalDriveFileId file, FeedDistributionItem distroItem, OdinId recipient, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var fs = await fileSystemResolver.ResolveFileSystem(file,odinContext, cn);
-            var header = await fs.Storage.GetServerFileHeader(file,odinContext, cn);
+            var fs = await fileSystemResolver.ResolveFileSystem(file, odinContext, cn);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext, cn);
 
             if (null == header)
             {
                 //TODO: need log more info here
+                // need to ensure this is removed from the feed box
                 return false;
             }
 
             var authorized = await driveAcl.IdentityHasPermission(recipient,
-                header.ServerMetadata.AccessControlList,odinContext, cn);
+                header.ServerMetadata.AccessControlList, odinContext, cn);
 
             if (!authorized)
             {
@@ -98,10 +99,12 @@ namespace Odin.Services.DataSubscription.SendingHost
                     GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = SystemDriveConstants.FeedDrive
                 },
-                FileMetadata = header.FileMetadata
+                FileMetadata = header.FileMetadata,
+                FeedDistroType = distroItem.FeedDistroType,
+                EncryptedPayload = distroItem.EncryptedPayload
             };
 
-            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
 
             ApiResponse<PeerTransferResponse> httpResponse = null;
 

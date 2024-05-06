@@ -1,8 +1,11 @@
 ﻿using System;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
 using Odin.Core.Time;
+using Odin.Services.Base;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -17,15 +20,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Guid Id { get; set; }
 
-        /// <summary>
-        /// The CRC of the <see cref="TransitPublicKey"/> used by the sender
-        /// </summary>
-        // public uint PublicKeyCrc { get; set; }
-
         public TransferInstructionType InstructionType { get; set; }
-        
+
         public Guid GlobalTransitId { get; set; }
-        
+
         public Guid FileId { get; set; }
 
         public Guid DriveId { get; set; }
@@ -48,9 +46,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public FileSystemType FileSystemType { get; set; }
 
         public TransferFileType TransferFileType { get; set; }
-        
+
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
-        
+
         public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
+        
+        //Feed bolt-ons
+        public EccEncryptedPayload EncryptedFeedPayload { get; set; }
     }
 }

@@ -47,7 +47,8 @@ public class NotificationListService(TenantSystemStorage tenantSystemStorage, IM
             SenderId = senderId,
             Timestamp = request.Timestamp,
             AppNotificationOptions = request.AppNotificationOptions,
-            OdinContext = odinContext
+            OdinContext = odinContext,
+            DatabaseConnection = cn
         });
 
         return new AddNotificationResult()

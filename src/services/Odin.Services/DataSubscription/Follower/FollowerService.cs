@@ -96,8 +96,8 @@ namespace Odin.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(
-                    RsaKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray(), cn);
+                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.RsaEncryptPayloadForRecipient(
+                    PublicPrivateKeyType.OfflineKey, identityToFollow, json.ToUtf8ByteArray(), cn);
                 var client = CreateClient(identityToFollow);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
@@ -106,7 +106,7 @@ namespace Odin.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey(identityToFollow, cn);
+                await _publicPrivatePublicKeyService.InvalidateRecipientRsaPublicKey(identityToFollow, cn);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
@@ -114,14 +114,15 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinRemoteIdentityException("Remote Server failed to accept follow");
                 }
             }
+
             cn.CreateCommitUnitOfWork(() =>
             {
                 //delete all records and update according to the latest follow request.
                 _tenantStorage.WhoIFollow.DeleteByIdentity(cn, identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(cn,
-                        new ImFollowingRecord() { identity = identityToFollow, driveId = Guid.Empty });
+                    _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord()
+                        { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -135,8 +136,8 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(cn,
-                            new ImFollowingRecord() { identity = identityToFollow, driveId = channel.Alias });
+                        _tenantStorage.WhoIFollow.Insert(cn, new ImFollowingRecord()
+                            { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
             });
@@ -536,7 +537,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId, DatabaseConnection cn)
         {
-            var dbRecords = _tenantStorage.Followers.Get(cn,odinId);
+            var dbRecords = _tenantStorage.Followers.Get(cn, odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

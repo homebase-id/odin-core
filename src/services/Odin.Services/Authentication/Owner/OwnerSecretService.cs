@@ -18,7 +18,6 @@ namespace Odin.Services.Authentication.Owner
         private readonly Guid _rsaKeyStorageId = Guid.Parse("b5e1e0d0-2f27-429a-9c44-34cbcc71745e");
 
         private readonly TenantContext _tenantContext;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly RecoveryService _recoveryService;
@@ -31,7 +30,6 @@ namespace Odin.Services.Authentication.Owner
             PublicPrivateKeyService publicPrivateKeyService)
         {
             _tenantContext = tenantContext;
-            _tenantSystemStorage = tenantSystemStorage;
             _recoveryService = recoveryService;
             _publicPrivateKeyService = publicPrivateKeyService;
             
@@ -54,7 +52,6 @@ namespace Odin.Services.Authentication.Owner
             var rsaKeyList = await this.GetOfflineRsaKeyList(cn);
             var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
             var nonce = NonceData.NewRandomNonce(key);
-
             _nonceDataStorage.Upsert(cn, nonce.Id, nonce);
 
             return nonce;
@@ -187,7 +184,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext, DatabaseConnection cn)
         {
-            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext, cn);
+            var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.RsaDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey,odinContext, cn);
 
             if (!isValidPublicKey)
             {
@@ -213,18 +210,14 @@ namespace Odin.Services.Authentication.Owner
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = _nonceDataStorage.Get<NonceData>(cn, originalNoncePackageKey);
+
             var keys = await this.GetOfflineRsaKeyList(cn);
 
             PasswordData pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys, masterKey);
-            try
-            {
-                _passwordDataStorage.Upsert(cn, _passwordKeyStorageId, pk);
-            }
-            finally
-            {
-                //delete the temporary salts
-                _nonceDataStorage.Delete(cn, originalNoncePackageKey);
-            }
+            _passwordDataStorage.Upsert(cn, _passwordKeyStorageId, pk);
+
+            //delete the temporary salts
+            _nonceDataStorage.Delete(cn, originalNoncePackageKey);
         }
     }
 }

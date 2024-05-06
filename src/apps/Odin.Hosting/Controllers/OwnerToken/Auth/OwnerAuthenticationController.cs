@@ -162,7 +162,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("publickey")]
-        public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
+        public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
             using var cn = _tenantSystemStorage.CreateConnection();
             var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType, cn);

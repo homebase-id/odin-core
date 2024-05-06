@@ -12,7 +12,6 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
         public Int64 Created { get; set; }
 
-        //Note it is this key which goes bad when the 
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
 
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedSharedSecret { get; set; }

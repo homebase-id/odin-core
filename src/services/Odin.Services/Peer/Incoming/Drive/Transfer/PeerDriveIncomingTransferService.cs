@@ -267,7 +267,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType,
-                OdinContext = odinContext
+                OdinContext = odinContext,
+                DatabaseConnection = cn
             });
 
             return PeerResponseCode.AcceptedIntoInbox;

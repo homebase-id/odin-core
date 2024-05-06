@@ -64,6 +64,7 @@ namespace Odin.Services.Membership.YouAuth
         {
             odinContext.Caller.AssertHasMasterKey();
 
+
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotNullOrEmpty(request.Domain, nameof(request.Domain));
 
@@ -262,7 +263,7 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _clientStorage.Delete(cn, accessRegistrationId);
+            _clientStorage.Delete(cn,accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -325,7 +326,7 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = _circleMembershipService.GetCircle(circleId, odinContext, cn);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, cn);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey, odinContext, cn);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -393,8 +394,7 @@ namespace Odin.Services.Membership.YouAuth
         }
 
         private async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
-             ClientAuthenticationToken authToken,
-             DatabaseConnection cn)
+            ClientAuthenticationToken authToken, DatabaseConnection cn)
         {
             var domainClient = _clientStorage.Get<YouAuthDomainClient>(cn, authToken.Id);
             if (null == domainClient)
@@ -458,33 +458,45 @@ namespace Odin.Services.Membership.YouAuth
         {
             var domain = new OdinId(registration.Domain);
 
-            //Store the circles for this registration
-
-            //TODO: this is causing an issue where in the circles are also deleted for the ICR
-            //
-            _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth, cn);
-
-            foreach (var (circleId, circleGrant) in registration.CircleGrants)
+            cn.CreateCommitUnitOfWork(() =>
             {
-                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, cn).Where(d => d.DomainType == DomainType.YouAuth);
-                var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
+                //Store the circles for this registration
 
-                if (!isMember)
+                //TODO: this is causing an issue where in the circles are also deleted for the ICR 
+                // 
+                _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain, DomainType.YouAuth, cn);
+
+                foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
-                    _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth, cn);
+                    var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId, odinContext, cn)
+                        .Where(d => d.DomainType == DomainType.YouAuth);
+                    var isMember = circleMembers.Any(d =>
+                        OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
+
+                    if (!isMember)
+                    {
+                        //
+                        // BUG - this method calls upsert which will overwrite a circle membership
+                        // from the DomainType.Identity when it is granted to the DomainType.youauth
+                        //
+                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth, cn);
+                    }
                 }
-            }
 
-            //clear them here so we don't have two locations
-            registration.CircleGrants.Clear();
+                //clear them here so we don't have two locations
+                registration.CircleGrants.Clear();
 
-            _domainStorage.Upsert(cn, GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
+                _domainStorage.Upsert(cn, GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType,
+                    registration);
+            });
         }
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomain(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
-            AccessRegistration accessReg, IOdinContext odinContext, DatabaseConnection cn)
+            AccessRegistration accessReg,
+            IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
             {
@@ -505,10 +517,10 @@ namespace Odin.Services.Membership.YouAuth
                 grants: grants,
                 accessReg: accessReg,
                 odinContext: odinContext,
+                cn: cn,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true,
-                anonymousDrivePermission: anonymousDrivePermissions,
-                cn: cn);
+                anonymousDrivePermission: anonymousDrivePermissions);
 
             var dotYouContext = new OdinContext()
             {

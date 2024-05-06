@@ -8,6 +8,7 @@ using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
 {
@@ -22,15 +23,17 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
+        private readonly TransitInboxBoxStorage _transitInboxStorage;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         /// <summary />
         public FeedDriveIncomingController(
-            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TenantSystemStorage tenantSystemStorage)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage, TenantSystemStorage tenantSystemStorage)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
+            _transitInboxStorage = transitInboxStorage;
             _tenantSystemStorage = tenantSystemStorage;
         }
 
@@ -39,15 +42,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         {
             var perimeterService = GetPerimeterService();
             using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.AcceptUpdatedFileMetadata(payload,WebOdinContext, cn);
+            return await perimeterService.AcceptUpdatedFileMetadata(payload, WebOdinContext, cn);
         }
-        
+
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
             using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.Delete(payload,WebOdinContext, cn);
+            return await perimeterService.Delete(payload, WebOdinContext, cn);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()
@@ -57,7 +60,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
                 fileSystem,
                 _fileSystemResolver,
                 _followerService,
-                _mediator);
+                _mediator,
+                _transitInboxStorage);
         }
     }
 }
