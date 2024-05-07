@@ -46,7 +46,8 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             throw new Exception($"{response.RequestMessage?.RequestUri}: " + response.StatusCode);
         }
         var json = await response.Content.ReadAsStringAsync();
-        var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(json) ?? new List<TenantModel>();
+        var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(json) ?? [];
+        tenants.Sort((a,b) => string.Compare(a.Domain, b.Domain, StringComparison.InvariantCultureIgnoreCase));
 
         return settings.Output switch
         {
