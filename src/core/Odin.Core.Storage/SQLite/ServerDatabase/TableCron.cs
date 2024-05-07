@@ -5,24 +5,8 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.ServerDatabase
 {
-    public class TableCron: TableCronCRUD
+    public class TableCron : TableCronCRUD
     {
-        private SqliteCommand _popCommand = null;
-        private SqliteParameter _pparam1 = null;
-        private SqliteParameter _pparam2 = null;
-        private static Object _popLock = new Object();
-
-        private SqliteCommand _popCancelListCommand = null;
-        private SqliteParameter _pcancellistparam1 = null;
-        private static Object _popCancelListLock = new Object();
-
-        private SqliteCommand _popCommitListCommand = null;
-        private SqliteParameter _pcommitlistparam1 = null;
-        private static Object _popCommitListLock = new Object();
-
-        private SqliteCommand _popRecoverCommand = null;
-        private SqliteParameter _pcrecoverparam1 = null;
-
         public TableCron(ServerDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
@@ -33,35 +17,24 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
 
         public override void Dispose()
         {
-            _popCommand?.Dispose();
-            _popCommand = null;
-    
-            _popCancelListCommand?.Dispose();
-            _popCancelListCommand = null;
-
-            _popCommitListCommand?.Dispose();
-            _popCommitListCommand = null;
-            
-            _popRecoverCommand?.Dispose();
-            _popRecoverCommand = null;
-
             base.Dispose();
+            GC.SuppressFinalize(this);
         }
 
-        public override int Insert(CronRecord item)
+        public override int Insert(DatabaseConnection conn, CronRecord item)
         {
             // If no nextRun has been set, presume it is 'now'
             if (item.nextRun.milliseconds == 0)
                 item.nextRun = UnixTimeUtc.Now();
-            return base.Upsert(item);
+            return base.Upsert(conn, item);
         }
 
-        public override int Upsert(CronRecord item)
+        public override int Upsert(DatabaseConnection conn, CronRecord item)
         {
             // If no nextRun has been set, presume it is 'now'
             if (item.nextRun.milliseconds == 0)
                 item.nextRun = UnixTimeUtc.Now();
-            return base.Upsert(item);
+            return base.Upsert(conn, item);
         }
 
 
@@ -74,43 +47,39 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<CronRecord> Pop(int count)
+        public List<CronRecord> Pop(DatabaseConnection conn, int count)
         {
-            lock (_popLock)
+            using (var _popCommand = _database.CreateCommand())
             {
-                if (_popCommand == null)
-                {
-                    _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText =
-                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
-                        "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
-                        "SELECT identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron WHERE popstamp=$popstamp";
- 
-                    _pparam1 = _popCommand.CreateParameter();
-                    _pparam1.ParameterName = "$popstamp";
-                    _popCommand.Parameters.Add(_pparam1);
+                _popCommand.CommandText =
+                    "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
+                    "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
+                    "SELECT identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron WHERE popstamp=$popstamp";
 
-                    _pparam2 = _popCommand.CreateParameter();
-                    _pparam2.ParameterName = "$count";
-                    _popCommand.Parameters.Add(_pparam2);
+                var _pparam1 = _popCommand.CreateParameter();
+                _pparam1.ParameterName = "$popstamp";
+                _popCommand.Parameters.Add(_pparam1);
 
-                    _popCommand.Prepare();
-                }
+                var _pparam2 = _popCommand.CreateParameter();
+                _pparam2.ParameterName = "$count";
+                _popCommand.Parameters.Add(_pparam2);
 
                 _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
 
                 List<CronRecord> result = new List<CronRecord>();
 
-                using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
+                lock (conn._lock)
                 {
-                    while (rdr.Read())
+                    using (SqliteDataReader rdr = conn.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                     {
-                        result.Add(ReadRecordFromReaderAll(rdr));
+                        while (rdr.Read())
+                        {
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        }
+                        return result;
                     }
                 }
-
-                return result;
             }
         }
 
@@ -120,32 +89,25 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// The List<> of identityIds will be unpopped, i.e. they're back in the CRON table and are active
         /// </summary>
         /// <param name="listIdentityId"></param>
-        public void PopCancelList(List<Guid> listIdentityId)
+        public void PopCancelList(DatabaseConnection conn, List<Guid> listIdentityId)
         {
-            lock (_popCancelListLock)
+            using (var _popCancelListCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popCancelListCommand == null)
-                {
-                    _popCancelListCommand = _database.CreateCommand();
-                    _popCancelListCommand.CommandText = "UPDATE cron SET popstamp=NULL WHERE identityid=$identityid";
+                _popCancelListCommand.CommandText = "UPDATE cron SET popstamp=NULL WHERE identityid=$identityid";
 
-                    _pcancellistparam1 = _popCancelListCommand.CreateParameter();
-                    _pcancellistparam1.ParameterName = "$identityid";
-                    _popCancelListCommand.Parameters.Add(_pcancellistparam1);
+                var _pcancellistparam1 = _popCancelListCommand.CreateParameter();
+                _pcancellistparam1.ParameterName = "$identityid";
+                _popCancelListCommand.Parameters.Add(_pcancellistparam1);
 
-                    _popCancelListCommand.Prepare();
-                }
-
-                using (_database.CreateCommitUnitOfWork())
+                conn.CreateCommitUnitOfWork(() =>
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcancellistparam1.Value = listIdentityId[i].ToByteArray();
-                        _database.ExecuteNonQuery(_popCancelListCommand);
+                        conn.ExecuteNonQuery(_popCancelListCommand);
                     }
-                }
+                });
             }
         }
 
@@ -153,32 +115,25 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// <summary>
         /// Finally commits (removes) the items previously popped using Pop()
         /// </summary>
-        public void PopCommitList(List<Guid> listIdentityId)
+        public void PopCommitList(DatabaseConnection conn, List<Guid> listIdentityId)
         {
-            lock (_popCommitListLock)
+            using (var _popCommitListCommand = _database.CreateCommand())
             {
-                // Make sure we only prep once 
-                if (_popCommitListCommand == null)
-                {
-                    _popCommitListCommand = _database.CreateCommand();
-                    _popCommitListCommand.CommandText = "DELETE FROM cron WHERE identityid=$identityid";
+                _popCommitListCommand.CommandText = "DELETE FROM cron WHERE identityid=$identityid";
 
-                    _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
-                    _pcommitlistparam1.ParameterName = "$identityid";
-                    _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
+                var _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
+                _pcommitlistparam1.ParameterName = "$identityid";
+                _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
 
-                    _popCommitListCommand.Prepare();
-                }
-
-                using (_database.CreateCommitUnitOfWork())
+                conn.CreateCommitUnitOfWork(() =>
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcommitlistparam1.Value = listIdentityId[i].ToByteArray();
-                        _database.ExecuteNonQuery(_popCommitListCommand);
+                        conn.ExecuteNonQuery(_popCommitListCommand);
                     }
-                }
+                });
             }
         }
 
@@ -188,26 +143,19 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         /// This is how to recover popped items that were never processed for example on a server crash.
         /// Call with e.g. a time of more than 5 minutes ago.
         /// </summary>
-        public void PopRecoverDead(UnixTimeUtc t)
+        public void PopRecoverDead(DatabaseConnection conn, UnixTimeUtc t)
         {
-            lock (_popLock)
+            using (var _popRecoverCommand = _database.CreateCommand())
             {
-                if (_popRecoverCommand == null)
-                {
-                    _popRecoverCommand = _database.CreateCommand();
-                    _popRecoverCommand.CommandText = "UPDATE cron SET popstamp=NULL WHERE popstamp <= $popstamp";
+                _popRecoverCommand.CommandText = "UPDATE cron SET popstamp=NULL WHERE popstamp <= $popstamp";
 
-                    _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
-
-                    _pcrecoverparam1.ParameterName = "$popstamp";
-                    _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
-
-                    _popRecoverCommand.Prepare();
-                }
+                var _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
+                _pcrecoverparam1.ParameterName = "$popstamp";
+                _popRecoverCommand.Parameters.Add(_pcrecoverparam1);
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(t).ToByteArray();
 
-                _database.ExecuteNonQuery(_popRecoverCommand);
+                conn.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }

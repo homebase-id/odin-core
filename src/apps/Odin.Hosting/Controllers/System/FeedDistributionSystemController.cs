@@ -15,12 +15,15 @@ namespace Odin.Hosting.Controllers.System
     [ApiController]
     [Route(OwnerApiPathConstants.FollowersV1 + "/system/distribute")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
-    public class FeedDistributionSystemController(FeedDriveDistributionRouter distributionService) : OdinControllerBase
+    public class FeedDistributionSystemController(
+        FeedDriveDistributionRouter distributionService,
+        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await distributionService.DistributeQueuedMetadataItems(WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            await distributionService.DistributeQueuedMetadataItems(WebOdinContext, cn);
             return true;
         }
     }

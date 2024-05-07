@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Base;
@@ -33,11 +34,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
-        public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext)
+        public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
         {
-            await AssertCanReadOrWriteToDrive(driveId, odinContext);
-            var queryManager = await TryGetOrLoadQueryManager(driveId);
-            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo();
+            await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
+            var (fileCount, bytes) = await queryManager.GetDriveSizeInfo(cn);
 
             return new DriveSizeInfo()
             {
@@ -46,18 +47,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext)
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options, IOdinContext odinContext, DatabaseConnection cn)
         {
-            await AssertCanReadDrive(driveId, odinContext);
+            await AssertCanReadDrive(driveId, odinContext, cn);
 
             var o = options ?? QueryModifiedResultOptions.Default();
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
             if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
-                    await queryManager.GetModifiedCore(odinContext, GetFileSystemType(), qp, o);
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, o, odinContext);
+                    await queryManager.GetModifiedCore(odinContext, GetFileSystemType(), qp, o, cn);
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, o, odinContext, cn);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
@@ -72,17 +73,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext,
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext, DatabaseConnection cn,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertCanReadDrive(driveId, odinContext);
-            return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
+            await AssertCanReadDrive(driveId, odinContext, cn);
+            return await GetBatchInternal(driveId, qp, options, odinContext, cn, forceIncludeServerMetadata);
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, IOdinContext odinContext,
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId, IOdinContext odinContext, DatabaseConnection cn,
             bool excludePreviewThumbnail = true)
         {
-            await AssertCanReadDrive(driveId, odinContext);
+            await AssertCanReadDrive(driveId, odinContext, cn);
 
             var qp = new FileQueryParams()
             {
@@ -97,12 +98,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
-            var results = await this.GetBatch(driveId, qp, options, odinContext);
+            var results = await this.GetBatch(driveId, qp, options, odinContext, cn);
 
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext, DatabaseConnection cn,
             bool forceIncludeServerMetadata = false)
         {
             if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
@@ -129,7 +130,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         ExcludePreviewThumbnail = false
                     };
 
-                    var result = await this.GetBatch(driveId, query.QueryParams, options, odinContext, forceIncludeServerMetadata);
+                    var result = await this.GetBatch(driveId, query.QueryParams, options, odinContext, cn, forceIncludeServerMetadata);
 
                     var response = QueryBatchResponse.FromResult(result);
                     response.Name = query.Name;
@@ -144,11 +145,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, IOdinContext odinContext,
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, IOdinContext odinContext, DatabaseConnection cn,
             bool forceIncludeServerMetadata = false,
             bool excludePreviewThumbnail = true)
         {
-            await AssertCanReadOrWriteToDrive(driveId, odinContext);
+            await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -161,15 +162,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
-            var results = await this.GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
+            var results = await this.GetBatchInternal(driveId, qp, options, odinContext, cn, forceIncludeServerMetadata);
 
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
+        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext, DatabaseConnection cn)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
-            await AssertCanReadOrWriteToDrive(driveId, odinContext);
+            await AssertCanReadOrWriteToDrive(driveId, odinContext, cn);
 
             var qp = new FileQueryParams()
             {
@@ -183,13 +184,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = true
             };
 
-            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
             if (queryManager != null)
             {
                 var (_, fileIdList, _) = await queryManager.GetBatchCore(odinContext,
                     GetFileSystemType(),
                     qp,
-                    options);
+                    options,
+                    cn);
 
                 var fileId = fileIdList.FirstOrDefault();
 
@@ -209,7 +211,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
-            IEnumerable<Guid> fileIdList, ResultOptions options, IOdinContext odinContext, bool forceIncludeServerMetadata = false)
+            IEnumerable<Guid> fileIdList, ResultOptions options, IOdinContext odinContext, DatabaseConnection cn, bool forceIncludeServerMetadata = false)
         {
             var results = new List<SharedSecretEncryptedFileHeader>();
 
@@ -221,7 +223,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     FileId = fileId
                 };
 
-                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file, odinContext);
+                var hasPermissionToFile = await _storage.CallerHasPermissionToFile(file, odinContext, cn);
                 if (!hasPermissionToFile)
                 {
                     // throw new OdinSystemException($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
@@ -231,7 +233,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
                 else
                 {
-                    var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext);
+                    var serverFileHeader = await _storage.GetServerFileHeader(file, odinContext, cn);
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out var _);
 
@@ -266,7 +268,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     }
                     else
                     {
-                        var drive = await DriveManager.GetDrive(file.DriveId);
+                        var drive = await DriveManager.GetDrive(file.DriveId, cn);
                         Log.Debug("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
                                   "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
@@ -286,9 +288,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results;
         }
 
-        private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
+        private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, DatabaseConnection cn)
         {
-            return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
+            return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, cn);
         }
 
         /// <summary>
@@ -296,19 +298,20 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
         private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext,
-            bool forceIncludeServerMetadata = false)
+            DatabaseConnection cn, bool forceIncludeServerMetadata = false)
         {
-            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            var queryManager = await TryGetOrLoadQueryManager(driveId, cn);
             if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
                 var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatchCore(odinContext,
                     GetFileSystemType(),
                     qp,
-                    options);
+                    options,
+                    cn);
 
 
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, odinContext, cn, forceIncludeServerMetadata);
                 return new QueryBatchResult()
                 {
                     QueryTime = queryTime.uniqueTime,

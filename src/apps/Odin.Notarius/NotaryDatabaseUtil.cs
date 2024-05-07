@@ -5,6 +5,7 @@ using Odin.Core;
 using System.Text;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Storage.SQLite;
 
 namespace Odin.KeyChain
 {
@@ -15,11 +16,11 @@ namespace Odin.KeyChain
         /// Need to set drop to false in production
         /// </summary>
         /// <param name="_db"></param>
-        public static void InitializeDatabase(NotaryDatabase _db)
+        public static void InitializeDatabase(NotaryDatabase _db, DatabaseConnection conn)
         {
-            _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
+            _db.CreateDatabase(conn, dropExistingTables: true); // Remove "true" for production
 
-            var r = _db.tblNotaryChain.GetLastLink();
+            var r = _db.tblNotaryChain.GetLastLink(conn);
 
             // If the database is empty then we need to create the genesis record
             if (r == null)
@@ -40,7 +41,7 @@ namespace Odin.KeyChain
                 genesis.notarySignature = "asdjkhasdjkhasdkhj".ToUtf8ByteArray(); //TODO FIX
                 genesis.recordHash = CalculateRecordHash(genesis);
                 VerifyBlockChainRecord(genesis, null, false);
-                _db.tblNotaryChain.Insert(genesis);
+                _db.tblNotaryChain.Insert(conn, genesis);
             }
         }
 
@@ -117,23 +118,31 @@ namespace Odin.KeyChain
         // Verifies the entire chain
         public static bool VerifyEntireBlockChain(NotaryDatabase _db)
         {
-            var _sqlcmd = _db.CreateCommand();
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
-
-            using (SqliteDataReader rdr = _db.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
+            using (var conn = _db.CreateDisposableConnection())
             {
-                NotaryChainRecord? previousRecord = null;
-
-                while (rdr.Read())
+                using (var _sqlcmd = _db.CreateCommand())
                 {
-                    var record = _db.tblNotaryChain.ReadRecordFromReaderAll(rdr);
-                    if (VerifyBlockChainRecord(record, previousRecord, true) == false)
-                        return false;
-                    previousRecord = record;
-                }
-            } // using
+                    _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
 
-            return true;
+                    lock (conn._lock)
+                    {
+                        using (SqliteDataReader rdr = conn.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
+                        {
+                            NotaryChainRecord? previousRecord = null;
+
+                            while (rdr.Read())
+                            {
+                                var record = _db.tblNotaryChain.ReadRecordFromReaderAll(rdr);
+                                if (VerifyBlockChainRecord(record, previousRecord, true) == false)
+                                    return false;
+                                previousRecord = record;
+                            }
+                        } // using
+
+                        return true;
+                    }
+                }
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 using MediatR;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications;
 using Odin.Services.Apps;
 using Odin.Services.AppNotifications.WebSocket;
@@ -19,6 +20,8 @@ public interface IDriveNotification : INotification
 
     public IOdinContext OdinContext { get; init; }
     // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
+
+    public DatabaseConnection DatabaseConnection { get; init; }
 }
 
 public enum DriveNotificationType

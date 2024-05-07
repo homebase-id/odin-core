@@ -12,6 +12,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
@@ -23,17 +24,20 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         private readonly OwnerSecretService _ss;
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ILogger<OwnerAuthenticationController> _logger;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         public OwnerAuthenticationController(
             OwnerAuthenticationService authService,
             OwnerSecretService ss,
             PublicPrivateKeyService publicPrivateKeyService,
-            ILogger<OwnerAuthenticationController> logger)
+            ILogger<OwnerAuthenticationController> logger,
+            TenantSystemStorage tenantSystemStorage)
         {
             _authService = authService;
             _ss = ss;
             _publicPrivateKeyService = publicPrivateKeyService;
             _logger = logger;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         [HttpGet("verifyToken")]
@@ -42,7 +46,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
-                var isValid = await _authService.IsValidToken(result.Id);
+                using var cn = _tenantSystemStorage.CreateConnection();
+                var isValid = await _authService.IsValidToken(result.Id, cn);
                 return new JsonResult(isValid);
             }
 
@@ -55,7 +60,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             // try
             // {
 
-            var (result, sharedSecret) = await _authService.Authenticate(package);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var (result, sharedSecret) = await _authService.Authenticate(package, cn);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
@@ -75,7 +81,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
-                _authService.ExpireToken(result.Id);
+                using var cn = _tenantSystemStorage.CreateConnection();
+                _authService.ExpireToken(result.Id, cn);
             }
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
@@ -85,35 +92,40 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("extend")]
         public async Task<NoResultResponse> Extend(Guid token)
         {
-            await _authService.ExtendTokenLife(token, 100);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _authService.ExtendTokenLife(token, 100, cn);
             return new NoResultResponse(true);
         }
 
         [HttpPost("expire")]
         public NoResultResponse Expire(Guid token)
         {
-            _authService.ExpireToken(token);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            _authService.ExpireToken(token, cn);
             return new NoResultResponse(true);
         }
 
         [HttpGet]
         public async Task<bool> IsValid(Guid token)
         {
-            var isValid = await _authService.IsValidToken(token);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var isValid = await _authService.IsValidToken(token, cn);
             return isValid;
         }
 
         [HttpGet("nonce")]
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
-            var result = await _authService.GenerateAuthenticationNonce();
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = await _authService.GenerateAuthenticationNonce(cn);
             return result;
         }
 
         [HttpPost("passwd")]
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
-            await _ss.SetNewPassword(reply);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            await _ss.SetNewPassword(reply, cn);
             return new NoResultResponse(true);
         }
 
@@ -122,7 +134,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             try
             {
-                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext);
+                using var cn = _tenantSystemStorage.CreateConnection();
+                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext, cn);
             }
             catch (BIP39Exception e)
             {
@@ -136,20 +149,23 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("ispasswordset")]
         public async Task<bool> IsMasterPasswordSet()
         {
-            return await _ss.IsMasterPasswordSet();
+            using var cn = _tenantSystemStorage.CreateConnection();
+            return await _ss.IsMasterPasswordSet(cn);
         }
 
         [HttpGet("getsalts")]
         public async Task<NonceData> GenerateSalts()
         {
-            var salts = await _ss.GenerateNewSalts();
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var salts = await _ss.GenerateNewSalts(cn);
             return salts;
         }
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType, cn);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,

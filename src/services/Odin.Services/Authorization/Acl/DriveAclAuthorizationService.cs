@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 
@@ -19,7 +20,7 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl,odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
+        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, DatabaseConnection cn)
         {
             //there must be an acl
             if (acl == null)
@@ -31,7 +32,7 @@ namespace Odin.Services.Authorization.Acl
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, true);
+                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, cn, true);
                 var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
@@ -57,7 +58,7 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, true)).IsConnected();
+                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, cn, true)).IsConnected();
             }
 
             return false;

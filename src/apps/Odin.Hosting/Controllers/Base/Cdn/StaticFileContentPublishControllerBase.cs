@@ -1,11 +1,12 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Services.Base;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Cdn
 {
-    public class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService) : OdinControllerBase
+    public class StaticFileContentPublishControllerBase(StaticFileContentService staticFileContentService, TenantSystemStorage tenantSystemStorage) : OdinControllerBase
     {
         /// <summary>
         /// Creates a static file which contents match the query params.  Accessible to the public
@@ -20,7 +21,8 @@ namespace Odin.Hosting.Controllers.Base.Cdn
             OdinValidationUtils.AssertValidFileName(request.Filename, "The file name is invalid");
             OdinValidationUtils.AssertNotNull(request.Sections, nameof(request.Sections));
             OdinValidationUtils.AssertIsTrue(request.Sections.Count != 0, "At least one section is needed");
-            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, WebOdinContext);
+            using var cn = tenantSystemStorage.CreateConnection();
+            var publishResult = await staticFileContentService.Publish(request.Filename, request.Config, request.Sections, WebOdinContext, cn);
             return publishResult;
         }
     }
