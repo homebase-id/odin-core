@@ -134,7 +134,7 @@ namespace Odin.Services.Certificate
                     if (!isDnsRecordOk)
                     {
                         _logger.LogWarning(
-                            "Cannot create certifice for {domain}. One or more DNS records are no longer correct.", domain);
+                            "Cannot create certificate for {domain}. One or more DNS records are no longer correct.", domain);
                         return null;
                     }
                 }

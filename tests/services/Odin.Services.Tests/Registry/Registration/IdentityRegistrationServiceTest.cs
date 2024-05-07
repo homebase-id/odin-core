@@ -74,10 +74,6 @@ public class IdentityRegistrationServiceTest
             Assert.That(record.Status, Is.EqualTo(apexAliasRecordStatus));
         }
         {
-            var record = dnsConfigs.First(x => x is { Name: DnsConfigurationSet.PrefixWww });
-            Assert.That(record.Status, Is.EqualTo(cnameRecordStatus));
-        }
-        {
             var record = dnsConfigs.First(x => x is { Name: DnsConfigurationSet.PrefixCertApi });
             Assert.That(record.Status, Is.EqualTo(cnameRecordStatus));
         }
@@ -95,7 +91,7 @@ public class IdentityRegistrationServiceTest
         {
             Registry = new OdinConfiguration.RegistrySection
             {
-                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord, "", "", ""),
+                DnsConfigurationSet = new DnsConfigurationSet(apexARecord, apexAliasRecord, "", ""),
                 ManagedDomainApexes = new List<OdinConfiguration.RegistrySection.ManagedDomainApex>
                 {
                     new()

@@ -89,16 +89,6 @@ public class DnsLookupService : IDnsLookupService
             Description = "Apex flattened CNAME / ALIAS / ANAME"
         });
 
-        // CNAME WWW
-        result.Add(new DnsConfig
-        {
-            Type = "CNAME",
-            Name = DnsConfigurationSet.PrefixWww,
-            Domain = $"{DnsConfigurationSet.PrefixWww}.{domain}",
-            Value = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
-            Description = "WWW CNAME"
-        });
-
         // CNAME CAPI
         result.Add(new DnsConfig
         {
