@@ -48,6 +48,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 new ClientDriveData()
                 {
                     TargetDrive = drive.TargetDriveInfo,
+                    Attributes = WebOdinContext.Caller.IsOwner ? drive.Attributes : default
                 }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

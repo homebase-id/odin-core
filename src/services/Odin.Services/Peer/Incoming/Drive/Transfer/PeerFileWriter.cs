@@ -77,6 +77,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 targetAcl = await ResetAclForComment(metadata, odinContext, cn);
             }
+            
+            
 
             var serverMetadata = new ServerMetadata()
             {

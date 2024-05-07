@@ -204,7 +204,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {
-                    TargetDrive = drive.TargetDrive,
+                    TargetDrive = drive.TargetDrive
                 }).ToList();
 
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
