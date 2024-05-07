@@ -125,7 +125,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            Assert.IsTrue(createdDrives.Results.Count == 8);
+            Assert.IsTrue(createdDrives.Results.Count == 9);
 
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
                 $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
@@ -242,6 +242,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 SystemDriveConstants.ContactDrive,
                 SystemDriveConstants.ProfileDrive,
                 SystemDriveConstants.ChatDrive,
+                SystemDriveConstants.MailDrive,
                 SystemDriveConstants.FeedDrive,
                 SystemDriveConstants.HomePageConfigDrive,
                 SystemDriveConstants.PublicPostsChannelDrive,
