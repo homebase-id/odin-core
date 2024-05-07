@@ -5,6 +5,7 @@
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/youfoundation/dotyoucore"
 ARG TARGETARCH
+ARG VERSION_TEXT="0.0.0"
 
 WORKDIR /build
 
@@ -36,6 +37,9 @@ COPY src/services/Odin.Services/                 src/services/Odin.Services/
 COPY src/services/Odin.Services.Background/      src/services/Odin.Services.Background/
 COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
+
+# Update version text in Version.cs
+RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/apps/Odin.Hosting/Version.cs
 
 # Build release
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
