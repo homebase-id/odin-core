@@ -160,7 +160,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");
 
             Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(systemCircle.DriveGrants.Count() == 5,
+            Assert.IsTrue(systemCircle.DriveGrants.Count() == 6,
                 "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>

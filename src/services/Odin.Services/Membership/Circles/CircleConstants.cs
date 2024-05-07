@@ -23,6 +23,14 @@ public static class SystemCircleConstants
         {
             PermissionedDrive = new PermissionedDrive()
             {
+                Drive = SystemDriveConstants.MailDrive,
+                Permission = DrivePermission.Write
+            }
+        },
+        new DriveGrantRequest()
+        {
+            PermissionedDrive = new PermissionedDrive()
+            {
                 Drive = SystemDriveConstants.FeedDrive,
                 Permission = DrivePermission.Write
             }
