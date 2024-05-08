@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests.JobManagement.Jobs;
 public class ExclusiveTestSchedule(ILogger<ExclusiveTestSchedule> logger) : AbstractJobSchedule
 {
     public sealed override string SchedulingKey { get; } = "exclusive-test";
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.SlowLowPriority;
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {

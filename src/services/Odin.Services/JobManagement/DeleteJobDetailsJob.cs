@@ -18,13 +18,20 @@ public class DeleteJobDetailsSchedule : AbstractJobSchedule
         _logger = loggerFactory.CreateLogger<DeleteJobDetailsSchedule>();
         _jobToDelete = jobToDelete;
         _deleteAt = deleteAt;
+
+        var schedulerGroup = jobToDelete.SchedulerGroup();
+        if (schedulerGroup == null)
+        {
+            throw new JobManagerException($"Error getting scheduler group for {jobToDelete}");
+        }
+        SchedulerGroup = schedulerGroup.Value;
     }
 
     //
 
     public sealed override string SchedulingKey { get; } = Helpers.UniqueId();
 
-    public sealed override SchedulerGroup SchedulerGroup { get; } = SchedulerGroup.Default;
+    public sealed override SchedulerGroup SchedulerGroup { get; }
 
     public sealed override Task<(JobBuilder, List<TriggerBuilder>)> Schedule<TJob>(JobBuilder jobBuilder)
     {
@@ -58,14 +65,13 @@ public class DeleteJobDetailsJob(
             var scheduler = context.Scheduler;
             var jobKey = scheduler.ParseJobKey(jobToDelete);
 
-
             if (await scheduler.DeleteJob(jobKey))
             {
                 logger.LogDebug("Deleted {JobKey}", jobToDelete);
             }
             else
             {
-                logger.LogDebug("Could not delete {JobKey}", jobToDelete);
+                logger.LogWarning("Could not delete {JobKey}", jobToDelete);
             }
         }
     }
