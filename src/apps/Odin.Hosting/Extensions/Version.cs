@@ -6,7 +6,7 @@ namespace Odin.Hosting.Extensions;
 
 public static class Version
 {
-    public static string VersionText => "-.-.-"; // placeholder - DO NOT CHANGE
+    public const string VersionText = "-.-.-"; // placeholder - DO NOT CHANGE
 }
 
 // DO NOT CHANGE OR MOVE THIS FILE
