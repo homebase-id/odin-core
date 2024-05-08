@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -19,6 +18,8 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+
+#nullable enable
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
@@ -101,7 +102,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
         {
             var webSocket = deviceSocket.Socket;
-            while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+            while (!cancellationToken.IsCancellationRequested && webSocket?.State == WebSocketState.Open)
             {
                 var buffer = new ArraySegment<byte>(new byte[4096]);
                 WebSocketReceiveResult receiveResult;
@@ -132,11 +133,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                         return; // hangup!
                     }
 
-                    SocketCommand command;
+                    SocketCommand? command;
                     var errorText = "Error deserializing socket command";
                     try
                     {
-                        command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
+                        command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes) ?? null;
                     }
                     catch (JsonException e)
                     {
@@ -203,7 +204,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 if (!cancellationToken.IsCancellationRequested)
                 {
                     var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                    var hasSharedSecret = null != deviceOdinContext.PermissionsContext.SharedSecretKey;
+                    var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
 
                     var data = OdinSystemSerializer.Serialize(new
                     {
@@ -275,7 +276,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     NotificationType = ClientNotificationType.Error,
                     Data = errorText,
                 }), cancellationToken,
-                deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey != null);
+                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
         }
 
         //
@@ -284,7 +285,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var socket = deviceSocket.Socket;
 
-            if (socket.State != WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+            if (socket is not { State: WebSocketState.Open } || cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -293,7 +294,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 if (encrypt)
                 {
-                    if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
+                    if (deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
                     }
@@ -342,13 +343,16 @@ namespace Odin.Services.AppNotifications.WebSocket
                 case SocketCommandType.EstablishConnectionRequest:
                     try
                     {
-                        var drivesRequest = OdinSystemSerializer.Deserialize<List<TargetDrive>>(command.Data);
                         var drives = new List<Guid>();
-                        foreach (var td in drivesRequest)
+                        var drivesRequest = OdinSystemSerializer.Deserialize<List<TargetDrive>>(command.Data);
+                        if (drivesRequest != null)
                         {
-                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
-                            drives.Add(driveId);
+                            foreach (var td in drivesRequest)
+                            {
+                                var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                                odinContext.PermissionsContext.AssertCanReadDrive(driveId);
+                                drives.Add(driveId);
+                            }
                         }
 
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
@@ -369,7 +373,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         using var cn = _tenantSystemStorage.CreateConnection();
                         var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                        await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
+                        if (d != null)
+                        {
+                            await _peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
+                        }
                     }
                     break;
 
@@ -377,7 +384,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         using var cn = _tenantSystemStorage.CreateConnection();
                         var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
-                        await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
+                        if (request != null)
+                        {
+                            await _peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
+                        }
                     }
                     break;
 
