@@ -43,6 +43,12 @@ public static class SystemDriveConstants
         Type = GuidId.FromString("chat_drive")
     };
 
+    public static readonly TargetDrive MailDrive = new()
+    {
+        Alias = Guid.Parse("e69b5a48a663482fbfd846f3b0b143b0"),
+        Type = Guid.Parse("2dfecc40311e41e5a12455e925144202")
+    };
+
     public static readonly TargetDrive FeedDrive = new()
     {
         Alias = GuidId.FromString("builtin_feed_drive"),
@@ -142,6 +148,15 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = ChatDrive,
+        OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
+    };
+
+    public static readonly CreateDriveRequest CreateMailDriveRequest = new()
+    {
+        Name = "Mail Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = MailDrive,
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
 }

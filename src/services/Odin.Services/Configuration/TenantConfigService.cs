@@ -162,25 +162,26 @@ public class TenantConfigService
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCircle(odinContext, cn);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest,odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateMailDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext, cn);
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest,odinContext, cn);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest,odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest, odinContext, cn);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext, cn);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
-            await CreateDriveIfNotExists(rd,odinContext, cn);
+            await CreateDriveIfNotExists(rd, odinContext, cn);
         }
 
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await CreateCircleIfNotExists(rc,odinContext, cn);
+            await CreateCircleIfNotExists(rc, odinContext, cn);
         }
 
         await this.RegisterBuiltInApps(odinContext, cn);
@@ -218,7 +219,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,odinContext, cn);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow, odinContext, cn);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -231,7 +232,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,odinContext, cn);
+                await UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections, odinContext, cn);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -283,6 +284,7 @@ public class TenantConfigService
     private async Task RegisterBuiltInApps(IOdinContext odinContext, DatabaseConnection cn)
     {
         await RegisterChatApp(odinContext, cn);
+        await RegisterMailApp(odinContext, cn);
         await RegisterFeedApp(odinContext, cn);
         // await RegisterPhotosApp();
     }
@@ -351,7 +353,7 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request,odinContext, cn);
+        await _appRegistrationService.RegisterApp(request, odinContext, cn);
     }
 
 
@@ -421,15 +423,77 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        await _appRegistrationService.RegisterApp(request,odinContext, cn);
+        await _appRegistrationService.RegisterApp(request, odinContext, cn);
+    }
+
+    private async Task RegisterMailApp(IOdinContext odinContext, DatabaseConnection cn)
+    {
+        var request = new AppRegistrationRequest()
+        {
+            AppId = SystemAppConstants.MailAppId,
+            Name = "Homebase - Mail",
+            AuthorizedCircles = new List<Guid>() //note: by default the system circle will have write access to chat drive
+            {
+                SystemCircleConstants.ConnectedIdentitiesSystemCircleId
+            },
+            CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+            {
+                Drives =
+                [
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = SystemDriveConstants.MailDrive,
+                            Permission = DrivePermission.Write
+                        }
+                    }
+                ],
+                PermissionSet = new PermissionSet()
+            },
+            Drives =
+            [
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.MailDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.Read
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.ProfileDrive,
+                        Permission = DrivePermission.Read
+                    }
+                }
+            ],
+            PermissionSet = new PermissionSet(
+                PermissionKeys.ReadConnections,
+                PermissionKeys.SendPushNotifications,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.UseTransitWrite)
+        };
+
+        await _appRegistrationService.RegisterApp(request, odinContext, cn);
     }
 
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request, IOdinContext odinContext, DatabaseConnection cn)
     {
-        var existingCircleDef = _circleMembershipService.GetCircle(request.Id,odinContext, cn);
+        var existingCircleDef = _circleMembershipService.GetCircle(request.Id, odinContext, cn);
         if (null == existingCircleDef)
         {
-            await _circleMembershipService.CreateCircleDefinition(request,odinContext, cn);
+            await _circleMembershipService.CreateCircleDefinition(request, odinContext, cn);
             return true;
         }
 
@@ -442,7 +506,7 @@ public class TenantConfigService
 
         if (null == drive)
         {
-            await _driveManager.CreateDrive(request,odinContext, cn);
+            await _driveManager.CreateDrive(request, odinContext, cn);
             return true;
         }
 

@@ -57,7 +57,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             //
             // Signing Key should exist
-            // 
+            //
             var signingKey = await ownerClient.PublicPrivateKey.GetSigningPublicKey();
             Assert.IsTrue(signingKey.PublicKey.Length > 0);
             Assert.IsTrue(signingKey.Crc32 > 0);
@@ -120,12 +120,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             //
             // system drives should be created
-            // 
+            //
             var createdDrivesResponse = await ownerClient.Drive.GetDrives(1, 100);
             Assert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            Assert.IsTrue(createdDrives.Results.Count == 8);
+            Assert.IsTrue(createdDrives.Results.Count == 9);
 
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
                 $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
@@ -135,6 +135,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive),
                 $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
+            Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.MailDrive),
+                $"expected drive [{SystemDriveConstants.MailDrive}] not found");
             Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
                 $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
 
@@ -158,7 +160,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(systemCircle.Name == "All Connected Identities");
 
             Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-            Assert.IsTrue(systemCircle.DriveGrants.Count() == 5,
+            Assert.IsTrue(systemCircle.DriveGrants.Count() == 6,
                 "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
@@ -167,6 +169,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //note: the permission for chat drive is write
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+            Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+
+            Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
             Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
             Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
@@ -236,6 +242,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 SystemDriveConstants.ContactDrive,
                 SystemDriveConstants.ProfileDrive,
                 SystemDriveConstants.ChatDrive,
+                SystemDriveConstants.MailDrive,
                 SystemDriveConstants.FeedDrive,
                 SystemDriveConstants.HomePageConfigDrive,
                 SystemDriveConstants.PublicPostsChannelDrive,
@@ -311,7 +318,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         //
         //     var initIdentityResponse = await ownerClient.Configuration.InitializeIdentity(setupConfig);
         //     Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
-        //     
+        //
         //     var followerDefinition = await ownerClient.OwnerFollower.GetIdentityIFollow(TestIdentities.HomebaseId);
         //
         //     Assert.IsNotNull(followerDefinition);
