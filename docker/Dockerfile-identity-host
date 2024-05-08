@@ -39,7 +39,7 @@ COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
 
 # Update version text in Version.cs
-RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/apps/Odin.Hosting/Version.cs
+RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/apps/Odin.Hosting/Extensions/Version.cs
 
 # Build release
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
