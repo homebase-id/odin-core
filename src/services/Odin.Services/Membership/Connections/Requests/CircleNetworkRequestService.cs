@@ -450,13 +450,20 @@ namespace Odin.Services.Membership.Connections.Requests
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive, cn);
             //since i have the icr key, i could create a client and make a request across the wire to pull
 
-            var patchedContext = OdinContextUpgrades.PatchInIcrKey(
-                odinContext,
-                feedDriveId.GetValueOrDefault(),
-                tempKey,
-                originalRequest.TempEncryptedFeedDriveStorageKey,
-                originalRequest.TempEncryptedIcrKey);
-            await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn);
+            try
+            {
+                var patchedContext = OdinContextUpgrades.PatchInIcrKey(
+                    odinContext,
+                    feedDriveId.GetValueOrDefault(),
+                    tempKey,
+                    originalRequest.TempEncryptedFeedDriveStorageKey,
+                    originalRequest.TempEncryptedIcrKey);
+                await _followerService.SynchronizeChannelFiles(recipient, patchedContext, cn);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to sync channel files");
+            }
 
             rawIcrKey.Wipe();
             tempKey.Wipe();
