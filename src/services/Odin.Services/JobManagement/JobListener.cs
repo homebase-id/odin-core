@@ -81,7 +81,7 @@ public class JobListener(
             {
                 retryCount++;
                 var retryAt = DateTimeOffset.Now + TimeSpan.FromSeconds(retryDelaySeconds);
-                logger.LogWarning("Job {JobKey} failed. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
+                logger.LogWarning("Job {JobKey} unsuccessful. Scheduling retry ({retryCount}/{retryMax}) starting {retryAt}.",
                     job.Key, retryCount, retryMax, retryAt);
 
                 jobData[JobConstants.RetryCountKey] = retryCount.ToString();
@@ -103,7 +103,7 @@ public class JobListener(
                         exception = exception.InnerException;
                     }
 
-                    logger.LogError(exception, "Job {JobKey} failed: {error}", job.Key, exception.Message);
+                    logger.LogError(exception, "Job {JobKey} unsuccessful: {error}", job.Key, exception.Message);
 
                     var errorMessage = exception is OdinClientException
                         ? exception.Message
