@@ -501,7 +501,7 @@ public class JobManagerTest
     }
 
     [Test]
-    public async Task ItShouldExecuteEventOnJobStartingAndOnJobFailed()
+    public async Task ItShouldExecuteEventOnJobStartingAndOnJobUnsuccessful()
     {
         var jobManager = CreateHostedJobManager(true, 10);
 
