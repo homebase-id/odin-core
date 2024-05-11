@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -270,8 +269,7 @@ namespace Odin.Services.DataSubscription
 
                         var payload = new FeedItemPayload()
                         {
-                            KeyHeaderBytes = keyHeader.Combine().GetKey(),
-                            AuthorOdinId = author
+                            KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
                         
                         encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
