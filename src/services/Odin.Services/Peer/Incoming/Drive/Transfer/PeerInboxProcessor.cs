@@ -164,7 +164,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                 {
-                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, feedPayload.AuthorOdinId, inboxItem.TransferInstructionSet,
+                    await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.TransferInstructionSet,
                         odinContext, cn);
                 });
 
