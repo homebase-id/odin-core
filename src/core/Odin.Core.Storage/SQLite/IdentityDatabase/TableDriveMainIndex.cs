@@ -44,7 +44,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                         if (rdr.Read())
                         {
                             long count = rdr.GetInt64(0);
-                            long size = rdr.GetInt64(1);
+                            long size = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
                             return (count, size);
                         }
                     }

@@ -36,6 +36,24 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
                 Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
             }
         }
+
+        [Test]
+        public void GetSizeInvalidTest()
+        {
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+
+            using (var myc = db.CreateDisposableConnection())
+            {
+                db.CreateDatabase(myc);
+                var driveId = Guid.NewGuid();
+
+                var (count, size) = db.tblDriveMainIndex.GetDriveSize(myc, driveId);
+                Assert.AreEqual(count, 0);
+                Assert.AreEqual(size, 0);
+            }
+        }
+
+
         [Test]
         public void CannotInsertZeroSizeTest()
         {
