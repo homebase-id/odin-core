@@ -209,11 +209,11 @@ namespace Odin.Core.Storage.SQLite
 
         public void Dispose()
         {
-            if (_disposed == true)
-                return;
-
             lock (_lock)
             {
+                if (_disposed)
+                    return;
+
                 _disposed = true;
 
                 if (_transaction != null)
