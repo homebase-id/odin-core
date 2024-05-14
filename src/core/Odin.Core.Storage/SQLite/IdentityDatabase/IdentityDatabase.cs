@@ -577,7 +577,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand();
+            using var cmd = CreateCommand();
             cmd.CommandText = stm;
 
             lock (conn._lock)
@@ -827,7 +827,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 fileSystemType, driveId);
 
             string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-            var cmd = this.CreateCommand();
+            using var cmd = CreateCommand();
             cmd.CommandText = stm;
 
             lock (conn._lock)
