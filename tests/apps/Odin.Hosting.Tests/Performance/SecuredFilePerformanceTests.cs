@@ -333,8 +333,8 @@ namespace Odin.Hosting.Tests.Performance
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: aesKey,
-                    IV: payloadIv);
+                    key: aesKey,
+                    iv: payloadIv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payload);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
