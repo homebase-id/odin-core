@@ -268,8 +268,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    key: aesKey,
+                    iv: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
@@ -551,8 +551,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: aesKey,
-                    IV: payloadEkh.Iv);
+                    key: aesKey,
+                    iv: payloadEkh.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(originalPayloadData);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));

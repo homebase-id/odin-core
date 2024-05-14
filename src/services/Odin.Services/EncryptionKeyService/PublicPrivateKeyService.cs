@@ -322,8 +322,8 @@ namespace Odin.Services.EncryptionKeyService
             var key = keyHeader.AesKey;
             var bytes = AesCbc.Decrypt(
                 cipherText: payload.KeyHeaderEncryptedData,
-                Key: key,
-                IV: keyHeader.Iv);
+                key: key,
+                iv: keyHeader.Iv);
 
             return (true, bytes);
         }

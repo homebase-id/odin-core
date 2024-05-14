@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
@@ -13,14 +14,12 @@ namespace Odin.Core.Cryptography.Crypto
     {
         private static byte[] PerformCryptography(byte[] data, ICryptoTransform cryptoTransform)
         {
-            using (var ms = new MemoryStream())
-            using (var cryptoStream = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write))
-            {
-                cryptoStream.Write(data, 0, data.Length);
-                cryptoStream.FlushFinalBlock();
+            using var ms = new MemoryStream();
+            using var cryptoStream = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write);
+            cryptoStream.Write(data, 0, data.Length);
+            cryptoStream.FlushFinalBlock();
 
-                return ms.ToArray();
-            }
+            return ms.ToArray();
         }
 
         /// <summary>
@@ -33,57 +32,76 @@ namespace Odin.Core.Cryptography.Crypto
         /// <returns></returns>
         public static byte[] Encrypt(byte[] data, SensitiveByteArray key, byte[] iv)
         {
-            using (Aes aesAlg = Aes.Create())
+            if (data == null)
             {
-                aesAlg.Key = key.GetKey();
-
-                aesAlg.IV = iv;
-
-                aesAlg.Mode = CipherMode.CBC;
-
-                using (var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV))
-                {
-                    return PerformCryptography(data, encryptor);
-                }
+                throw new ArgumentNullException(nameof(data), "Data cannot be null.");
             }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key), "Key cannot be null.");
+            }
+            if (iv == null)
+            {
+                throw new ArgumentNullException(nameof(iv), "IV cannot be null.");
+            }
+
+            using var aesAlg = Aes.Create();
+            aesAlg.Key = key.GetKey();
+            aesAlg.IV = iv;
+            aesAlg.Mode = CipherMode.CBC;
+
+            using var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            return PerformCryptography(data, encryptor);
         }
 
         //public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, byte[] Key)
-        public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, SensitiveByteArray Key)
+        public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, SensitiveByteArray key)
         {
-            byte[] IV;
-
-            using (Aes aesAlg = Aes.Create())
+            if (data == null)
             {
-                aesAlg.Key = Key.GetKey();
-
-                aesAlg.GenerateIV();
-                IV = aesAlg.IV;
-
-                aesAlg.Mode = CipherMode.CBC;
-
-                using (var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV))
-                {
-                    return (IV, PerformCryptography(data, encryptor));
-                }
+                throw new ArgumentNullException(nameof(data), "Data cannot be null.");
             }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key), "Key cannot be null.");
+            }
+
+            using var aesAlg = Aes.Create();
+            aesAlg.Key = key.GetKey();
+
+            aesAlg.GenerateIV();
+            var iv = aesAlg.IV;
+
+            aesAlg.Mode = CipherMode.CBC;
+
+            using var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            return (iv, PerformCryptography(data, encryptor));
         }
 
-        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray Key, byte [] IV)
+        public static byte[] Decrypt(byte[] cipherText, SensitiveByteArray key, byte[] iv)
         {
+            if (cipherText == null)
+            {
+                throw new ArgumentNullException(nameof(cipherText), "CipherText cannot be null.");
+            }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key), "Key cannot be null.");
+            }
+            if (iv == null)
+            {
+                throw new ArgumentNullException(nameof(iv), "IV cannot be null.");
+            }
+
             // Create an Aes object 
             // with the specified key and IV. 
-            using (Aes aesAlg = Aes.Create())
-            {
-                aesAlg.Key = Key.GetKey();
-                aesAlg.IV = IV;
-                aesAlg.Mode = CipherMode.CBC;
+            using var aesAlg = Aes.Create();
+            aesAlg.Key = key.GetKey();
+            aesAlg.IV = iv;
+            aesAlg.Mode = CipherMode.CBC;
 
-                using (var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV))
-                {
-                    return PerformCryptography(cipherText, decryptor);
-                }
-            }
+            using var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+            return PerformCryptography(cipherText, decryptor);
         }
     }
 }

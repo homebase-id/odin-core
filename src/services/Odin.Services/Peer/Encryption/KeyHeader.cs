@@ -76,8 +76,8 @@ namespace Odin.Services.Peer.Encryption
             var aesKey = this.AesKey;
             var bytes = AesCbc.Decrypt(
                 cipherText: encryptedData,
-                Key: aesKey,
-                IV: this.Iv);
+                key: aesKey,
+                iv: this.Iv);
             return bytes;
         }
     }

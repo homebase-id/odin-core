@@ -170,8 +170,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: aesKey,
-                    IV: decryptedKeyHeader.Iv);
+                    key: aesKey,
+                    iv: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
