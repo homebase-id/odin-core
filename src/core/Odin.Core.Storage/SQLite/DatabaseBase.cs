@@ -90,5 +90,33 @@ namespace Odin.Core.Storage.SQLite
 
             return cmd;
         }
+
+        // TODO: this should really be part of CreateDatabase, but CreateDatabase is called in strange places,
+        // o we leave it here for now
+        private bool _journalModeInitialized;
+        private readonly object _journalModeLock = new();
+        public void InitSqliteJournalModeWal(SqliteConnection cn)
+        {
+            if (_journalModeInitialized)
+            {
+                return;
+            }
+
+            lock (_journalModeLock)
+            {
+                if (_journalModeInitialized)
+                {
+                    return;
+                }
+
+                _journalModeInitialized = true;
+
+                using var command = cn.CreateCommand();
+                command.CommandText = "PRAGMA journal_mode=WAL;";
+                command.ExecuteNonQuery();
+                command.CommandText = "PRAGMA synchronous=NORMAL;";
+                command.ExecuteNonQuery();
+            }
+        }
     }
 }

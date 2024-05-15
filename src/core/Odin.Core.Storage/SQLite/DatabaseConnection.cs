@@ -30,14 +30,7 @@ namespace Odin.Core.Storage.SQLite
             this.db = db;
             _connection = new SqliteConnection(connectionString);
             _connection.Open();
-
-            using (var pragmaJournalModeCommand = _connection.CreateCommand())
-            {
-                pragmaJournalModeCommand.CommandText = "PRAGMA journal_mode=WAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-                pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-            }
+            db.InitSqliteJournalModeWal(_connection);
         }
 
         ~DatabaseConnection()
