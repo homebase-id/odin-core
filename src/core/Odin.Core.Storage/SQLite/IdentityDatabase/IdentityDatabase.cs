@@ -577,42 +577,45 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-            using var cmd = CreateCommand();
-            cmd.CommandText = stm;
-
-            lock (conn._lock)
+            using (var cmd = CreateCommand())
             {
-                var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default);
+                cmd.CommandText = stm;
 
-                var result = new List<Guid>();
-                var _fileId = new byte[16];
-                long _userDate = 0;
-
-                int i = 0;
-                while (rdr.Read())
+                lock (conn._lock)
                 {
-                    rdr.GetBytes(0, 0, _fileId, 0, 16);
-                    result.Add(new Guid(_fileId));
+                    using (var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default))
+                    {
+                        var result = new List<Guid>();
+                        var _fileId = new byte[16];
+                        long _userDate = 0;
 
-                    if (fileIdSort == false)
-                        _userDate = rdr.GetInt64(1);
+                        int i = 0;
+                        while (rdr.Read())
+                        {
+                            rdr.GetBytes(0, 0, _fileId, 0, 16);
+                            result.Add(new Guid(_fileId));
 
-                    i++;
-                    if (i >= noOfItems)
-                        break;
-                }
+                            if (fileIdSort == false)
+                                _userDate = rdr.GetInt64(1);
 
-                if (i > 0)
-                {
-                    cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
-                    if (fileIdSort == false)
-                        cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
-                }
+                            i++;
+                            if (i >= noOfItems)
+                                break;
+                        }
 
-                bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+                        if (i > 0)
+                        {
+                            cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
+                            if (fileIdSort == false)
+                                cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
+                        }
 
-                return (result, HasMoreRows);
-            } // lock
+                        bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
+
+                        return (result, HasMoreRows);
+                    } // using rdr
+                } // lock
+            } // using command
         }
 
 
