@@ -81,10 +81,9 @@ namespace Odin.Core.Storage.SQLite
             {
                 using (var connection = CreateDisposableConnection())
                     SqliteConnection.ClearPool(connection.Connection);
-            }
+            }*/
             _wasDisposed = true;
             GC.SuppressFinalize(this);
-            */
         }
 
         /// <summary>
