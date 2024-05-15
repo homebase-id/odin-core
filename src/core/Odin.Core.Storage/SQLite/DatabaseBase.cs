@@ -76,6 +76,7 @@ namespace Odin.Core.Storage.SQLite
 
         public virtual void Dispose()
         {
+            /*
             if (!_wasDisposed)
             {
                 using (var connection = CreateDisposableConnection())
@@ -83,6 +84,7 @@ namespace Odin.Core.Storage.SQLite
             }
             _wasDisposed = true;
             GC.SuppressFinalize(this);
+            */
         }
 
         /// <summary>
