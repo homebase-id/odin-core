@@ -57,6 +57,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// </summary>
         public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
+            base.CreateDatabase(conn, dropExistingTables);
             tblKeyChain.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
                 conn.Vacuum();

@@ -24,13 +24,13 @@ https://www.sqlitetutorial.net/sqlite-index/
 namespace Odin.Core.Storage.SQLite
 {
 
-    public class DatabaseBase : IDisposable
+    public abstract class DatabaseBase : IDisposable
     {
         protected readonly string _connectionString;
         protected bool _wasDisposed = false;
         public readonly string _databaseSource;
 
-        public DatabaseBase(string dataSource)
+        protected DatabaseBase(string dataSource)
         {
             var builder = new SqliteConnectionStringBuilder();
 
@@ -81,7 +81,13 @@ namespace Odin.Core.Storage.SQLite
         /// </summary>
         public virtual void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
-            throw new Exception("Not implemented");
+            using (var pragmaJournalModeCommand = conn.Connection.CreateCommand())
+            {
+                pragmaJournalModeCommand.CommandText = "PRAGMA journal_mode=WAL;";
+                pragmaJournalModeCommand.ExecuteNonQuery();
+                pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
+                pragmaJournalModeCommand.ExecuteNonQuery();
+            }
         }
 
         public SqliteCommand CreateCommand()

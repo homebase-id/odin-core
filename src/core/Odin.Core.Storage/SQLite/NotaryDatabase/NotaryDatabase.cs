@@ -57,6 +57,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         /// </summary>
         public override void CreateDatabase(DatabaseConnection conn, bool dropExistingTables = true)
         {
+            base.CreateDatabase(conn, dropExistingTables);
             tblNotaryChain.EnsureTableExists(conn, dropExistingTables);
             if (dropExistingTables)
                 conn.Vacuum();

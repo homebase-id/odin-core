@@ -166,6 +166,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             if (conn.db != this)
                 throw new ArgumentException("connection and database object mismatch");
 
+            base.CreateDatabase(conn, dropExistingTables);
+
             // Drives
             tblDriveMainIndex.EnsureTableExists(conn, dropExistingTables);
             tblDriveAclIndex.EnsureTableExists(conn, dropExistingTables);
