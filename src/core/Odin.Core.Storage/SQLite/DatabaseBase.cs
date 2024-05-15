@@ -27,8 +27,6 @@ namespace Odin.Core.Storage.SQLite
     public class DatabaseBase : IDisposable
     {
         protected readonly string _connectionString;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(20); // Max 20 concurrent connections
- 
         protected bool _wasDisposed = false;
         public readonly string _databaseSource;
 
@@ -68,19 +66,12 @@ namespace Odin.Core.Storage.SQLite
 
         public DatabaseConnection CreateDisposableConnection()
         {
-            _semaphore.WaitAsync(); // Wait to enter the semaphore
-
             return new DatabaseConnection(this, _connectionString);
         }
 
 
         public virtual void Dispose()
         {
-            if (!_wasDisposed)
-            {
-                using (var connection = CreateDisposableConnection())
-                    SqliteConnection.ClearPool(connection.Connection);
-            }
             _wasDisposed = true;
             GC.SuppressFinalize(this);
         }
