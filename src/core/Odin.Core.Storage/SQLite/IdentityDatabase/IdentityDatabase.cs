@@ -830,34 +830,37 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 fileSystemType, driveId);
 
             string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-            using var cmd = CreateCommand();
-            cmd.CommandText = stm;
-
-            lock (conn._lock)
+            using (var cmd = CreateCommand())
             {
-                var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default);
+                cmd.CommandText = stm;
 
-                var result = new List<Guid>();
-                var fileId = new byte[16];
-
-                int i = 0;
-                long ts = 0;
-
-                while (rdr.Read())
+                lock (conn._lock)
                 {
-                    rdr.GetBytes(0, 0, fileId, 0, 16);
-                    result.Add(new Guid(fileId));
-                    ts = rdr.GetInt64(1);
-                    i++;
-                    if (i >= noOfItems)
-                        break;
-                }
+                    using (var rdr = conn.ExecuteReader(cmd, CommandBehavior.Default))
+                    {
+                        var result = new List<Guid>();
+                        var fileId = new byte[16];
 
-                if (i > 0)
-                    cursor = new UnixTimeUtcUnique(ts);
+                        int i = 0;
+                        long ts = 0;
 
-                return (result, rdr.Read());
-            } // lock
+                        while (rdr.Read())
+                        {
+                            rdr.GetBytes(0, 0, fileId, 0, 16);
+                            result.Add(new Guid(fileId));
+                            ts = rdr.GetInt64(1);
+                            i++;
+                            if (i >= noOfItems)
+                                break;
+                        }
+
+                        if (i > 0)
+                            cursor = new UnixTimeUtcUnique(ts);
+
+                        return (result, rdr.Read());
+                    } // using rdr
+                } // lock
+            } // using command
         }
 
 
