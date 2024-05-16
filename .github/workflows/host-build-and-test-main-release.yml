@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and test backend
-        uses: .github/actions/host/build-and-test-backend
+        uses: ./.github/actions/host/build-and-test-backend
         with:
           configuration: Release
 
