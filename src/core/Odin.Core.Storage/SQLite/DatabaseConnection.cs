@@ -7,6 +7,7 @@ using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Tasks;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
@@ -122,7 +123,7 @@ namespace Odin.Core.Storage.SQLite
             {
                 actions();
                 return Task.CompletedTask;
-            }).Wait();
+            }).BlockingWait();
         }
 
         //
