@@ -13,11 +13,9 @@ jobs:
     steps:
       - name: Checkout dotyoucore
         uses: actions/checkout@v4
-        with:
-          path: dotyoucore
 
       - name: Build and test backend
-        uses: ./dotyoucore/.github/actions/host/build-and-test-backend
+        uses: .github/actions/host/build-and-test-backend
         with:
           configuration: Release
 
