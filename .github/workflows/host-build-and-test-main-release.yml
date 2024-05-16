@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout dotyoucore
+        uses: actions/checkout@v4
+
       - name: Build and test backend
         uses: ./dotyoucore/.github/actions/host/build-and-test-backend
         with:

@@ -13,9 +13,6 @@ runs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Checkout dotyoucore
-      uses: actions/checkout@v4
-
     - name: Set folder permissions (RW required for SqLite)
       shell: bash
       run: |
