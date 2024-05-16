@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Data;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
 
@@ -24,25 +22,31 @@ https://www.sqlitetutorial.net/sqlite-index/
 namespace Odin.Core.Storage.SQLite
 {
 
-    public class DatabaseBase : IDisposable
+    public abstract class DatabaseBase : IDisposable
     {
         protected readonly string _connectionString;
         protected bool _wasDisposed = false;
         public readonly string _databaseSource;
 
-        public DatabaseBase(string dataSource)
+        protected DatabaseBase(string dataSource)
         {
-            var builder = new SqliteConnectionStringBuilder();
-
-            // Set the properties
-            builder.DataSource = dataSource;  // Replace with your database file path
-            builder.Mode = SqliteOpenMode.ReadWriteCreate;  // Opens the database in read/write mode and creates the database file if it does not exist
-            builder.Cache = SqliteCacheMode.Shared;  // Sets the cache mode to shared, allowing multiple connections to efficiently share the same data
-            builder.Pooling = true;  // Enables connection pooling
+            var builder = new SqliteConnectionStringBuilder
+            {
+                DataSource = dataSource,
+                Mode = SqliteOpenMode.ReadWriteCreate, // Opens the database in read/write mode and creates the database file if it does not exist
+                Cache = SqliteCacheMode.Shared, // Sets the cache mode to shared, allowing multiple connections to efficiently share the same data
+                Pooling = true // Enables connection pooling
+            };
 
             // Generate the connection string
             _connectionString = builder.ToString();
             _databaseSource = dataSource;
+
+            using (var cn = new SqliteConnection(_connectionString))
+            {
+                cn.Open();
+                InitSqliteJournalModeWal(cn);
+            }
 
             RsaKeyManagement.noDBOpened++;
         }
@@ -91,31 +95,13 @@ namespace Odin.Core.Storage.SQLite
             return cmd;
         }
 
-        // TODO: this should really be part of CreateDatabase, but CreateDatabase is called in strange places, so we leave it here for now
-        private bool _journalModeInitialized;
-        private readonly object _journalModeLock = new();
-        public void InitSqliteJournalModeWal(SqliteConnection cn)
+        private static void InitSqliteJournalModeWal(SqliteConnection cn)
         {
-            if (_journalModeInitialized)
-            {
-                return;
-            }
-
-            lock (_journalModeLock)
-            {
-                if (_journalModeInitialized)
-                {
-                    return;
-                }
-
-                _journalModeInitialized = true;
-
-                using var command = cn.CreateCommand();
-                command.CommandText = "PRAGMA journal_mode=WAL;";
-                command.ExecuteNonQuery();
-                command.CommandText = "PRAGMA synchronous=NORMAL;";
-                command.ExecuteNonQuery();
-            }
+            using var command = cn.CreateCommand();
+            command.CommandText = "PRAGMA journal_mode=WAL;";
+            command.ExecuteNonQuery();
+            command.CommandText = "PRAGMA synchronous=NORMAL;";
+            command.ExecuteNonQuery();
         }
     }
 }

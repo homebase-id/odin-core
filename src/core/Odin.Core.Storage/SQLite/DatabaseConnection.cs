@@ -30,7 +30,6 @@ namespace Odin.Core.Storage.SQLite
             this.db = db;
             _connection = new SqliteConnection(connectionString);
             _connection.Open();
-            db.InitSqliteJournalModeWal(_connection);
         }
 
         ~DatabaseConnection()
