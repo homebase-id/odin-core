@@ -105,15 +105,19 @@ public sealed class YouAuthAuthorizeRequest
 
     //
     
-    public void Validate()
+    public void Validate(string redirectUriHost)
     {
-        if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(ClientId))
-        {
-            throw new BadRequestException($"{ClientIdName} is required when {ClientTypeName} is {ClientType.app}");
-        }
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
             throw new BadRequestException($"Bad or missing {ClientTypeName}: {ClientType}");
+        }
+        if (string.IsNullOrWhiteSpace(ClientId))
+        {
+            throw new BadRequestException($"Bad or missing {ClientIdName}");
+        }
+        if (ClientType == ClientType.domain && ClientId != redirectUriHost)
+        {
+            throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
         }
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
