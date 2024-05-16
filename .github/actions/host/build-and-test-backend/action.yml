@@ -1,0 +1,34 @@
+name: "Host: Build and test backend"
+description: "Build and test backend"
+inputs:
+  configuration:
+    description: "Debug or Release"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4.0.0
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Checkout dotyoucore
+      uses: actions/checkout@v4
+
+    - name: Set folder permissions (RW required for SqLite)
+      shell: bash
+      run: |
+        chmod -R +rw ./
+
+    - name: Restore dependencies
+      shell: bash
+      run: dotnet restore ./dotyoucore.sln
+
+    - name: Build
+      shell: bash
+      run: dotnet build --no-restore --configuration ${{ inputs.configuration }} --warnaserror ./dotyoucore.sln
+
+    - name: Test
+      shell: bash
+      run: sudo dotnet test --no-build --configuration ${{ inputs.configuration }} --verbosity normal ./dotyoucore.sln
