@@ -55,26 +55,22 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Validate parameters
             //
 
-            authorize.Validate();
             if (!Uri.TryCreate(authorize.RedirectUri, UriKind.Absolute, out var redirectUri))
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
 
-            if (authorize.ClientType == ClientType.domain)
-            {
-                // If we're authorizing a domain, overwrite ClientId with domain name
-                authorize.ClientId = redirectUri.Host;
-            }
-            else if (authorize.ClientType == ClientType.app)
+            authorize.Validate(redirectUri.Host);
+
+            if (authorize.ClientType == ClientType.app)
             {
                 // If we're authorizing an app, overwrite ClientInfo with ClientFriendly
                 var appParams = GetYouAuthAppParameters(authorize.PermissionRequest, authorize.RedirectUri);
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
 
-            _logger.LogDebug("YouAuth: authorizing client_id={client_id}, redirect_uri={redirect_uri}",
-                authorize.ClientType, authorize.RedirectUri);
+            _logger.LogDebug("YouAuth: authorizing client_type={client_type} client_id={client_id}, redirect_uri={redirect_uri}",
+                authorize.ClientType, authorize.ClientId, authorize.RedirectUri);
 
             //
             // Step [040] Logged in?
@@ -209,10 +205,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             var authorize = YouAuthAuthorizeRequest.FromQueryString(returnUri.Query);
+            if (!Uri.TryCreate(authorize.RedirectUri, UriKind.Absolute, out var redirectUri))
+            {
+                throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
+            }
+            authorize.Validate(redirectUri.Host);
 
-            authorize.Validate();
-
-            ConsentRequirements consentRequirements = ConsentRequirements.Default;
+            var consentRequirements = ConsentRequirements.Default;
             if (!string.IsNullOrEmpty(consentRequirementJson))
             {
                 var c = OdinSystemSerializer.Deserialize<ConsentRequirements>(consentRequirementJson);

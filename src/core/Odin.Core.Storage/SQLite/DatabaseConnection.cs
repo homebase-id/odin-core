@@ -7,6 +7,7 @@ using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Tasks;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
@@ -30,14 +31,6 @@ namespace Odin.Core.Storage.SQLite
             this.db = db;
             _connection = new SqliteConnection(connectionString);
             _connection.Open();
-
-            using (var pragmaJournalModeCommand = _connection.CreateCommand())
-            {
-                pragmaJournalModeCommand.CommandText = "PRAGMA journal_mode=WAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-                pragmaJournalModeCommand.CommandText = "PRAGMA synchronous=NORMAL;";
-                pragmaJournalModeCommand.ExecuteNonQuery();
-            }
         }
 
         ~DatabaseConnection()
@@ -126,18 +119,43 @@ namespace Odin.Core.Storage.SQLite
 
         public void CreateCommitUnitOfWork(Action actions)
         {
-            CreateCommitUnitOfWorkAsync(() =>
+            var commit = false;
+
+            try
             {
+                lock (_lock)
+                {
+                    if (++_nestedCounter == 1)
+                    {
+                        BeginTransaction();
+                    }
+                }
+
                 actions();
-                return Task.CompletedTask;
-            }).Wait();
+                commit = true;
+            }
+            catch (Exception e)
+            {
+                Serilog.Log.Error(e, "CreateCommitUnitOfWork exception: {error}", e.Message);
+                throw;
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    if (--_nestedCounter == 0)
+                    {
+                        EndTransaction(commit);
+                    }
+                }
+            }
         }
 
         //
 
         public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
         {
-            bool commit = false;
+            var commit = false;
 
             try
             {
