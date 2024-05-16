@@ -2,10 +2,10 @@ name: "Host: Build and test main (debug)"
 
 on:
   push:
-    branches: [main]
+    branches: [build-test]
   pull_request:
-    branches: [main]
-  workflow_dispatch:
+    branches: [build-test]
+  workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
   build:
