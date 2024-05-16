@@ -119,18 +119,43 @@ namespace Odin.Core.Storage.SQLite
 
         public void CreateCommitUnitOfWork(Action actions)
         {
-            CreateCommitUnitOfWorkAsync(() =>
+            var commit = false;
+
+            try
             {
+                lock (_lock)
+                {
+                    if (++_nestedCounter == 1)
+                    {
+                        BeginTransaction();
+                    }
+                }
+
                 actions();
-                return Task.CompletedTask;
-            }).BlockingWait();
+                commit = true;
+            }
+            catch (Exception e)
+            {
+                Serilog.Log.Error(e, "CreateCommitUnitOfWork exception: {error}", e.Message);
+                throw;
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    if (--_nestedCounter == 0)
+                    {
+                        EndTransaction(commit);
+                    }
+                }
+            }
         }
 
         //
 
         public async Task CreateCommitUnitOfWorkAsync(Func<Task> actions)
         {
-            bool commit = false;
+            var commit = false;
 
             try
             {
