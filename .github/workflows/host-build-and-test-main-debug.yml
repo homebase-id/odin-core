@@ -1,0 +1,21 @@
+name: "Host: Build and test main (debug)"
+
+on:
+  push:
+    branches: [build-test]
+  pull_request:
+    branches: [build-test]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and test backend
+        uses: ./.github/actions/host/build-and-test-backend
+        with:
+          configuration: Debug
+
