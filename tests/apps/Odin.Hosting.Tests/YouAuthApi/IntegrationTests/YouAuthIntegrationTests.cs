@@ -110,6 +110,66 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         //
 
         [Test]
+        public async Task b0_domain_AuthorizeEndpointMust400IfMissingClientId()
+        {
+            const string hobbit = "sam.dotyou.cloud";
+            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
+
+            //
+            // [010] Generate key pair
+            //
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
+
+            //
+            // [030] Request authorization code
+            //
+            {
+                //
+                // Arrange
+                //
+
+                const string thirdParty = "frodo.dotyou.cloud";
+                var payload = new YouAuthAuthorizeRequest
+                {
+                    ClientId = "",
+                    ClientType = ClientType.domain,
+                    ClientInfo = "",
+                    PermissionRequest = "",
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
+                    State = "somestate",
+                    RedirectUri = $"https://{thirdParty}/authorization/code/callback"
+                };
+
+                var uri =
+                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    {
+                        Query = payload.ToQueryString()
+                    }.ToString();
+
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                //
+                // Act
+                //
+                var response = await apiClient.SendAsync(request);
+
+                //
+                // Assert
+                //
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            }
+        }
+
+        //
+
+        [Test]
         public async Task b1_domain_AuthorizeEndpointMustRedirectToConsentPageIfConsentIsNeeded()
         {
             const string hobbit = "sam.dotyou.cloud";
