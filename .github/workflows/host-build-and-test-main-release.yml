@@ -1,0 +1,22 @@
+name: "Host: Build and test main (release)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allows manual triggering from the UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and test backend
+        uses: ./.github/actions/host/build-and-test-backend
+        with:
+          configuration: Release
+
