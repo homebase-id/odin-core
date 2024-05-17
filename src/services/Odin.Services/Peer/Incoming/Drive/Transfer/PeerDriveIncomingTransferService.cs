@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -17,12 +18,12 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerDriveIncomingTransferService
     {
+        private readonly ILogger<PeerDriveIncomingTransferService> _logger;
         private readonly PushNotificationService _pushNotificationService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly DriveManager _driveManager;
@@ -32,12 +33,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private readonly IMediator _mediator;
 
         public PeerDriveIncomingTransferService(
+            ILogger<PeerDriveIncomingTransferService> logger,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
         {
+            _logger = logger;
             _driveManager = driveManager;
             _fileSystem = fileSystem;
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
@@ -191,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileWriter writer = new PeerFileWriter(_fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(_logger, _fileSystemResolver);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
 

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -15,8 +16,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
-using Serilog;
 
 namespace Odin.Services.DataSubscription
 {
@@ -26,7 +25,11 @@ namespace Odin.Services.DataSubscription
     ///
     /// Yes, this is more Feed hack'ish stuff that indicates we need to build a feed subsystem in the core
     /// </summary>
-    public class FeedNotificationMapper(DriveManager driveManager, PushNotificationService pushNotificationService, TenantContext tenantContext)
+    public class FeedNotificationMapper(
+        ILogger<FeedNotificationMapper> logger,
+        DriveManager driveManager,
+        PushNotificationService pushNotificationService,
+        TenantContext tenantContext)
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,
             INotificationHandler<NewFollowerNotification>, INotificationHandler<DriveFileAddedNotification>
     {
@@ -121,7 +124,7 @@ namespace Odin.Services.DataSubscription
             var drive = await driveManager.GetDrive(driveId, cn);
             if (null == drive)
             {
-                Log.Warning("notification sent with invalid driveId - this is totes rare");
+                logger.LogWarning("notification sent with invalid driveId - this is totes rare");
                 return false;
             }
 

@@ -27,8 +27,6 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
-using Serilog;
-
 namespace Odin.Services.DataSubscription
 {
     /// <summary>
@@ -230,7 +228,7 @@ namespace Odin.Services.DataSubscription
                 }
 
                 //Note: not throwing exception so we dont block other-valid feed items from being sent
-                Log.Warning($"Unhandled Notification Type {distroItem.DriveNotificationType}");
+                _logger.LogWarning($"Unhandled Notification Type {distroItem.DriveNotificationType}");
                 return (record, false);
             }
 
