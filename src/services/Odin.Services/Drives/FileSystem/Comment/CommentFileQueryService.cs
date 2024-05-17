@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -11,9 +12,11 @@ namespace Odin.Services.Drives.FileSystem.Comment
 {
     public class CommentFileQueryService : DriveQueryServiceBase
     {
-        public CommentFileQueryService(DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
+        public CommentFileQueryService(
+            ILogger<CommentFileQueryService> logger,
+            DriveDatabaseHost driveDatabaseHost, DriveManager driveManager,
             CommentFileStorageService commentStorage) :
-            base(driveDatabaseHost, driveManager, commentStorage)
+            base(logger, driveDatabaseHost, driveManager, commentStorage)
         {
         }
 

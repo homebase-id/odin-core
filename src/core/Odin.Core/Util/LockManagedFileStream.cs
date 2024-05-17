@@ -1,21 +1,22 @@
 using System;
 using System.IO;
-using static System.Net.WebRequestMethods;
-using System.Numerics;
+using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Util;
 
 public class LockManagedFileStream : FileStream
 {
+    private readonly ILogger _logger;
     private readonly ConcurrentFileManager _concurrentFileManagerGlobal;
     private string _path;
     private bool _isDisposed = false;
 
 
-    public LockManagedFileStream(string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
+    public LockManagedFileStream(ILogger logger, string path, FileMode mode, FileAccess access, FileShare share, ConcurrentFileManager lockObj)
         : base(path, mode, access, share)
     {
         _concurrentFileManagerGlobal = lockObj;
+        _logger = logger;
         _path = path;
     }
 
@@ -26,7 +27,7 @@ public class LockManagedFileStream : FileStream
 #if DEBUG
             throw new Exception($"ManagedFileStream created by ConcurrentFileManager (instantiated {_concurrentFileManagerGlobal._file} line {_concurrentFileManagerGlobal._line}) was not disposed properly {_path}.");
 #else
-           Serilog.Log.Error($"ManagedFileStream created by ConcurrentFileManager (instantiated {_concurrentFileManagerGlobal._file} line {_concurrentFileManagerGlobal._line}) was not disposed properly {_path}.");
+           _logger.LogError($"ManagedFileStream created by ConcurrentFileManager (instantiated {_concurrentFileManagerGlobal._file} line {_concurrentFileManagerGlobal._line}) was not disposed properly {_path}.");
 #endif
         }
     }

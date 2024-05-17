@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -15,7 +15,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
-using Serilog;
 
 namespace Odin.Services.Drives.Management;
 
@@ -29,6 +28,7 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager
 {
+    private readonly ILogger<DriveManager> _logger;
     private readonly IMediator _mediator;
 
     private readonly TenantContext _tenantContext;
@@ -39,8 +39,9 @@ public class DriveManager
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
     private readonly ThreeKeyValueStorage _driveStorage;
 
-    public DriveManager(TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager(ILogger<DriveManager> logger, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
+        _logger = logger;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
@@ -112,9 +113,9 @@ public class DriveManager
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
 
-            Log.Debug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
+            _logger.LogDebug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
             CacheDrive(storageDrive);
-            Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
+            _logger.LogDebug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
         await _mediator.Publish(new DriveDefinitionAddedNotification
@@ -281,7 +282,7 @@ public class DriveManager
         if (_driveCache.Any())
         {
             allDrives = _driveCache.Values.ToList();
-            Log.Debug($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
+            _logger.LogDebug($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
         }
         else
         {
@@ -289,7 +290,7 @@ public class DriveManager
                 .GetByCategory<StorageDriveBase>(cn, _driveDataType)
                 .Select(ToStorageDrive).ToList();
 
-            Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
+            _logger.LogDebug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
         if (odinContext?.Caller?.IsOwner ?? false)
@@ -323,7 +324,7 @@ public class DriveManager
 
     private void CacheDrive(StorageDrive drive)
     {
-        Log.Debug($"Cached Drive {drive.TargetDriveInfo}");
+        _logger.LogDebug($"Cached Drive {drive.TargetDriveInfo}");
         _driveCache.AddOrUpdate(drive.Id, drive, (id, oldDrive) => drive);
     }
 

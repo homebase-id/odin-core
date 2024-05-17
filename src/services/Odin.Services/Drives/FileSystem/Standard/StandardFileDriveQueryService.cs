@@ -1,10 +1,12 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Standard
@@ -12,11 +14,11 @@ namespace Odin.Services.Drives.FileSystem.Standard
     public class StandardFileDriveQueryService : DriveQueryServiceBase
     {
         public StandardFileDriveQueryService(
-            
+            ILogger<StandardFileDriveQueryService> logger,
             DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager,
             StandardFileDriveStorageService storage) :
-            base( driveDatabaseHost, driveManager, storage)
+            base(logger, driveDatabaseHost, driveManager, storage)
         {
         }
 

@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -25,7 +26,6 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Query;
 using Refit;
-using Serilog;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Query;
 
@@ -33,6 +33,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query;
 /// Executes query functionality on connected identity hosts
 /// </summary>
 public class PeerDriveQueryService(
+    ILogger<PeerDriveQueryService> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
@@ -510,7 +511,7 @@ public class PeerDriveQueryService(
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
-            Log.Warning($"Could not parse remote server response last modified for thumbnail");
+            logger.LogWarning($"Could not parse remote server response last modified for thumbnail");
         }
 
         EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
@@ -550,7 +551,7 @@ public class PeerDriveQueryService(
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
-            Log.Warning($"Could not parse last modified for payload (key:{key})");
+            logger.LogWarning($"Could not parse last modified for payload (key:{key})");
         }
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;

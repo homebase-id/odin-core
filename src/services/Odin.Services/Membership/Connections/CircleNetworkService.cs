@@ -5,6 +5,7 @@ using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -21,7 +22,6 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
-using Serilog;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Services.Membership.Connections
@@ -30,6 +30,7 @@ namespace Odin.Services.Membership.Connections
     /// Establishes connections between individuals
     /// </summary>
     public class CircleNetworkService(
+        ILogger<CircleNetworkService> logger,
         ExchangeGrantService exchangeGrantService,
         TenantContext tenantContext,
         IAppRegistrationService appRegistrationService,
@@ -629,7 +630,7 @@ namespace Odin.Services.Membership.Connections
             IOdinContext odinContext,
             DatabaseConnection cn)
         {
-            Log.Information("Creating permission context for caller [{caller}] in auth context [{authContext}]; applyAppCircleGrants:[{applyAppGrants}]",
+            logger.LogInformation("Creating permission context for caller [{caller}] in auth context [{authContext}]; applyAppCircleGrants:[{applyAppGrants}]",
                 odinContext.Caller?.OdinId ?? "no caller",
                 odinContext.AuthContext,
                 applyAppCircleGrants);
@@ -667,11 +668,11 @@ namespace Odin.Services.Membership.Connections
                                     message += $"\n Existing key has [{existingKeyJson}]";
                                     message += $"\n AppGrant Key [{newKeyJson}]";
 
-                                    Log.Warning(message);
+                                    logger.LogWarning(message);
                                 }
                                 else
                                 {
-                                    Log.Warning($"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
+                                    logger.LogWarning($"Wild; so wild. grants.ContainsKey says it has {kvp.Key} but grants.TryGetValues does not???");
                                 }
                             }
                             else

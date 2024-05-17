@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -17,7 +18,6 @@ using Odin.Services.Drives.FileSystem;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
-using Serilog;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -26,7 +26,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(FileSystemResolver fileSystemResolver)
+    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
@@ -48,7 +48,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (bytes == null)
                 {
                     // this is bad error.
-                    Log.Error("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -58,12 +58,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (null == metadata)
                 {
-                    Log.Error("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
 
-            Log.Information("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+            logger.LogInformation("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
 
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
@@ -150,7 +150,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (clientFileHeader == null)
             {
                 // this is bad error.
-                Log.Error("While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ", item.GlobalTransitId, item.DriveId);
+                logger.LogError("While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ", item.GlobalTransitId, item.DriveId);
                 throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
             }
 
@@ -199,7 +199,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
                 });
 
-                Log.Information("Handle file->CommitNewFile: {ms} ms", ms);
+                logger.LogInformation("Handle file->CommitNewFile: {ms} ms", ms);
                 return;
             }
 
@@ -294,7 +294,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //
             if (metadata.GlobalTransitId.HasValue)
             {
-                Log.Information("processing incoming file with global transit id");
+                logger.LogInformation("processing incoming file with global transit id");
 
                 SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
                     await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
@@ -350,7 +350,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext, cn);
                 });
 
-                Log.Information("Handle file->CommitNewFile: {ms} ms", ms);
+                logger.LogInformation("Handle file->CommitNewFile: {ms} ms", ms);
                 return;
             }
 
@@ -445,7 +445,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //
             if (metadata.GlobalTransitId.HasValue)
             {
-                Log.Information("processing incoming file with global transit id");
+                logger.LogInformation("processing incoming file with global transit id");
 
                 SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
                     await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault(), odinContext, cn);
