@@ -205,7 +205,7 @@ public class ConcurrentFileManager(
         try
         {
             // Create and return the custom stream that manages the lock
-            var s = new LockManagedFileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, this);
+            var s = new LockManagedFileStream(logger, filePath, FileMode.Open, FileAccess.Read, FileShare.Read, this);
             return Task.FromResult<Stream>(s);
         }
         catch

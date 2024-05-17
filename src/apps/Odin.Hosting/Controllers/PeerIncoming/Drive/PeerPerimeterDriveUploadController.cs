@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.Push;
@@ -40,6 +41,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class PeerIncomingDriveUpdateController : OdinControllerBase
     {
+        private readonly ILoggerFactory _loggerFactory;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -51,13 +53,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
-            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService, ILoggerFactory loggerFactory)
         {
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;
+            _loggerFactory = loggerFactory;
         }
 
         /// <summary />
@@ -351,6 +354,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private PeerDriveIncomingTransferService GetPerimeterService(IDriveFileSystem fileSystem)
         {
             return new PeerDriveIncomingTransferService(
+                _loggerFactory.CreateLogger<PeerDriveIncomingTransferService>(),
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

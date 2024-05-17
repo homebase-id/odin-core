@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.SQLite;
@@ -10,18 +11,22 @@ using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
-using Serilog;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveQueryServiceBase : RequirePermissionsBase
     {
+        private readonly ILogger _logger;
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        protected DriveQueryServiceBase(DriveDatabaseHost driveDatabaseHost,
-            DriveManager driveManager, DriveStorageServiceBase storage)
+        protected DriveQueryServiceBase(
+            ILogger logger,
+            DriveDatabaseHost driveDatabaseHost,
+            DriveManager driveManager,
+            DriveStorageServiceBase storage)
         {
+            _logger = logger;
             DriveManager = driveManager;
             _driveDatabaseHost = driveDatabaseHost;
             _storage = storage;
@@ -228,7 +233,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // throw new OdinSystemException($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
                     //                               $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
-                    Log.Error($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
+                    _logger.LogError($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
                               $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
                 }
                 else
@@ -269,7 +274,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     else
                     {
                         var drive = await DriveManager.GetDrive(file.DriveId, cn);
-                        Log.Debug("Caller with OdinId [{odinid}] received the file from the drive search " +
+                        _logger.LogDebug("Caller with OdinId [{odinid}] received the file from the drive search " +
                                   "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
                                   "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
                                   "[alias={driveAlias}, type={driveType}]",

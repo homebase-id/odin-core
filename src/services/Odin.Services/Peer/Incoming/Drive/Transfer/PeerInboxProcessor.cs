@@ -47,7 +47,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 status.PoppedCount, status.TotalItems,
                 status.OldestItemTimestamp.milliseconds);
 
-            PeerFileWriter writer = new PeerFileWriter(fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver);
             logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
 
             foreach (var inboxItem in items)
