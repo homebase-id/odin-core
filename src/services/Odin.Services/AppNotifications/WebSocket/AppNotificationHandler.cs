@@ -283,6 +283,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken, bool encrypt = true)
         {
+           
             var socket = deviceSocket.Socket;
 
             if (socket is not { State: WebSocketState.Open } || cancellationToken.IsCancellationRequested)
@@ -290,13 +291,22 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
+            if (deviceSocket.DeviceOdinContext == null)
+            {
+                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                _logger.LogInformation("Invalid/Stale DeviceSocket found; removing from list");
+                return;
+            }
+            
             try
             {
                 if (encrypt)
                 {
                     if (deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey == null)
                     {
-                        throw new OdinSystemException("Cannot encrypt message without shared secret key");
+                        _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                        _logger.LogInformation("Invalid/Stale DeviceSocket found; removing from list");
+                        return;
                     }
 
                     var key = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
