@@ -555,6 +555,61 @@ namespace Odin.Services.Membership.Connections
             });
         }
 
+        public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfo(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            
+            var info = new IcrTroubleshootingInfo();
+            var circleDefinitions = (await circleDefinitionService.GetCircles(true, cn)).ToList();
+            var icr = await GetIdentityConnectionRegistrationInternal(odinId, cn);
+
+            // Get all circles on identity
+            foreach (var definition in circleDefinitions)
+            {
+                var isCircleMember = icr.AccessGrant.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
+
+                var hasCircleGrant = circleGrant != null;
+                
+                var ci = new CircleInfo()
+                {
+                    CircleDefinitionId = definition.Id,
+                    CircleDefinitionName = definition.Name,
+                    CircleDefinitionDriveGrantCount = definition.DriveGrants?.Count() ?? 0,
+                    IsCircleMember = isCircleMember,
+                    DriveGrantAnalysis = new List<DriveGrantInfo>(),
+                    ExpectedPermissionKeys = definition.Permissions.Redacted(),
+                    ActualPermissionKeys = circleGrant?.PermissionSet?.Redacted() ?? new RedactedPermissionSet() { Keys = [] },
+                };
+
+                if (isCircleMember && definition.DriveGrants != null && hasCircleGrant)
+                {
+                    foreach (var expectedDriveGrant in definition.DriveGrants)
+                    {
+                        var driveId = await driveManager.GetDriveIdByAlias(expectedDriveGrant.PermissionedDrive.Drive, cn);
+                        var driveInfo = await driveManager.GetDrive(driveId.GetValueOrDefault(), cn);
+
+                        var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
+                            dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
+
+                        var dgi = new DriveGrantInfo()
+                        {
+                            DriveName = driveInfo.Name,
+                            DriveIsGranted = grantedDrive != null,
+                            ExpectedDrivePermission = expectedDriveGrant.PermissionedDrive.Permission,
+                            ActualDrivePermission = grantedDrive?.PermissionedDrive.Permission ?? DrivePermission.None,
+                            EncryptedKeyLength = grantedDrive?.KeyStoreKeyEncryptedStorageKey?.KeyEncrypted?.Length ?? 0
+                        };
+
+                        ci.DriveGrantAnalysis.Add(dgi);
+                    }
+                }
+
+                info.Circles.Add(ci);
+            }
+
+            return info;
+        }
+        
         //
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(
@@ -859,74 +914,6 @@ namespace Odin.Services.Membership.Connections
             //
         }
 
-        public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfo(OdinId odinId, IOdinContext webOdinContext, DatabaseConnection cn)
-        {
-            var info = new IcrTroubleshootingInfo();
-            var circleDefinitions = (await circleDefinitionService.GetCircles(true, cn)).ToList();
-            var icr = await GetIdentityConnectionRegistrationInternal(odinId, cn);
-
-            // Get all circles on identity
-            foreach (var definition in circleDefinitions)
-            {
-                var isCircleMember = icr.AccessGrant.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
-                var ci = new CircleInfo()
-                {
-                    CircleId = definition.Id,
-                    Name = definition.Name,
-                    CircleDriveGrantCount = definition.DriveGrants?.Count() ?? 0,
-                    IsMember = isCircleMember,
-                    DriveGrantAnalysis = new List<DriveGrantInfo>()
-                };
-
-                if (isCircleMember && definition.DriveGrants != null)
-                {
-                    foreach (var expectedDriveGrant in definition.DriveGrants)
-                    {
-                        var driveId = await driveManager.GetDriveIdByAlias(expectedDriveGrant.PermissionedDrive.Drive, cn);
-                        var driveInfo = await driveManager.GetDrive(driveId.GetValueOrDefault(), cn);
-
-                        var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
-                            dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
-
-                        var dgi = new DriveGrantInfo()
-                        {
-                            Name = driveInfo.Name,
-                            GrantIsMissing = grantedDrive == null,
-                            ExpectedDrivePermission = expectedDriveGrant.PermissionedDrive.Permission,
-                            ActualDrivePermission = grantedDrive?.PermissionedDrive.Permission ?? DrivePermission.None,
-                        };
-
-                        ci.DriveGrantAnalysis.Add(dgi);
-                    }
-                }
-
-                info.Circles.Add(ci);
-            }
-
-            return info;
-        }
-    }
-
-    public class IcrTroubleshootingInfo
-    {
-        public List<CircleInfo> Circles { get; set; } = new List<CircleInfo>();
-    }
-
-    public class CircleInfo
-    {
-        public GuidId CircleId { get; set; }
-        public string Name { get; set; }
-        public bool IsMember { get; set; }
-
-        public List<DriveGrantInfo> DriveGrantAnalysis { get; set; } = new List<DriveGrantInfo>();
-        public int CircleDriveGrantCount { get; set; }
-    }
-
-    public class DriveGrantInfo
-    {
-        public string Name { get; set; }
-        public bool GrantIsMissing { get; set; }
-        public DrivePermission ExpectedDrivePermission { get; set; }
-        public DrivePermission ActualDrivePermission { get; set; }
+        
     }
 }
