@@ -52,7 +52,6 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
-        private Action<Dictionary<LogEventLevel, List<LogEvent>>> _assertLogEvents;
 
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
@@ -106,8 +105,7 @@ namespace Odin.Hosting.Tests
         public void RunBeforeAnyTests(
             bool initializeIdentity = true,
             bool setupOwnerAccounts = true,
-            Dictionary<string, string> envOverrides = null,
-            Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
+            Dictionary<string, string> envOverrides = null)
         {
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
@@ -180,8 +178,6 @@ namespace Odin.Hosting.Tests
                 }
             }
 
-            _assertLogEvents = assertLogEvents ?? AssertLogEvents;
-
             CreateData();
             CreateLogs();
 
@@ -200,12 +196,13 @@ namespace Odin.Hosting.Tests
             _scenarios = new ScenarioBootstrapper(_oldOwnerApi, _appApi);
         }
 
-        public void RunAfterAnyTests()
+        public void RunAfterAnyTests(Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
         {
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
             if (null != _webserver)
             {
                 _webserver.StopAsync().GetAwaiter().GetResult();
-                _assertLogEvents(Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents());
                 _webserver.Dispose();
             }
 
@@ -217,6 +214,10 @@ namespace Odin.Hosting.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+
+            // Make sure this is last so it doesnt mess up the rest of the cleanup
+            assertLogEvents ??= AssertLogEvents;
+            assertLogEvents(logEvents);
         }
 
         public OwnerApiTestUtils OldOwnerApi =>
