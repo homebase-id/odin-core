@@ -60,7 +60,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
 
+            var thisHost = Request.Host.ToString().ToLower();
+
             authorize.Validate(redirectUri.Host);
+
+            // Sanity
+            if (authorize.ClientId.Equals(thisHost, StringComparison.CurrentCultureIgnoreCase))
+            {
+                throw new BadRequestException("Cannot YouAuth to self");
+            }
 
             if (authorize.ClientType == ClientType.app)
             {
@@ -98,7 +106,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     appParams.Return = Request.GetDisplayUrl();
 
                     var appRegisterPage =
-                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
+                        $"{Request.Scheme}://{thisHost}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
 
                     _logger.LogDebug("YouAuth: redirecting to {redirect}", appRegisterPage);
                     return Redirect(appRegisterPage);
@@ -171,7 +179,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         //
 
         //
-        // Authorize (POST)
+        // Authorize (POST) "consent"
         //
 
         [HttpPost(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
@@ -181,8 +189,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ConsentRequirementName)]
             string consentRequirementJson)
         {
-            // SEB:TODO CSRF ValidateAntiForgeryToken
-
             //
             // [055] Give consent and redirect back
             //
@@ -210,6 +216,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
             authorize.Validate(redirectUri.Host);
+
+            // Sanity #3
+            if (authorize.ClientId.Equals(Request.Host.ToString(), StringComparison.CurrentCultureIgnoreCase))
+            {
+                throw new BadRequestException("Cannot YouAuth to self");
+            }
 
             var consentRequirements = ConsentRequirements.Default;
             if (!string.IsNullOrEmpty(consentRequirementJson))
