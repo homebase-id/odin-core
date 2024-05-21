@@ -873,11 +873,12 @@ namespace Odin.Services.Membership.Connections
                 {
                     CircleId = definition.Id,
                     Name = definition.Name,
+                    CircleDriveGrantCount = definition.DriveGrants?.Count() ?? 0,
                     IsMember = isCircleMember,
-                    DriveGrants = new List<DriveGrantInfo>()
+                    DriveGrantAnalysis = new List<DriveGrantInfo>()
                 };
 
-                if (isCircleMember)
+                if (isCircleMember && definition.DriveGrants != null)
                 {
                     foreach (var expectedDriveGrant in definition.DriveGrants)
                     {
@@ -894,8 +895,8 @@ namespace Odin.Services.Membership.Connections
                             ExpectedDrivePermission = expectedDriveGrant.PermissionedDrive.Permission,
                             ActualDrivePermission = grantedDrive?.PermissionedDrive.Permission ?? DrivePermission.None,
                         };
-                        
-                        ci.DriveGrants.Add(dgi);
+
+                        ci.DriveGrantAnalysis.Add(dgi);
                     }
                 }
 
@@ -917,7 +918,8 @@ namespace Odin.Services.Membership.Connections
         public string Name { get; set; }
         public bool IsMember { get; set; }
 
-        public List<DriveGrantInfo> DriveGrants { get; set; }
+        public List<DriveGrantInfo> DriveGrantAnalysis { get; set; } = new List<DriveGrantInfo>();
+        public int CircleDriveGrantCount { get; set; }
     }
 
     public class DriveGrantInfo
