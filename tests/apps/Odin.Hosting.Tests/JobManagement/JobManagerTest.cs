@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.JobManagement;
 using Odin.Hosting.Tests.JobManagement.Jobs;
 using Odin.Services.Configuration;
@@ -20,7 +21,6 @@ namespace Odin.Hosting.Tests.JobManagement;
 [Timeout(60000)]
 public class JobManagerTest
 {
-    private readonly ILogger<JobManagerTest> _logger = TestLogFactory.CreateConsoleLogger<JobManagerTest>();
     private readonly TimeSpan _maxWaitForJobStatus = TimeSpan.FromSeconds(5);
     private string _tempPath;
     private IHost _host;
@@ -28,10 +28,8 @@ public class JobManagerTest
     [SetUp]
     public void Setup()
     {
-        _logger.LogDebug("JobManagerTest.Setup() enter");
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempPath);
-        _logger.LogDebug("JobManagerTest.Setup() exit");
     }
 
     //
@@ -39,14 +37,12 @@ public class JobManagerTest
     [TearDown]
     public void TearDown()
     {
-        _logger.LogDebug("JobManagerTest.TearDown() enter");
         // Tearing down too soon after schedulers having been created seems to randomly hang the test runner process.
         // Let's give it some time to do its thing.
         Task.Delay(200).Wait();
         _host.Dispose();
         _host = null;
         Directory.Delete(_tempPath, true);
-        _logger.LogDebug("JobManagerTest.TearDown() exit");
     }
 
     //
@@ -75,7 +71,10 @@ public class JobManagerTest
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices((hostContext, services) =>
             {
-                services.AddSingleton(TestLogFactory.CreateLoggerFactory());
+                var logStore = new LogEventMemoryStore();
+                services.AddSingleton(logStore);
+
+                services.AddSingleton(TestLogFactory.CreateLoggerFactory(logStore));
                 services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
                 services.AddSingleton<ICorrelationContext, CorrelationContext>();
                 services.AddJobManagementServices(config);
@@ -94,9 +93,7 @@ public class JobManagerTest
         var jobManager = _host.Services.GetRequiredService<IJobManager>();
         if (initializeJobManager)
         {
-            _logger.LogDebug("JobManagerTest.Initialize() before");
             jobManager.Initialize().Wait();
-            _logger.LogDebug("JobManagerTest.Initialize() after");
         }
 
         return jobManager;

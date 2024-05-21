@@ -4,11 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -22,6 +24,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
+using Serilog.Events;
 
 namespace Odin.Hosting.Tests
 {
@@ -49,6 +52,7 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
+        private Action<Dictionary<LogEventLevel, List<LogEvent>>> _assertLogEvents;
 
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
@@ -99,7 +103,11 @@ namespace Odin.Hosting.Tests
             return HttpClientFactory.CreateClient("no-cookies-no-redirects");
         }
 
-        public void RunBeforeAnyTests(bool initializeIdentity = true, bool setupOwnerAccounts = true, Dictionary<string, string> envOverrides = null)
+        public void RunBeforeAnyTests(
+            bool initializeIdentity = true,
+            bool setupOwnerAccounts = true,
+            Dictionary<string, string> envOverrides = null,
+            Action<Dictionary<LogEventLevel, List<LogEvent>>> assertLogEvents = null)
         {
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
@@ -131,7 +139,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
-            Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
+            Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
             Console.WriteLine($"Log file Path: [{LogFilePath}]");
             
@@ -172,6 +180,8 @@ namespace Odin.Hosting.Tests
                 }
             }
 
+            _assertLogEvents = assertLogEvents ?? AssertLogEvents;
+
             CreateData();
             CreateLogs();
 
@@ -195,6 +205,7 @@ namespace Odin.Hosting.Tests
             if (null != _webserver)
             {
                 _webserver.StopAsync().GetAwaiter().GetResult();
+                _assertLogEvents(Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents());
                 _webserver.Dispose();
             }
 
@@ -353,5 +364,15 @@ namespace Odin.Hosting.Tests
                 Thumbnails = thumbList
             };
         }
+
+        //
+
+        private void AssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
+        {
+            Assert.That(logEvents[LogEventLevel.Information].Count, Is.GreaterThan(0), "Unexpected number of Information log events");
+            Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
+            Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
+        }
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.Statistics.Serilog;
 using Serilog;
 using Serilog.Events;
 
@@ -6,7 +7,9 @@ namespace Odin.Test.Helpers.Logging;
 
 public static class TestLogFactory
 {
-    public static ILoggerFactory CreateLoggerFactory(LogEventLevel minimumLevel = LogEventLevel.Debug)
+    public static ILoggerFactory CreateLoggerFactory(
+        ILogEventMemoryStore logEventMemoryStore,
+        LogEventLevel minimumLevel = LogEventLevel.Debug)
     {
         return LoggerFactory.Create(builder =>
         {
@@ -14,14 +17,17 @@ public static class TestLogFactory
             var serilog = new LoggerConfiguration()
                 .MinimumLevel.Is(minimumLevel)
                 .WriteTo.Console(outputTemplate: logOutputTemplate)
+                .WriteTo.Sink(new InMemorySink(logEventMemoryStore))
                 .CreateLogger();
             builder.AddSerilog(serilog);
         });
     }
 
-    public static ILogger<T> CreateConsoleLogger<T>(LogEventLevel minimumLevel = LogEventLevel.Debug)
+    public static ILogger<T> CreateConsoleLogger<T>(
+        ILogEventMemoryStore logEventMemoryStore,
+        LogEventLevel minimumLevel = LogEventLevel.Debug)
     {
-        var loggerFactory = CreateLoggerFactory(minimumLevel);
+        var loggerFactory = CreateLoggerFactory(logEventMemoryStore, minimumLevel);
         return loggerFactory.CreateLogger<T>();
     }
 }

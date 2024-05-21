@@ -342,6 +342,7 @@ namespace Odin.Services.Configuration
         public class LoggingSection
         {
             public string LogFilePath { get; init; }
+            public bool EnableStatistics { get; init; }
 
             public LoggingSection()
             {
@@ -351,6 +352,7 @@ namespace Odin.Services.Configuration
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.GetOrDefault("Logging:LogFilePath", "");
+                EnableStatistics = config.GetOrDefault("Logging:EnableStatistics", false);
             }
         }
 
