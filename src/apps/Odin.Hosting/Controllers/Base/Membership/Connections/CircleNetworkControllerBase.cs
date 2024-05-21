@@ -44,6 +44,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return result;
         }
 
+        [HttpPost("troubleshooting-info")]
+        public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
+        {
+            using var cn = _tenantSystemStorage.CreateConnection();
+            var result = await _circleNetwork.GetTroubleshootingInfo((OdinId)request.OdinId, WebOdinContext, cn);
+            return new JsonResult(result);
+        }
+        
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
