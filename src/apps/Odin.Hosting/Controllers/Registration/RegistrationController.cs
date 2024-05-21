@@ -28,6 +28,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-valid-domain/{domain}")]
     public IActionResult IsValidDomain(string domain)
     {
+        domain = domain.Trim();
         return new JsonResult(AsciiDomainNameValidator.TryValidateDomain(domain));
     }
 
@@ -38,6 +39,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("lookup-zone-apex/{domain}")]
     public async Task<IActionResult> LookupZoneApex(string domain)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var zoneApex = await _regService.LookupZoneApex(domain);
         return new JsonResult(zoneApex);
@@ -50,6 +52,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("dns-config/{domain}")]
     public async Task<IActionResult> GetDnsConfiguration(string domain, [FromQuery] bool includeAlias = false)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var dnsConfig = await _regService.GetDnsConfiguration(domain);
         if (!includeAlias)
@@ -66,6 +69,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("did-dns-records-propagate/{domain}")]
     public async Task<IActionResult> DidDnsRecordsPropagate(string domain)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var (resolved, _) = await _regService.GetExternalDomainDnsStatus(domain);
         return new JsonResult(resolved);
@@ -78,6 +82,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("can-connect-to/{domain}/{port}")]
     public async Task<IActionResult> CanConnectToHostAndPort(string domain, int port)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var result = await _regService.CanConnectToHostAndPort(domain, port);
         return new JsonResult(result);
@@ -90,6 +95,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("has-valid-certificate/{domain}")]
     public async Task<IActionResult> HasValidCertificate(string domain)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var result = await _regService.HasValidCertificate(domain);
         return new JsonResult(result);
@@ -115,6 +121,8 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-managed-domain-available/{apex}/{prefix}")]
     public async Task<IActionResult> IsManagedDomainAvailable(string prefix, string apex)
     {
+        prefix = prefix.Trim();
+        apex = apex.Trim();
         try
         {
             var result = await _regService.IsManagedDomainAvailable(prefix, apex);
@@ -135,6 +143,9 @@ public class RegistrationController : ControllerBase
     [HttpPost("create-managed-domain/{apex}/{prefix}")]
     public async Task<IActionResult> CreateManagedDomain(string prefix, string apex)
     {
+        prefix = prefix.Trim();
+        apex = apex.Trim();
+
         var available = await _regService.IsManagedDomainAvailable(prefix, apex);
         if (!available)
         {
@@ -159,6 +170,9 @@ public class RegistrationController : ControllerBase
     [HttpDelete("delete-managed-domain/{apex}/{prefix}")]
     public async Task<IActionResult> DeleteManagedDomain(string prefix, string apex)
     {
+        prefix = prefix.Trim();
+        apex = apex.Trim();
+
         await _regService.DeleteManagedDomain(prefix, apex);
         return NoContent();
     }
@@ -171,6 +185,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-own-domain-available/{domain}")]
     public async Task<IActionResult> IsOwnDomainAvailable(string domain)
     {
+        domain = domain.Trim();
         try
         {
             var result = await _regService.IsOwnDomainAvailable(domain);
@@ -189,6 +204,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("own-domain-dns-status/{domain}")]
     public async Task<IActionResult> GetOwnDomainDnsStatus(string domain, [FromQuery] bool includeAlias = false)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         var (success, dnsConfig) = await _regService.GetAuthorativeDomainDnsStatus(domain);
         if (!includeAlias)
@@ -211,6 +227,7 @@ public class RegistrationController : ControllerBase
     [HttpDelete("delete-own-domain/{domain}")]
     public async Task<IActionResult> DeleteOwnDomain(string domain)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
         await _regService.DeleteOwnDomain(domain);
         return NoContent();
@@ -226,6 +243,7 @@ public class RegistrationController : ControllerBase
     [HttpPost("create-identity-on-domain/{domain}")]
     public async Task<IActionResult> CreateIdentityOnDomain(string domain, [FromBody] IdentityModel identity)
     {
+        domain = domain.Trim();
         ValidateDomain(domain);
 
         if (!MailAddress.TryCreate(identity.Email, out _))
