@@ -136,6 +136,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task CreateManagedDomain(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
+
+        _logger.LogInformation("Creating managed domain {domain}", domain);
+
         AsciiDomainNameValidator.AssertValidDomain(domain);
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
@@ -163,6 +166,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 throw new OdinSystemException($"Unsupported record: {record.Type}");
             }
         }
+
+        _logger.LogInformation("Created managed domain {domain}", domain);
     }
 
     //
