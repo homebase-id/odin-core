@@ -17,7 +17,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
-using Serilog.Events;
 
 #nullable enable
 namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests;
@@ -40,10 +39,7 @@ public abstract class YouAuthIntegrationTestBase
     [TearDown]
     public void Cleanup()
     {
-        Scaffold.RunAfterAnyTests(logEvents =>
-        {
-            Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(100), "Unexpected number of Fatal log events");
-        });
+        Scaffold.RunAfterAnyTests();
     }
 
     // 
