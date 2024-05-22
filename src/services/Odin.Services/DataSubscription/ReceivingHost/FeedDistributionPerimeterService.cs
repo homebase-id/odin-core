@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -20,6 +21,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Serilog;
 
 namespace Odin.Services.DataSubscription.ReceivingHost
 {
@@ -48,6 +50,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             {
                 var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
 
+                if (request.FileId.GlobalTransitId == Guid.Empty)
+                {
+                    Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
+                }
+                
                 var fileId = await this.ResolveInternalFile(request.FileId, newContext, cn);
 
                 if (null == fileId)
