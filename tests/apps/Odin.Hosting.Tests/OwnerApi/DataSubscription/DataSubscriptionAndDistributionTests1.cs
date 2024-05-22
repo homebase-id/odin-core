@@ -846,7 +846,8 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var uniqueId = Guid.NewGuid();
+        var uploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType, uniqueId);
 
         //Tell Frodo's identity to process the feed outbox
         await frodoOwnerClient.Cron.DistributeFeedFiles();
@@ -867,6 +868,7 @@ public class DataSubscriptionAndDistributionTests1
         Assert.IsTrue(theFile.FileState == FileState.Active);
         Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        Assert.IsTrue(theFile.FileMetadata.AppData.UniqueId == uniqueId);
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -899,7 +901,7 @@ public class DataSubscriptionAndDistributionTests1
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
         var (uploadResult, encryptedJsonContent64, _) =
-            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType, Guid.NewGuid());
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -1168,7 +1170,7 @@ public class DataSubscriptionAndDistributionTests1
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-        
+
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
@@ -1215,7 +1217,7 @@ public class DataSubscriptionAndDistributionTests1
     }
 
     private async Task<UploadResult> UploadStandardUnencryptedFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
-        int fileType)
+        int fileType, Guid? uniqueId = null)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -1226,6 +1228,7 @@ public class DataSubscriptionAndDistributionTests1
                 Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
+                UniqueId = uniqueId,
                 Tags = default
             },
             AccessControlList = AccessControlList.Anonymous
@@ -1239,7 +1242,8 @@ public class DataSubscriptionAndDistributionTests1
             OwnerApiClient client,
             TargetDrive targetDrive,
             string uploadedContent,
-            int fileType)
+            int fileType,
+            Guid? uniqueId = null)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -1250,7 +1254,8 @@ public class DataSubscriptionAndDistributionTests1
                 Content = uploadedContent,
                 FileType = fileType,
                 GroupId = default,
-                Tags = default
+                Tags = default,
+                UniqueId = uniqueId
             },
             AccessControlList = AccessControlList.Connected
         };

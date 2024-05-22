@@ -27,6 +27,7 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+
 namespace Odin.Services.DataSubscription
 {
     /// <summary>
@@ -118,7 +119,8 @@ namespace Odin.Services.DataSubscription
                     try
                     {
                         var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
-                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) && isCollabChannel)
+                        if (drive.Attributes.TryGetValue(IsCollaborativeChannel, out string value) && bool.TryParse(value, out bool isCollabChannel) &&
+                            isCollabChannel)
                         {
                             var upgradedContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
                             await DistributeToCollaborativeChannelMembers(notification, upgradedContext, notification.DatabaseConnection);
@@ -249,9 +251,10 @@ namespace Odin.Services.DataSubscription
         {
             var header = notification.ServerFileHeader;
 
-            var author = odinContext.GetCallerOdinIdOrFail();
-            var connectedFollowers = (await GetConnectedFollowersWithFilePermission(notification, odinContext, cn))
-                .Where(f => (OdinId)f.AsciiDomain != author).ToList();
+            var connectedFollowers = await GetConnectedFollowersWithFilePermission(notification, odinContext, cn);
+            
+            // var author = odinContext.GetCallerOdinIdOrFail();
+            // connectedFollowers = connectedFollowers.Where(f => (OdinId)f.AsciiDomain != author).ToList();
 
             if (connectedFollowers.Any())
             {
@@ -269,7 +272,7 @@ namespace Odin.Services.DataSubscription
                         {
                             KeyHeaderBytes = keyHeader.Combine().GetKey()
                         };
-                        
+
                         encryptedPayload = await _pkService.EccEncryptPayloadForRecipient(
                             PublicPrivateKeyType.OfflineKey,
                             recipient,
@@ -440,7 +443,8 @@ namespace Odin.Services.DataSubscription
             });
         }
 
-        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext, DatabaseConnection cn)
+        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermission(IDriveNotification notification, IOdinContext odinContext,
+            DatabaseConnection cn)
         {
             var followers = await GetFollowers(notification.File.DriveId, odinContext, cn);
             if (!followers.Any())
