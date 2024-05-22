@@ -24,7 +24,7 @@ public class App_DataSubscriptionAndDistributionTests2
 {
     private WebScaffold _scaffold;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -32,7 +32,7 @@ public class App_DataSubscriptionAndDistributionTests2
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

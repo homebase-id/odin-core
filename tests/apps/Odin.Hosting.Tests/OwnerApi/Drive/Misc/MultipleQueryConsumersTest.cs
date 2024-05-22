@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -23,7 +23,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

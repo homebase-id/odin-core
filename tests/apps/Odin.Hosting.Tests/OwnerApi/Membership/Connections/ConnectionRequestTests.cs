@@ -50,7 +50,7 @@ public class ConnectionRequestTests
         };
     }
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -58,7 +58,7 @@ public class ConnectionRequestTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

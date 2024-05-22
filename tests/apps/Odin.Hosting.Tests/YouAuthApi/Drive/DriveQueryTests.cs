@@ -23,7 +23,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -31,7 +31,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

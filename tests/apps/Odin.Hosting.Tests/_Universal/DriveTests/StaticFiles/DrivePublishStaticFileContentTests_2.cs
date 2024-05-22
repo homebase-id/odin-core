@@ -26,7 +26,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -34,7 +34,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

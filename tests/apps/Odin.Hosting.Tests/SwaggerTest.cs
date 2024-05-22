@@ -9,7 +9,7 @@ public class SwaggerTest
 {
     private WebScaffold _scaffold;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -17,7 +17,7 @@ public class SwaggerTest
         _scaffold.RunBeforeAnyTests(initializeIdentity: true);
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

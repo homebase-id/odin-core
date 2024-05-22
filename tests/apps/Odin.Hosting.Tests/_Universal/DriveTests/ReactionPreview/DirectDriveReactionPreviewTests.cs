@@ -12,7 +12,7 @@ public class DirectDriveReactionPreviewTests
 {
     private WebScaffold _scaffold;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -20,7 +20,7 @@ public class DirectDriveReactionPreviewTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

@@ -25,7 +25,7 @@ public class GroupChannelFeedDistribution
 {
     private WebScaffold _scaffold;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -33,7 +33,7 @@ public class GroupChannelFeedDistribution
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

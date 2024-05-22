@@ -13,7 +13,7 @@ namespace Odin.Core.Tests
         // //IHost webserver;
         // // IdentityContextRegistry _registry;
         //
-        // [OneTimeSetUp]
+        // [SetUp]
         // public void OneTimeSetUp()
         // {
         //     // _registry = new IdentityContextRegistry();
@@ -21,7 +21,7 @@ namespace Odin.Core.Tests
         //     //_id = _registry.ResolveContext()
         // }
         //
-        // [OneTimeTearDown]
+        // [TearDown]
         // public void OneTimeTearDown()
         // {
         // }

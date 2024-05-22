@@ -22,7 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
         private readonly TestIdentity _identity = TestIdentities.Frodo;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

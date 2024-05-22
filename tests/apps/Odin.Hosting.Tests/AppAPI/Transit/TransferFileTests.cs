@@ -36,7 +36,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
@@ -44,7 +44,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

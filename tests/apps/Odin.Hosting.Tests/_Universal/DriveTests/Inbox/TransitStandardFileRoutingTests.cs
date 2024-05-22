@@ -31,7 +31,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

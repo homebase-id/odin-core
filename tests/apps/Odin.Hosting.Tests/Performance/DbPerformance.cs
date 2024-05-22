@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.Performance
         }
 
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             var testContextKey = Guid.NewGuid();
@@ -62,7 +62,7 @@ namespace Odin.Hosting.Tests.Performance
             }
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

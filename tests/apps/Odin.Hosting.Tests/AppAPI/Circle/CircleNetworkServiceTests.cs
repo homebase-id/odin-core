@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
     {
         private WebScaffold _scaffold;
 
-        [OneTimeSetUp]
+        [SetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
@@ -23,7 +23,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
             _scaffold.RunBeforeAnyTests();
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

@@ -26,7 +26,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
     private static readonly Dictionary<string, string> IsGroupChannelAttributes = new() { { FeedDriveDistributionRouter.IsCollaborativeChannel, bool.TrueString } };
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -34,7 +34,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

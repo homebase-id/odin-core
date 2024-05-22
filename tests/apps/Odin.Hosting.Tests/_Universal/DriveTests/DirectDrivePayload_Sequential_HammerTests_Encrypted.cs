@@ -27,7 +27,7 @@ public class DirectDrivePayload_Sequential_HammerTests_Encrypted
     private ExternalFileIdentifier _targetFile;
     private KeyHeader _metadataKeyHeader;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -35,7 +35,7 @@ public class DirectDrivePayload_Sequential_HammerTests_Encrypted
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

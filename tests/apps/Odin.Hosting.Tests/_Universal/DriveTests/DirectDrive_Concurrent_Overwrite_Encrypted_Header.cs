@@ -26,7 +26,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     private int _successCount;
     private int _serverErrorCount;
 
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -34,7 +34,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

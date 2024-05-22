@@ -31,7 +31,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     private int _successCount;
     private int _badRequestCount;
     
-    [OneTimeSetUp]
+    [SetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -39,7 +39,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
         _scaffold.RunBeforeAnyTests();
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();
