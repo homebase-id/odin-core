@@ -9,7 +9,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
     {
         private WebScaffold _scaffold;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -17,7 +17,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
             _scaffold.RunBeforeAnyTests(false, false);
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

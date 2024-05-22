@@ -14,7 +14,7 @@ public class PeerQueryTests
 {
     private WebScaffold _scaffold;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -22,7 +22,7 @@ public class PeerQueryTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

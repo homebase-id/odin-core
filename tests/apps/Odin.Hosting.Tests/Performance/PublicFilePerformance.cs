@@ -224,7 +224,7 @@ TaskPerformanceTest
 
         private WebScaffold _scaffold;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -232,7 +232,7 @@ TaskPerformanceTest
             _scaffold.RunBeforeAnyTests();
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

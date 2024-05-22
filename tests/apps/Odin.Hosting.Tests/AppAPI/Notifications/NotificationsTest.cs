@@ -23,7 +23,7 @@ public class NotificationsTest
 {
     private WebScaffold _scaffold;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -31,7 +31,7 @@ public class NotificationsTest
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

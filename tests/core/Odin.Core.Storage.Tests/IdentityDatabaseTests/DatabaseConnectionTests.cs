@@ -14,7 +14,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
     {
         private IdentityDatabase _db;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             _db = new IdentityDatabase(Guid.NewGuid(), "massif.db");
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
             }
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _db.Dispose();

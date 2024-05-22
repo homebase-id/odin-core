@@ -19,7 +19,7 @@ public class AppFollowerTests
 {
     private WebScaffold _scaffold;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -27,7 +27,7 @@ public class AppFollowerTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

@@ -17,7 +17,7 @@ public class DrivePayloadTests
 {
     private WebScaffold _scaffold;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -25,7 +25,7 @@ public class DrivePayloadTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

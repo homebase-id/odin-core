@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
     {
         private WebScaffold _scaffold;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -20,7 +20,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             _scaffold.RunBeforeAnyTests();
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

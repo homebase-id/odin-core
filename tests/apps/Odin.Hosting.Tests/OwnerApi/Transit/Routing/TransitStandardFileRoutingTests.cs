@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
     {
         private WebScaffold _scaffold;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -33,7 +33,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.RunBeforeAnyTests();
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();

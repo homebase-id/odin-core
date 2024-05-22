@@ -25,7 +25,7 @@ public class DirectDrivePayload_Sequential_HammerTests_Unencrypted
     private Guid _initialVersionTag;
     private ExternalFileIdentifier _targetFile;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -33,7 +33,7 @@ public class DirectDrivePayload_Sequential_HammerTests_Unencrypted
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

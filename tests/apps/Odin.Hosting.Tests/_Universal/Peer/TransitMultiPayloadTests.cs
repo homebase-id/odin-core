@@ -10,7 +10,7 @@ public class TransitMultiPayloadTests
 {
     private WebScaffold _scaffold;
 
-    [SetUp]
+    [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -18,7 +18,7 @@ public class TransitMultiPayloadTests
         _scaffold.RunBeforeAnyTests();
     }
 
-    [TearDown]
+    [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();

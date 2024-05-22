@@ -19,7 +19,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
     {
         private WebScaffold _scaffold;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
@@ -32,7 +32,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             _scaffold.RunBeforeAnyTests(false, false, dict);
         }
 
-        [TearDown]
+        [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();
