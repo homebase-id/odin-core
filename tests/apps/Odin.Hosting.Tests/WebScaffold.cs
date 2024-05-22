@@ -52,6 +52,7 @@ namespace Odin.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
+        private Action<Dictionary<LogEventLevel, List<LogEvent>>> _assertLogEvents;
 
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
@@ -113,6 +114,7 @@ namespace Odin.Hosting.Tests
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
+            _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -216,8 +218,8 @@ namespace Odin.Hosting.Tests
             GC.Collect();
 
             // Make sure this is last so it doesnt mess up the rest of the cleanup
-            assertLogEvents ??= AssertLogEvents;
-            assertLogEvents(logEvents);
+            _assertLogEvents ??= assertLogEvents ?? DefaultAssertLogEvents;
+            _assertLogEvents(logEvents);
         }
 
         public OwnerApiTestUtils OldOwnerApi =>
@@ -368,7 +370,12 @@ namespace Odin.Hosting.Tests
 
         //
 
-        private void AssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
+        public void SetAssertLogEvents(Action<Dictionary<LogEventLevel, List<LogEvent>>> logEventsAction)
+        {
+            _assertLogEvents = logEventsAction;
+        }
+
+        private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
         {
             Assert.That(logEvents[LogEventLevel.Information].Count, Is.GreaterThan(0), "Unexpected number of Information log events");
             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
