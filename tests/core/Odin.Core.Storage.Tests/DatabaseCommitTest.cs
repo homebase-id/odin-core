@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using NUnit.Framework;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Odin.Core.Storage.Tests
@@ -111,7 +113,6 @@ namespace Odin.Core.Storage.Tests
             }
         }
 
-
         /// <summary>
         /// Make sure each new thread will have it's own connection and own commit counter
         /// </summary>
@@ -156,6 +157,274 @@ namespace Odin.Core.Storage.Tests
 
             // Await all the tasks to complete
             await Task.WhenAll(tasks);
+        }
+
+        [Test]
+        public void CreateCommitUnitOfWorkShouldRollbackOnException()
+        {
+            int Count(DatabaseConnection cn)
+            {
+                using var cmd = cn.db.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(*) FROM keyValue;";
+                cmd.Connection = cn.Connection;
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var cn = db.CreateDisposableConnection();
+
+            db.CreateDatabase(cn, true);
+            var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
+
+            db.tblKeyValue.Insert(cn, kv);
+            Assert.That(Count(cn), Is.EqualTo(1));
+
+            // First make sure we can provoke a key violation
+            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(cn, kv));
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Lets add 3 some rows in two nested transactions
+            cn.CreateCommitUnitOfWork(() =>
+            {
+                db.tblKeyValue.Insert(cn,
+                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                cn.CreateCommitUnitOfWork(() =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                });
+            });
+
+            // Make sure they are committed (total row count == 4)
+            Assert.That(Count(cn), Is.EqualTo(4));
+
+            // Rollback Variant 1
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.Throws<SqliteException>(() =>
+            {
+                cn.CreateCommitUnitOfWork(() =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    cn.CreateCommitUnitOfWork(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                        db.tblKeyValue.Insert(cn, kv);
+                    });
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(Count(cn), Is.EqualTo(4));
+
+            // Rollback Variant 2
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.Throws<SqliteException>(() =>
+            {
+                cn.CreateCommitUnitOfWork(() =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    cn.CreateCommitUnitOfWork(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    });
+
+                    db.tblKeyValue.Insert(cn, kv);
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(Count(cn), Is.EqualTo(4));
+
+            // Rollback Variant 3
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.Throws<SqliteException>(() =>
+            {
+                cn.CreateCommitUnitOfWork(() =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    db.tblKeyValue.Insert(cn, kv);
+
+                    cn.CreateCommitUnitOfWork(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    });
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(Count(cn), Is.EqualTo(4));
+
+            // Finally a single successful row for good measure
+            cn.CreateCommitUnitOfWork(() =>
+            {
+                db.tblKeyValue.Insert(cn,
+                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+            });
+            Assert.That(Count(cn), Is.EqualTo(5));
+
+        }
+
+        [Test]
+        public async Task CreateCommitUnitOfWorkAsyncShouldRollbackOnException()
+        {
+            async Task<int> CountAsync(DatabaseConnection cn)
+            {
+                using var cmd = cn.db.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(*) FROM keyValue;";
+                cmd.Connection = cn.Connection;
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+
+            using var db = new IdentityDatabase(Guid.NewGuid(), "");
+            using var cn = db.CreateDisposableConnection(); // SEB:TODO make async variant
+
+            db.CreateDatabase(cn, true); // SEB:TODO make async variant
+            var kv = new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() };
+
+            db.tblKeyValue.Insert(cn, kv); // SEB:TODO make async variant
+            Assert.That(await CountAsync(cn), Is.EqualTo(1));
+
+            // First make sure we can provoke a key violation
+            var exception = Assert.Throws<SqliteException>(() => db.tblKeyValue.Insert(cn, kv));
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Lets add 3 some rows in two nested transactions
+            await cn.CreateCommitUnitOfWorkAsync(async () =>
+            {
+                db.tblKeyValue.Insert(cn,
+                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                await cn.CreateCommitUnitOfWorkAsync(() =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    return Task.CompletedTask;
+                });
+            });
+
+            // Make sure they are committed (total row count == 4)
+            Assert.That(await CountAsync(cn), Is.EqualTo(4));
+
+            // Rollback Variant 1
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
+            {
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                        db.tblKeyValue.Insert(cn, kv);
+
+                        return Task.CompletedTask;
+                    });
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(await CountAsync(cn), Is.EqualTo(4));
+
+            // Rollback Variant 2
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
+            {
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                        return Task.CompletedTask;
+                    });
+
+                    db.tblKeyValue.Insert(cn, kv);
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(await CountAsync(cn), Is.EqualTo(4));
+
+            // Rollback Variant 3
+            // Lets add 3 more rows in two nested transactions
+            // And then the fatal key violation that should rollback everything
+            exception = Assert.ThrowsAsync<SqliteException>(async () =>
+            {
+                await cn.CreateCommitUnitOfWorkAsync(async () =>
+                {
+                    db.tblKeyValue.Insert(cn,
+                        new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                    db.tblKeyValue.Insert(cn, kv);
+
+                    await cn.CreateCommitUnitOfWorkAsync(() =>
+                    {
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                        db.tblKeyValue.Insert(cn,
+                            new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+
+                        return Task.CompletedTask;
+                    });
+                });
+            });
+            Assert.That(exception!.SqliteErrorCode, Is.EqualTo(19));
+
+            // Make sure we still only have 4 rows
+            Assert.That(await CountAsync(cn), Is.EqualTo(4));
+
+            // Finally a single successful row for good measure
+            await cn.CreateCommitUnitOfWorkAsync(() =>
+            {
+                db.tblKeyValue.Insert(cn,
+                    new KeyValueRecord { key = Guid.NewGuid().ToByteArray(), data = Guid.NewGuid().ToByteArray() });
+                return Task.CompletedTask;
+            });
+            Assert.That(await CountAsync(cn), Is.EqualTo(5));
         }
 
 
