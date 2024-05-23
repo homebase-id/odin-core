@@ -558,7 +558,11 @@ namespace Odin.Services.Membership.Connections
         public async Task<IcrTroubleshootingInfo> GetTroubleshootingInfo(OdinId odinId, IOdinContext odinContext, DatabaseConnection cn)
         {
             odinContext.Caller.AssertHasMasterKey();
-            
+
+            // Need to see if the circle has the correct drives
+            // 
+            // SystemCircleConstants.ConnectedIdentitiesSystemCircleInitialDrives
+
             var info = new IcrTroubleshootingInfo();
             var circleDefinitions = (await circleDefinitionService.GetCircles(true, cn)).ToList();
             var icr = await GetIdentityConnectionRegistrationInternal(odinId, cn);
@@ -567,18 +571,26 @@ namespace Odin.Services.Membership.Connections
             foreach (var definition in circleDefinitions)
             {
                 var isCircleMember = icr.AccessGrant.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
-
                 var hasCircleGrant = circleGrant != null;
-                
+
+                var summary = isCircleMember ? "Identity is in this circle" : "Identity is not a member of this circle";
+                var actualPermissionKeys = circleGrant?.PermissionSet?.Redacted() ?? new RedactedPermissionSet() { Keys = [] };
+                var permissionKeysMatch = definition.Permissions.Keys.Order().SequenceEqual(actualPermissionKeys.Keys.Order());
+
                 var ci = new CircleInfo()
                 {
                     CircleDefinitionId = definition.Id,
                     CircleDefinitionName = definition.Name,
                     CircleDefinitionDriveGrantCount = definition.DriveGrants?.Count() ?? 0,
-                    IsCircleMember = isCircleMember,
-                    DriveGrantAnalysis = new List<DriveGrantInfo>(),
-                    ExpectedPermissionKeys = definition.Permissions.Redacted(),
-                    ActualPermissionKeys = circleGrant?.PermissionSet?.Redacted() ?? new RedactedPermissionSet() { Keys = [] },
+                    Analysis = new CircleAnalysis()
+                    {
+                        IsCircleMember = isCircleMember,
+                        Summary = summary,
+                        PermissionKeysAreValid = permissionKeysMatch,
+                        ExpectedPermissionKeys = definition.Permissions.Redacted(),
+                        ActualPermissionKeys = actualPermissionKeys,
+                        DriveGrantAnalysis = new List<DriveGrantInfo>(),
+                    }
                 };
 
                 if (isCircleMember && definition.DriveGrants != null && hasCircleGrant)
@@ -591,16 +603,33 @@ namespace Odin.Services.Membership.Connections
                         var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
                             dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);
 
+                        //you must have drive-read permission to get the Key Store Key
+                        // you can have write permission w/o having the storage key
+                        var driveIsGranted = grantedDrive != null;
+                        var encryptedKeyLength = grantedDrive?.KeyStoreKeyEncryptedStorageKey?.KeyEncrypted?.Length ?? 0;
+
+                        var expectedDrivePermission = expectedDriveGrant.PermissionedDrive.Permission;
+                        var actualDrivePermission = grantedDrive?.PermissionedDrive.Permission ?? DrivePermission.None;
+
+                        var drivePermissionIsValid = expectedDrivePermission == actualDrivePermission;
+                        var hasValidEncryptionKey = true;
+                        if (expectedDrivePermission.HasFlag(DrivePermission.Read))
+                        {
+                            hasValidEncryptionKey = encryptedKeyLength > 0;
+                        }
+
+                        var isValid = driveIsGranted && drivePermissionIsValid && hasValidEncryptionKey;
                         var dgi = new DriveGrantInfo()
                         {
                             DriveName = driveInfo.Name,
-                            DriveIsGranted = grantedDrive != null,
-                            ExpectedDrivePermission = expectedDriveGrant.PermissionedDrive.Permission,
-                            ActualDrivePermission = grantedDrive?.PermissionedDrive.Permission ?? DrivePermission.None,
-                            EncryptedKeyLength = grantedDrive?.KeyStoreKeyEncryptedStorageKey?.KeyEncrypted?.Length ?? 0
+                            DriveGrantIsValid = isValid,
+                            DriveIsGranted = driveIsGranted,
+                            ExpectedDrivePermission = expectedDrivePermission,
+                            ActualDrivePermission = actualDrivePermission,
+                            EncryptedKeyLength = encryptedKeyLength
                         };
 
-                        ci.DriveGrantAnalysis.Add(dgi);
+                        ci.Analysis.DriveGrantAnalysis.Add(dgi);
                     }
                 }
 
@@ -609,7 +638,7 @@ namespace Odin.Services.Membership.Connections
 
             return info;
         }
-        
+
         //
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(
@@ -913,7 +942,5 @@ namespace Odin.Services.Membership.Connections
             }
             //
         }
-
-        
     }
 }
