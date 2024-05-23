@@ -205,7 +205,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var targetDriveId = tempFile.DriveId;
 
             //
-            // first case: If the file does not exist, then just write the file
+            // first case: If the file does not exist, then just write the file 
             //
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
