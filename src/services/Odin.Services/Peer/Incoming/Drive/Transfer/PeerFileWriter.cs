@@ -89,7 +89,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     bool.TryParse(value, out bool isCollabChannel) &&
                     isCollabChannel)
                 {
-                    targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl;
+                    targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
+                    {
+                        RequiredSecurityGroup = SecurityGroupType.Owner
+                    };
                 }
             }
 
