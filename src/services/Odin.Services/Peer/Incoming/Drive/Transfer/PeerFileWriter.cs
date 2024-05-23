@@ -12,9 +12,11 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -26,7 +28,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver)
+    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
@@ -77,6 +79,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 targetAcl = await ResetAclForComment(metadata, odinContext, cn);
             }
+            else
+            {
+                //
+                // Feed hack
+                //
+                var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
+                if (drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) &&
+                    bool.TryParse(value, out bool isCollabChannel) &&
+                    isCollabChannel)
+                {
+                    targetAcl = AccessControlList.Connected;
+                }
+            }
 
             var serverMetadata = new ServerMetadata()
             {
@@ -95,7 +110,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 case TransferFileType.Normal:
                     await StoreNormalFileLongTerm(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;
-                
+
                 case TransferFileType.EncryptedFileForFeed:
                     await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext, cn);
                     break;
@@ -150,7 +165,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (clientFileHeader == null)
             {
                 // this is bad error.
-                logger.LogError("While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ", item.GlobalTransitId, item.DriveId);
+                logger.LogError(
+                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
+                    item.GlobalTransitId, item.DriveId);
                 throw new OdinFileWriteException("Missing file by global transit i3d while file while processing delete request in inbox");
             }
 
@@ -477,7 +494,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             throw new OdinSystemException("Transit Receiver has unhandled file update scenario");
         }
-        
+
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId,
             IOdinContext odinContext, DatabaseConnection cn)
         {

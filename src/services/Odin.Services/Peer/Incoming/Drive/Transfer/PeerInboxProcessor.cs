@@ -15,6 +15,7 @@ using Odin.Services.Base;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Mediator.Owner;
 using Odin.Services.Membership.Connections;
@@ -29,7 +30,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         CircleNetworkService circleNetworkService,
         ILogger<PeerInboxProcessor> logger,
-        PublicPrivateKeyService keyService)
+        PublicPrivateKeyService keyService,
+        DriveManager driveManager)
         : INotificationHandler<RsaKeyRotatedNotification>
     {
         /// <summary>
@@ -47,7 +49,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 status.PoppedCount, status.TotalItems,
                 status.OldestItemTimestamp.milliseconds);
 
-            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver);
+            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
             logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
 
             foreach (var inboxItem in items)
