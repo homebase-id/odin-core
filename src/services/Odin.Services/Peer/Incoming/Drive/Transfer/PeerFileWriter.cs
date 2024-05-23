@@ -82,7 +82,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             else
             {
                 //
-                // Feed hack
+                // Collab channel hack; need to cleanup location of the IsCollaborativeChannel flag
                 //
                 var drive = await driveManager.GetDrive(tempFile.DriveId, cn);
                 if (drive.Attributes.TryGetValue(FeedDriveDistributionRouter.IsCollaborativeChannel, out string value) &&
