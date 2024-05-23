@@ -316,6 +316,17 @@ public class AdminControllerTest
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         }
 
+        // Disabled tenants should still be returned in the tenant list
+        {
+            var request = NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants");
+            var response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            var tenants = OdinSystemSerializer.Deserialize<List<TenantModel>>(await response.Content.ReadAsStringAsync());
+            Assert.That(tenants, Has.Some.Matches<TenantModel>(t => t.Domain == "frodo.dotyou.cloud"));
+        }
+
         // Enable
         {
             var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
