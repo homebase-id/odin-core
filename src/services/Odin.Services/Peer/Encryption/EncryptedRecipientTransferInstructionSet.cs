@@ -1,5 +1,6 @@
 using Odin.Services.Peer.Outgoing;
 using Odin.Core.Storage;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -28,6 +29,8 @@ namespace Odin.Services.Peer.Encryption
         public SendContents ContentsProvided { get; set; }
 
         public AppNotificationOptions AppNotificationOptions { get; set; }
+        
+        public AccessControlList OriginalAcl { get; set; }
 
         public bool IsValid()
         {
