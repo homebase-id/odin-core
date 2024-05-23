@@ -846,7 +846,7 @@ public class DataSubscriptionAndDistributionTests1
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uniqueId = Guid.NewGuid();
+        Guid? uniqueId = Guid.NewGuid();
         var uploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType, uniqueId);
 
         //Tell Frodo's identity to process the feed outbox

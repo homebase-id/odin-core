@@ -195,6 +195,7 @@ public class SqliteDatabaseManager(TenantSystemStorage tenantSystemStorage, Stor
             {
                 if (e.SqliteErrorCode == 19 || e.ErrorCode == 19 || e.SqliteExtendedErrorCode == 19)
                 {
+                    logger.LogError("SqliteErrorCode:19 - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}", metadata.AppData.UniqueId, metadata.GlobalTransitId, Drive.Id);
                     throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
